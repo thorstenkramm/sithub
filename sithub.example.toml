@@ -1,0 +1,105 @@
+## TOML-based configuration file for the SitHub server.
+
+[main]
+  ## Server listen address, string, optional
+  ## Can be overridden with --listen flag or SITHUB_MAIN_LISTEN environment variable
+  ## Example: "0.0.0.0"
+  ## Default: "127.0.0.1"
+  #listen = "127.0.0.1"
+
+  ## Server listen port, int, optional
+  ## Can be overridden with --port flag or SITHUB_MAIN_PORT environment variable
+  ## Example: 3000
+  ## Default: 9900
+  #port = 9900
+
+  ## Data directory, string, optional
+  ## Can be overridden with --data-dir flag or SITHUB_MAIN_DATA_DIR environment variable
+  ## Directory to store the SQLite database and other persistent data
+  ## Example: "/var/lib/sithub"
+  ## Default: "." # Current directory
+  #data_dir = "."
+
+[log]
+  ## Log file, string, optional
+  ## Can be overridden with --log-file flag or SITHUB_LOG_FILE environment variable.
+  ## If omitted, logging is turned off. Use "-" for stdout.
+  ## Example: "/var/log/sithub/sithub.log"
+  ## Default: ""
+  #file = "/var/log/sithub/sithub.log"
+
+  ## Log level, string, optional
+  ## Can be overridden with --log-level flag or SITHUB_LOG_LEVEL environment variable.
+  ## One of debug, info, warn, error.
+  ## Example: "debug"
+  ## Default: "info"
+  #level = "debug"
+
+  ## Log format, string, optional
+  ## Can be overridden with --log-format flag or SITHUB_LOG_FORMAT environment variable.
+  ## One of "text" or "json".
+  ## Example: "text"
+  ## Default: "text"
+  #format = "json"
+
+[entraid]
+  ## Authorize URL, string, mandatory
+  ## Can be overridden with --entraid-authorize-url flag or SITHUB_ENTRAID_AUTHORIZE_URL environment variable.
+  ## OAuth provider base URL used for handling the user's authorization.
+  ## Called "OAuth 2.0 authorization endpoint (v2)" on Entra ID settings.
+  ## Example: "https://login.microsoftonline.com/692819c9-2bf8-4b11-b59d-523fd7cf8d62/oauth2/v2.0/authorize"
+  ## Default: none
+  #authorize_url = "https://login.microsoftonline.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/oauth2/v2.0/authorize"
+
+  ## Token URL, string, mandatory
+  ## Can be overridden with --entraid-token-url flag or SITHUB_ENTRAID_TOKEN_URL environment variable.
+  ## OAuth provider base URL where SitHub will get an OAuth access token for looking up the user and organization or group info.
+  ## Called "OAuth 2.0 token endpoint (v2)" on Entra ID settings.
+  ## Example: "https://login.microsoftonline.com/692819c9-2bf8-4b11-b59d-523fd7cf8d62/oauth2/v2.0/token"
+  ## Default: none
+  #token_url = "https://login.microsoftonline.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/oauth2/v2.0/token"
+
+  ## Redirect URI, string, mandatory
+  ## Can be overridden with --entraid-redirect-uri flag or SITHUB_ENTRAID_REDIRECT_URI environment variable.
+  ## Required URI where the OAuth provider will redirect to after completing the user's authorization.
+  ## Must match the FQDN of the running SitHub server.
+  ## Must end in /oauth/callback
+  ## Example: "https://sithub.example.com/oauth/callback"
+  ## Default: none
+  #redirect_uri = "https://sithub.example.com/oauth/callback"
+
+  ## Client ID, string, mandatory
+  ## Can be overridden with --entraid-client_id flag or SITHUB_ENTRAID_CLIENT_ID environment variable.
+  ## Identifier assigned to the SitHub application during the OAuth provider setup.
+  ## Called "Application (client) ID" on Entra ID settings.
+  ## Example: "23c699de-b9d8-4c89-ac0c-27ada9422d27"
+  ## Default: none
+  #client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+  ## Client Secret, string, mandatory
+  ## Can be overridden with --entraid-client_secret flag or SITHUB_ENTRAID_CLIENT_SECRET environment variable.
+  ## A secret provided by the OAuth provider to be used when exchanging an authorization code for OAuth provider tokens.
+  ## It's the **value** (not the ID) of a client secret displayed only once on secret creation.
+  ## *** Keep private and DO NOT include in any VCS, unencrypted backups, etc. ***
+  ## Example: "aNeShaeb2woojaeD9oogheeX"
+  ## Default: none
+  #client_secret = "xxxxxxxxxxxxxxxxxxxxxxxx"
+
+  ## Users Group ID, string, optional
+  ## Can be overridden with --entraid-users-group-id flag or SITHUB_ENTRAID_USERS_GROUP_ID environment variable.
+  ## If given, only users of the specified group will have access to the SitHub app.
+  ## If not given, any user of the Entra ID organization will have access.
+  ## Note: It's a group ID, also called Object ID, not a group name.
+  ## Example: "74056f7f-f851-43dc-b3cb-f67d89772554"
+  ## Default: none
+  #users_group_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+  ## Admin Group ID, string, optional
+  ## Can be overridden with --entraid-admin-group-id flag or SITHUB_ENTRAID_ADMIN_GROUP_ID environment variable.
+  ## If given, only users of the specified group will have access to the administration features.
+  ## If not given, any user can administer the app.
+  ## If 'users_group_id' is given (see above) admins must belong to both groups.
+  ## Note: It's a group ID, also called Object ID, not a group name.
+  ## Example: "650d8548-bdec-4f1e-b411-7d30025d70b6"
+  ## Default: none
+  #admins_group_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

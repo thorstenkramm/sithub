@@ -1,0 +1,30 @@
+---
+# A SitHub area configuration example
+
+areas:
+  - id: office_1st_floor # Unique ID, string, mandatory
+    name: Office 1st Floor # Name, string, mandatory
+    description: Main office area on the first floor # Description, string, optional
+    floor_plan: "floor_plans/office_1st_floor.svg" # Floor plan, string (relative to data_dir), optional
+    rooms:
+      - id: room_101 # Unique ID per area, string, mandatory
+        name: Room 101 # Name, string, mandatory
+        description: General office space # Description, string, optional
+        floor_plan: "floor_plans/room_101.svg" # Floor plan, string (relative to data_dir), optional
+        desks:
+          - id: desk_101_1 # Unique ID per room, string, mandatory
+            name: Desk 1 # Name, string, mandatory
+            equipment: # List of equipment, list (string), mandatory
+              - "32 inch curved display, 2K"
+              - "Wireless keyboard and mouse"
+              - "Height-adjustable desk"
+            warning: | # Warnings, string, optional
+              Only for Apple users. USB-C Hub does not connect to Windows and Linux PCs.
+          - id: desk_101_2
+            name: Desk 2
+            equipment:
+              - "2x 27 inch displays, Full HD each"
+              - "USB-C Hub"
+              - "Full HD USB Webcam"
+            warning: |
+              Desk not height-adjustable.
