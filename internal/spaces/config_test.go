@@ -52,6 +52,29 @@ func TestFindArea(t *testing.T) {
 	}
 }
 
+func TestFindRoom(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Main",
+				Rooms: []Room{
+					{ID: "r1", Name: "Room 1"},
+				},
+			},
+		},
+	}
+
+	room, ok := cfg.FindRoom("r1")
+	if !ok || room.Name != "Room 1" {
+		t.Fatalf("expected to find room r1")
+	}
+
+	if _, ok := cfg.FindRoom("missing"); ok {
+		t.Fatalf("expected missing room to be false")
+	}
+}
+
 func TestLoadConfigMissingAreaID(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "spaces.yaml")

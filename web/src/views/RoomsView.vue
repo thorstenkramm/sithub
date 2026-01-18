@@ -20,10 +20,15 @@
             </v-alert>
             <div v-else>
               <v-list v-if="rooms.length" data-cy="rooms-list">
-                <v-list-item v-for="room in rooms" :key="room.id" data-cy="room-item">
-                  <v-list-item-title>{{ room.attributes.name }}</v-list-item-title>
-                </v-list-item>
-              </v-list>
+              <v-list-item
+                v-for="room in rooms"
+                :key="room.id"
+                data-cy="room-item"
+                @click="goToDesks(room.id)"
+              >
+                <v-list-item-title>{{ room.attributes.name }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
               <div v-else class="text-caption" data-cy="rooms-empty">No rooms available.</div>
             </div>
           </v-card-text>
@@ -49,6 +54,10 @@ const roomsErrorMessage = ref<string | null>(null);
 const route = useRoute();
 const router = useRouter();
 const { loading: roomsLoading, run: runRooms } = useApi();
+
+const goToDesks = async (roomId: string) => {
+  await router.push({ name: 'desks', params: { roomId } });
+};
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {

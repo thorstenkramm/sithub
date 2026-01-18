@@ -142,3 +142,38 @@ components:
             $ref: '#/components/schemas/RoomResource'
       required:
         - data
+    DeskAttributes:
+      type: object
+      properties:
+        name:
+          type: string
+        equipment:
+          type: array
+          items:
+            type: string
+        warning:
+          type: string
+      required:
+        - name
+        - equipment
+    DeskResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: desks
+            attributes:
+              $ref: '#/components/schemas/DeskAttributes'
+          required:
+            - type
+            - attributes
+    DeskCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeskResource'
+      required:
+        - data

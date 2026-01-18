@@ -49,7 +49,7 @@ development_status:
   epic-2: in-progress
   2-1-list-areas: done
   2-2-list-rooms-in-an-area: done
-  2-3-list-desks-with-equipment: backlog
+  2-3-list-desks-with-equipment: done
   2-4-show-availability-status-by-date: backlog
   epic-2-retrospective: optional
 

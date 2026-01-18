@@ -2,7 +2,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import AreasView from './AreasView.vue';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
-import { defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 
 const pushMock = vi.fn();
 
@@ -21,24 +21,7 @@ vi.mock('vue-router', () => ({
 }));
 
 describe('AreasView', () => {
-  const slotStub = {
-    template: '<div><slot /></div>'
-  };
-
-  const stubs = {
-    'v-container': slotStub,
-    'v-row': slotStub,
-    'v-col': slotStub,
-    'v-card': slotStub,
-    'v-card-title': slotStub,
-    'v-card-text': slotStub,
-    'v-btn': slotStub,
-    'v-list': slotStub,
-    'v-list-item': slotStub,
-    'v-list-item-title': slotStub,
-    'v-progress-linear': slotStub,
-    'v-alert': slotStub
-  };
+  const stubs = buildViewStubs();
 
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
   const mockFetchMe = (isAdmin: boolean) => {

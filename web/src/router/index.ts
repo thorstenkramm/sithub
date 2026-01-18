@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import AreasView from '../views/AreasView.vue';
 import AccessDeniedView from '../views/AccessDeniedView.vue';
 import RoomsView from '../views/RoomsView.vue';
+import DesksView from '../views/DesksView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,11 @@ const router = createRouter({
       path: '/areas/:areaId/rooms',
       name: 'rooms',
       component: RoomsView
+    },
+    {
+      path: '/rooms/:roomId/desks',
+      name: 'desks',
+      component: DesksView
     },
     {
       path: '/access-denied',

@@ -18,6 +18,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/config"
 	"github.com/thorstenkramm/sithub/internal/db"
+	"github.com/thorstenkramm/sithub/internal/desks"
 	"github.com/thorstenkramm/sithub/internal/middleware"
 	"github.com/thorstenkramm/sithub/internal/rooms"
 	"github.com/thorstenkramm/sithub/internal/spaces"
@@ -98,6 +99,7 @@ func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *space
 	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth(authService))
 	e.GET("/api/v1/areas", areas.ListHandler(spacesConfig), middleware.RequireAuth(authService))
 	e.GET("/api/v1/areas/:area_id/rooms", rooms.ListHandler(spacesConfig), middleware.RequireAuth(authService))
+	e.GET("/api/v1/rooms/:room_id/desks", desks.ListHandler(spacesConfig), middleware.RequireAuth(authService))
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {

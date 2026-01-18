@@ -16,6 +16,33 @@ export function mockWindowLocation() {
   };
 }
 
+export function buildViewStubs(extra: string[] = []) {
+  const slotStub = {
+    template: '<div><slot /></div>'
+  };
+
+  const stubs: Record<string, unknown> = {
+    'v-container': slotStub,
+    'v-row': slotStub,
+    'v-col': slotStub,
+    'v-card': slotStub,
+    'v-card-title': slotStub,
+    'v-card-text': slotStub,
+    'v-list': slotStub,
+    'v-list-item': slotStub,
+    'v-list-item-title': slotStub,
+    'v-progress-linear': slotStub,
+    'v-alert': slotStub,
+    'v-btn': slotStub
+  };
+
+  for (const name of extra) {
+    stubs[name] = slotStub;
+  }
+
+  return stubs;
+}
+
 export async function expectLoginRedirect(mountView: () => void) {
   const restore = mockWindowLocation();
   mountView();
