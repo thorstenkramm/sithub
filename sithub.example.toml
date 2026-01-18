@@ -42,6 +42,14 @@
   ## Default: "text"
   #format = "json"
 
+[spaces]
+  ## Spaces config file, string, mandatory
+  ## Can be overridden with --spaces-config-file flag or SITHUB_SPACES_CONFIG_FILE environment variable
+  ## Path to the YAML file that defines areas, rooms, and desks
+  ## Example: "./sithub_areas.yaml"
+  ## Default: none
+  #config_file = "./sithub_areas.yaml"
+
 [entraid]
   ## Authorize URL, string, mandatory
   ## Can be overridden with --entraid-authorize-url flag or SITHUB_ENTRAID_AUTHORIZE_URL environment variable.

@@ -55,6 +55,7 @@ This is only for local testing and must not be used in production.
 - Desks are the individual workstations available for booking.
 - Areas, rooms, desks, and desk equipment can be managed through a comprehensive
   [YAML configuration file](./sithub_areas.example.yaml).
+- Point SitHub at the YAML file using `spaces.config_file` in `sithub.toml` or `--spaces-config-file`.
 
 ### Installation
 

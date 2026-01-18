@@ -60,9 +60,8 @@ describe('AreasView', () => {
         type: 'areas',
         attributes: {
           name: `Area ${index + 1}`,
-          sort_order: index,
-          created_at: '2026-01-18T00:00:00Z',
-          updated_at: '2026-01-18T00:00:00Z'
+          description: index === 0 ? 'Main area' : undefined,
+          floor_plan: index === 0 ? 'floor_plans/area.svg' : undefined
         }
       }))
     });

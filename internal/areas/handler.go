@@ -8,27 +8,27 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
 // ListHandler returns a JSON:API list of areas.
-func ListHandler(repo *Repository) echo.HandlerFunc {
+func ListHandler(cfg *spaces.Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		areas, err := repo.List(c.Request().Context())
-		if err != nil {
-			return fmt.Errorf("list areas: %w", err)
-		}
-
-		resources := make([]api.Resource, 0, len(areas))
-		for _, area := range areas {
+		resources := make([]api.Resource, 0, len(cfg.Areas))
+		for _, area := range cfg.Areas {
+			attrs := map[string]interface{}{
+				"name": area.Name,
+			}
+			if area.Description != "" {
+				attrs["description"] = area.Description
+			}
+			if area.FloorPlan != "" {
+				attrs["floor_plan"] = area.FloorPlan
+			}
 			resources = append(resources, api.Resource{
-				Type: "areas",
-				ID:   area.ID,
-				Attributes: map[string]interface{}{
-					"name":       area.Name,
-					"sort_order": area.SortOrder,
-					"created_at": area.CreatedAt,
-					"updated_at": area.UpdatedAt,
-				},
+				Type:       "areas",
+				ID:         area.ID,
+				Attributes: attrs,
 			})
 		}
 

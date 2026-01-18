@@ -3,9 +3,8 @@ import type { CollectionResponse } from './types';
 
 export interface AreaAttributes {
   name: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
+  description?: string;
+  floor_plan?: string;
 }
 
 export function fetchAreas() {

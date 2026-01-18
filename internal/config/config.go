@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -12,12 +13,16 @@ import (
 // ErrMissingEntraIDConfig indicates incomplete Entra ID settings.
 var ErrMissingEntraIDConfig = errors.New("missing Entra ID configuration")
 
+// ErrMissingSpacesConfig indicates missing spaces configuration settings.
+var ErrMissingSpacesConfig = errors.New("missing spaces configuration")
+
 // Config holds the full application configuration.
 type Config struct {
 	Main     MainConfig     `mapstructure:"main"`
 	Log      LogConfig      `mapstructure:"log"`
 	EntraID  EntraIDConfig  `mapstructure:"entraid"`
 	TestAuth TestAuthConfig `mapstructure:"test_auth"`
+	Spaces   SpacesConfig   `mapstructure:"spaces"`
 }
 
 // MainConfig contains main server settings.
@@ -53,6 +58,11 @@ type TestAuthConfig struct {
 	Permitted bool   `mapstructure:"permitted"`
 }
 
+// SpacesConfig contains space configuration settings.
+type SpacesConfig struct {
+	ConfigFile string `mapstructure:"config_file"`
+}
+
 // Load reads configuration from a TOML file and environment variables.
 func Load(path string) (*Config, error) {
 	return LoadWithOverrides(path, nil)
@@ -77,6 +87,7 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	v.SetDefault("test_auth.user_id", "test-user")
 	v.SetDefault("test_auth.user_name", "Test User")
 	v.SetDefault("test_auth.permitted", true)
+	v.SetDefault("spaces.config_file", "")
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
@@ -96,6 +107,13 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 			cfg.EntraID.ClientID == "" || cfg.EntraID.ClientSecret == "" {
 			return nil, fmt.Errorf("validate entraid: %w", ErrMissingEntraIDConfig)
 		}
+	}
+
+	if strings.TrimSpace(cfg.Spaces.ConfigFile) == "" {
+		return nil, fmt.Errorf("validate spaces: %w", ErrMissingSpacesConfig)
+	}
+	if _, err := os.Stat(cfg.Spaces.ConfigFile); err != nil {
+		return nil, fmt.Errorf("validate spaces: %w", err)
 	}
 
 	return &cfg, nil

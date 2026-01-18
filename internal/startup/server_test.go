@@ -2,6 +2,8 @@ package startup
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -21,6 +23,9 @@ func TestRunShutsDownOnContextCancel(t *testing.T) {
 			RedirectURI:  "http://localhost/callback",
 			ClientID:     "client",
 			ClientSecret: "secret",
+		},
+		Spaces: config.SpacesConfig{
+			ConfigFile: writeSpacesConfig(t),
 		},
 	}
 
@@ -42,4 +47,13 @@ func TestRunShutsDownOnContextCancel(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout waiting for server shutdown")
 	}
+}
+
+func writeSpacesConfig(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "spaces.yaml")
+	if err := os.WriteFile(path, []byte("areas: []\n"), 0o600); err != nil {
+		t.Fatalf("write spaces config: %v", err)
+	}
+	return path
 }

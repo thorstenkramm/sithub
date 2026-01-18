@@ -19,9 +19,9 @@ so that I can choose where to book.
 
 ## Tasks / Subtasks
 
-- [x] Add areas data model and persistence (AC: 1)
-  - [x] Create migration for `areas` table (id, name, sort_order, created_at, updated_at)
-  - [x] Add repository to list areas ordered by sort_order then name
+- [x] Add areas config loader (AC: 1)
+  - [x] Load areas from YAML configuration file
+  - [x] Validate required fields (id, name)
 - [x] Add areas API endpoint (AC: 1)
   - [x] Implement `GET /api/v1/areas` returning JSON:API collection
   - [x] Enforce auth middleware and JSON:API error handling
@@ -29,7 +29,7 @@ so that I can choose where to book.
   - [x] Fetch areas and render a list with empty-state copy
   - [x] Ensure accessible labels and visible focus states (WCAG A)
 - [x] Add tests (AC: 1)
-  - [x] Backend: repo and handler tests for ordering + empty list
+  - [x] Backend: config loader and handler tests for empty list
   - [x] Frontend: unit test for empty and non-empty states
   - [x] Cypress E2E: authenticated user sees areas list
 - [x] Add API documentation (AC: 1)
@@ -39,9 +39,8 @@ so that I can choose where to book.
 ## Dev Notes
 
 - Use JSON:API envelopes with `application/vnd.api+json` content type.
-- Use `internal/areas` for handler/service/repo; keep handler free of SQL.
-- Ordering: `sort_order` ascending, then `name` ascending to provide stable output.
-- For now, data can be seeded in tests; config-driven loading is handled in Epic 6.
+- Use `internal/areas` for handlers and `internal/spaces` for YAML loading.
+- For now, data can be seeded in tests; list output comes from YAML config.
 - Use `log/slog` and error wrapping with `%w`.
 
 ### Project Structure Notes
@@ -68,8 +67,8 @@ None.
 
 ### Completion Notes List
 
-- Added SQLite migration for `areas.sort_order` with ordered listing support.
-- Implemented JSON:API `GET /api/v1/areas` with auth enforcement and empty-safe output.
+- Implemented YAML-backed spaces loader and JSON:API `GET /api/v1/areas`.
+- Added spaces config path to `sithub.example.toml` and CLI flags.
 - Added Vue list rendering with empty state and error/loading affordances.
 - Tests: `./run-all-tests.sh` (includes `go test -race` and frontend unit coverage).
 - Cypress E2E spec added for areas list (not run; requires dev server).
@@ -80,12 +79,12 @@ None.
 - api-doc/openapi.yaml
 - internal/areas/handler.go
 - internal/areas/handler_test.go
-- internal/areas/repository.go
-- internal/areas/repository_test.go
+- internal/spaces/config.go
+- internal/spaces/config_test.go
 - internal/startup/server.go
 - internal/startup/server_test.go
-- migrations/000002_add_area_sort_order.down.sql
-- migrations/000002_add_area_sort_order.up.sql
+- sithub.example.toml
+- sithub.toml
 - web/cypress/e2e/areas.cy.ts
 - web/src/api/areas.ts
 - web/src/api/types.ts

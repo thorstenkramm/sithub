@@ -34,6 +34,9 @@ func TestRunOptionsOverrides(t *testing.T) {
 	if err := cmd.Flags().Set("entraid-client-id", "client-1"); err != nil {
 		t.Fatalf("set entraid-client-id: %v", err)
 	}
+	if err := cmd.Flags().Set("spaces-config-file", "./spaces.yaml"); err != nil {
+		t.Fatalf("set spaces-config-file: %v", err)
+	}
 	if err := cmd.Flags().Set("test-auth-enabled", "true"); err != nil {
 		t.Fatalf("set test-auth-enabled: %v", err)
 	}
@@ -47,6 +50,9 @@ func TestRunOptionsOverrides(t *testing.T) {
 	}
 	if overrides["entraid.client_id"] != "client-1" {
 		t.Fatalf("entraid client override missing: %#v", overrides)
+	}
+	if overrides["spaces.config_file"] != "./spaces.yaml" {
+		t.Fatalf("spaces config override missing: %#v", overrides)
 	}
 	if overrides["test_auth.enabled"] != true {
 		t.Fatalf("test auth override missing: %#v", overrides)

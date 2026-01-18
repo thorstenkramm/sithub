@@ -59,3 +59,14 @@ web/cypress/videos/
 
 # macOS
 .DS_Store
+
+# Test Databases
+/sithub.db
+/sithub.db-shm
+/sithub.db-wal
+
+# Local run artifacts
+/.tmp/
+
+# Embedded frontend build output (generated during build)
+/assets/web/

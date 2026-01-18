@@ -83,19 +83,12 @@ components:
       properties:
         name:
           type: string
-        sort_order:
-          type: integer
-        created_at:
+        description:
           type: string
-          format: date-time
-        updated_at:
+        floor_plan:
           type: string
-          format: date-time
       required:
         - name
-        - sort_order
-        - created_at
-        - updated_at
     AreaResource:
       allOf:
         - $ref: '#/components/schemas/Resource'

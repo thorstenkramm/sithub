@@ -19,6 +19,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/config"
 	"github.com/thorstenkramm/sithub/internal/db"
 	"github.com/thorstenkramm/sithub/internal/middleware"
+	"github.com/thorstenkramm/sithub/internal/spaces"
 	"github.com/thorstenkramm/sithub/internal/system"
 )
 
@@ -30,6 +31,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	migrationsPath, err := resolveMigrationsPath()
 	if err != nil {
 		return fmt.Errorf("resolve migrations path: %w", err)
+	}
+
+	spacesConfig, err := spaces.Load(cfg.Spaces.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("load spaces config: %w", err)
 	}
 
 	store, err := db.Open(cfg.Main.DataDir)
@@ -57,10 +63,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	staticDir := "assets/web"
 	indexPath := filepath.Join(staticDir, "index.html")
 
-	areasRepo := areas.NewRepository(store)
-
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, areasRepo)
+	registerRoutes(e, authService, spacesConfig)
 	registerSPAHandlers(e, staticDir, indexPath)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -85,13 +89,13 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func registerRoutes(e *echo.Echo, authService *auth.Service, areasRepo *areas.Repository) {
+func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config) {
 	e.GET("/oauth/login", auth.LoginHandler(authService))
 	e.GET("/oauth/callback", auth.CallbackHandler(authService))
 
 	e.GET("/api/v1/ping", system.Ping)
 	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth(authService))
-	e.GET("/api/v1/areas", areas.ListHandler(areasRepo), middleware.RequireAuth(authService))
+	e.GET("/api/v1/areas", areas.ListHandler(spacesConfig), middleware.RequireAuth(authService))
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {

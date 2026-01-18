@@ -11,20 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
 func TestListHandlerEmpty(t *testing.T) {
 	t.Parallel()
 
-	db := setupTestDB(t)
-	repo := NewRepository(db)
+	cfg := &spaces.Config{}
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	h := ListHandler(repo)
+	h := ListHandler(cfg)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -38,21 +38,23 @@ func TestListHandlerEmpty(t *testing.T) {
 func TestListHandlerReturnsAreas(t *testing.T) {
 	t.Parallel()
 
-	db := setupTestDB(t)
-	_, err := db.Exec(
-		`INSERT INTO areas (id, name, sort_order, created_at, updated_at)
-		VALUES ('a1', 'Alpha', 0, '2026-01-18T00:00:00Z', '2026-01-18T00:00:00Z')`,
-	)
-	require.NoError(t, err)
-
-	repo := NewRepository(db)
+	cfg := &spaces.Config{
+		Areas: []spaces.Area{
+			{
+				ID:          "a1",
+				Name:        "Alpha",
+				Description: "Main area",
+				FloorPlan:   "floor_plans/alpha.svg",
+			},
+		},
+	}
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	h := ListHandler(repo)
+	h := ListHandler(cfg)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -66,4 +68,6 @@ func TestListHandlerReturnsAreas(t *testing.T) {
 	attrs, ok := resp.Data[0].Attributes.(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "Alpha", attrs["name"])
+	assert.Equal(t, "Main area", attrs["description"])
+	assert.Equal(t, "floor_plans/alpha.svg", attrs["floor_plan"])
 }
