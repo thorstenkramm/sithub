@@ -29,3 +29,13 @@ func WriteForbidden(c echo.Context) error {
 	}
 	return nil
 }
+
+// WriteNotFound writes a JSON:API not found error response.
+func WriteNotFound(c echo.Context, detail string) error {
+	errResp := NewError(http.StatusNotFound, "Not Found", detail, "not_found")
+	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
+	if err := c.JSON(http.StatusNotFound, errResp); err != nil {
+		return fmt.Errorf("write not found response: %w", err)
+	}
+	return nil
+}

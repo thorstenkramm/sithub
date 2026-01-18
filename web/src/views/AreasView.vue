@@ -20,7 +20,12 @@
           </v-alert>
           <div v-else>
             <v-list v-if="areas.length" data-cy="areas-list">
-              <v-list-item v-for="area in areas" :key="area.id" data-cy="area-item">
+              <v-list-item
+                v-for="area in areas"
+                :key="area.id"
+                data-cy="area-item"
+                @click="goToRooms(area.id)"
+              >
                 <v-list-item-title>{{ area.attributes.name }}</v-list-item-title>
               </v-list-item>
             </v-list>
@@ -52,6 +57,10 @@ const isAdmin = ref(false);
 const areas = ref<JsonApiResource<AreaAttributes>[]>([]);
 const router = useRouter();
 const { loading: areasLoading, error: areasError, run: runAreas } = useApi();
+
+const goToRooms = async (areaId: string) => {
+  await router.push({ name: 'rooms', params: { areaId } });
+};
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {

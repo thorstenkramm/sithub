@@ -1,4 +1,6 @@
 // Package api defines JSON:API response helpers.
+//
+//revive:disable-next-line var-naming
 package api
 
 import "strconv"
@@ -21,6 +23,15 @@ type SingleResponse struct {
 // CollectionResponse wraps a collection of resources.
 type CollectionResponse struct {
 	Data []Resource `json:"data"`
+}
+
+// MapResources maps items into JSON:API resources.
+func MapResources[T any](items []T, build func(T) Resource) []Resource {
+	resources := make([]Resource, 0, len(items))
+	for _, item := range items {
+		resources = append(resources, build(item))
+	}
+	return resources
 }
 
 // ErrorObject represents a JSON:API error.

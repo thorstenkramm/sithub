@@ -13,9 +13,21 @@ get:
       content:
         application/vnd.api+json:
           schema:
-            $ref: ../openapi.yaml#/components/schemas/CollectionResponse
+            $ref: ../openapi.yaml#/components/schemas/RoomCollectionResponse
     '401':
       description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Forbidden
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '404':
+      description: Area not found
       content:
         application/vnd.api+json:
           schema:

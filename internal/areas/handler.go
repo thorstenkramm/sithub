@@ -2,9 +2,6 @@
 package areas
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
@@ -14,29 +11,14 @@ import (
 // ListHandler returns a JSON:API list of areas.
 func ListHandler(cfg *spaces.Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		resources := make([]api.Resource, 0, len(cfg.Areas))
-		for _, area := range cfg.Areas {
-			attrs := map[string]interface{}{
-				"name": area.Name,
-			}
-			if area.Description != "" {
-				attrs["description"] = area.Description
-			}
-			if area.FloorPlan != "" {
-				attrs["floor_plan"] = area.FloorPlan
-			}
-			resources = append(resources, api.Resource{
+		resources := api.MapResources(cfg.Areas, func(area spaces.Area) api.Resource {
+			return api.Resource{
 				Type:       "areas",
 				ID:         area.ID,
-				Attributes: attrs,
-			})
-		}
+				Attributes: spaces.BaseAttributes(area.Name, area.Description, area.FloorPlan),
+			}
+		})
 
-		resp := api.CollectionResponse{Data: resources}
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		if err := c.JSON(http.StatusOK, resp); err != nil {
-			return fmt.Errorf("write areas response: %w", err)
-		}
-		return nil
+		return api.WriteCollection(c, resources, "write areas response")
 	}
 }

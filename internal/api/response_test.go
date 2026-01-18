@@ -17,3 +17,20 @@ func TestNewError(t *testing.T) {
 		t.Fatalf("unexpected error payload: %#v", item)
 	}
 }
+
+func TestMapResources(t *testing.T) {
+	items := []string{"a", "b"}
+	resources := MapResources(items, func(item string) Resource {
+		return Resource{
+			Type: "letters",
+			ID:   item,
+		}
+	})
+
+	if len(resources) != 2 {
+		t.Fatalf("expected 2 resources, got %d", len(resources))
+	}
+	if resources[1].ID != "b" {
+		t.Fatalf("unexpected resource id: %s", resources[1].ID)
+	}
+}

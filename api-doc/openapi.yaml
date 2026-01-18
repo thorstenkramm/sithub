@@ -110,3 +110,35 @@ components:
             $ref: '#/components/schemas/AreaResource'
       required:
         - data
+    RoomAttributes:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        floor_plan:
+          type: string
+      required:
+        - name
+    RoomResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: rooms
+            attributes:
+              $ref: '#/components/schemas/RoomAttributes'
+          required:
+            - type
+            - attributes
+    RoomCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomResource'
+      required:
+        - data

@@ -13,6 +13,30 @@ type Config struct {
 	Areas []Area `yaml:"areas"`
 }
 
+// FindArea returns the area matching the provided id.
+func (c *Config) FindArea(id string) (*Area, bool) {
+	for i := range c.Areas {
+		if c.Areas[i].ID == id {
+			return &c.Areas[i], true
+		}
+	}
+	return nil, false
+}
+
+// BaseAttributes returns common attributes for named space resources.
+func BaseAttributes(name, description, floorPlan string) map[string]interface{} {
+	attrs := map[string]interface{}{
+		"name": name,
+	}
+	if description != "" {
+		attrs["description"] = description
+	}
+	if floorPlan != "" {
+		attrs["floor_plan"] = floorPlan
+	}
+	return attrs
+}
+
 // Area describes a bookable area.
 type Area struct {
 	ID          string `yaml:"id"`
