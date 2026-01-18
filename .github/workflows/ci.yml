@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+
+      - name: Golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.5.0
+          args: --timeout=5m ./...
+
+      - name: Go tests (race + coverage)
+        run: |
+          go test -race -covermode=atomic -coverprofile=coverage.out ./...
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')
+          pct=${total%\%}
+          echo "Go coverage: ${pct}%"
+          awk -v pct="$pct" 'BEGIN {exit !(pct >= 80)}'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Markdown lint
+        run: npx markdownlint README.md
+
+      - name: API doc lint
+        run: npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
+
+      - name: Code duplication (Go)
+        run: npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1
+
+      - name: Install frontend deps
+        working-directory: web
+        run: npm ci
+
+      - name: Code duplication (frontend)
+        working-directory: web
+        run: npx jscpd --pattern "**/*.ts" --ignore "**/node_modules/**" --threshold 0 --exitCode 1
+
+      - name: Frontend unit tests (coverage)
+        working-directory: web
+        run: npm run test:unit:coverage

@@ -69,7 +69,7 @@
   #redirect_uri = "https://sithub.example.com/oauth/callback"
 
   ## Client ID, string, mandatory
-  ## Can be overridden with --entraid-client_id flag or SITHUB_ENTRAID_CLIENT_ID environment variable.
+  ## Can be overridden with --entraid-client-id flag or SITHUB_ENTRAID_CLIENT_ID environment variable.
   ## Identifier assigned to the SitHub application during the OAuth provider setup.
   ## Called "Application (client) ID" on Entra ID settings.
   ## Example: "23c699de-b9d8-4c89-ac0c-27ada9422d27"
@@ -77,7 +77,7 @@
   #client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
   ## Client Secret, string, mandatory
-  ## Can be overridden with --entraid-client_secret flag or SITHUB_ENTRAID_CLIENT_SECRET environment variable.
+  ## Can be overridden with --entraid-client-secret flag or SITHUB_ENTRAID_CLIENT_SECRET environment variable.
   ## A secret provided by the OAuth provider to be used when exchanging an authorization code for OAuth provider tokens.
   ## It's the **value** (not the ID) of a client secret displayed only once on secret creation.
   ## *** Keep private and DO NOT include in any VCS, unencrypted backups, etc. ***
@@ -103,3 +103,24 @@
   ## Example: "650d8548-bdec-4f1e-b411-7d30025d70b6"
   ## Default: none
   #admins_group_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[test_auth]
+  ## Test authentication (development only), bool, optional
+  ## Can be overridden with SITHUB_TEST_AUTH_ENABLED environment variable.
+  ## When true, /oauth/callback signs in without Entra ID.
+  ## When true, Entra ID configuration is optional for local testing.
+  ## Example: true
+  ## Default: false
+  #enabled = true
+
+  ## Test user ID, string, optional
+  ## Can be overridden with SITHUB_TEST_USER_ID environment variable.
+  ## Example: "test-user"
+  ## Default: "test-user"
+  #user_id = "test-user"
+
+  ## Test user name, string, optional
+  ## Can be overridden with SITHUB_TEST_USER_NAME environment variable.
+  ## Example: "Test User"
+  ## Default: "Test User"
+  #user_name = "Test User"

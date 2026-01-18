@@ -1,4 +1,4 @@
-# golangci-lint configuration for SitHub (v2.5.0)
+# golangci-lint configuration for dendrite-pulse (v2.5.0)
 version: 2
 
 run:

@@ -37,3 +37,25 @@ sithub
 # Editor/IDE
 .idea/
 .vscode/
+
+# AI tools
+.codex
+
+# Logs
+*.log
+
+# Frontend builds
+web/dist/
+
+# Frontend nodes modules
+web/node_modules/
+
+# Frontend coverage
+web/coverage/
+
+# Cypress artifacts
+web/cypress/screenshots/
+web/cypress/videos/
+
+# macOS
+.DS_Store

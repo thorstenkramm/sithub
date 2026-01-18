@@ -1,0 +1,94 @@
+# generated: 2026-01-17 19:11
+# project: sithub
+# project_key: sithub
+# tracking_system: file-system
+# story_location: /Users/thorsten/projects/thorsten/sithub/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-01-17 19:11
+project: sithub
+project_key: sithub
+tracking_system: file-system
+story_location: /Users/thorsten/projects/thorsten/sithub/_bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: in-progress
+  1-1-entra-id-sso-login: done
+  1-2-role-determination-from-entra-id-groups: ready-for-dev
+  1-3-access-denied-for-unauthorized-users: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-list-areas: backlog
+  2-2-list-rooms-in-an-area: backlog
+  2-3-list-desks-with-equipment: backlog
+  2-4-show-availability-status-by-date: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-create-single-day-booking: backlog
+  3-2-prevent-double-booking: backlog
+  3-3-desk-taken-feedback: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-view-my-bookings: backlog
+  4-2-cancel-my-booking: backlog
+  4-3-admin-cancel-any-booking: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-room-booking-overview: backlog
+  5-2-todays-presence-by-area: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-load-server-configuration: backlog
+  6-2-load-space-configuration: backlog
+  6-3-apply-configuration-on-restart: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-book-on-behalf-of-another-user: backlog
+  7-2-guest-booking: backlog
+  7-3-multi-day-or-recurring-booking: backlog
+  7-4-booking-history: backlog
+  7-5-booking-notifications: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-manage-rooms-and-desks-in-admin-ui: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-book-via-floor-map: backlog
+  9-2-usage-analytics: backlog
+  epic-9-retrospective: optional

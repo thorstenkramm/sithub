@@ -1,0 +1,16 @@
+get:
+  summary: List today's presence by area
+  operationId: listPresence
+  responses:
+    '200':
+      description: Presence list
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/CollectionResponse
+    '401':
+      description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

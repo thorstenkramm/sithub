@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: SitHub API
+  version: 0.1.0
+  license:
+    name: Proprietary
+    url: https://example.com/license
+servers:
+  - url: /api/v1
+security:
+  - cookieAuth: []
+paths:
+  /ping:
+    $ref: ./endpoints/ping.yaml
+  /areas:
+    $ref: ./endpoints/areas.yaml
+  /areas/{area_id}/rooms:
+    $ref: ./endpoints/rooms.yaml
+  /rooms/{room_id}/desks:
+    $ref: ./endpoints/desks.yaml
+  /bookings:
+    $ref: ./endpoints/bookings.yaml
+  /bookings/{booking_id}:
+    $ref: ./endpoints/booking.yaml
+  /me:
+    $ref: ./endpoints/me.yaml
+  /presence:
+    $ref: ./endpoints/presence.yaml
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sithub_user
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorObject'
+      required:
+        - errors
+    ErrorObject:
+      type: object
+      properties:
+        status:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        code:
+          type: string
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        attributes:
+          type: object
+    SingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Resource'
+      required:
+        - data
+    CollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Resource'
+      required:
+        - data

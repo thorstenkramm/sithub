@@ -4,6 +4,18 @@ This document provides Go-specific coding standards for the SitHub project.
 These guidelines are based on the
 [Google Go Style Best Practices](https://google.github.io/styleguide/go/best-practices.html).
 
+## General rules
+
+- Go 1.25; rely on `gofmt` defaults (tabs, import ordering). Prefer small, lower-case package names and exported
+  identifiers with doc comments.
+- Handlers and services: use clear verbs, e.g., `ListFilesHandler`, `ExecuteCommandService`.
+- Keep functions small; pass `context.Context` through request flows; avoid global state beyond config wiring.
+- Keep `main.go` short and simple.
+- Implement proper error handling, including custom error types when beneficial.
+- Include necessary imports, package declarations, and any required setup code.
+- Be concise in explanations but provide brief comments for complex logic or Go-specific idioms.
+- Format of API requests and responses is described in `./.claude/rules/json-api.md`.
+
 ## Shared Types
 
 ### Avoid Duplicate Type Definitions
@@ -206,6 +218,20 @@ func waitForServer(errCh chan error) { ... }
 func waitForServer(errCh <-chan error) { ... }
 
 ```
+
+## Testing
+
+- Use table-driven tests for multiple scenarios
+- Test error handling with `t.Run` for each case
+- Use `require` package for assertions
+- Use `t.Parallel()` for concurrent tests
+- Use `github.com/stretchr/testify/assert`/`require` in `_test.go` files; prefer `require.NoError` for setup and
+  `assert` for behavioral checks.
+- `golangci-lint run ./...` (v2.5.0) for linting; add linters to `.golangci.yml` if configuration is introduced
+    (required after each task).
+- Search for code duplication with using [JSCPD](https://github.com/kucherenko/jscpd) and the command
+  `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1`
+- `go fmt ./...` and `go vet ./...` to keep code idiomatic before committing.
 
 ## Quick Reference
 
