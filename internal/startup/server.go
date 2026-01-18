@@ -29,6 +29,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	e.Use(middleware.LoadUser(authService))
+	e.Use(middleware.RedirectForbidden(authService))
 
 	staticDir := "assets/web"
 	indexPath := filepath.Join(staticDir, "index.html")
@@ -64,7 +65,7 @@ func registerRoutes(e *echo.Echo, authService *auth.Service) {
 	e.GET("/oauth/callback", auth.CallbackHandler(authService))
 
 	e.GET("/api/v1/ping", system.Ping)
-	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth)
+	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth(authService))
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {

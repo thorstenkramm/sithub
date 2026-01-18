@@ -17,6 +17,10 @@ describe('router', () => {
           expect.objectContaining({
             path: '/',
             name: 'areas'
+          }),
+          expect.objectContaining({
+            path: '/access-denied',
+            name: 'access-denied'
           })
         ]
       })

@@ -44,7 +44,7 @@ func LoginHandler(svc *Service) echo.HandlerFunc {
 func CallbackHandler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if user := svc.TestUser(); user != nil {
-			return setUserCookieAndRedirect(svc, c, user)
+			return setUserCookieAndRedirect(svc, c, user, redirectPath(user))
 		}
 
 		state := c.QueryParam("state")
@@ -72,8 +72,9 @@ func CallbackHandler(svc *Service) echo.HandlerFunc {
 		if err != nil {
 			return jsonAPIError(c, http.StatusBadRequest, "Login Failed", "User lookup failed", "user_lookup")
 		}
+		user.AccessToken = token.AccessToken
 
-		return setUserCookieAndRedirect(svc, c, user)
+		return setUserCookieAndRedirect(svc, c, user, redirectPath(user))
 	}
 }
 
@@ -97,15 +98,22 @@ func newCookie(name, value string, secure bool) *http.Cookie {
 	}
 }
 
-func setUserCookieAndRedirect(svc *Service, c echo.Context, user *User) error {
+func setUserCookieAndRedirect(svc *Service, c echo.Context, user *User, location string) error {
 	encodedUser, err := svc.EncodeUser(*user)
 	if err != nil {
 		return jsonAPIError(c, http.StatusInternalServerError, "Server Error", "Failed to store user", "user_store")
 	}
 	userCookie := newCookie(userCookieName, encodedUser, c.Scheme() == "https")
 	c.SetCookie(userCookie)
-	if err := c.Redirect(http.StatusFound, "/"); err != nil {
+	if err := c.Redirect(http.StatusFound, location); err != nil {
 		return fmt.Errorf("redirect after login: %w", err)
 	}
 	return nil
+}
+
+func redirectPath(user *User) string {
+	if user != nil && !user.IsPermitted {
+		return "/access-denied"
+	}
+	return "/"
 }

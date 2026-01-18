@@ -33,7 +33,8 @@ func TestServiceTestUserDefaults(t *testing.T) {
 		ClientID:     "client",
 		ClientSecret: "secret",
 	}, TestAuth: config.TestAuthConfig{
-		Enabled: true,
+		Enabled:   true,
+		Permitted: true,
 	}}
 
 	svc, err := NewService(cfg)
@@ -51,6 +52,9 @@ func TestServiceTestUserDefaults(t *testing.T) {
 	if user.Name != "Test User" {
 		t.Fatalf("unexpected user name: %s", user.Name)
 	}
+	if !user.IsPermitted {
+		t.Fatalf("expected permitted test user")
+	}
 }
 
 func TestServiceTestUserOverrides(t *testing.T) {
@@ -61,9 +65,10 @@ func TestServiceTestUserOverrides(t *testing.T) {
 		ClientID:     "client",
 		ClientSecret: "secret",
 	}, TestAuth: config.TestAuthConfig{
-		Enabled:  true,
-		UserID:   "u-123",
-		UserName: "Ada Lovelace",
+		Enabled:   true,
+		UserID:    "u-123",
+		UserName:  "Ada Lovelace",
+		Permitted: false,
 	}}
 
 	svc, err := NewService(cfg)
@@ -80,5 +85,8 @@ func TestServiceTestUserOverrides(t *testing.T) {
 	}
 	if user.Name != "Ada Lovelace" {
 		t.Fatalf("unexpected user name: %s", user.Name)
+	}
+	if user.IsPermitted {
+		t.Fatalf("expected non-permitted test user")
 	}
 }

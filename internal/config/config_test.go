@@ -45,6 +45,9 @@ client_secret = "secret"
 	if cfg.TestAuth.UserName != "Test User" {
 		t.Fatalf("expected default test auth user name, got %s", cfg.TestAuth.UserName)
 	}
+	if !cfg.TestAuth.Permitted {
+		t.Fatalf("expected test auth permitted by default")
+	}
 }
 
 func TestLoadMissingEntraID(t *testing.T) {

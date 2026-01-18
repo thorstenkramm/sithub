@@ -47,9 +47,10 @@ type EntraIDConfig struct {
 
 // TestAuthConfig configures local test authentication.
 type TestAuthConfig struct {
-	Enabled  bool   `mapstructure:"enabled"`
-	UserID   string `mapstructure:"user_id"`
-	UserName string `mapstructure:"user_name"`
+	Enabled   bool   `mapstructure:"enabled"`
+	UserID    string `mapstructure:"user_id"`
+	UserName  string `mapstructure:"user_name"`
+	Permitted bool   `mapstructure:"permitted"`
 }
 
 // Load reads configuration from a TOML file and environment variables.
@@ -75,6 +76,7 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	v.SetDefault("test_auth.enabled", false)
 	v.SetDefault("test_auth.user_id", "test-user")
 	v.SetDefault("test_auth.user_name", "Test User")
+	v.SetDefault("test_auth.permitted", true)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("load config: %w", err)

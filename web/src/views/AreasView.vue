@@ -22,11 +22,13 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchMe } from '../api/me';
 
 const userName = ref('');
 const isAdmin = ref(false);
+const router = useRouter();
 
 onMounted(async () => {
   try {
@@ -36,6 +38,10 @@ onMounted(async () => {
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       window.location.href = '/oauth/login';
+      return;
+    }
+    if (err instanceof ApiError && err.status === 403) {
+      await router.push('/access-denied');
       return;
     }
     throw err;

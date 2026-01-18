@@ -3,8 +3,16 @@ import AreasView from './AreasView.vue';
 import { ApiError } from '../api/client';
 import { fetchMe } from '../api/me';
 
+const pushMock = vi.fn();
+
 vi.mock('../api/me', () => ({
   fetchMe: vi.fn()
+}));
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push: pushMock
+  })
 }));
 
 describe('AreasView', () => {
@@ -40,6 +48,10 @@ describe('AreasView', () => {
         stubs
       }
     });
+
+  beforeEach(() => {
+    pushMock.mockReset();
+  });
 
   it('shows the signed-in user name', async () => {
     mockFetchMe(false);
@@ -99,5 +111,16 @@ describe('AreasView', () => {
       configurable: true,
       value: originalLocation
     });
+  });
+
+  it('redirects to access denied on 403', async () => {
+    const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
+    fetchMeMock.mockRejectedValue(new ApiError('Forbidden', 403));
+
+    mountView();
+
+    await flushPromises();
+
+    expect(pushMock).toHaveBeenCalledWith('/access-denied');
   });
 });

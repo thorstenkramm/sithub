@@ -23,6 +23,7 @@ const (
 	graphMeURL          = "https://graph.microsoft.com/v1.0/me"
 	graphMeBody         = `{"id":"u1","displayName":"Ada"}`
 	graphAdminGroupBody = `{"value":[{"@odata.type":"#microsoft.graph.group","id":"admins"}]}`
+	graphUsersGroupBody = `{"value":[{"@odata.type":"#microsoft.graph.group","id":"users"}]}`
 )
 
 func TestFetchUserSuccess(t *testing.T) {
@@ -53,6 +54,9 @@ func TestFetchUserSuccess(t *testing.T) {
 	}
 	if user.IsAdmin {
 		t.Fatalf("expected non-admin user, got %#v", user)
+	}
+	if !user.IsPermitted {
+		t.Fatalf("expected permitted user, got %#v", user)
 	}
 }
 
@@ -86,6 +90,9 @@ func TestFetchUserSetsAdminWhenInGroup(t *testing.T) {
 	if !user.IsAdmin {
 		t.Fatalf("expected admin user, got %#v", user)
 	}
+	if !user.IsPermitted {
+		t.Fatalf("expected permitted user, got %#v", user)
+	}
 }
 
 func TestFetchUserRequiresUsersGroupForAdmin(t *testing.T) {
@@ -118,6 +125,73 @@ func TestFetchUserRequiresUsersGroupForAdmin(t *testing.T) {
 	}
 	if user.IsAdmin {
 		t.Fatalf("expected non-admin user, got %#v", user)
+	}
+	if user.IsPermitted {
+		t.Fatalf("expected non-permitted user, got %#v", user)
+	}
+}
+
+func TestFetchUserPermittedWhenUsersGroupMatches(t *testing.T) {
+	cfg := &config.Config{
+		EntraID: config.EntraIDConfig{
+			AuthorizeURL: "https://example.com/auth",
+			TokenURL:     "https://example.com/token",
+			RedirectURI:  "https://example.com/callback",
+			ClientID:     "client",
+			ClientSecret: "secret",
+			UsersGroupID: "users",
+		},
+	}
+
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	client := newGraphClient(map[string]string{
+		graphMeURL:       graphMeBody,
+		graphMemberOfURL: graphUsersGroupBody,
+	})
+
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client)
+	user, err := svc.FetchUser(ctx, &oauth2.Token{AccessToken: "token"})
+	if err != nil {
+		t.Fatalf("fetch user: %v", err)
+	}
+	if !user.IsPermitted {
+		t.Fatalf("expected permitted user, got %#v", user)
+	}
+}
+
+func TestFetchUserNotPermittedWhenUsersGroupMissing(t *testing.T) {
+	cfg := &config.Config{
+		EntraID: config.EntraIDConfig{
+			AuthorizeURL: "https://example.com/auth",
+			TokenURL:     "https://example.com/token",
+			RedirectURI:  "https://example.com/callback",
+			ClientID:     "client",
+			ClientSecret: "secret",
+			UsersGroupID: "users",
+		},
+	}
+
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	client := newGraphClient(map[string]string{
+		graphMeURL:       graphMeBody,
+		graphMemberOfURL: graphAdminGroupBody,
+	})
+
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client)
+	user, err := svc.FetchUser(ctx, &oauth2.Token{AccessToken: "token"})
+	if err != nil {
+		t.Fatalf("fetch user: %v", err)
+	}
+	if user.IsPermitted {
+		t.Fatalf("expected non-permitted user, got %#v", user)
 	}
 }
 
@@ -195,6 +269,9 @@ func TestFetchUserIgnoresGroupFetchError(t *testing.T) {
 	if user.IsAdmin {
 		t.Fatalf("expected non-admin user, got %#v", user)
 	}
+	if !user.IsPermitted {
+		t.Fatalf("expected permitted user, got %#v", user)
+	}
 }
 
 func TestFetchGroupIDsHandlesPagination(t *testing.T) {
@@ -216,6 +293,64 @@ func TestFetchGroupIDsHandlesPagination(t *testing.T) {
 
 	if len(groupIDs) != 2 {
 		t.Fatalf("expected 2 groups, got %v", groupIDs)
+	}
+}
+
+func TestRefreshPermissionsUpdatesFlags(t *testing.T) {
+	cfg := &config.Config{
+		EntraID: config.EntraIDConfig{
+			AuthorizeURL:  "https://example.com/auth",
+			TokenURL:      "https://example.com/token",
+			RedirectURI:   "https://example.com/callback",
+			ClientID:      "client",
+			ClientSecret:  "secret",
+			UsersGroupID:  "users",
+			AdminsGroupID: "admins",
+		},
+	}
+
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	groupBody := `{"value":[{"@odata.type":"#microsoft.graph.group","id":"admins"},` +
+		`{"@odata.type":"#microsoft.graph.group","id":"users"}]}`
+	client := newGraphClient(map[string]string{
+		graphMemberOfURL: groupBody,
+	})
+
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client)
+	user := &User{ID: "u1", AccessToken: "token"}
+
+	if err := svc.RefreshPermissions(ctx, user); err != nil {
+		t.Fatalf("refresh permissions: %v", err)
+	}
+	if !user.IsPermitted || !user.IsAdmin {
+		t.Fatalf("expected permitted admin, got %#v", user)
+	}
+}
+
+func TestRefreshPermissionsRequiresTokenWhenGroupsConfigured(t *testing.T) {
+	cfg := &config.Config{
+		EntraID: config.EntraIDConfig{
+			AuthorizeURL: "https://example.com/auth",
+			TokenURL:     "https://example.com/token",
+			RedirectURI:  "https://example.com/callback",
+			ClientID:     "client",
+			ClientSecret: "secret",
+			UsersGroupID: "users",
+		},
+	}
+
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	user := &User{ID: "u1"}
+	if err := svc.RefreshPermissions(context.Background(), user); err == nil {
+		t.Fatalf("expected error for missing access token")
 	}
 }
 

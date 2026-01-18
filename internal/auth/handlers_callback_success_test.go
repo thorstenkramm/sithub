@@ -64,9 +64,10 @@ func TestCallbackHandlerTestAuth(t *testing.T) {
 		ClientID:     "client",
 		ClientSecret: "secret",
 	}, TestAuth: config.TestAuthConfig{
-		Enabled:  true,
-		UserID:   "u-123",
-		UserName: "Ada Lovelace",
+		Enabled:   true,
+		UserID:    "u-123",
+		UserName:  "Ada Lovelace",
+		Permitted: true,
 	}}
 	svc := newAuthService(t, cfg)
 
@@ -87,6 +88,40 @@ func TestCallbackHandlerTestAuth(t *testing.T) {
 	userCookies := rec.Result().Cookies()
 	if len(userCookies) == 0 || userCookies[0].Name != userCookieName {
 		t.Fatalf("expected user cookie set")
+	}
+}
+
+func TestCallbackHandlerRedirectsForbiddenUser(t *testing.T) {
+	cfg := &config.Config{EntraID: config.EntraIDConfig{
+		AuthorizeURL: "https://example.com/auth",
+		TokenURL:     "https://example.com/token",
+		RedirectURI:  "https://example.com/callback",
+		ClientID:     "client",
+		ClientSecret: "secret",
+	}, TestAuth: config.TestAuthConfig{
+		Enabled:   true,
+		UserID:    "u-123",
+		UserName:  "Ada Lovelace",
+		Permitted: false,
+	}}
+	svc := newAuthService(t, cfg)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/oauth/callback", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	h := CallbackHandler(svc)
+	if err := h(c); err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("expected 302, got %d", rec.Code)
+	}
+
+	if loc := rec.Header().Get("Location"); loc != "/access-denied" {
+		t.Fatalf("expected access denied redirect, got %s", loc)
 	}
 }
 

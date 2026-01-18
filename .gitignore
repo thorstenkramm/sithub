@@ -32,7 +32,7 @@ sithub.conf
 sithub.toml
 
 # Compiled binaries
-sithub
+/sithub
 
 # Editor/IDE
 .idea/

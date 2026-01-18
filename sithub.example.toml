@@ -124,3 +124,10 @@
   ## Example: "Test User"
   ## Default: "Test User"
   #user_name = "Test User"
+
+  ## Test user permitted flag, bool, optional
+  ## Can be overridden with --test-auth-permitted flag or SITHUB_TEST_AUTH_PERMITTED environment variable.
+  ## When false, the test user is treated as forbidden.
+  ## Example: true
+  ## Default: true
+  #permitted = true

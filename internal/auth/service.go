@@ -35,9 +35,11 @@ type Service struct {
 
 // User represents an authenticated user.
 type User struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	IsAdmin bool   `json:"is_admin"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	IsAdmin     bool   `json:"is_admin"`
+	IsPermitted bool   `json:"is_permitted"`
+	AccessToken string `json:"access_token"`
 }
 
 type graphUser struct {
@@ -175,10 +177,10 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 		return nil, fmt.Errorf("decode user: %w", err)
 	}
 
-	user := &User{ID: graph.ID, Name: graph.DisplayName}
-
-	if s.adminsGroup == "" {
-		return user, nil
+	user := &User{
+		ID:          graph.ID,
+		Name:        graph.DisplayName,
+		IsPermitted: s.usersGroup == "",
 	}
 
 	if s.adminsGroup != "" || s.usersGroup != "" {
@@ -186,10 +188,35 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 		if err != nil {
 			return user, nil
 		}
+		if s.usersGroup != "" {
+			user.IsPermitted = isGroupMember(groupIDs, s.usersGroup)
+		}
 		user.IsAdmin = s.isAdminGroupMember(groupIDs)
 	}
 
 	return user, nil
+}
+
+// RefreshPermissions re-evaluates group membership for the given user.
+func (s *Service) RefreshPermissions(ctx context.Context, user *User) error {
+	if user == nil || s.usersGroup == "" {
+		return nil
+	}
+	if s.oauthConfig == nil {
+		return fmt.Errorf("refresh permissions: missing oauth config")
+	}
+	if user.AccessToken == "" {
+		return fmt.Errorf("refresh permissions: missing access token")
+	}
+
+	client := s.oauthConfig.Client(ctx, &oauth2.Token{AccessToken: user.AccessToken})
+	groupIDs, err := s.fetchGroupIDs(ctx, client)
+	if err != nil {
+		return err
+	}
+	user.IsPermitted = isGroupMember(groupIDs, s.usersGroup)
+	user.IsAdmin = s.isAdminGroupMember(groupIDs)
+	return nil
 }
 
 type graphMemberOfResponse struct {
@@ -274,6 +301,15 @@ func (s *Service) isAdminGroupMember(groupIDs []string) bool {
 	}
 
 	return adminMatch && userMatch
+}
+
+func isGroupMember(groupIDs []string, target string) bool {
+	for _, id := range groupIDs {
+		if id == target {
+			return true
+		}
+	}
+	return false
 }
 
 // NewState creates a random OAuth state value.

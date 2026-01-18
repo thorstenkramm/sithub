@@ -18,5 +18,9 @@ func (s *Service) TestUser() *User {
 		name = "Test User"
 	}
 
-	return &User{ID: id, Name: name}
+	return &User{
+		ID:          id,
+		Name:        name,
+		IsPermitted: s.testAuth.Permitted,
+	}
 }
