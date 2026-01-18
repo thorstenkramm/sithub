@@ -8,6 +8,17 @@
             <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
           </v-card-title>
           <v-card-text>
+            <div class="mb-4">
+              <label class="text-caption font-weight-medium" for="desks-date">Date</label>
+              <input
+                id="desks-date"
+                v-model="selectedDate"
+                class="d-block mt-1"
+                type="date"
+                data-cy="desks-date"
+                aria-label="Select booking date"
+              />
+            </div>
             <v-progress-linear
               v-if="desksLoading"
               class="mb-3"
@@ -29,6 +40,9 @@
                     <div v-if="desk.attributes.warning" class="text-caption mt-1" data-cy="desk-warning">
                       {{ desk.attributes.warning }}
                     </div>
+                    <div class="text-caption mt-1" data-cy="desk-status">
+                      Status: {{ desk.attributes.availability === 'occupied' ? 'Occupied' : 'Available' }}
+                    </div>
                   </v-list-item-subtitle>
                 </v-list-item>
               </v-list>
@@ -42,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchDesks } from '../api/desks';
@@ -54,9 +68,11 @@ import { useApi } from '../composables/useApi';
 const userName = ref('');
 const desks = ref<JsonApiResource<DeskAttributes>[]>([]);
 const desksErrorMessage = ref<string | null>(null);
+const selectedDate = ref(formatDate(new Date()));
 const route = useRoute();
 const router = useRouter();
 const { loading: desksLoading, run: runDesks } = useApi();
+const activeRoomId = ref<string | null>(null);
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
@@ -68,6 +84,35 @@ const handleAuthError = async (err: unknown) => {
     return true;
   }
   return false;
+};
+
+const ensureDate = (value: string) => {
+  if (value.trim() !== '') {
+    return value;
+  }
+  const today = formatDate(new Date());
+  if (selectedDate.value !== today) {
+    selectedDate.value = today;
+  }
+  return today;
+};
+
+const loadDesks = async (roomId: string, date: string) => {
+  desksErrorMessage.value = null;
+  try {
+    const normalizedDate = ensureDate(date);
+    const resp = await runDesks(() => fetchDesks(roomId, normalizedDate));
+    desks.value = resp.data;
+  } catch (err) {
+    if (await handleAuthError(err)) {
+      return;
+    }
+    if (err instanceof ApiError && err.status === 404) {
+      desksErrorMessage.value = 'Room not found.';
+      return;
+    }
+    desksErrorMessage.value = 'Unable to load desks.';
+  }
 };
 
 onMounted(async () => {
@@ -87,18 +132,25 @@ onMounted(async () => {
     return;
   }
 
-  try {
-    const resp = await runDesks(() => fetchDesks(roomId));
-    desks.value = resp.data;
-  } catch (err) {
-    if (await handleAuthError(err)) {
-      return;
-    }
-    if (err instanceof ApiError && err.status === 404) {
-      desksErrorMessage.value = 'Room not found.';
-      return;
-    }
-    desksErrorMessage.value = 'Unable to load desks.';
-  }
+  activeRoomId.value = roomId;
+  await loadDesks(roomId, selectedDate.value);
 });
+
+watch(
+  selectedDate,
+  async (value) => {
+    if (!activeRoomId.value) {
+      return;
+    }
+    await loadDesks(activeRoomId.value, value);
+  },
+  { flush: 'post' }
+);
+
+function formatDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 </script>

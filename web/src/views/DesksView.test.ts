@@ -42,7 +42,7 @@ describe('DesksView', () => {
     fetchDesksMock.mockResolvedValue({ data: [] });
   });
 
-  it('renders desk equipment and warning', async () => {
+  it('renders desk equipment, warning, and status', async () => {
     fetchDesksMock.mockResolvedValue({
       data: [
         {
@@ -51,7 +51,8 @@ describe('DesksView', () => {
           attributes: {
             name: 'Desk 1',
             equipment: ['Monitor', 'Keyboard'],
-            warning: 'USB-C only'
+            warning: 'USB-C only',
+            availability: 'occupied'
           }
         }
       ]
@@ -63,6 +64,7 @@ describe('DesksView', () => {
     expect(wrapper.text()).toContain('Desk 1');
     expect(wrapper.text()).toContain('Monitor');
     expect(wrapper.text()).toContain('USB-C only');
+    expect(wrapper.text()).toContain('Status: Occupied');
   });
 
   it('shows empty state when no desks exist', async () => {
@@ -70,6 +72,16 @@ describe('DesksView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('No desks available.');
+  });
+
+  it('fetches desks when the date changes', async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-cy=\"desks-date\"]').setValue('2026-01-20');
+    await flushPromises();
+
+    expect(fetchDesksMock).toHaveBeenLastCalledWith('room-1', '2026-01-20');
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);

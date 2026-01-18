@@ -50,13 +50,16 @@ func BaseAttributes(name, description, floorPlan string) map[string]interface{} 
 }
 
 // DeskAttributes returns attributes for desk resources.
-func DeskAttributes(name string, equipment []string, warning string) map[string]interface{} {
+func DeskAttributes(name string, equipment []string, warning, availability string) map[string]interface{} {
 	attrs := map[string]interface{}{
 		"name":      name,
 		"equipment": equipment,
 	}
 	if warning != "" {
 		attrs["warning"] = warning
+	}
+	if availability != "" {
+		attrs["availability"] = availability
 	}
 	return attrs
 }

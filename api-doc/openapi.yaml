@@ -151,11 +151,17 @@ components:
           type: array
           items:
             type: string
+        availability:
+          type: string
+          enum:
+            - available
+            - occupied
         warning:
           type: string
       required:
         - name
         - equipment
+        - availability
     DeskResource:
       allOf:
         - $ref: '#/components/schemas/Resource'

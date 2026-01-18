@@ -20,17 +20,20 @@ func TestWriteForbidden(t *testing.T) {
 		t.Fatalf("write forbidden: %v", err)
 	}
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d", rec.Code)
+	assertErrorResponse(t, rec, http.StatusForbidden, "forbidden")
+}
+
+func TestWriteBadRequest(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/rooms/room-1/desks", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	if err := WriteBadRequest(c, "Invalid booking date"); err != nil {
+		t.Fatalf("write bad request: %v", err)
 	}
 
-	var resp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if len(resp.Errors) != 1 || resp.Errors[0].Code != "forbidden" {
-		t.Fatalf("unexpected error response: %#v", resp.Errors)
-	}
+	assertErrorResponse(t, rec, http.StatusBadRequest, "bad_request")
 }
 
 func TestWriteNotFound(t *testing.T) {
@@ -43,15 +46,21 @@ func TestWriteNotFound(t *testing.T) {
 		t.Fatalf("write not found: %v", err)
 	}
 
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", rec.Code)
+	assertErrorResponse(t, rec, http.StatusNotFound, "not_found")
+}
+
+func assertErrorResponse(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
+	t.Helper()
+
+	if rec.Code != status {
+		t.Fatalf("expected %d, got %d", status, rec.Code)
 	}
 
 	var resp ErrorResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if len(resp.Errors) != 1 || resp.Errors[0].Code != "not_found" {
+	if len(resp.Errors) != 1 || resp.Errors[0].Code != code {
 		t.Fatalf("unexpected error response: %#v", resp.Errors)
 	}
 }

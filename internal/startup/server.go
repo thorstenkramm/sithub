@@ -3,6 +3,7 @@ package startup
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -66,7 +67,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	indexPath := filepath.Join(staticDir, "index.html")
 
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, spacesConfig)
+	registerRoutes(e, authService, spacesConfig, store)
 	registerSPAHandlers(e, staticDir, indexPath)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -91,7 +92,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config) {
+func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config, store *sql.DB) {
 	e.GET("/oauth/login", auth.LoginHandler(authService))
 	e.GET("/oauth/callback", auth.CallbackHandler(authService))
 
@@ -99,7 +100,7 @@ func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *space
 	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth(authService))
 	e.GET("/api/v1/areas", areas.ListHandler(spacesConfig), middleware.RequireAuth(authService))
 	e.GET("/api/v1/areas/:area_id/rooms", rooms.ListHandler(spacesConfig), middleware.RequireAuth(authService))
-	e.GET("/api/v1/rooms/:room_id/desks", desks.ListHandler(spacesConfig), middleware.RequireAuth(authService))
+	e.GET("/api/v1/rooms/:room_id/desks", desks.ListHandler(spacesConfig, store), middleware.RequireAuth(authService))
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
