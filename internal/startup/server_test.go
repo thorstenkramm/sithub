@@ -11,8 +11,9 @@ import (
 func TestRunShutsDownOnContextCancel(t *testing.T) {
 	cfg := &config.Config{
 		Main: config.MainConfig{
-			Listen: "127.0.0.1",
-			Port:   0,
+			Listen:  "127.0.0.1",
+			Port:    0,
+			DataDir: t.TempDir(),
 		},
 		EntraID: config.EntraIDConfig{
 			AuthorizeURL: "https://login",

@@ -78,3 +78,42 @@ components:
             $ref: '#/components/schemas/Resource'
       required:
         - data
+    AreaAttributes:
+      type: object
+      properties:
+        name:
+          type: string
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - name
+        - sort_order
+        - created_at
+        - updated_at
+    AreaResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: areas
+            attributes:
+              $ref: '#/components/schemas/AreaAttributes'
+          required:
+            - type
+            - attributes
+    AreaCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AreaResource'
+      required:
+        - data

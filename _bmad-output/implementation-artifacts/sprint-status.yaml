@@ -46,8 +46,8 @@ development_status:
   1-3-access-denied-for-unauthorized-users: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-list-areas: backlog
+  epic-2: in-progress
+  2-1-list-areas: done
   2-2-list-rooms-in-an-area: backlog
   2-3-list-desks-with-equipment: backlog
   2-4-show-availability-status-by-date: backlog

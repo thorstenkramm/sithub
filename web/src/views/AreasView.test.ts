@@ -1,12 +1,17 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import AreasView from './AreasView.vue';
 import { ApiError } from '../api/client';
+import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
 
 const pushMock = vi.fn();
 
 vi.mock('../api/me', () => ({
   fetchMe: vi.fn()
+}));
+
+vi.mock('../api/areas', () => ({
+  fetchAreas: vi.fn()
 }));
 
 vi.mock('vue-router', () => ({
@@ -27,7 +32,12 @@ describe('AreasView', () => {
     'v-card': slotStub,
     'v-card-title': slotStub,
     'v-card-text': slotStub,
-    'v-btn': slotStub
+    'v-btn': slotStub,
+    'v-list': slotStub,
+    'v-list-item': slotStub,
+    'v-list-item-title': slotStub,
+    'v-progress-linear': slotStub,
+    'v-alert': slotStub
   };
 
   const mockFetchMe = (isAdmin: boolean) => {
@@ -42,6 +52,22 @@ describe('AreasView', () => {
     });
   };
 
+  const mockFetchAreas = (count: number) => {
+    const fetchAreasMock = fetchAreas as unknown as ReturnType<typeof vi.fn>;
+    fetchAreasMock.mockResolvedValue({
+      data: Array.from({ length: count }, (_, index) => ({
+        id: `area-${index + 1}`,
+        type: 'areas',
+        attributes: {
+          name: `Area ${index + 1}`,
+          sort_order: index,
+          created_at: '2026-01-18T00:00:00Z',
+          updated_at: '2026-01-18T00:00:00Z'
+        }
+      }))
+    });
+  };
+
   const mountView = () =>
     mount(AreasView, {
       global: {
@@ -51,6 +77,7 @@ describe('AreasView', () => {
 
   beforeEach(() => {
     pushMock.mockReset();
+    mockFetchAreas(0);
   });
 
   it('shows the signed-in user name', async () => {
@@ -99,7 +126,12 @@ describe('AreasView', () => {
           'v-card': slotStub,
           'v-card-title': slotStub,
           'v-card-text': slotStub,
-          'v-btn': slotStub
+          'v-btn': slotStub,
+          'v-list': slotStub,
+          'v-list-item': slotStub,
+          'v-list-item-title': slotStub,
+          'v-progress-linear': slotStub,
+          'v-alert': slotStub
         }
       }
     });
@@ -122,5 +154,26 @@ describe('AreasView', () => {
     await flushPromises();
 
     expect(pushMock).toHaveBeenCalledWith('/access-denied');
+  });
+
+  it('shows an empty state when no areas exist', async () => {
+    mockFetchMe(false);
+    mockFetchAreas(0);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('No areas available.');
+  });
+
+  it('renders the areas list when data exists', async () => {
+    mockFetchMe(false);
+    mockFetchAreas(2);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Area 1');
+    expect(wrapper.text()).toContain('Area 2');
   });
 });

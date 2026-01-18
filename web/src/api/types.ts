@@ -8,6 +8,10 @@ export interface SingleResponse<T> {
   data: JsonApiResource<T>;
 }
 
+export interface CollectionResponse<T> {
+  data: JsonApiResource<T>[];
+}
+
 export interface ErrorObject {
   status?: string;
   title?: string;
