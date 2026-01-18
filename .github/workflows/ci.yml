@@ -40,7 +40,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Markdown lint
-        run: npx markdownlint README.md
+        run: npx --yes markdownlint-cli README.md
 
       - name: API doc lint
         run: npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
