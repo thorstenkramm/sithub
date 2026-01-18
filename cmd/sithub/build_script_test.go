@@ -18,6 +18,7 @@ func TestBuildScriptContents(t *testing.T) {
 	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
 	path := filepath.Join(root, "build.sh")
 
+	// #nosec G304 -- reading a repo file in a test with a deterministic path.
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 
