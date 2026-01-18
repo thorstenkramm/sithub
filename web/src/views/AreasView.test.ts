@@ -56,7 +56,7 @@ describe('AreasView', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Admin controls');
+    expect(wrapper.text()).toContain('Cancel booking (admin)');
   });
 
   it('hides admin controls for non-admin users', async () => {
@@ -65,7 +65,7 @@ describe('AreasView', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).not.toContain('Admin controls');
+    expect(wrapper.text()).not.toContain('Cancel booking (admin)');
   });
 
   it('redirects to login on 401', async () => {
@@ -86,7 +86,8 @@ describe('AreasView', () => {
           'v-col': slotStub,
           'v-card': slotStub,
           'v-card-title': slotStub,
-          'v-card-text': slotStub
+          'v-card-text': slotStub,
+          'v-btn': slotStub
         }
       }
     });

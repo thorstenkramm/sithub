@@ -60,11 +60,15 @@ func NewService(cfg *config.Config) (*Service, error) {
 
 	var oauthConfig *oauth2.Config
 	if !missingAuthConfig {
+		scopes := []string{"openid", "profile", "email", "User.Read"}
+		if cfg.EntraID.AdminsGroupID != "" || cfg.EntraID.UsersGroupID != "" {
+			scopes = append(scopes, "GroupMember.Read.All")
+		}
 		oauthConfig = &oauth2.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			RedirectURL:  redirectURL,
-			Scopes:       []string{"openid", "profile", "email", "User.Read"},
+			Scopes:       scopes,
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  authURL,
 				TokenURL: tokenURL,
@@ -174,14 +178,13 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 	user := &User{ID: graph.ID, Name: graph.DisplayName}
 
 	if s.adminsGroup == "" {
-		user.IsAdmin = true
 		return user, nil
 	}
 
 	if s.adminsGroup != "" || s.usersGroup != "" {
 		groupIDs, err := s.fetchGroupIDs(ctx, client)
 		if err != nil {
-			return nil, err
+			return user, nil
 		}
 		user.IsAdmin = s.isAdminGroupMember(groupIDs)
 	}
@@ -190,7 +193,8 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 }
 
 type graphMemberOfResponse struct {
-	Value []graphGroup `json:"value"`
+	Value    []graphGroup `json:"value"`
+	NextLink string       `json:"@odata.nextLink"`
 }
 
 type graphGroup struct {
@@ -201,14 +205,34 @@ type graphGroup struct {
 const graphMemberOfURL = "https://graph.microsoft.com/v1.0/me/memberOf?$select=id"
 
 func (s *Service) fetchGroupIDs(ctx context.Context, client *http.Client) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, graphMemberOfURL, http.NoBody)
+	var ids []string
+	url := graphMemberOfURL
+
+	for url != "" {
+		pageIDs, nextLink, err := s.fetchGroupPage(ctx, client, url)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, pageIDs...)
+		url = nextLink
+	}
+
+	return ids, nil
+}
+
+func (s *Service) fetchGroupPage(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) (ids []string, nextLink string, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return nil, fmt.Errorf("build groups request: %w", err)
+		return nil, "", fmt.Errorf("build groups request: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch groups: %w", err)
+		return nil, "", fmt.Errorf("fetch groups: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -217,15 +241,15 @@ func (s *Service) fetchGroupIDs(ctx context.Context, client *http.Client) ([]str
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch groups: status %d", resp.StatusCode)
+		return nil, "", fmt.Errorf("fetch groups: status %d", resp.StatusCode)
 	}
 
 	var body graphMemberOfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("decode groups: %w", err)
+		return nil, "", fmt.Errorf("decode groups: %w", err)
 	}
 
-	ids := make([]string, 0, len(body.Value))
+	ids = make([]string, 0, len(body.Value))
 	for _, group := range body.Value {
 		if group.ID == "" {
 			continue
@@ -233,7 +257,7 @@ func (s *Service) fetchGroupIDs(ctx context.Context, client *http.Client) ([]str
 		ids = append(ids, group.ID)
 	}
 
-	return ids, nil
+	return ids, body.NextLink, nil
 }
 
 func (s *Service) isAdminGroupMember(groupIDs []string) bool {

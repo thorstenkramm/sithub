@@ -7,10 +7,13 @@
             Areas
             <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
           </v-card-title>
-          <v-card-text>
-            Area list will render here.
-            <div v-if="isAdmin" class="mt-2">Admin controls</div>
-          </v-card-text>
+        <v-card-text>
+          Area list will render here.
+            <div v-if="isAdmin" class="mt-2">
+              <div class="text-caption">Admin-only cancellation controls</div>
+              <v-btn data-cy="admin-cancel" size="small" variant="tonal">Cancel booking (admin)</v-btn>
+            </div>
+        </v-card-text>
         </v-card>
       </v-col>
     </v-row>

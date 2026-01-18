@@ -1,6 +1,6 @@
 # Story 1.2: Role Determination from Entra ID Groups
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -62,20 +62,21 @@ dev - Amelia
 
 None.
 ### Completion Notes List
-- Added Entra ID group membership fetch and admin determination with users/admin groups handling.
+- Added Entra ID group membership fetch with pagination and non-blocking error handling.
+- Added admin scope when group lookup is configured and enforced admin-only UI controls.
 - Added `is_admin` to `/api/v1/me` and persisted admin flag in the auth cookie.
-- Added admin-only UI marker in Areas view, gated by `is_admin`.
-- Tests: `./run-all-tests.sh`; `go test -race ./...`; `npm run test:unit:coverage`.
+- Tests: `./run-all-tests.sh` (includes lint, race, coverage, frontend tests).
 
 ### File List
+- assets/web/assets/index-DCpXSeek.js
+- assets/web/assets/index-XHE2wite.js
+- assets/web/index.html
 - internal/auth/fetch_user_test.go
-- internal/auth/handlers_callback_success_test.go
-- internal/auth/me.go
-- internal/auth/me_test.go
 - internal/auth/service.go
-- web/src/api/me.ts
+- internal/startup/server.go
 - web/src/views/AreasView.test.ts
 - web/src/views/AreasView.vue
 
 ### Change Log
 - 2026-01-18: Implemented admin role detection from Entra ID groups and UI gating.
+- 2026-01-18: Added group pagination handling, non-blocking group lookup, admin controls UI, and SPA serving.

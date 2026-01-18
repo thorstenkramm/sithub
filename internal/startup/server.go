@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -28,12 +30,12 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 	e.Use(middleware.LoadUser(authService))
 
-	e.GET("/oauth/login", auth.LoginHandler(authService))
-	//nolint:contextcheck // Echo handler uses request context.
-	e.GET("/oauth/callback", auth.CallbackHandler(authService))
+	staticDir := "assets/web"
+	indexPath := filepath.Join(staticDir, "index.html")
 
-	e.GET("/api/v1/ping", system.Ping)
-	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth)
+	//nolint:contextcheck // Echo handlers use request context.
+	registerRoutes(e, authService)
+	registerSPAHandlers(e, staticDir, indexPath)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
 	server := &http.Server{
@@ -55,4 +57,32 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("listen and serve: %w", err)
 	}
 	return nil
+}
+
+func registerRoutes(e *echo.Echo, authService *auth.Service) {
+	e.GET("/oauth/login", auth.LoginHandler(authService))
+	e.GET("/oauth/callback", auth.CallbackHandler(authService))
+
+	e.GET("/api/v1/ping", system.Ping)
+	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth)
+}
+
+func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
+	e.Static("/", staticDir)
+
+	defaultErrorHandler := e.HTTPErrorHandler
+	e.HTTPErrorHandler = func(err error, c echo.Context) {
+		if req := c.Request(); req != nil && req.Method == http.MethodGet {
+			var httpErr *echo.HTTPError
+			if errors.As(err, &httpErr) && httpErr.Code == http.StatusNotFound {
+				path := req.URL.Path
+				if !strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/oauth/") {
+					if fileErr := c.File(indexPath); fileErr == nil {
+						return
+					}
+				}
+			}
+		}
+		defaultErrorHandler(err, c)
+	}
 }
