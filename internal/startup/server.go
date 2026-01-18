@@ -29,7 +29,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	e.Use(middleware.LoadUser(authService))
 
 	e.GET("/oauth/login", auth.LoginHandler(authService))
-	e.GET("/oauth/callback", auth.CallbackHandler(authService)) //nolint:contextcheck // Echo handler uses request context.
+	//nolint:contextcheck // Echo handler uses request context.
+	e.GET("/oauth/callback", auth.CallbackHandler(authService))
 
 	e.GET("/api/v1/ping", system.Ping)
 	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth)
@@ -45,7 +46,9 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			_ = err
+		}
 	}()
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

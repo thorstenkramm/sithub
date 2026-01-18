@@ -14,12 +14,14 @@ func LoginHandler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		state, err := NewState()
 		if err != nil {
-			return jsonAPIError(c, http.StatusInternalServerError, "Server Error", "Failed to start login", "login_init")
+			detail := "Failed to start login"
+			return jsonAPIError(c, http.StatusInternalServerError, "Server Error", detail, "login_init")
 		}
 
 		encoded, err := svc.EncodeState(state)
 		if err != nil {
-			return jsonAPIError(c, http.StatusInternalServerError, "Server Error", "Failed to store login state", "login_state")
+			detail := "Failed to store login state"
+			return jsonAPIError(c, http.StatusInternalServerError, "Server Error", detail, "login_state")
 		}
 
 		cookie := newCookie(stateCookieName, encoded, c.Scheme() == "https")

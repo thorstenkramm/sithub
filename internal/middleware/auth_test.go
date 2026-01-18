@@ -13,7 +13,7 @@ import (
 
 func TestRequireAuthBlocksMissingUser(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -40,7 +40,7 @@ func TestRequireAuthBlocksMissingUser(t *testing.T) {
 
 func TestRequireAuthAllowsUser(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("user", "present")

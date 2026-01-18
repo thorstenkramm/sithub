@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 )
@@ -39,7 +40,10 @@ func TestOpenSetsPragmas(t *testing.T) {
 	}
 
 	expected := filepath.Join(dir, "sithub.db")
-	dbPath := dbStatsPath(db)
+	dbPath, err := dbStatsPath(db)
+	if err != nil {
+		t.Fatalf("db stats path: %v", err)
+	}
 	expectedPath, err := filepath.EvalSymlinks(expected)
 	if err != nil {
 		t.Fatalf("eval expected path: %v", err)
@@ -53,8 +57,10 @@ func TestOpenSetsPragmas(t *testing.T) {
 	}
 }
 
-func dbStatsPath(db *sql.DB) string {
+func dbStatsPath(db *sql.DB) (string, error) {
 	var filePath string
-	_ = db.QueryRow("PRAGMA database_list;").Scan(new(int), new(string), &filePath)
-	return filePath
+	if err := db.QueryRow("PRAGMA database_list;").Scan(new(int), new(string), &filePath); err != nil {
+		return "", fmt.Errorf("scan database_list: %w", err)
+	}
+	return filePath, nil
 }

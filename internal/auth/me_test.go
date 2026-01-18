@@ -13,7 +13,7 @@ import (
 
 func TestMeHandlerUnauthorized(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -37,7 +37,7 @@ func TestMeHandlerUnauthorized(t *testing.T) {
 
 func TestMeHandlerAuthorized(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("user", &User{ID: "u1", Name: "Ada"})
@@ -55,7 +55,10 @@ func TestMeHandlerAuthorized(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	attrs := resp.Data.Attributes.(map[string]interface{})
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	if !ok {
+		t.Fatalf("unexpected attributes type: %T", resp.Data.Attributes)
+	}
 	if attrs["display_name"] != "Ada" {
 		t.Fatalf("unexpected display_name: %v", attrs["display_name"])
 	}

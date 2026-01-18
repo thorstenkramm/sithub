@@ -13,7 +13,7 @@ import (
 
 func TestPing(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/ping", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ping", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 

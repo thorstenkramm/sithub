@@ -142,7 +142,7 @@ func (s *Service) DecodeUser(value string) (*User, error) {
 func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, error) {
 	client := s.oauthConfig.Client(ctx, token)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://graph.microsoft.com/v1.0/me", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://graph.microsoft.com/v1.0/me", http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("build user request: %w", err)
 	}

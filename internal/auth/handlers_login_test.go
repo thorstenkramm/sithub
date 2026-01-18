@@ -12,21 +12,11 @@ import (
 )
 
 func TestLoginHandlerRedirects(t *testing.T) {
-	cfg := &config.Config{EntraID: config.EntraIDConfig{
-		AuthorizeURL: "https://example.com/auth",
-		TokenURL:     "https://example.com/token",
-		RedirectURI:  "https://example.com/callback",
-		ClientID:     "client",
-		ClientSecret: "secret",
-	}}
-
-	svc, err := NewService(cfg)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
+	cfg := &config.Config{EntraID: testEntraConfig()}
+	svc := newTestService(t, cfg)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/oauth/login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth/login", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -49,77 +39,40 @@ func TestLoginHandlerRedirects(t *testing.T) {
 	}
 }
 
-func TestCallbackHandlerMissingParams(t *testing.T) {
-	cfg := &config.Config{EntraID: config.EntraIDConfig{
-		AuthorizeURL: "https://example.com/auth",
-		TokenURL:     "https://example.com/token",
-		RedirectURI:  "https://example.com/callback",
-		ClientID:     "client",
-		ClientSecret: "secret",
-	}}
+func TestCallbackHandlerBadRequest(t *testing.T) {
+	cfg := &config.Config{EntraID: testEntraConfig()}
+	svc := newTestService(t, cfg)
 
-	svc, err := NewService(cfg)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "missing params", path: "/oauth/callback"},
+		{name: "missing cookie", path: "/oauth/callback?state=s1&code=c1"},
 	}
 
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/oauth/callback", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, tt.path, http.NoBody)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-	h := CallbackHandler(svc)
-	if err := h(c); err != nil {
-		t.Fatalf("handler error: %v", err)
-	}
+			h := CallbackHandler(svc)
+			if err := h(c); err != nil {
+				t.Fatalf("handler error: %v", err)
+			}
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
-	}
-}
-
-func TestCallbackHandlerMissingCookie(t *testing.T) {
-	cfg := &config.Config{EntraID: config.EntraIDConfig{
-		AuthorizeURL: "https://example.com/auth",
-		TokenURL:     "https://example.com/token",
-		RedirectURI:  "https://example.com/callback",
-		ClientID:     "client",
-		ClientSecret: "secret",
-	}}
-
-	svc, err := NewService(cfg)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/oauth/callback?state=s1&code=c1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	h := CallbackHandler(svc)
-	if err := h(c); err != nil {
-		t.Fatalf("handler error: %v", err)
-	}
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d", rec.Code)
+			}
+		})
 	}
 }
 
 func TestCallbackHandlerInvalidState(t *testing.T) {
-	cfg := &config.Config{EntraID: config.EntraIDConfig{
-		AuthorizeURL: "https://example.com/auth",
-		TokenURL:     "https://example.com/token",
-		RedirectURI:  "https://example.com/callback",
-		ClientID:     "client",
-		ClientSecret: "secret",
-	}}
-
-	svc, err := NewService(cfg)
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
+	cfg := &config.Config{EntraID: testEntraConfig()}
+	svc := newTestService(t, cfg)
 
 	encoded, err := svc.EncodeState("expected")
 	if err != nil {
@@ -127,7 +80,7 @@ func TestCallbackHandlerInvalidState(t *testing.T) {
 	}
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/oauth/callback?state=other&code=c1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth/callback?state=other&code=c1", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: stateCookieName, Value: encoded})
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -140,4 +93,24 @@ func TestCallbackHandlerInvalidState(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
+}
+
+func testEntraConfig() config.EntraIDConfig {
+	return config.EntraIDConfig{
+		AuthorizeURL: "https://example.com/auth",
+		TokenURL:     "https://example.com/token",
+		RedirectURI:  "https://example.com/callback",
+		ClientID:     "client",
+		ClientSecret: "secret",
+	}
+}
+
+func newTestService(t *testing.T, cfg *config.Config) *Service {
+	t.Helper()
+
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	return svc
 }

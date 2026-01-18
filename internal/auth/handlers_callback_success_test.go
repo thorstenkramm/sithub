@@ -26,7 +26,7 @@ func TestCallbackHandlerSuccess(t *testing.T) {
 	}
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/oauth/callback?state="+state+"&code=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth/callback?state="+state+"&code=abc", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: stateCookieName, Value: encoded})
 	req = req.WithContext(context.WithValue(req.Context(), oauth2.HTTPClient, httpClient))
 	rec := httptest.NewRecorder()
@@ -62,7 +62,7 @@ func TestCallbackHandlerTestAuth(t *testing.T) {
 	svc := newAuthService(t, cfg)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/oauth/callback", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth/callback", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 

@@ -29,7 +29,7 @@ func TestLoadUserFromTestAuth(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rec := httptest.NewRecorder()
 	e := echo.New()
 	c := e.NewContext(req, rec)
@@ -65,7 +65,7 @@ func TestLoadUserFromCookie(t *testing.T) {
 		t.Fatalf("encode user: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "sithub_user", Value: userCookie})
 	rec := httptest.NewRecorder()
 	e := echo.New()
