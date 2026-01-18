@@ -42,7 +42,7 @@ story_location: /Users/thorsten/projects/thorsten/sithub/_bmad-output/implementa
 development_status:
   epic-1: in-progress
   1-1-entra-id-sso-login: done
-  1-2-role-determination-from-entra-id-groups: ready-for-dev
+  1-2-role-determination-from-entra-id-groups: review
   1-3-access-denied-for-unauthorized-users: backlog
   epic-1-retrospective: optional
 

@@ -12,32 +12,60 @@ describe('AreasView', () => {
     template: '<div><slot /></div>'
   };
 
-  it('shows the signed-in user name', async () => {
+  const stubs = {
+    'v-container': slotStub,
+    'v-row': slotStub,
+    'v-col': slotStub,
+    'v-card': slotStub,
+    'v-card-title': slotStub,
+    'v-card-text': slotStub,
+    'v-btn': slotStub
+  };
+
+  const mockFetchMe = (isAdmin: boolean) => {
     const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
     fetchMeMock.mockResolvedValue({
       data: {
         attributes: {
-          display_name: 'Ada Lovelace'
+          display_name: 'Ada Lovelace',
+          is_admin: isAdmin
         }
+      }
+    });
+  };
+
+  const mountView = () =>
+    mount(AreasView, {
+      global: {
+        stubs
       }
     });
 
-    const wrapper = mount(AreasView, {
-      global: {
-        stubs: {
-          'v-container': slotStub,
-          'v-row': slotStub,
-          'v-col': slotStub,
-          'v-card': slotStub,
-          'v-card-title': slotStub,
-          'v-card-text': slotStub
-        }
-      }
-    });
+  it('shows the signed-in user name', async () => {
+    mockFetchMe(false);
+    const wrapper = mountView();
 
     await flushPromises();
 
     expect(wrapper.text()).toContain('Signed in as Ada Lovelace');
+  });
+
+  it('shows admin controls for admins only', async () => {
+    mockFetchMe(true);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Admin controls');
+  });
+
+  it('hides admin controls for non-admin users', async () => {
+    mockFetchMe(false);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('Admin controls');
   });
 
   it('redirects to login on 401', async () => {

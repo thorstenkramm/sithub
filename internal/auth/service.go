@@ -29,12 +29,15 @@ type Service struct {
 	oauthConfig *oauth2.Config
 	cookieCodec *securecookie.SecureCookie
 	testAuth    config.TestAuthConfig
+	adminsGroup string
+	usersGroup  string
 }
 
 // User represents an authenticated user.
 type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	IsAdmin bool   `json:"is_admin"`
 }
 
 type graphUser struct {
@@ -82,6 +85,8 @@ func NewService(cfg *config.Config) (*Service, error) {
 		oauthConfig: oauthConfig,
 		cookieCodec: securecookie.New(hashKey, blockKey),
 		testAuth:    cfg.TestAuth,
+		adminsGroup: cfg.EntraID.AdminsGroupID,
+		usersGroup:  cfg.EntraID.UsersGroupID,
 	}, nil
 }
 
@@ -166,7 +171,85 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 		return nil, fmt.Errorf("decode user: %w", err)
 	}
 
-	return &User{ID: graph.ID, Name: graph.DisplayName}, nil
+	user := &User{ID: graph.ID, Name: graph.DisplayName}
+
+	if s.adminsGroup == "" {
+		user.IsAdmin = true
+		return user, nil
+	}
+
+	if s.adminsGroup != "" || s.usersGroup != "" {
+		groupIDs, err := s.fetchGroupIDs(ctx, client)
+		if err != nil {
+			return nil, err
+		}
+		user.IsAdmin = s.isAdminGroupMember(groupIDs)
+	}
+
+	return user, nil
+}
+
+type graphMemberOfResponse struct {
+	Value []graphGroup `json:"value"`
+}
+
+type graphGroup struct {
+	ODataType string `json:"@odata.type"`
+	ID        string `json:"id"`
+}
+
+const graphMemberOfURL = "https://graph.microsoft.com/v1.0/me/memberOf?$select=id"
+
+func (s *Service) fetchGroupIDs(ctx context.Context, client *http.Client) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, graphMemberOfURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("build groups request: %w", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch groups: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			_ = err
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetch groups: status %d", resp.StatusCode)
+	}
+
+	var body graphMemberOfResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("decode groups: %w", err)
+	}
+
+	ids := make([]string, 0, len(body.Value))
+	for _, group := range body.Value {
+		if group.ID == "" {
+			continue
+		}
+		ids = append(ids, group.ID)
+	}
+
+	return ids, nil
+}
+
+func (s *Service) isAdminGroupMember(groupIDs []string) bool {
+	adminMatch := false
+	userMatch := s.usersGroup == ""
+
+	for _, id := range groupIDs {
+		if id == s.adminsGroup {
+			adminMatch = true
+		}
+		if s.usersGroup != "" && id == s.usersGroup {
+			userMatch = true
+		}
+	}
+
+	return adminMatch && userMatch
 }
 
 // NewState creates a random OAuth state value.

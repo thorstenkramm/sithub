@@ -20,8 +20,9 @@ func MeHandler() echo.HandlerFunc {
 			Data: api.Resource{
 				Type: "users",
 				ID:   user.ID,
-				Attributes: map[string]string{
+				Attributes: map[string]interface{}{
 					"display_name": user.Name,
+					"is_admin":     user.IsAdmin,
 				},
 			},
 		}

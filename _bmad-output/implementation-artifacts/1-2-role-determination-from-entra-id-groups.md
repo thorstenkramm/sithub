@@ -1,6 +1,6 @@
 # Story 1.2: Role Determination from Entra ID Groups
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -19,17 +19,17 @@ So that I see admin-only controls.
 
 ## Tasks / Subtasks
 
-- [ ] Determine admin membership from Entra ID groups (AC: 1)
-  - [ ] Fetch group IDs for the authenticated user
-  - [ ] Match against configured `admins_group_id` (and `users_group_id` if set)
-  - [ ] Persist admin flag in auth session cookie
-- [ ] Expose admin flag via API (AC: 1)
-  - [ ] Include `is_admin` in `GET /api/v1/me` JSON:API response
-- [ ] Show admin-only controls in UI (AC: 1)
-  - [ ] Gate admin-only cancellation controls on `is_admin`
-- [ ] Add tests (AC: 1)
-  - [ ] Backend: admin flag set for matching group membership
-  - [ ] Frontend: admin-only controls hidden for non-admin users
+- [x] Determine admin membership from Entra ID groups (AC: 1)
+  - [x] Fetch group IDs for the authenticated user
+  - [x] Match against configured `admins_group_id` (and `users_group_id` if set)
+  - [x] Persist admin flag in auth session cookie
+- [x] Expose admin flag via API (AC: 1)
+  - [x] Include `is_admin` in `GET /api/v1/me` JSON:API response
+- [x] Show admin-only controls in UI (AC: 1)
+  - [x] Gate admin-only cancellation controls on `is_admin`
+- [x] Add tests (AC: 1)
+  - [x] Backend: admin flag set for matching group membership
+  - [x] Frontend: admin-only controls hidden for non-admin users
 
 ## Dev Notes
 
@@ -56,13 +56,26 @@ So that I see admin-only controls.
 
 ### Agent Model Used
 
-SM - Bob
+dev - Amelia
 
 ### Debug Log References
 
+None.
 ### Completion Notes List
+- Added Entra ID group membership fetch and admin determination with users/admin groups handling.
+- Added `is_admin` to `/api/v1/me` and persisted admin flag in the auth cookie.
+- Added admin-only UI marker in Areas view, gated by `is_admin`.
+- Tests: `./run-all-tests.sh`; `go test -race ./...`; `npm run test:unit:coverage`.
 
 ### File List
+- internal/auth/fetch_user_test.go
+- internal/auth/handlers_callback_success_test.go
+- internal/auth/me.go
+- internal/auth/me_test.go
+- internal/auth/service.go
+- web/src/api/me.ts
+- web/src/views/AreasView.test.ts
+- web/src/views/AreasView.vue
 
 ### Change Log
-
+- 2026-01-18: Implemented admin role detection from Entra ID groups and UI gating.

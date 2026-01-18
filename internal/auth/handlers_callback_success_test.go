@@ -16,6 +16,7 @@ import (
 
 func TestCallbackHandlerSuccess(t *testing.T) {
 	cfg := &config.Config{EntraID: entraConfig()}
+	cfg.EntraID.AdminsGroupID = "admins"
 	svc := newAuthService(t, cfg)
 	httpClient := newAuthTestClient(cfg.EntraID.TokenURL)
 
@@ -44,6 +45,14 @@ func TestCallbackHandlerSuccess(t *testing.T) {
 	userCookies := rec.Result().Cookies()
 	if len(userCookies) == 0 || userCookies[0].Name != userCookieName {
 		t.Fatalf("expected user cookie set")
+	}
+
+	decoded, err := svc.DecodeUser(userCookies[0].Value)
+	if err != nil {
+		t.Fatalf("decode user: %v", err)
+	}
+	if !decoded.IsAdmin {
+		t.Fatalf("expected admin user, got %#v", decoded)
 	}
 }
 
@@ -113,6 +122,13 @@ func newAuthTestClient(tokenURL string) *http.Client {
 			}, nil
 		case "https://graph.microsoft.com/v1.0/me":
 			body := `{"id":"u1","displayName":"Ada"}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "https://graph.microsoft.com/v1.0/me/memberOf?$select=id":
+			body := `{"value":[{"@odata.type":"#microsoft.graph.group","id":"admins"}]}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),

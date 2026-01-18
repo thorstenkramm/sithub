@@ -7,7 +7,10 @@
             Areas
             <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
           </v-card-title>
-          <v-card-text>Area list will render here.</v-card-text>
+          <v-card-text>
+            Area list will render here.
+            <div v-if="isAdmin" class="mt-2">Admin controls</div>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -20,11 +23,13 @@ import { ApiError } from '../api/client';
 import { fetchMe } from '../api/me';
 
 const userName = ref('');
+const isAdmin = ref(false);
 
 onMounted(async () => {
   try {
     const resp = await fetchMe();
     userName.value = resp.data.attributes.display_name;
+    isAdmin.value = resp.data.attributes.is_admin;
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       window.location.href = '/oauth/login';
