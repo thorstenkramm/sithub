@@ -8,6 +8,28 @@
             <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
           </v-card-title>
           <v-card-text>
+            <v-alert
+              v-if="cancelSuccessMessage"
+              type="success"
+              variant="tonal"
+              class="mb-3"
+              closable
+              data-cy="cancel-success"
+              @click:close="cancelSuccessMessage = null"
+            >
+              {{ cancelSuccessMessage }}
+            </v-alert>
+            <v-alert
+              v-if="cancelErrorMessage"
+              type="error"
+              variant="tonal"
+              class="mb-3"
+              closable
+              data-cy="cancel-error"
+              @click:close="cancelErrorMessage = null"
+            >
+              {{ cancelErrorMessage }}
+            </v-alert>
             <v-progress-linear
               v-if="bookingsLoading"
               class="mb-3"
@@ -24,6 +46,7 @@
                   v-for="booking in bookings"
                   :key="booking.id"
                   data-cy="booking-item"
+                  :data-cy-booking-id="booking.id"
                 >
                   <v-list-item-title>
                     {{ booking.attributes.desk_name }}
@@ -36,6 +59,19 @@
                       {{ formatDate(booking.attributes.booking_date) }}
                     </div>
                   </v-list-item-subtitle>
+                  <template #append>
+                    <v-btn
+                      color="error"
+                      size="small"
+                      variant="tonal"
+                      :loading="cancellingBookingId === booking.id"
+                      :disabled="cancellingBookingId !== null"
+                      data-cy="cancel-booking-btn"
+                      @click="handleCancelBooking(booking.id)"
+                    >
+                      Cancel
+                    </v-btn>
+                  </template>
                 </v-list-item>
               </v-list>
               <div v-else class="text-caption" data-cy="bookings-empty">
@@ -53,13 +89,16 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
-import { fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
+import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 
 const userName = ref('');
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
+const cancelSuccessMessage = ref<string | null>(null);
+const cancelErrorMessage = ref<string | null>(null);
+const cancellingBookingId = ref<string | null>(null);
 const router = useRouter();
 const { loading: bookingsLoading, error: bookingsError, run: runBookings } = useApi();
 
@@ -85,6 +124,40 @@ const formatDate = (dateStr: string) => {
   });
 };
 
+const loadBookings = async () => {
+  try {
+    const resp = await runBookings(() => fetchMyBookings());
+    bookings.value = resp.data;
+  } catch (err) {
+    if (await handleAuthError(err)) {
+      return;
+    }
+  }
+};
+
+const handleCancelBooking = async (bookingId: string) => {
+  cancelSuccessMessage.value = null;
+  cancelErrorMessage.value = null;
+  cancellingBookingId.value = bookingId;
+
+  try {
+    await cancelBooking(bookingId);
+    cancelSuccessMessage.value = 'Booking cancelled successfully.';
+    await loadBookings();
+  } catch (err) {
+    if (await handleAuthError(err)) {
+      return;
+    }
+    if (err instanceof ApiError && err.status === 404) {
+      cancelErrorMessage.value = 'Booking not found or already cancelled.';
+    } else {
+      cancelErrorMessage.value = 'Unable to cancel booking. Please try again.';
+    }
+  } finally {
+    cancellingBookingId.value = null;
+  }
+};
+
 onMounted(async () => {
   try {
     const resp = await fetchMe();
@@ -96,13 +169,6 @@ onMounted(async () => {
     throw err;
   }
 
-  try {
-    const resp = await runBookings(() => fetchMyBookings());
-    bookings.value = resp.data;
-  } catch (err) {
-    if (await handleAuthError(err)) {
-      return;
-    }
-  }
+  await loadBookings();
 });
 </script>

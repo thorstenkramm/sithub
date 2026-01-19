@@ -20,7 +20,7 @@ interface JsonApiErrorResponse {
   }>;
 }
 
-async function parseErrorDetail(response: Response): Promise<string | null> {
+export async function parseErrorDetail(response: Response): Promise<string | null> {
   try {
     const body = (await response.json()) as JsonApiErrorResponse;
     if (body.errors && body.errors.length > 0 && body.errors[0].detail) {

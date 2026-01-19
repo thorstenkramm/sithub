@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createBooking, fetchMyBookings } from './bookings';
+import { cancelBooking, createBooking, fetchMyBookings } from './bookings';
 
 const mockFetch = vi.fn();
 
@@ -128,6 +128,57 @@ describe('fetchMyBookings', () => {
     });
 
     await expect(fetchMyBookings()).rejects.toMatchObject({
+      status: 500
+    });
+  });
+});
+
+describe('cancelBooking', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends DELETE request to /api/v1/bookings/:id', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true
+    });
+
+    await cancelBooking('booking-123');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings/booking-123', {
+      method: 'DELETE',
+      headers: { Accept: 'application/vnd.api+json' }
+    });
+  });
+
+  it('throws ApiError on 404 response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: () =>
+        Promise.resolve({
+          errors: [{ detail: 'Booking not found' }]
+        })
+    });
+
+    await expect(cancelBooking('nonexistent')).rejects.toMatchObject({
+      status: 404,
+      detail: 'Booking not found'
+    });
+  });
+
+  it('throws ApiError on server error', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({})
+    });
+
+    await expect(cancelBooking('booking-123')).rejects.toMatchObject({
       status: 500
     });
   });

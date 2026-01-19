@@ -52,6 +52,49 @@ type MyBookingAttributes struct {
 	CreatedAt   string `json:"created_at"`
 }
 
+// DeleteHandler returns a handler for canceling a user's own booking.
+func DeleteHandler(store *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := auth.GetUserFromContext(c)
+		if user == nil {
+			return api.WriteUnauthorized(c)
+		}
+
+		bookingID := c.Param("id")
+		if bookingID == "" {
+			return api.WriteBadRequest(c, "Booking ID is required")
+		}
+
+		ctx := c.Request().Context()
+
+		// Check if booking exists and belongs to user
+		booking, err := FindBookingByID(ctx, store, bookingID)
+		if err != nil {
+			return fmt.Errorf("find booking: %w", err)
+		}
+		if booking == nil {
+			return api.WriteNotFound(c, "Booking not found")
+		}
+		if booking.UserID != user.ID {
+			return api.WriteNotFound(c, "Booking not found")
+		}
+
+		// Delete the booking
+		if err := DeleteBooking(ctx, store, bookingID); err != nil {
+			return fmt.Errorf("delete booking: %w", err)
+		}
+
+		slog.Info("booking canceled",
+			"booking_id", bookingID,
+			"user_id", user.ID,
+			"desk_id", booking.DeskID,
+			"booking_date", booking.BookingDate,
+		)
+
+		return c.NoContent(http.StatusNoContent)
+	}
+}
+
 // ListHandler returns a handler for listing the current user's future bookings.
 func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {

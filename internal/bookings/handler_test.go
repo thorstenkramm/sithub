@@ -2,6 +2,7 @@ package bookings
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -353,6 +354,96 @@ func TestListHandlerEmptyList(t *testing.T) {
 	var resp api.CollectionResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Len(t, resp.Data, 0)
+}
+
+func TestDeleteHandlerUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+
+	h := DeleteHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestDeleteHandlerNotFound(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/nonexistent", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("nonexistent")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := DeleteHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestDeleteHandlerOtherUsersBooking(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "other-user", tomorrow)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := DeleteHandler(store)
+	require.NoError(t, h(c))
+
+	// Should return 404 to not reveal booking existence
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestDeleteHandlerSuccess(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := DeleteHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+
+	// Verify booking is deleted
+	ctx := context.Background()
+	booking, err := FindBookingByID(ctx, store, "booking-1")
+	require.NoError(t, err)
+	assert.Nil(t, booking)
 }
 
 func testSpacesConfig() *spaces.Config {

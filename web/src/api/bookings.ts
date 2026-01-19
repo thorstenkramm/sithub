@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, parseErrorDetail, ApiError } from './client';
 import type { CollectionResponse, SingleResponse } from './types';
 
 export interface BookingAttributes {
@@ -48,4 +48,18 @@ export function createBooking(deskId: string, bookingDate: string) {
 
 export function fetchMyBookings() {
   return apiRequest<CollectionResponse<MyBookingAttributes>>('/api/v1/bookings');
+}
+
+export async function cancelBooking(bookingId: string): Promise<void> {
+  const response = await fetch(`/api/v1/bookings/${bookingId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/vnd.api+json'
+    }
+  });
+
+  if (!response.ok) {
+    const detail = await parseErrorDetail(response);
+    throw new ApiError(`Request failed: ${response.status}`, response.status, detail);
+  }
 }

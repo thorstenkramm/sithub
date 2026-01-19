@@ -1,24 +1,34 @@
 delete:
   summary: Cancel a booking
+  description: Cancels a booking owned by the current user. Returns 404 if booking not found or belongs to another user.
   operationId: cancelBooking
+  tags:
+    - Bookings
   parameters:
     - name: booking_id
       in: path
       required: true
+      description: The booking ID to cancel
       schema:
         type: string
   responses:
     '204':
-      description: Booking cancelled
+      description: Booking canceled successfully
     '401':
-      description: Unauthorized
+      description: Unauthorized - login required
       content:
         application/vnd.api+json:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
     '404':
-      description: Booking not found
+      description: Booking not found or does not belong to user
       content:
         application/vnd.api+json:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '404'
+                title: Not Found
+                detail: Booking not found
+                code: not_found

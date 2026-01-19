@@ -73,3 +73,29 @@ func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate strin
 
 	return result, nil
 }
+
+// FindBookingByID returns a booking by its ID, or nil if not found.
+func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*BookingRecord, error) {
+	var b BookingRecord
+	err := store.QueryRowContext(ctx,
+		"SELECT id, desk_id, user_id, booking_date, created_at FROM bookings WHERE id = ?",
+		bookingID,
+	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query booking by id: %w", err)
+	}
+	return &b, nil
+}
+
+// DeleteBooking removes a booking by its ID.
+func DeleteBooking(ctx context.Context, store *sql.DB, bookingID string) error {
+	_, err := store.ExecContext(ctx, "DELETE FROM bookings WHERE id = ?", bookingID)
+	if err != nil {
+		return fmt.Errorf("delete booking: %w", err)
+	}
+	return nil
+}
