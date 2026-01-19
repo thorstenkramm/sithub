@@ -6,6 +6,7 @@ import AreaPresenceView from '../views/AreaPresenceView.vue';
 import RoomsView from '../views/RoomsView.vue';
 import DesksView from '../views/DesksView.vue';
 import MyBookingsView from '../views/MyBookingsView.vue';
+import BookingHistoryView from '../views/BookingHistoryView.vue';
 import RoomBookingsView from '../views/RoomBookingsView.vue';
 
 const router = createRouter({
@@ -40,6 +41,11 @@ const router = createRouter({
       path: '/my-bookings',
       name: 'my-bookings',
       component: MyBookingsView
+    },
+    {
+      path: '/bookings/history',
+      name: 'booking-history',
+      component: BookingHistoryView
     },
     {
       path: '/access-denied',

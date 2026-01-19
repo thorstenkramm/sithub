@@ -5,6 +5,7 @@
         <router-link to="/" class="text-white text-decoration-none">SitHub</router-link>
       </v-app-bar-title>
       <v-btn to="/my-bookings" variant="text" data-cy="nav-my-bookings">My Bookings</v-btn>
+      <v-btn to="/bookings/history" variant="text" data-cy="nav-booking-history">History</v-btn>
     </v-app-bar>
     <v-main>
       <router-view />

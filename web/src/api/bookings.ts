@@ -124,6 +124,22 @@ export function fetchMyBookings() {
   return apiRequest<CollectionResponse<MyBookingAttributes>>('/api/v1/bookings');
 }
 
+export interface BookingHistoryParams {
+  from?: string;
+  to?: string;
+}
+
+export function fetchBookingHistory(params?: BookingHistoryParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.from) queryParams.set('from', params.from);
+  if (params?.to) queryParams.set('to', params.to);
+
+  const queryString = queryParams.toString();
+  const url = queryString ? `/api/v1/bookings/history?${queryString}` : '/api/v1/bookings/history';
+
+  return apiRequest<CollectionResponse<MyBookingAttributes>>(url);
+}
+
 export async function cancelBooking(bookingId: string): Promise<void> {
   const response = await fetch(`/api/v1/bookings/${bookingId}`, {
     method: 'DELETE',

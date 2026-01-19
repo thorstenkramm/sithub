@@ -146,52 +146,101 @@ func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return fmt.Errorf("list user bookings: %w", err)
 		}
 
-		resources := make([]api.Resource, 0, len(records))
-		for i := range records {
-			rec := &records[i]
-			loc, found := cfg.FindDeskLocation(rec.DeskID)
-			if !found {
-				slog.Warn("booking references unknown desk", "booking_id", rec.ID, "desk_id", rec.DeskID)
-				continue
-			}
+		return writeBookingsCollection(c, cfg, user.ID, records)
+	}
+}
 
-			attrs := MyBookingAttributes{
-				DeskID:      rec.DeskID,
-				DeskName:    loc.Desk.Name,
-				RoomID:      loc.Room.ID,
-				RoomName:    loc.Room.Name,
-				AreaID:      loc.Area.ID,
-				AreaName:    loc.Area.Name,
-				BookingDate: rec.BookingDate,
-				CreatedAt:   rec.CreatedAt,
-			}
-
-			// Include booked_by info if different from user_id
-			if rec.BookedByUserID != "" && rec.BookedByUserID != rec.UserID {
-				attrs.BookedByUserID = rec.BookedByUserID
-				attrs.BookedByUserName = rec.BookedByUserName
-			}
-			// Mark if this booking was made for the current user by someone else
-			if rec.UserID == user.ID && rec.BookedByUserID != "" && rec.BookedByUserID != user.ID {
-				attrs.BookedForMe = true
-			}
-			// Include guest info
-			if rec.IsGuest {
-				attrs.IsGuest = true
-				attrs.GuestEmail = rec.GuestEmail
-			}
-
-			resources = append(resources, api.Resource{
-				Type:       "bookings",
-				ID:         rec.ID,
-				Attributes: attrs,
-			})
+// HistoryHandler returns a handler for listing the current user's past bookings.
+// Accepts optional query params: from (start date), to (end date) in YYYY-MM-DD format.
+func HistoryHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := auth.GetUserFromContext(c)
+		if user == nil {
+			return api.WriteUnauthorized(c)
 		}
 
-		resp := api.CollectionResponse{Data: resources}
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusOK, resp)
+		// Default: last 30 days
+		today := time.Now().UTC()
+		defaultFrom := today.AddDate(0, 0, -30).Format(time.DateOnly)
+		defaultTo := today.AddDate(0, 0, -1).Format(time.DateOnly) // Yesterday (past only)
+
+		fromDate := c.QueryParam("from")
+		toDate := c.QueryParam("to")
+
+		if fromDate == "" {
+			fromDate = defaultFrom
+		}
+		if toDate == "" {
+			toDate = defaultTo
+		}
+
+		// Validate dates
+		if _, err := time.Parse(time.DateOnly, fromDate); err != nil {
+			return api.WriteBadRequest(c, "Invalid 'from' date. Use YYYY-MM-DD format.")
+		}
+		if _, err := time.Parse(time.DateOnly, toDate); err != nil {
+			return api.WriteBadRequest(c, "Invalid 'to' date. Use YYYY-MM-DD format.")
+		}
+
+		ctx := c.Request().Context()
+		records, err := ListUserBookingsRange(ctx, store, user.ID, fromDate, toDate)
+		if err != nil {
+			return fmt.Errorf("list booking history: %w", err)
+		}
+
+		return writeBookingsCollection(c, cfg, user.ID, records)
 	}
+}
+
+func writeBookingsCollection(
+	c echo.Context, cfg *spaces.Config, currentUserID string, records []BookingRecord,
+) error {
+	resources := make([]api.Resource, 0, len(records))
+	for i := range records {
+		rec := &records[i]
+		loc, found := cfg.FindDeskLocation(rec.DeskID)
+		if !found {
+			slog.Warn("booking references unknown desk", "booking_id", rec.ID, "desk_id", rec.DeskID)
+			continue
+		}
+
+		attrs := MyBookingAttributes{
+			DeskID:      rec.DeskID,
+			DeskName:    loc.Desk.Name,
+			RoomID:      loc.Room.ID,
+			RoomName:    loc.Room.Name,
+			AreaID:      loc.Area.ID,
+			AreaName:    loc.Area.Name,
+			BookingDate: rec.BookingDate,
+			CreatedAt:   rec.CreatedAt,
+		}
+
+		// Include booked_by info if different from user_id
+		if rec.BookedByUserID != "" && rec.BookedByUserID != rec.UserID {
+			attrs.BookedByUserID = rec.BookedByUserID
+			attrs.BookedByUserName = rec.BookedByUserName
+		}
+		// Mark if this booking was made for the current user by someone else
+		if rec.UserID == currentUserID && rec.BookedByUserID != "" && rec.BookedByUserID != currentUserID {
+			attrs.BookedForMe = true
+		}
+		// Include guest info
+		if rec.IsGuest {
+			attrs.IsGuest = true
+			attrs.GuestEmail = rec.GuestEmail
+		}
+
+		resources = append(resources, api.Resource{
+			Type:       "bookings",
+			ID:         rec.ID,
+			Attributes: attrs,
+		})
+	}
+
+	resp := api.CollectionResponse{Data: resources}
+	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
+	//nolint:wrapcheck // Terminal response
+	return c.JSON(http.StatusOK, resp)
 }
 
 // CreateHandler returns a handler for creating bookings.

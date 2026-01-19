@@ -357,6 +357,70 @@ func TestListHandlerEmptyList(t *testing.T) {
 	assert.Len(t, resp.Data, 0)
 }
 
+func TestHistoryHandlerReturnsPastBookings(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	// Create a past booking (yesterday)
+	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format(time.DateOnly)
+	seedTestBooking(t, store, "past-booking", "desk-1", "user-1", yesterday)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings/history", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := HistoryHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, "past-booking", resp.Data[0].ID)
+}
+
+func TestHistoryHandlerWithDateRange(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	// Create bookings at different dates
+	date1 := time.Now().UTC().AddDate(0, 0, -10).Format(time.DateOnly)
+	date2 := time.Now().UTC().AddDate(0, 0, -5).Format(time.DateOnly)
+	date3 := time.Now().UTC().AddDate(0, 0, -2).Format(time.DateOnly)
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", date1)
+	seedTestBooking(t, store, "b2", "desk-1", "user-1", date2)
+	seedTestBooking(t, store, "b3", "desk-1", "user-1", date3)
+
+	// Query with date range that only includes date2
+	fromDate := time.Now().UTC().AddDate(0, 0, -7).Format(time.DateOnly)
+	toDate := time.Now().UTC().AddDate(0, 0, -3).Format(time.DateOnly)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings/history?from="+fromDate+"&to="+toDate, http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := HistoryHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, "b2", resp.Data[0].ID)
+}
+
 func TestDeleteHandlerUnauthorized(t *testing.T) {
 	t.Parallel()
 

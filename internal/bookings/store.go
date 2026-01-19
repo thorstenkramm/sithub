@@ -50,13 +50,35 @@ type BookingRecord struct {
 // ListUserBookings returns all bookings for a user on or after the given date, ordered by booking_date.
 // Includes bookings where user_id matches OR booked_by_user_id matches.
 func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate string) (result []BookingRecord, err error) {
-	query := `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
-	                 is_guest, guest_email, created_at 
-	          FROM bookings 
-	          WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? 
-	          ORDER BY booking_date ASC`
+	return ListUserBookingsRange(ctx, store, userID, fromDate, "")
+}
 
-	rows, err := store.QueryContext(ctx, query, userID, userID, fromDate)
+// ListUserBookingsRange returns bookings for a user within a date range, ordered by booking_date.
+// If toDate is empty, returns all bookings from fromDate onwards.
+// Includes bookings where user_id matches OR booked_by_user_id matches.
+func ListUserBookingsRange(
+	ctx context.Context, store *sql.DB, userID, fromDate, toDate string,
+) (result []BookingRecord, err error) {
+	var query string
+	var args []interface{}
+
+	if toDate != "" {
+		query = `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+		                is_guest, guest_email, created_at 
+		         FROM bookings 
+		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? AND booking_date <= ?
+		         ORDER BY booking_date DESC`
+		args = []interface{}{userID, userID, fromDate, toDate}
+	} else {
+		query = `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+		                is_guest, guest_email, created_at 
+		         FROM bookings 
+		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? 
+		         ORDER BY booking_date ASC`
+		args = []interface{}{userID, userID, fromDate}
+	}
+
+	rows, err := store.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query user bookings: %w", err)
 	}
