@@ -249,3 +249,54 @@ components:
           $ref: '#/components/schemas/BookingResource'
       required:
         - data
+    MyBookingAttributes:
+      type: object
+      properties:
+        desk_id:
+          type: string
+        desk_name:
+          type: string
+        room_id:
+          type: string
+        room_name:
+          type: string
+        area_id:
+          type: string
+        area_name:
+          type: string
+        booking_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - desk_id
+        - desk_name
+        - room_id
+        - room_name
+        - area_id
+        - area_name
+        - booking_date
+        - created_at
+    MyBookingResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: bookings
+            attributes:
+              $ref: '#/components/schemas/MyBookingAttributes'
+          required:
+            - type
+            - attributes
+    MyBookingsCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyBookingResource'
+      required:
+        - data

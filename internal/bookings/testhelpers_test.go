@@ -38,11 +38,12 @@ func resolveTestMigrationsPath(t *testing.T) string {
 	return filepath.Join(root, "migrations")
 }
 
-// seedTestDeskData creates test area, room, and desks. Uses fixed area-1 for areaID.
-func seedTestDeskData(t *testing.T, store *sql.DB, roomID string, deskIDs []string) {
+// seedTestDeskData creates test area, room, and desks. Uses fixed area-1 and room-1.
+func seedTestDeskData(t *testing.T, store *sql.DB, deskIDs []string) {
 	t.Helper()
 
 	const areaID = "area-1"
+	const roomID = "room-1"
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := store.Exec(
 		"INSERT INTO areas (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",

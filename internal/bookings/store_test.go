@@ -10,7 +10,7 @@ import (
 
 func TestFindBookedDeskIDs(t *testing.T) {
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, "room-1", []string{"desk-1"})
+	seedTestDeskData(t, store, []string{"desk-1"})
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", "2026-01-20")
 
 	booked, err := FindBookedDeskIDs(t.Context(), store, "2026-01-20")

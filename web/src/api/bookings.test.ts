@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createBooking } from './bookings';
+import { createBooking, fetchMyBookings } from './bookings';
 
 const mockFetch = vi.fn();
 
@@ -71,6 +71,64 @@ describe('createBooking', () => {
 
     await expect(createBooking('desk-1', '2026-01-20')).rejects.toMatchObject({
       status: 400
+    });
+  });
+});
+
+describe('fetchMyBookings', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends GET request to /api/v1/bookings', async () => {
+    const mockResponse = {
+      data: [
+        {
+          id: 'booking-1',
+          type: 'bookings',
+          attributes: {
+            desk_id: 'desk-1',
+            desk_name: 'Desk 1',
+            room_id: 'room-1',
+            room_name: 'Room 101',
+            area_id: 'area-1',
+            area_name: 'Main Office',
+            booking_date: '2026-01-20',
+            created_at: '2026-01-19T10:00:00Z'
+          }
+        }
+      ]
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse)
+    });
+
+    const result = await fetchMyBookings();
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings', {
+      headers: expect.any(Headers)
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].attributes.desk_name).toBe('Desk 1');
+    expect(result.data[0].attributes.room_name).toBe('Room 101');
+    expect(result.data[0].attributes.area_name).toBe('Main Office');
+  });
+
+  it('throws ApiError on error response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500
+    });
+
+    await expect(fetchMyBookings()).rejects.toMatchObject({
+      status: 500
     });
   });
 });

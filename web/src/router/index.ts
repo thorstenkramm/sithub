@@ -4,6 +4,7 @@ import AreasView from '../views/AreasView.vue';
 import AccessDeniedView from '../views/AccessDeniedView.vue';
 import RoomsView from '../views/RoomsView.vue';
 import DesksView from '../views/DesksView.vue';
+import MyBookingsView from '../views/MyBookingsView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,6 +23,11 @@ const router = createRouter({
       path: '/rooms/:roomId/desks',
       name: 'desks',
       component: DesksView
+    },
+    {
+      path: '/my-bookings',
+      name: 'my-bookings',
+      component: MyBookingsView
     },
     {
       path: '/access-denied',

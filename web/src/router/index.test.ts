@@ -27,6 +27,10 @@ describe('router', () => {
             name: 'desks'
           }),
           expect.objectContaining({
+            path: '/my-bookings',
+            name: 'my-bookings'
+          }),
+          expect.objectContaining({
             path: '/access-denied',
             name: 'access-denied'
           })

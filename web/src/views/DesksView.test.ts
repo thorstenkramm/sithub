@@ -5,15 +5,11 @@ import { fetchMe } from '../api/me';
 import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 
 const pushMock = vi.fn();
-
 vi.mock('../api/me');
 vi.mock('../api/desks');
-
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { roomId: 'room-1' } }),
-  useRouter: () => ({
-    push: pushMock
-  })
+  useRouter: () => ({ push: pushMock })
 }));
 
 describe('DesksView', () => {

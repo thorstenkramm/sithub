@@ -40,6 +40,64 @@ type BookingAttributes struct {
 	CreatedAt   string `json:"created_at"`
 }
 
+// MyBookingAttributes represents booking resource attributes with location info.
+type MyBookingAttributes struct {
+	DeskID      string `json:"desk_id"`
+	DeskName    string `json:"desk_name"`
+	RoomID      string `json:"room_id"`
+	RoomName    string `json:"room_name"`
+	AreaID      string `json:"area_id"`
+	AreaName    string `json:"area_name"`
+	BookingDate string `json:"booking_date"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// ListHandler returns a handler for listing the current user's future bookings.
+func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := auth.GetUserFromContext(c)
+		if user == nil {
+			return api.WriteUnauthorized(c)
+		}
+
+		today := time.Now().UTC().Format(time.DateOnly)
+		ctx := c.Request().Context()
+
+		records, err := ListUserBookings(ctx, store, user.ID, today)
+		if err != nil {
+			return fmt.Errorf("list user bookings: %w", err)
+		}
+
+		resources := make([]api.Resource, 0, len(records))
+		for _, rec := range records {
+			loc, found := cfg.FindDeskLocation(rec.DeskID)
+			if !found {
+				slog.Warn("booking references unknown desk", "booking_id", rec.ID, "desk_id", rec.DeskID)
+				continue
+			}
+
+			resources = append(resources, api.Resource{
+				Type: "bookings",
+				ID:   rec.ID,
+				Attributes: MyBookingAttributes{
+					DeskID:      rec.DeskID,
+					DeskName:    loc.Desk.Name,
+					RoomID:      loc.Room.ID,
+					RoomName:    loc.Room.Name,
+					AreaID:      loc.Area.ID,
+					AreaName:    loc.Area.Name,
+					BookingDate: rec.BookingDate,
+					CreatedAt:   rec.CreatedAt,
+				},
+			})
+		}
+
+		resp := api.CollectionResponse{Data: resources}
+		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
+		return c.JSON(http.StatusOK, resp)
+	}
+}
+
 // CreateHandler returns a handler for creating a single-day booking.
 func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {

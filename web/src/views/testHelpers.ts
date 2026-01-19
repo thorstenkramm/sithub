@@ -75,3 +75,14 @@ export function defineAuthRedirectTests(
     await expectAccessDeniedRedirect(mountView, pushMock);
   });
 }
+
+// Shared mock factory for fetchMe
+export function createFetchMeMocker(
+  fetchMeMock: ReturnType<typeof vi.fn>
+) {
+  return (userName = 'Test User', isAdmin = false) => {
+    fetchMeMock.mockResolvedValue({
+      data: { attributes: { display_name: userName, is_admin: isAdmin } }
+    });
+  };
+}

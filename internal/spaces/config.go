@@ -49,6 +49,31 @@ func (c *Config) FindDesk(id string) (*Desk, bool) {
 	return nil, false
 }
 
+// DeskLocation contains a desk with its parent room and area.
+type DeskLocation struct {
+	Area *Area
+	Room *Room
+	Desk *Desk
+}
+
+// FindDeskLocation returns the desk and its parent room and area.
+func (c *Config) FindDeskLocation(deskID string) (*DeskLocation, bool) {
+	for i := range c.Areas {
+		for j := range c.Areas[i].Rooms {
+			for k := range c.Areas[i].Rooms[j].Desks {
+				if c.Areas[i].Rooms[j].Desks[k].ID == deskID {
+					return &DeskLocation{
+						Area: &c.Areas[i],
+						Room: &c.Areas[i].Rooms[j],
+						Desk: &c.Areas[i].Rooms[j].Desks[k],
+					}, true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
 // BaseAttributes returns common attributes for named space resources.
 func BaseAttributes(name, description, floorPlan string) map[string]interface{} {
 	attrs := map[string]interface{}{

@@ -1,3 +1,36 @@
+get:
+  summary: List my bookings
+  description: Returns the current user's future bookings (today and later), ordered by date.
+  operationId: listMyBookings
+  tags:
+    - Bookings
+  responses:
+    '200':
+      description: List of user's upcoming bookings
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/MyBookingsCollectionResponse
+          example:
+            data:
+              - type: bookings
+                id: b1234567-89ab-cdef-0123-456789abcdef
+                attributes:
+                  desk_id: desk-1
+                  desk_name: Corner Desk
+                  room_id: room-101
+                  room_name: Room 101
+                  area_id: area-1
+                  area_name: Main Office
+                  booking_date: '2026-01-20'
+                  created_at: '2026-01-19T10:30:00Z'
+    '401':
+      description: Unauthorized - login required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+
 post:
   summary: Create a booking
   description: Creates a single-day booking for a desk on a specific date.

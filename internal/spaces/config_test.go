@@ -136,3 +136,56 @@ func TestFindDesk(t *testing.T) {
 		t.Fatalf("expected missing desk to be false")
 	}
 }
+
+func TestFindDeskLocation(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "area-1",
+				Name: "Main Office",
+				Rooms: []Room{
+					{
+						ID:   "room-1",
+						Name: "Room 101",
+						Desks: []Desk{
+							{ID: "desk-1", Name: "Corner Desk"},
+						},
+					},
+				},
+			},
+			{
+				ID:   "area-2",
+				Name: "Annex",
+				Rooms: []Room{
+					{
+						ID:   "room-2",
+						Name: "Room 201",
+						Desks: []Desk{
+							{ID: "desk-2", Name: "Window Desk"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Test finding desk with full location
+	loc, ok := cfg.FindDeskLocation("desk-2")
+	if !ok {
+		t.Fatalf("expected to find desk-2 location")
+	}
+	if loc.Area.ID != "area-2" || loc.Area.Name != "Annex" {
+		t.Fatalf("expected area-2/Annex, got %s/%s", loc.Area.ID, loc.Area.Name)
+	}
+	if loc.Room.ID != "room-2" || loc.Room.Name != "Room 201" {
+		t.Fatalf("expected room-2/Room 201, got %s/%s", loc.Room.ID, loc.Room.Name)
+	}
+	if loc.Desk.ID != "desk-2" || loc.Desk.Name != "Window Desk" {
+		t.Fatalf("expected desk-2/Window Desk, got %s/%s", loc.Desk.ID, loc.Desk.Name)
+	}
+
+	// Test missing desk
+	if _, ok := cfg.FindDeskLocation("missing"); ok {
+		t.Fatalf("expected missing desk location to be false")
+	}
+}

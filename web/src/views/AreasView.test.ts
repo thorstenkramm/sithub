@@ -2,38 +2,19 @@ import { mount, flushPromises } from '@vue/test-utils';
 import AreasView from './AreasView.vue';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
-import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
 
 const pushMock = vi.fn();
 
-vi.mock('../api/me', () => ({
-  fetchMe: vi.fn()
-}));
-
-vi.mock('../api/areas', () => ({
-  fetchAreas: vi.fn()
-}));
-
-vi.mock('vue-router', () => ({
-  useRouter: () => ({
-    push: pushMock
-  })
-}));
+vi.mock('../api/me', () => ({ fetchMe: vi.fn() }));
+vi.mock('../api/areas', () => ({ fetchAreas: vi.fn() }));
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: pushMock }) }));
 
 describe('AreasView', () => {
   const stubs = buildViewStubs();
-
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
-  const mockFetchMe = (isAdmin: boolean) => {
-    fetchMeMock.mockResolvedValue({
-      data: {
-        attributes: {
-          display_name: 'Ada Lovelace',
-          is_admin: isAdmin
-        }
-      }
-    });
-  };
+  const mockFetchMeBase = createFetchMeMocker(fetchMeMock);
+  const mockFetchMe = (isAdmin: boolean) => mockFetchMeBase('Ada Lovelace', isAdmin);
 
   const mockFetchAreas = (count: number) => {
     const fetchAreasMock = fetchAreas as unknown as ReturnType<typeof vi.fn>;

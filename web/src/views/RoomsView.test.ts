@@ -2,39 +2,21 @@ import { mount, flushPromises } from '@vue/test-utils';
 import RoomsView from './RoomsView.vue';
 import { fetchMe } from '../api/me';
 import { fetchRooms } from '../api/rooms';
-import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
 
 const pushMock = vi.fn();
 
-vi.mock('../api/me', () => ({
-  fetchMe: vi.fn()
-}));
-
-vi.mock('../api/rooms', () => ({
-  fetchRooms: vi.fn()
-}));
-
+vi.mock('../api/me', () => ({ fetchMe: vi.fn() }));
+vi.mock('../api/rooms', () => ({ fetchRooms: vi.fn() }));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { areaId: 'area-1' } }),
-  useRouter: () => ({
-    push: pushMock
-  })
+  useRouter: () => ({ push: pushMock })
 }));
 
 describe('RoomsView', () => {
   const stubs = buildViewStubs();
-
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
-  const mockFetchMe = () => {
-    fetchMeMock.mockResolvedValue({
-      data: {
-        attributes: {
-          display_name: 'Ada Lovelace',
-          is_admin: false
-        }
-      }
-    });
-  };
+  const mockFetchMe = () => createFetchMeMocker(fetchMeMock)('Ada Lovelace');
 
   const mockFetchRooms = (count: number) => {
     const fetchRoomsMock = fetchRooms as unknown as ReturnType<typeof vi.fn>;
