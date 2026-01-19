@@ -39,6 +39,7 @@ type BookingRecord struct {
 	ID               string
 	DeskID           string
 	UserID           string
+	UserName         string
 	BookingDate      string
 	BookedByUserID   string
 	BookedByUserName string
@@ -63,14 +64,14 @@ func ListUserBookingsRange(
 	var args []interface{}
 
 	if toDate != "" {
-		query = `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+		query = `SELECT id, desk_id, user_id, user_name, booking_date, booked_by_user_id, booked_by_user_name, 
 		                is_guest, guest_email, created_at 
 		         FROM bookings 
 		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? AND booking_date <= ?
 		         ORDER BY booking_date DESC`
 		args = []interface{}{userID, userID, fromDate, toDate}
 	} else {
-		query = `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+		query = `SELECT id, desk_id, user_id, user_name, booking_date, booked_by_user_id, booked_by_user_name, 
 		                is_guest, guest_email, created_at 
 		         FROM bookings 
 		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? 
@@ -92,7 +93,7 @@ func ListUserBookingsRange(
 		var b BookingRecord
 		var isGuestInt int
 		err := rows.Scan(
-			&b.ID, &b.DeskID, &b.UserID, &b.BookingDate,
+			&b.ID, &b.DeskID, &b.UserID, &b.UserName, &b.BookingDate,
 			&b.BookedByUserID, &b.BookedByUserName, &isGuestInt, &b.GuestEmail, &b.CreatedAt,
 		)
 		if err != nil {
@@ -113,11 +114,11 @@ func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*Boo
 	var b BookingRecord
 	var isGuestInt int
 	err := store.QueryRowContext(ctx,
-		`SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+		`SELECT id, desk_id, user_id, user_name, booking_date, booked_by_user_id, booked_by_user_name, 
 		        is_guest, guest_email, created_at 
 		 FROM bookings WHERE id = ?`,
 		bookingID,
-	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.BookedByUserID, &b.BookedByUserName,
+	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.UserName, &b.BookingDate, &b.BookedByUserID, &b.BookedByUserName,
 		&isGuestInt, &b.GuestEmail, &b.CreatedAt)
 
 	if err == sql.ErrNoRows {

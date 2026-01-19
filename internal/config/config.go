@@ -18,11 +18,12 @@ var ErrMissingSpacesConfig = errors.New("missing spaces configuration")
 
 // Config holds the full application configuration.
 type Config struct {
-	Main     MainConfig     `mapstructure:"main"`
-	Log      LogConfig      `mapstructure:"log"`
-	EntraID  EntraIDConfig  `mapstructure:"entraid"`
-	TestAuth TestAuthConfig `mapstructure:"test_auth"`
-	Spaces   SpacesConfig   `mapstructure:"spaces"`
+	Main          MainConfig          `mapstructure:"main"`
+	Log           LogConfig           `mapstructure:"log"`
+	EntraID       EntraIDConfig       `mapstructure:"entraid"`
+	TestAuth      TestAuthConfig      `mapstructure:"test_auth"`
+	Spaces        SpacesConfig        `mapstructure:"spaces"`
+	Notifications NotificationsConfig `mapstructure:"notifications"`
 }
 
 // MainConfig contains main server settings.
@@ -63,6 +64,11 @@ type SpacesConfig struct {
 	ConfigFile string `mapstructure:"config_file"`
 }
 
+// NotificationsConfig contains notification settings.
+type NotificationsConfig struct {
+	WebhookURL string `mapstructure:"webhook_url"`
+}
+
 // Load reads configuration from a TOML file and environment variables.
 func Load(path string) (*Config, error) {
 	return LoadWithOverrides(path, nil)
@@ -88,6 +94,7 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	v.SetDefault("test_auth.user_name", "Test User")
 	v.SetDefault("test_auth.permitted", true)
 	v.SetDefault("spaces.config_file", "")
+	v.SetDefault("notifications.webhook_url", "")
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("load config: %w", err)

@@ -16,8 +16,14 @@ import (
 
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/auth"
+	"github.com/thorstenkramm/sithub/internal/notifications"
 	"github.com/thorstenkramm/sithub/internal/spaces"
 )
+
+// testNotifier returns a noop notifier for tests.
+func testNotifier() notifications.Notifier {
+	return &notifications.NoopNotifier{}
+}
 
 func TestCreateHandlerUnauthorized(t *testing.T) {
 	t.Parallel()
@@ -30,7 +36,7 @@ func TestCreateHandlerUnauthorized(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -56,7 +62,7 @@ func TestCreateHandlerInvalidContentType(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusUnsupportedMediaType, rec.Code)
@@ -125,7 +131,7 @@ func TestCreateHandlerBadRequestCases(t *testing.T) {
 			c := e.NewContext(req, rec)
 			c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-			h := CreateHandler(cfg, store)
+			h := CreateHandler(cfg, store, testNotifier())
 			require.NoError(t, h(c))
 
 			assert.Equal(t, http.StatusBadRequest, rec.Code)
@@ -154,7 +160,7 @@ func TestCreateHandlerDeskNotFound(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
@@ -182,7 +188,7 @@ func TestCreateHandlerSuccess(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -244,7 +250,7 @@ func TestCreateHandlerConflictCases(t *testing.T) {
 			c := e.NewContext(req, rec)
 			c.Set("user", &auth.User{ID: tc.requestUserID, Name: "Test User"})
 
-			h := CreateHandler(cfg, store)
+			h := CreateHandler(cfg, store, testNotifier())
 			require.NoError(t, h(c))
 
 			assert.Equal(t, http.StatusConflict, rec.Code)
@@ -433,7 +439,7 @@ func TestDeleteHandlerUnauthorized(t *testing.T) {
 	c.SetParamNames("id")
 	c.SetParamValues("booking-1")
 
-	h := DeleteHandler(store)
+	h := DeleteHandler(store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -452,7 +458,7 @@ func TestDeleteHandlerNotFound(t *testing.T) {
 	c.SetParamValues("nonexistent")
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := DeleteHandler(store)
+	h := DeleteHandler(store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
@@ -475,7 +481,7 @@ func TestDeleteHandlerOtherUsersBooking(t *testing.T) {
 	c.SetParamValues("booking-1")
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := DeleteHandler(store)
+	h := DeleteHandler(store, testNotifier())
 	require.NoError(t, h(c))
 
 	// Should return 404 to not reveal booking existence
@@ -499,7 +505,7 @@ func TestDeleteHandlerSuccess(t *testing.T) {
 	c.SetParamValues("booking-1")
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := DeleteHandler(store)
+	h := DeleteHandler(store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
@@ -549,7 +555,7 @@ func TestDeleteHandlerAdminCancelCases(t *testing.T) {
 			c.SetParamValues("booking-1")
 			c.Set("user", &auth.User{ID: "admin-user", Name: "Admin User", IsAdmin: true})
 
-			h := DeleteHandler(store)
+			h := DeleteHandler(store, testNotifier())
 			require.NoError(t, h(c))
 
 			assert.Equal(t, http.StatusNoContent, rec.Code)
@@ -582,7 +588,7 @@ func TestCreateHandlerBookOnBehalf(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Booker User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -640,7 +646,7 @@ func TestCreateHandlerMissingNameValidation(t *testing.T) {
 			c := e.NewContext(req, rec)
 			c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-			h := CreateHandler(cfg, store)
+			h := CreateHandler(cfg, store, testNotifier())
 			require.NoError(t, h(c))
 
 			assert.Equal(t, http.StatusBadRequest, rec.Code)
@@ -672,7 +678,7 @@ func TestCreateHandlerGuestBooking(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Host User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -715,7 +721,7 @@ func TestCreateHandlerMultiDayBooking(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -750,7 +756,7 @@ func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
 
-	h := CreateHandler(cfg, store)
+	h := CreateHandler(cfg, store, testNotifier())
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -889,7 +895,7 @@ func TestDeleteHandlerOnBehalfBookingCancellation(t *testing.T) {
 			c.SetParamValues("booking-1")
 			c.Set("user", tc.cancelingUser)
 
-			h := DeleteHandler(store)
+			h := DeleteHandler(store, testNotifier())
 			require.NoError(t, h(c))
 
 			assert.Equal(t, http.StatusNoContent, rec.Code)
@@ -922,7 +928,7 @@ func TestDeleteHandlerUnrelatedUserCannotCancel(t *testing.T) {
 	// Unrelated user trying to cancel
 	c.Set("user", &auth.User{ID: "random-user", Name: "Random"})
 
-	h := DeleteHandler(store)
+	h := DeleteHandler(store, testNotifier())
 	require.NoError(t, h(c))
 
 	// Should return 404 to not reveal booking existence

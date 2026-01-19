@@ -18,6 +18,7 @@ import (
 
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/auth"
+	"github.com/thorstenkramm/sithub/internal/notifications"
 	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
@@ -75,7 +76,7 @@ type MyBookingAttributes struct {
 // DeleteHandler returns a handler for canceling a booking.
 // Users can cancel their own bookings or bookings made for them;
 // The person who booked on behalf can also cancel; admins can cancel any booking.
-func DeleteHandler(store *sql.DB) echo.HandlerFunc {
+func DeleteHandler(store *sql.DB, notifier notifications.Notifier) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -124,6 +125,20 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 			}
 		}
 		slog.Info("booking canceled", logFields...)
+
+		// Send notification asynchronously
+		notifier.NotifyAsync(&notifications.BookingEvent{
+			Event:            notifications.EventBookingCanceled,
+			BookingID:        bookingID,
+			DeskID:           booking.DeskID,
+			UserID:           booking.UserID,
+			UserName:         booking.UserName,
+			BookingDate:      booking.BookingDate,
+			IsGuest:          booking.IsGuest,
+			GuestEmail:       booking.GuestEmail,
+			CanceledByUserID: user.ID,
+			Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		})
 
 		return c.NoContent(http.StatusNoContent)
 	}
@@ -245,7 +260,7 @@ func writeBookingsCollection(
 
 // CreateHandler returns a handler for creating bookings.
 // Supports single-day, multi-day, booking on behalf, and guest bookings.
-func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+func CreateHandler(cfg *spaces.Config, store *sql.DB, notifier notifications.Notifier) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -281,14 +296,14 @@ func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 		// Single day booking
 		if len(dates) == 1 {
 			return processBooking(
-				c, store, deskID, params.targetUserID, params.targetUserName,
+				c, store, notifier, deskID, params.targetUserID, params.targetUserName,
 				params.bookedByUserID, params.bookedByUserName, dates[0],
 				params.isGuest, params.guestEmail,
 			)
 		}
 
 		// Multi-day booking
-		return processMultiDayBooking(c, store, deskID, params, dates)
+		return processMultiDayBooking(c, store, notifier, deskID, params, dates)
 	}
 }
 
@@ -428,7 +443,7 @@ func errBadRequest(detail string) error {
 var errResponseWritten = errors.New("response already written")
 
 func processBooking(
-	c echo.Context, store *sql.DB,
+	c echo.Context, store *sql.DB, notifier notifications.Notifier,
 	deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
 	isGuest bool, guestEmail string,
 ) error {
@@ -483,13 +498,16 @@ func processBooking(
 	}
 	slog.Info("booking created", logFields...)
 
+	// Send notification asynchronously
+	sendBookingCreatedNotification(notifier, booking)
+
 	return writeBookingResponse(c, booking)
 }
 
 // processMultiDayBooking creates bookings for multiple dates.
 // Returns created bookings and reports conflicts per day.
 func processMultiDayBooking(
-	c echo.Context, store *sql.DB,
+	c echo.Context, store *sql.DB, notifier notifications.Notifier,
 	deskID string, params *bookingParticipants, dates []string,
 ) error {
 	ctx := c.Request().Context()
@@ -531,6 +549,9 @@ func processMultiDayBooking(
 			"user_id", params.targetUserID,
 			"booking_date", bookingDate,
 		)
+
+		// Send notification asynchronously
+		sendBookingCreatedNotification(notifier, booking)
 
 		attrs := BookingAttributes{
 			DeskID:      booking.DeskID,
@@ -674,4 +695,24 @@ func CreateBooking(
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}, nil
+}
+
+// sendBookingCreatedNotification sends an async notification for a created booking.
+func sendBookingCreatedNotification(notifier notifications.Notifier, booking *Booking) {
+	event := notifications.BookingEvent{
+		Event:       notifications.EventBookingCreated,
+		BookingID:   booking.ID,
+		DeskID:      booking.DeskID,
+		UserID:      booking.UserID,
+		UserName:    booking.UserName,
+		BookingDate: booking.BookingDate,
+		IsGuest:     booking.IsGuest,
+		GuestEmail:  booking.GuestEmail,
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+	}
+	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
+		event.BookedByUserID = booking.BookedByUserID
+		event.BookedByUserName = booking.BookedByUserName
+	}
+	notifier.NotifyAsync(&event)
 }

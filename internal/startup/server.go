@@ -22,6 +22,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/db"
 	"github.com/thorstenkramm/sithub/internal/desks"
 	"github.com/thorstenkramm/sithub/internal/middleware"
+	"github.com/thorstenkramm/sithub/internal/notifications"
 	"github.com/thorstenkramm/sithub/internal/rooms"
 	"github.com/thorstenkramm/sithub/internal/spaces"
 	"github.com/thorstenkramm/sithub/internal/system"
@@ -61,6 +62,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("init auth service: %w", err)
 	}
 
+	notifier := notifications.NewNotifier(cfg.Notifications.WebhookURL)
+
 	e.Use(middleware.LoadUser(authService))
 	e.Use(middleware.RedirectForbidden(authService))
 
@@ -68,7 +71,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	indexPath := filepath.Join(staticDir, "index.html")
 
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, spacesConfig, store)
+	registerRoutes(e, authService, spacesConfig, store, notifier)
 	registerSPAHandlers(e, staticDir, indexPath)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -93,7 +96,10 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config, store *sql.DB) {
+func registerRoutes(
+	e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config,
+	store *sql.DB, notifier notifications.Notifier,
+) {
 	e.GET("/oauth/login", auth.LoginHandler(authService))
 	e.GET("/oauth/callback", auth.CallbackHandler(authService))
 
@@ -108,8 +114,9 @@ func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *space
 		rooms.BookingsHandler(spacesConfig, store), middleware.RequireAuth(authService))
 	e.GET("/api/v1/bookings", bookings.ListHandler(spacesConfig, store), middleware.RequireAuth(authService))
 	e.GET("/api/v1/bookings/history", bookings.HistoryHandler(spacesConfig, store), middleware.RequireAuth(authService))
-	e.POST("/api/v1/bookings", bookings.CreateHandler(spacesConfig, store), middleware.RequireAuth(authService))
-	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store), middleware.RequireAuth(authService))
+	e.POST("/api/v1/bookings",
+		bookings.CreateHandler(spacesConfig, store, notifier), middleware.RequireAuth(authService))
+	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), middleware.RequireAuth(authService))
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
