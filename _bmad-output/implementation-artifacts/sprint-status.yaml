@@ -79,7 +79,7 @@ development_status:
   epic-7: in-progress
   7-1-book-on-behalf-of-another-user: done
   7-2-guest-booking: done
-  7-3-multi-day-or-recurring-booking: backlog
+  7-3-multi-day-or-recurring-booking: done
   7-4-booking-history: backlog
   7-5-booking-notifications: backlog
   epic-7-retrospective: optional

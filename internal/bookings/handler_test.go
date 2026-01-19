@@ -95,7 +95,7 @@ func TestCreateHandlerBadRequestCases(t *testing.T) {
 		{
 			name:           "missing booking_date",
 			body:           `{"data":{"type":"bookings","attributes":{"desk_id":"desk-1"}}}`,
-			expectedDetail: "booking_date is required",
+			expectedDetail: "booking_date or booking_dates is required",
 		},
 		{
 			name: "invalid date format",
@@ -629,6 +629,75 @@ func TestCreateHandlerGuestBooking(t *testing.T) {
 	// Guest flags should be set
 	assert.Equal(t, true, attrs["is_guest"])
 	assert.Equal(t, "visitor@example.com", attrs["guest_email"])
+}
+
+func TestCreateHandlerMultiDayBooking(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	date2 := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	date3 := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"desk_id":"desk-1","booking_dates":["` + date1 + `","` + date2 + `","` + date3 + `"]}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := CreateHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp MultiDayBookingResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp.Created, 3)
+	assert.Empty(t, resp.Conflicts)
+}
+
+func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	date2 := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	date3 := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
+
+	// Pre-book date2 by another user
+	seedTestBooking(t, store, "existing-booking", "desk-1", "other-user", date2)
+
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"desk_id":"desk-1","booking_dates":["` + date1 + `","` + date2 + `","` + date3 + `"]}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := CreateHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp MultiDayBookingResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	// Should create 2 bookings (date1 and date3), conflict on date2
+	assert.Len(t, resp.Created, 2)
+	assert.Len(t, resp.Conflicts, 1)
+	assert.Contains(t, resp.Conflicts[0], date2)
+	assert.Contains(t, resp.Conflicts[0], "desk already booked")
 }
 
 func TestListHandlerIncludesGuestBookings(t *testing.T) {

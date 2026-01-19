@@ -29,13 +29,23 @@ export interface CreateBookingPayload {
     type: 'bookings';
     attributes: {
       desk_id: string;
-      booking_date: string;
+      booking_date?: string;
+      booking_dates?: string[];
       for_user_id?: string;
       for_user_name?: string;
       is_guest?: boolean;
       guest_email?: string;
     };
   };
+}
+
+export interface MultiDayBookingResult {
+  created: Array<{
+    type: string;
+    id: string;
+    attributes: BookingAttributes;
+  }>;
+  conflicts?: string[];
 }
 
 export interface BookOnBehalfOptions {
@@ -74,6 +84,37 @@ export function createBooking(
   };
 
   return apiRequest<SingleResponse<BookingAttributes>>('/api/v1/bookings', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export function createMultiDayBooking(
+  deskId: string,
+  bookingDates: string[],
+  onBehalf?: BookOnBehalfOptions,
+  guest?: GuestBookingOptions
+) {
+  const payload: CreateBookingPayload = {
+    data: {
+      type: 'bookings',
+      attributes: {
+        desk_id: deskId,
+        booking_dates: bookingDates,
+        ...(onBehalf && {
+          for_user_id: onBehalf.forUserId,
+          for_user_name: onBehalf.forUserName
+        }),
+        ...(guest && {
+          is_guest: true,
+          for_user_name: guest.guestName,
+          guest_email: guest.guestEmail
+        })
+      }
+    }
+  };
+
+  return apiRequest<MultiDayBookingResult>('/api/v1/bookings', {
     method: 'POST',
     body: JSON.stringify(payload)
   });

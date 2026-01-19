@@ -26,12 +26,13 @@ type CreateRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
-			DeskID      string `json:"desk_id"`
-			BookingDate string `json:"booking_date"`
-			ForUserID   string `json:"for_user_id,omitempty"`
-			ForUserName string `json:"for_user_name,omitempty"`
-			IsGuest     bool   `json:"is_guest,omitempty"`
-			GuestEmail  string `json:"guest_email,omitempty"`
+			DeskID       string   `json:"desk_id"`
+			BookingDate  string   `json:"booking_date"`
+			BookingDates []string `json:"booking_dates,omitempty"`
+			ForUserID    string   `json:"for_user_id,omitempty"`
+			ForUserName  string   `json:"for_user_name,omitempty"`
+			IsGuest      bool     `json:"is_guest,omitempty"`
+			GuestEmail   string   `json:"guest_email,omitempty"`
 		} `json:"attributes"`
 	} `json:"data"`
 }
@@ -46,6 +47,12 @@ type BookingAttributes struct {
 	BookedByUserName string `json:"booked_by_user_name,omitempty"`
 	IsGuest          bool   `json:"is_guest,omitempty"`
 	GuestEmail       string `json:"guest_email,omitempty"`
+}
+
+// MultiDayBookingResult represents the result of a multi-day booking request.
+type MultiDayBookingResult struct {
+	Created   []api.Resource `json:"created"`
+	Conflicts []string       `json:"conflicts,omitempty"`
 }
 
 // MyBookingAttributes represents booking resource attributes with location info.
@@ -187,8 +194,8 @@ func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	}
 }
 
-// CreateHandler returns a handler for creating a single-day booking.
-// Supports booking on behalf of another user via for_user_id/for_user_name.
+// CreateHandler returns a handler for creating bookings.
+// Supports single-day, multi-day, booking on behalf, and guest bookings.
 func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
@@ -208,7 +215,7 @@ func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return handleValidationError(c, err)
 		}
 
-		deskID, bookingDate, err := validateRequestFields(req)
+		deskID, dates, err := validateRequestFieldsMultiDay(req)
 		if err != nil {
 			return handleValidationError(c, err)
 		}
@@ -222,11 +229,17 @@ func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return handleValidationError(c, err)
 		}
 
-		return processBooking(
-			c, store, deskID, params.targetUserID, params.targetUserName,
-			params.bookedByUserID, params.bookedByUserName, bookingDate,
-			params.isGuest, params.guestEmail,
-		)
+		// Single day booking
+		if len(dates) == 1 {
+			return processBooking(
+				c, store, deskID, params.targetUserID, params.targetUserName,
+				params.bookedByUserID, params.bookedByUserName, dates[0],
+				params.isGuest, params.guestEmail,
+			)
+		}
+
+		// Multi-day booking
+		return processMultiDayBooking(c, store, deskID, params, dates)
 	}
 }
 
@@ -308,28 +321,47 @@ func parseCreateRequest(c echo.Context) (*CreateRequest, error) {
 	return &req, nil
 }
 
-func validateRequestFields(req *CreateRequest) (deskID, bookingDate string, err error) {
+func validateRequestFieldsMultiDay(req *CreateRequest) (deskID string, dates []string, err error) {
 	deskID = strings.TrimSpace(req.Data.Attributes.DeskID)
-	bookingDate = strings.TrimSpace(req.Data.Attributes.BookingDate)
-
 	if deskID == "" {
-		return "", "", errBadRequest("desk_id is required")
-	}
-	if bookingDate == "" {
-		return "", "", errBadRequest("booking_date is required")
+		return "", nil, errBadRequest("desk_id is required")
 	}
 
-	parsedDate, parseErr := time.Parse(time.DateOnly, bookingDate)
-	if parseErr != nil {
-		return "", "", errBadRequest("booking_date must be in YYYY-MM-DD format")
+	// Collect dates from either booking_date or booking_dates
+	var allDates []string
+	if singleDate := strings.TrimSpace(req.Data.Attributes.BookingDate); singleDate != "" {
+		allDates = append(allDates, singleDate)
+	}
+	for _, d := range req.Data.Attributes.BookingDates {
+		if trimmed := strings.TrimSpace(d); trimmed != "" {
+			allDates = append(allDates, trimmed)
+		}
 	}
 
+	if len(allDates) == 0 {
+		return "", nil, errBadRequest("booking_date or booking_dates is required")
+	}
+
+	// Validate and dedupe dates
 	today := time.Now().UTC().Truncate(24 * time.Hour)
-	if parsedDate.Before(today) {
-		return "", "", errBadRequest("booking_date cannot be in the past")
+	seen := make(map[string]struct{})
+	var validDates []string
+
+	for _, dateStr := range allDates {
+		parsedDate, parseErr := time.Parse(time.DateOnly, dateStr)
+		if parseErr != nil {
+			return "", nil, errBadRequest("booking_date must be in YYYY-MM-DD format: " + dateStr)
+		}
+		if parsedDate.Before(today) {
+			return "", nil, errBadRequest("booking_date cannot be in the past: " + dateStr)
+		}
+		if _, exists := seen[dateStr]; !exists {
+			seen[dateStr] = struct{}{}
+			validDates = append(validDates, dateStr)
+		}
 	}
 
-	return deskID, bookingDate, nil
+	return deskID, validDates, nil
 }
 
 // validationError is a sentinel for validation errors that need WriteBadRequest.
@@ -403,6 +435,85 @@ func processBooking(
 	slog.Info("booking created", logFields...)
 
 	return writeBookingResponse(c, booking)
+}
+
+// processMultiDayBooking creates bookings for multiple dates.
+// Returns created bookings and reports conflicts per day.
+func processMultiDayBooking(
+	c echo.Context, store *sql.DB,
+	deskID string, params *bookingParticipants, dates []string,
+) error {
+	ctx := c.Request().Context()
+
+	var created []api.Resource
+	var conflicts []string
+
+	for _, bookingDate := range dates {
+		// Skip duplicate check for guests (they have unique IDs)
+		if !params.isGuest {
+			existingBookingID, err := FindUserBooking(
+				ctx, store, deskID, params.targetUserID, bookingDate,
+			)
+			if err != nil {
+				return fmt.Errorf("check existing booking: %w", err)
+			}
+			if existingBookingID != "" {
+				conflicts = append(conflicts, bookingDate+": user already has this desk booked")
+				continue
+			}
+		}
+
+		booking, err := CreateBooking(
+			ctx, store, deskID, params.targetUserID, params.targetUserName,
+			params.bookedByUserID, params.bookedByUserName, bookingDate,
+			params.isGuest, params.guestEmail,
+		)
+		if err != nil {
+			if errors.Is(err, ErrConflict) {
+				conflicts = append(conflicts, bookingDate+": desk already booked")
+				continue
+			}
+			return fmt.Errorf("create booking: %w", err)
+		}
+
+		slog.Info("booking created",
+			"booking_id", booking.ID,
+			"desk_id", deskID,
+			"user_id", params.targetUserID,
+			"booking_date", bookingDate,
+		)
+
+		attrs := BookingAttributes{
+			DeskID:      booking.DeskID,
+			UserID:      booking.UserID,
+			BookingDate: booking.BookingDate,
+			CreatedAt:   booking.CreatedAt,
+		}
+		if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
+			attrs.BookedByUserID = booking.BookedByUserID
+			attrs.BookedByUserName = booking.BookedByUserName
+		}
+		if booking.IsGuest {
+			attrs.IsGuest = true
+			attrs.GuestEmail = booking.GuestEmail
+		}
+
+		created = append(created, api.Resource{
+			Type:       "bookings",
+			ID:         booking.ID,
+			Attributes: attrs,
+		})
+	}
+
+	// Return multi-day response
+	result := MultiDayBookingResult{
+		Created:   created,
+		Conflicts: conflicts,
+	}
+
+	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
+	//nolint:wrapcheck // Terminal response
+	return c.JSON(http.StatusCreated, result)
 }
 
 func writeBookingResponse(c echo.Context, booking *Booking) error {

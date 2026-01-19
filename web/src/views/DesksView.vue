@@ -27,6 +27,26 @@
                 aria-label="Select booking date"
               />
             </div>
+            <v-checkbox
+              v-model="multiDayBooking"
+              label="Book multiple days"
+              density="compact"
+              hide-details
+              class="mb-2"
+              data-cy="multi-day-checkbox"
+            />
+            <div v-if="multiDayBooking" class="mb-4 pl-4">
+              <v-text-field
+                v-model="additionalDates"
+                label="Additional Dates (comma-separated, YYYY-MM-DD)"
+                density="compact"
+                variant="outlined"
+                data-cy="additional-dates-input"
+                placeholder="e.g. 2026-01-21, 2026-01-22"
+                hint="Selected date above will be included automatically"
+                persistent-hint
+              />
+            </div>
             <v-radio-group v-model="bookingType" inline density="compact" class="mb-2">
               <v-radio label="Book for myself" value="self" data-cy="book-self-radio" />
               <v-radio label="Book for a colleague" value="colleague" data-cy="book-colleague-radio" />
@@ -180,6 +200,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import {
   createBooking,
+  createMultiDayBooking,
   cancelBooking,
   type BookOnBehalfOptions,
   type GuestBookingOptions
@@ -209,6 +230,8 @@ const colleagueId = ref('');
 const colleagueName = ref('');
 const guestName = ref('');
 const guestEmail = ref('');
+const multiDayBooking = ref(false);
+const additionalDates = ref('');
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
@@ -284,22 +307,44 @@ const bookDesk = async (deskId: string) => {
         ? { guestName: guestName.value.trim(), guestEmail: guestEmail.value.trim() || undefined }
         : undefined;
 
-    await createBooking(deskId, selectedDate.value, onBehalf, guest);
+    // Handle multi-day booking
+    if (multiDayBooking.value && additionalDates.value.trim()) {
+      const dates = [selectedDate.value];
+      additionalDates.value.split(',').forEach((d) => {
+        const trimmed = d.trim();
+        if (trimmed && !dates.includes(trimmed)) {
+          dates.push(trimmed);
+        }
+      });
 
+      const result = await createMultiDayBooking(deskId, dates, onBehalf, guest);
+      const createdCount = result.created.length;
+      const conflictCount = result.conflicts?.length || 0;
+
+      if (conflictCount > 0) {
+        bookingSuccessMessage.value = `Created ${createdCount} booking(s). ${conflictCount} date(s) had conflicts.`;
+        bookingErrorMessage.value = result.conflicts?.join('; ') || null;
+      } else {
+        bookingSuccessMessage.value = `Successfully booked ${createdCount} day(s)!`;
+      }
+
+      // Reset multi-day fields
+      multiDayBooking.value = false;
+      additionalDates.value = '';
+    } else {
+      await createBooking(deskId, selectedDate.value, onBehalf, guest);
+      bookingSuccessMessage.value = 'Desk booked successfully!';
+    }
+
+    // Reset booking type fields
     if (bookingType.value === 'colleague') {
-      bookingSuccessMessage.value = `Desk booked successfully for ${colleagueName.value}!`;
-      // Reset colleague fields after successful booking
       colleagueId.value = '';
       colleagueName.value = '';
       bookingType.value = 'self';
     } else if (bookingType.value === 'guest') {
-      bookingSuccessMessage.value = `Desk booked successfully for guest ${guestName.value}!`;
-      // Reset guest fields after successful booking
       guestName.value = '';
       guestEmail.value = '';
       bookingType.value = 'self';
-    } else {
-      bookingSuccessMessage.value = 'Desk booked successfully!';
     }
 
     // Reload desks to reflect updated availability
