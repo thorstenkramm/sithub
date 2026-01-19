@@ -102,6 +102,8 @@ func registerRoutes(e *echo.Echo, authService *auth.Service, spacesConfig *space
 	e.GET("/api/v1/areas", areas.ListHandler(spacesConfig), middleware.RequireAuth(authService))
 	e.GET("/api/v1/areas/:area_id/rooms", rooms.ListHandler(spacesConfig), middleware.RequireAuth(authService))
 	e.GET("/api/v1/rooms/:room_id/desks", desks.ListHandler(spacesConfig, store), middleware.RequireAuth(authService))
+	e.GET("/api/v1/rooms/:room_id/bookings",
+		rooms.BookingsHandler(spacesConfig, store), middleware.RequireAuth(authService))
 	e.GET("/api/v1/bookings", bookings.ListHandler(spacesConfig, store), middleware.RequireAuth(authService))
 	e.POST("/api/v1/bookings", bookings.CreateHandler(spacesConfig, store), middleware.RequireAuth(authService))
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store), middleware.RequireAuth(authService))

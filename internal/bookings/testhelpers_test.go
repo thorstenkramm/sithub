@@ -79,14 +79,20 @@ func seedTestDeskData(t *testing.T, store *sql.DB, deskIDs []string) {
 }
 
 func seedTestBooking(t *testing.T, store *sql.DB, bookingID, deskID, userID, bookingDate string) {
+	seedTestBookingWithName(t, store, bookingID, deskID, userID, "Test User", bookingDate)
+}
+
+func seedTestBookingWithName(t *testing.T, store *sql.DB, bookingID, deskID, userID, userName, bookingDate string) {
 	t.Helper()
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := store.Exec(
-		"INSERT INTO bookings (id, desk_id, user_id, booking_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		`INSERT INTO bookings (id, desk_id, user_id, user_name, booking_date, created_at, updated_at) 
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		bookingID,
 		deskID,
 		userID,
+		userName,
 		bookingDate,
 		now,
 		now,

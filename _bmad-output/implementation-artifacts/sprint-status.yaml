@@ -65,8 +65,8 @@ development_status:
   4-3-admin-cancel-any-booking: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-room-booking-overview: backlog
+  epic-5: in-progress
+  5-1-room-booking-overview: done
   5-2-todays-presence-by-area: backlog
   epic-5-retrospective: optional
 

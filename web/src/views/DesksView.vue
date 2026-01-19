@@ -6,6 +6,14 @@
           <v-card-title data-cy="desks-title">
             Desks
             <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
+            <router-link
+              v-if="activeRoomId"
+              :to="`/rooms/${activeRoomId}/bookings`"
+              class="text-caption ml-4"
+              data-cy="view-room-bookings"
+            >
+              View Room Bookings
+            </router-link>
           </v-card-title>
           <v-card-text>
             <div class="mb-4">

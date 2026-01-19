@@ -18,6 +18,8 @@ paths:
     $ref: ./endpoints/rooms.yaml
   /rooms/{room_id}/desks:
     $ref: ./endpoints/desks.yaml
+  /rooms/{room_id}/bookings:
+    $ref: ./endpoints/room-bookings.yaml
   /bookings:
     $ref: ./endpoints/bookings.yaml
   /bookings/{booking_id}:
@@ -304,5 +306,46 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MyBookingResource'
+      required:
+        - data
+    RoomBookingAttributes:
+      type: object
+      properties:
+        desk_id:
+          type: string
+        desk_name:
+          type: string
+        user_id:
+          type: string
+        user_name:
+          type: string
+        booking_date:
+          type: string
+          format: date
+      required:
+        - desk_id
+        - desk_name
+        - user_id
+        - user_name
+        - booking_date
+    RoomBookingResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: bookings
+            attributes:
+              $ref: '#/components/schemas/RoomBookingAttributes'
+          required:
+            - type
+            - attributes
+    RoomBookingsCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomBookingResource'
       required:
         - data

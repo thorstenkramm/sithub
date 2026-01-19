@@ -186,7 +186,7 @@ func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return api.WriteNotFound(c, "Desk not found")
 		}
 
-		return processBooking(c, store, deskID, user.ID, bookingDate)
+		return processBooking(c, store, deskID, user.ID, user.Name, bookingDate)
 	}
 }
 
@@ -249,7 +249,7 @@ func errBadRequest(detail string) error {
 // errResponseWritten indicates the HTTP response was already written.
 var errResponseWritten = errors.New("response already written")
 
-func processBooking(c echo.Context, store *sql.DB, deskID, userID, bookingDate string) error {
+func processBooking(c echo.Context, store *sql.DB, deskID, userID, userName, bookingDate string) error {
 	ctx := c.Request().Context()
 
 	existingBookingID, err := FindUserBooking(ctx, store, deskID, userID, bookingDate)
@@ -261,7 +261,7 @@ func processBooking(c echo.Context, store *sql.DB, deskID, userID, bookingDate s
 		return api.WriteConflict(c, "You already have this desk booked for this date")
 	}
 
-	booking, err := CreateBooking(ctx, store, deskID, userID, bookingDate)
+	booking, err := CreateBooking(ctx, store, deskID, userID, userName, bookingDate)
 	if err != nil {
 		if errors.Is(err, ErrConflict) {
 			slog.Warn("booking conflict",
@@ -309,6 +309,7 @@ type Booking struct {
 	ID          string
 	DeskID      string
 	UserID      string
+	UserName    string
 	BookingDate string
 	CreatedAt   string
 	UpdatedAt   string
@@ -335,14 +336,14 @@ func FindUserBooking(ctx context.Context, store *sql.DB, deskID, userID, booking
 }
 
 // CreateBooking inserts a new booking record.
-func CreateBooking(ctx context.Context, store *sql.DB, deskID, userID, bookingDate string) (*Booking, error) {
+func CreateBooking(ctx context.Context, store *sql.DB, deskID, userID, userName, bookingDate string) (*Booking, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	id := uuid.New().String()
 
 	_, err := store.ExecContext(ctx,
-		`INSERT INTO bookings (id, desk_id, user_id, booking_date, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		id, deskID, userID, bookingDate, now, now,
+		`INSERT INTO bookings (id, desk_id, user_id, user_name, booking_date, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, deskID, userID, userName, bookingDate, now, now,
 	)
 	if err != nil {
 		var sqliteErr sqlite3.Error
@@ -356,6 +357,7 @@ func CreateBooking(ctx context.Context, store *sql.DB, deskID, userID, bookingDa
 		ID:          id,
 		DeskID:      deskID,
 		UserID:      userID,
+		UserName:    userName,
 		BookingDate: bookingDate,
 		CreatedAt:   now,
 		UpdatedAt:   now,

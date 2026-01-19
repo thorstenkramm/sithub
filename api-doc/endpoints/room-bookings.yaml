@@ -1,0 +1,50 @@
+get:
+  summary: List bookings for a room
+  description: |
+    Returns all bookings for desks in the specified room on the given date.
+    Includes desk name and user name for each booking.
+  operationId: listRoomBookings
+  parameters:
+    - name: room_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: date
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+      description: Booking date in YYYY-MM-DD format. Defaults to today.
+  responses:
+    '200':
+      description: Room bookings list
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/RoomBookingsCollectionResponse
+    '400':
+      description: Invalid date format
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Forbidden
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '404':
+      description: Room not found
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

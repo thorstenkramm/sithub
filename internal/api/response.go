@@ -3,7 +3,12 @@
 //revive:disable-next-line var-naming
 package api
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
 
 // JSONAPIContentType is the JSON:API media type.
 const JSONAPIContentType = "application/vnd.api+json"
@@ -59,4 +64,35 @@ func NewError(status int, title, detail, code string) ErrorResponse {
 			},
 		},
 	}
+}
+
+// ParseBookingDate parses a date query parameter, defaulting to today if empty.
+func ParseBookingDate(value string) (string, error) {
+	if strings.TrimSpace(value) == "" {
+		return time.Now().Format(time.DateOnly), nil
+	}
+	parsed, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return "", fmt.Errorf("parse booking date: %w", err)
+	}
+	return parsed.Format(time.DateOnly), nil
+}
+
+// RoomRequestParams contains common params extracted from room-related requests.
+type RoomRequestParams struct {
+	RoomID      string
+	BookingDate string
+}
+
+// ParseRoomRequest extracts roomID and booking date from a request.
+// Returns the params or an error if the date is invalid.
+func ParseRoomRequest(roomID, dateParam string) (*RoomRequestParams, error) {
+	bookingDate, err := ParseBookingDate(dateParam)
+	if err != nil {
+		return nil, err
+	}
+	return &RoomRequestParams{
+		RoomID:      roomID,
+		BookingDate: bookingDate,
+	}, nil
 }

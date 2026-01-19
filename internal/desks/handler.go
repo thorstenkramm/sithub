@@ -5,8 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -26,7 +24,7 @@ func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return api.WriteNotFound(c, "Room not found")
 		}
 
-		bookingDate, err := parseBookingDate(c.QueryParam("date"))
+		bookingDate, err := api.ParseBookingDate(c.QueryParam("date"))
 		if err != nil {
 			return api.WriteBadRequest(c, "Invalid booking date. Use YYYY-MM-DD.")
 		}
@@ -88,15 +86,4 @@ func buildDeskResources(
 			Attributes: attrs,
 		}
 	})
-}
-
-func parseBookingDate(value string) (string, error) {
-	if strings.TrimSpace(value) == "" {
-		return time.Now().Format(time.DateOnly), nil
-	}
-	parsed, err := time.Parse(time.DateOnly, value)
-	if err != nil {
-		return "", fmt.Errorf("parse booking date: %w", err)
-	}
-	return parsed.Format(time.DateOnly), nil
 }
