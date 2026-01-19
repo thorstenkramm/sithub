@@ -70,10 +70,10 @@ development_status:
   5-2-todays-presence-by-area: done
   epic-5-retrospective: optional
 
-  epic-6: backlog
-  6-1-load-server-configuration: backlog
-  6-2-load-space-configuration: backlog
-  6-3-apply-configuration-on-restart: backlog
+  epic-6: done
+  6-1-load-server-configuration: done
+  6-2-load-space-configuration: done
+  6-3-apply-configuration-on-restart: done
   epic-6-retrospective: optional
 
   epic-7: backlog
