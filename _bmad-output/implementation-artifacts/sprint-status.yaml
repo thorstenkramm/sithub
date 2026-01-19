@@ -59,10 +59,10 @@ development_status:
   3-3-desk-taken-feedback: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-view-my-bookings: done
   4-2-cancel-my-booking: done
-  4-3-admin-cancel-any-booking: backlog
+  4-3-admin-cancel-any-booking: done
   epic-4-retrospective: optional
 
   epic-5: backlog

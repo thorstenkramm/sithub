@@ -1,5 +1,8 @@
 get:
   summary: List desks for a room
+  description: |
+    Returns desks for a room with availability status.
+    For admin users, occupied desks include booking_id and booker_name fields.
   operationId: listDesks
   parameters:
     - name: room_id

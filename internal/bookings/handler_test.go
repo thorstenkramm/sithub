@@ -446,6 +446,58 @@ func TestDeleteHandlerSuccess(t *testing.T) {
 	assert.Nil(t, booking)
 }
 
+func TestDeleteHandlerAdminCancelCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		bookingOwnerID string
+		description    string
+	}{
+		{
+			name:           "admin can cancel another user's booking",
+			bookingOwnerID: "other-user",
+			description:    "Admin cancels a booking owned by another user",
+		},
+		{
+			name:           "admin can cancel own booking",
+			bookingOwnerID: "admin-user",
+			description:    "Admin cancels their own booking",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := setupTestStore(t)
+			seedTestDeskData(t, store, []string{"desk-1"})
+
+			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+			seedTestBooking(t, store, "booking-1", "desk-1", tc.bookingOwnerID, tomorrow)
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues("booking-1")
+			c.Set("user", &auth.User{ID: "admin-user", Name: "Admin User", IsAdmin: true})
+
+			h := DeleteHandler(store)
+			require.NoError(t, h(c))
+
+			assert.Equal(t, http.StatusNoContent, rec.Code)
+
+			// Verify booking is deleted
+			ctx := context.Background()
+			booking, err := FindBookingByID(ctx, store, "booking-1")
+			require.NoError(t, err)
+			assert.Nil(t, booking, tc.description)
+		})
+	}
+}
+
 func testSpacesConfig() *spaces.Config {
 	return &spaces.Config{
 		Areas: []spaces.Area{

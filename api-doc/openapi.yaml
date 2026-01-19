@@ -158,6 +158,12 @@ components:
             - occupied
         warning:
           type: string
+        booking_id:
+          type: string
+          description: Booking ID (admin only, present when occupied)
+        booker_name:
+          type: string
+          description: Name of user who booked (admin only, present when occupied)
       required:
         - name
         - equipment

@@ -70,6 +70,16 @@
                     </div>
                     <div class="text-caption mt-1" data-cy="desk-status">
                       Status: {{ desk.attributes.availability === 'occupied' ? 'Occupied' : 'Available' }}
+                      <span
+                        v-if="
+                          authStore.isAdmin &&
+                          desk.attributes.availability === 'occupied' &&
+                          desk.attributes.booking_id
+                        "
+                        data-cy="desk-booker"
+                      >
+                        (Booked)
+                      </span>
                     </div>
                   </v-list-item-subtitle>
                   <template #append>
@@ -79,11 +89,27 @@
                       size="small"
                       variant="tonal"
                       :loading="bookingDeskId === desk.id"
-                      :disabled="bookingDeskId !== null"
+                      :disabled="bookingDeskId !== null || cancelingBookingId !== null"
                       data-cy="book-desk-btn"
                       @click="bookDesk(desk.id)"
                     >
                       Book
+                    </v-btn>
+                    <v-btn
+                      v-if="
+                        authStore.isAdmin &&
+                        desk.attributes.availability === 'occupied' &&
+                        desk.attributes.booking_id
+                      "
+                      color="error"
+                      size="small"
+                      variant="tonal"
+                      :loading="cancelingBookingId === desk.attributes.booking_id"
+                      :disabled="bookingDeskId !== null || cancelingBookingId !== null"
+                      data-cy="admin-cancel-btn"
+                      @click="adminCancelBooking(desk.attributes.booking_id!)"
+                    >
+                      Cancel
                     </v-btn>
                   </template>
                 </v-list-item>
@@ -101,19 +127,22 @@
 import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
-import { createBooking } from '../api/bookings';
+import { createBooking, cancelBooking } from '../api/bookings';
 import { fetchDesks } from '../api/desks';
 import { fetchMe } from '../api/me';
 import type { DeskAttributes } from '../api/desks';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthStore } from '../stores/useAuthStore';
 
+const authStore = useAuthStore();
 const userName = ref('');
 const desks = ref<JsonApiResource<DeskAttributes>[]>([]);
 const desksErrorMessage = ref<string | null>(null);
 const bookingSuccessMessage = ref<string | null>(null);
 const bookingErrorMessage = ref<string | null>(null);
 const bookingDeskId = ref<string | null>(null);
+const cancelingBookingId = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
 const route = useRoute();
 const router = useRouter();
@@ -197,10 +226,39 @@ const bookDesk = async (deskId: string) => {
   }
 };
 
+const adminCancelBooking = async (bookingId: string) => {
+  bookingSuccessMessage.value = null;
+  bookingErrorMessage.value = null;
+  cancelingBookingId.value = bookingId;
+
+  try {
+    await cancelBooking(bookingId);
+    bookingSuccessMessage.value = 'Booking cancelled successfully.';
+
+    // Reload desks to reflect updated availability
+    if (activeRoomId.value) {
+      await loadDesks(activeRoomId.value, selectedDate.value);
+    }
+  } catch (err) {
+    if (await handleAuthError(err)) {
+      return;
+    }
+    if (err instanceof ApiError && err.status === 404) {
+      bookingErrorMessage.value = 'Booking not found or already cancelled.';
+    } else {
+      bookingErrorMessage.value = 'Unable to cancel booking. Please try again.';
+    }
+  } finally {
+    cancelingBookingId.value = null;
+  }
+};
+
 onMounted(async () => {
   try {
     const resp = await fetchMe();
     userName.value = resp.data.attributes.display_name;
+    authStore.userName = resp.data.attributes.display_name;
+    authStore.isAdmin = resp.data.attributes.is_admin;
   } catch (err) {
     if (await handleAuthError(err)) {
       return;

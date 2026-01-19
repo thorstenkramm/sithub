@@ -1,4 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import DesksView from './DesksView.vue';
 import { fetchDesks } from '../api/desks';
 import { fetchMe } from '../api/me';
@@ -21,11 +22,13 @@ describe('DesksView', () => {
   const mountView = () =>
     mount(DesksView, {
       global: {
-        stubs
+        stubs,
+        plugins: [createPinia()]
       }
     });
 
   beforeEach(() => {
+    setActivePinia(createPinia());
     pushMock.mockReset();
     fetchMeMock.mockResolvedValue({
       data: {

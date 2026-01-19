@@ -52,7 +52,8 @@ type MyBookingAttributes struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// DeleteHandler returns a handler for canceling a user's own booking.
+// DeleteHandler returns a handler for canceling a booking.
+// Users can cancel their own bookings; admins can cancel any booking.
 func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
@@ -67,7 +68,7 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 
 		ctx := c.Request().Context()
 
-		// Check if booking exists and belongs to user
+		// Check if booking exists
 		booking, err := FindBookingByID(ctx, store, bookingID)
 		if err != nil {
 			return fmt.Errorf("find booking: %w", err)
@@ -75,7 +76,10 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 		if booking == nil {
 			return api.WriteNotFound(c, "Booking not found")
 		}
-		if booking.UserID != user.ID {
+
+		// Check authorization: owner or admin
+		isOwner := booking.UserID == user.ID
+		if !isOwner && !user.IsAdmin {
 			return api.WriteNotFound(c, "Booking not found")
 		}
 
@@ -84,12 +88,16 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 			return fmt.Errorf("delete booking: %w", err)
 		}
 
-		slog.Info("booking canceled",
+		logFields := []any{
 			"booking_id", bookingID,
-			"user_id", user.ID,
+			"canceled_by", user.ID,
 			"desk_id", booking.DeskID,
 			"booking_date", booking.BookingDate,
-		)
+		}
+		if user.IsAdmin && !isOwner {
+			logFields = append(logFields, "admin_action", true, "booking_owner", booking.UserID)
+		}
+		slog.Info("booking canceled", logFields...)
 
 		return c.NoContent(http.StatusNoContent)
 	}

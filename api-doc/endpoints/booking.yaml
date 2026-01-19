@@ -1,6 +1,9 @@
 delete:
   summary: Cancel a booking
-  description: Cancels a booking owned by the current user. Returns 404 if booking not found or belongs to another user.
+  description: |
+    Cancels a booking. Regular users can only cancel their own bookings.
+    Admin users can cancel any booking.
+    Returns 404 if booking not found or (for non-admins) belongs to another user.
   operationId: cancelBooking
   tags:
     - Bookings
@@ -21,7 +24,7 @@ delete:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
     '404':
-      description: Booking not found or does not belong to user
+      description: Booking not found or (for non-admins) does not belong to user
       content:
         application/vnd.api+json:
           schema:

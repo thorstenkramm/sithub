@@ -99,3 +99,43 @@ func DeleteBooking(ctx context.Context, store *sql.DB, bookingID string) error {
 	}
 	return nil
 }
+
+// DeskBookingInfo contains booking details for a desk.
+type DeskBookingInfo struct {
+	BookingID  string
+	UserID     string
+	BookerName string
+}
+
+// FindDeskBookings returns booking info for desks on a given date, keyed by desk ID.
+// Note: BookerName will be empty; the caller must look up display names separately if needed.
+func FindDeskBookings(
+	ctx context.Context, store *sql.DB, bookingDate string,
+) (result map[string]DeskBookingInfo, err error) {
+	query := `SELECT id, desk_id, user_id FROM bookings WHERE booking_date = ?`
+
+	rows, err := store.QueryContext(ctx, query, bookingDate)
+	if err != nil {
+		return nil, fmt.Errorf("query desk bookings: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close desk bookings rows: %w", closeErr)
+		}
+	}()
+
+	result = make(map[string]DeskBookingInfo)
+	for rows.Next() {
+		var info DeskBookingInfo
+		var deskID string
+		if err := rows.Scan(&info.BookingID, &deskID, &info.UserID); err != nil {
+			return nil, fmt.Errorf("scan desk booking: %w", err)
+		}
+		result[deskID] = info
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate desk bookings: %w", err)
+	}
+
+	return result, nil
+}
