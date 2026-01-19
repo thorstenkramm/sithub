@@ -183,3 +183,69 @@ components:
             $ref: '#/components/schemas/DeskResource'
       required:
         - data
+    CreateBookingRequestAttributes:
+      type: object
+      properties:
+        desk_id:
+          type: string
+          description: ID of the desk to book
+        booking_date:
+          type: string
+          format: date
+          description: Date to book the desk (YYYY-MM-DD)
+      required:
+        - desk_id
+        - booking_date
+    CreateBookingRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              const: bookings
+            attributes:
+              $ref: '#/components/schemas/CreateBookingRequestAttributes'
+          required:
+            - type
+            - attributes
+      required:
+        - data
+    BookingAttributes:
+      type: object
+      properties:
+        desk_id:
+          type: string
+        user_id:
+          type: string
+        booking_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - desk_id
+        - user_id
+        - booking_date
+        - created_at
+    BookingResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: bookings
+            attributes:
+              $ref: '#/components/schemas/BookingAttributes'
+          required:
+            - type
+            - attributes
+    BookingSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/BookingResource'
+      required:
+        - data

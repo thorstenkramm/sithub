@@ -49,3 +49,23 @@ func WriteNotFound(c echo.Context, detail string) error {
 	}
 	return nil
 }
+
+// WriteConflict writes a JSON:API conflict error response.
+func WriteConflict(c echo.Context, detail string) error {
+	errResp := NewError(http.StatusConflict, "Conflict", detail, "conflict")
+	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
+	if err := c.JSON(http.StatusConflict, errResp); err != nil {
+		return fmt.Errorf("write conflict response: %w", err)
+	}
+	return nil
+}
+
+// WriteUnsupportedMediaType writes a JSON:API unsupported media type error response.
+func WriteUnsupportedMediaType(c echo.Context, detail string) error {
+	errResp := NewError(http.StatusUnsupportedMediaType, "Unsupported Media Type", detail, "unsupported_media_type")
+	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
+	if err := c.JSON(http.StatusUnsupportedMediaType, errResp); err != nil {
+		return fmt.Errorf("write unsupported media type response: %w", err)
+	}
+	return nil
+}

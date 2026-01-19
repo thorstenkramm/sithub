@@ -19,6 +19,28 @@
                 aria-label="Select booking date"
               />
             </div>
+            <v-alert
+              v-if="bookingSuccessMessage"
+              type="success"
+              variant="tonal"
+              class="mb-3"
+              closable
+              data-cy="booking-success"
+              @click:close="bookingSuccessMessage = null"
+            >
+              {{ bookingSuccessMessage }}
+            </v-alert>
+            <v-alert
+              v-if="bookingErrorMessage"
+              type="error"
+              variant="tonal"
+              class="mb-3"
+              closable
+              data-cy="booking-error"
+              @click:close="bookingErrorMessage = null"
+            >
+              {{ bookingErrorMessage }}
+            </v-alert>
             <v-progress-linear
               v-if="desksLoading"
               class="mb-3"
@@ -31,7 +53,13 @@
             </v-alert>
             <div v-else>
               <v-list v-if="desks.length" data-cy="desks-list">
-                <v-list-item v-for="desk in desks" :key="desk.id" data-cy="desk-item">
+                <v-list-item
+                  v-for="desk in desks"
+                  :key="desk.id"
+                  data-cy="desk-item"
+                  :data-cy-desk-id="desk.id"
+                  :data-cy-availability="desk.attributes.availability"
+                >
                   <v-list-item-title>{{ desk.attributes.name }}</v-list-item-title>
                   <v-list-item-subtitle>
                     <ul class="pl-4" data-cy="desk-equipment">
@@ -44,6 +72,20 @@
                       Status: {{ desk.attributes.availability === 'occupied' ? 'Occupied' : 'Available' }}
                     </div>
                   </v-list-item-subtitle>
+                  <template #append>
+                    <v-btn
+                      v-if="desk.attributes.availability === 'available'"
+                      color="primary"
+                      size="small"
+                      variant="tonal"
+                      :loading="bookingDeskId === desk.id"
+                      :disabled="bookingDeskId !== null"
+                      data-cy="book-desk-btn"
+                      @click="bookDesk(desk.id)"
+                    >
+                      Book
+                    </v-btn>
+                  </template>
                 </v-list-item>
               </v-list>
               <div v-else class="text-caption" data-cy="desks-empty">No desks available.</div>
@@ -59,6 +101,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
+import { createBooking } from '../api/bookings';
 import { fetchDesks } from '../api/desks';
 import { fetchMe } from '../api/me';
 import type { DeskAttributes } from '../api/desks';
@@ -68,6 +111,9 @@ import { useApi } from '../composables/useApi';
 const userName = ref('');
 const desks = ref<JsonApiResource<DeskAttributes>[]>([]);
 const desksErrorMessage = ref<string | null>(null);
+const bookingSuccessMessage = ref<string | null>(null);
+const bookingErrorMessage = ref<string | null>(null);
+const bookingDeskId = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
 const route = useRoute();
 const router = useRouter();
@@ -112,6 +158,35 @@ const loadDesks = async (roomId: string, date: string) => {
       return;
     }
     desksErrorMessage.value = 'Unable to load desks.';
+  }
+};
+
+const bookDesk = async (deskId: string) => {
+  bookingSuccessMessage.value = null;
+  bookingErrorMessage.value = null;
+  bookingDeskId.value = deskId;
+
+  try {
+    await createBooking(deskId, selectedDate.value);
+    bookingSuccessMessage.value = 'Desk booked successfully!';
+
+    // Reload desks to reflect updated availability
+    if (activeRoomId.value) {
+      await loadDesks(activeRoomId.value, selectedDate.value);
+    }
+  } catch (err) {
+    if (await handleAuthError(err)) {
+      return;
+    }
+    if (err instanceof ApiError && err.status === 409) {
+      bookingErrorMessage.value = 'This desk is already booked for the selected date.';
+    } else if (err instanceof ApiError && err.status === 404) {
+      bookingErrorMessage.value = 'Desk not found.';
+    } else {
+      bookingErrorMessage.value = 'Unable to book desk. Please try again.';
+    }
+  } finally {
+    bookingDeskId.value = null;
   }
 };
 

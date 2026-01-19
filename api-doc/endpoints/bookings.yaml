@@ -1,28 +1,76 @@
 post:
   summary: Create a booking
+  description: Creates a single-day booking for a desk on a specific date.
   operationId: createBooking
+  tags:
+    - Bookings
   requestBody:
     required: true
     content:
       application/vnd.api+json:
         schema:
-          $ref: ../openapi.yaml#/components/schemas/SingleResponse
+          $ref: ../openapi.yaml#/components/schemas/CreateBookingRequest
+        example:
+          data:
+            type: bookings
+            attributes:
+              desk_id: desk-1
+              booking_date: '2026-01-20'
   responses:
     '201':
-      description: Booking created
+      description: Booking created successfully
       content:
         application/vnd.api+json:
           schema:
-            $ref: ../openapi.yaml#/components/schemas/SingleResponse
+            $ref: ../openapi.yaml#/components/schemas/BookingSingleResponse
+          example:
+            data:
+              type: bookings
+              id: b1234567-89ab-cdef-0123-456789abcdef
+              attributes:
+                desk_id: desk-1
+                user_id: user-123
+                booking_date: '2026-01-20'
+                created_at: '2026-01-19T10:30:00Z'
+    '400':
+      description: Bad request - missing or invalid parameters
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '400'
+                title: Bad Request
+                detail: desk_id is required
+                code: bad_request
     '401':
-      description: Unauthorized
+      description: Unauthorized - login required
       content:
         application/vnd.api+json:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '404':
+      description: Desk not found
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '404'
+                title: Not Found
+                detail: Desk not found
+                code: not_found
     '409':
-      description: Booking conflict
+      description: Booking conflict - desk already booked for this date
       content:
         application/vnd.api+json:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '409'
+                title: Conflict
+                detail: Desk is already booked for this date
+                code: conflict

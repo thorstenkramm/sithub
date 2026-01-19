@@ -8,11 +8,21 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 )
 
+// GetUserFromContext retrieves the authenticated user from the Echo context.
+// Returns nil if no user is present or the type assertion fails.
+func GetUserFromContext(c echo.Context) *User {
+	user, ok := c.Get("user").(*User)
+	if !ok {
+		return nil
+	}
+	return user
+}
+
 // MeHandler returns the authenticated user profile.
 func MeHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		user, ok := c.Get("user").(*User)
-		if !ok || user == nil {
+		user := GetUserFromContext(c)
+		if user == nil {
 			return api.WriteUnauthorized(c)
 		}
 

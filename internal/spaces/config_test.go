@@ -90,3 +90,49 @@ func TestLoadConfigMissingAreaID(t *testing.T) {
 		t.Fatalf("expected validation error")
 	}
 }
+
+// Issue 4: Add FindDesk unit test
+func TestFindDesk(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Main",
+				Rooms: []Room{
+					{
+						ID:   "r1",
+						Name: "Room 1",
+						Desks: []Desk{
+							{ID: "d1", Name: "Desk 1"},
+							{ID: "d2", Name: "Desk 2"},
+						},
+					},
+					{
+						ID:   "r2",
+						Name: "Room 2",
+						Desks: []Desk{
+							{ID: "d3", Name: "Desk 3"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Test finding desk in first room
+	desk, ok := cfg.FindDesk("d1")
+	if !ok || desk.Name != "Desk 1" {
+		t.Fatalf("expected to find desk d1")
+	}
+
+	// Test finding desk in second room
+	desk, ok = cfg.FindDesk("d3")
+	if !ok || desk.Name != "Desk 3" {
+		t.Fatalf("expected to find desk d3")
+	}
+
+	// Test missing desk
+	if _, ok := cfg.FindDesk("missing"); ok {
+		t.Fatalf("expected missing desk to be false")
+	}
+}

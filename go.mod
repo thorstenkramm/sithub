@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/mattn/go-sqlite3 v1.14.33
@@ -11,6 +12,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.34.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -36,5 +38,4 @@ require (
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

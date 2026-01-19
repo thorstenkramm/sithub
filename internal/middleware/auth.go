@@ -12,8 +12,8 @@ import (
 func RequireAuth(svc *auth.Service) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			user, ok := c.Get("user").(*auth.User)
-			if !ok || user == nil {
+			user := auth.GetUserFromContext(c)
+			if user == nil {
 				return api.WriteUnauthorized(c)
 			}
 			if err := svc.RefreshPermissions(c.Request().Context(), user); err != nil {

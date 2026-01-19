@@ -35,6 +35,20 @@ func (c *Config) FindRoom(id string) (*Room, bool) {
 	return nil, false
 }
 
+// FindDesk returns the desk matching the provided id.
+func (c *Config) FindDesk(id string) (*Desk, bool) {
+	for i := range c.Areas {
+		for j := range c.Areas[i].Rooms {
+			for k := range c.Areas[i].Rooms[j].Desks {
+				if c.Areas[i].Rooms[j].Desks[k].ID == id {
+					return &c.Areas[i].Rooms[j].Desks[k], true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
 // BaseAttributes returns common attributes for named space resources.
 func BaseAttributes(name, description, floorPlan string) map[string]interface{} {
 	attrs := map[string]interface{}{
