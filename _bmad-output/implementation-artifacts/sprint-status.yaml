@@ -76,8 +76,8 @@ development_status:
   6-3-apply-configuration-on-restart: done
   epic-6-retrospective: optional
 
-  epic-7: backlog
-  7-1-book-on-behalf-of-another-user: backlog
+  epic-7: in-progress
+  7-1-book-on-behalf-of-another-user: in-progress
   7-2-guest-booking: backlog
   7-3-multi-day-or-recurring-booking: backlog
   7-4-booking-history: backlog

@@ -28,32 +28,40 @@ type CreateRequest struct {
 		Attributes struct {
 			DeskID      string `json:"desk_id"`
 			BookingDate string `json:"booking_date"`
+			ForUserID   string `json:"for_user_id,omitempty"`
+			ForUserName string `json:"for_user_name,omitempty"`
 		} `json:"attributes"`
 	} `json:"data"`
 }
 
 // BookingAttributes represents booking resource attributes.
 type BookingAttributes struct {
-	DeskID      string `json:"desk_id"`
-	UserID      string `json:"user_id"`
-	BookingDate string `json:"booking_date"`
-	CreatedAt   string `json:"created_at"`
+	DeskID           string `json:"desk_id"`
+	UserID           string `json:"user_id"`
+	BookingDate      string `json:"booking_date"`
+	CreatedAt        string `json:"created_at"`
+	BookedByUserID   string `json:"booked_by_user_id,omitempty"`
+	BookedByUserName string `json:"booked_by_user_name,omitempty"`
 }
 
 // MyBookingAttributes represents booking resource attributes with location info.
 type MyBookingAttributes struct {
-	DeskID      string `json:"desk_id"`
-	DeskName    string `json:"desk_name"`
-	RoomID      string `json:"room_id"`
-	RoomName    string `json:"room_name"`
-	AreaID      string `json:"area_id"`
-	AreaName    string `json:"area_name"`
-	BookingDate string `json:"booking_date"`
-	CreatedAt   string `json:"created_at"`
+	DeskID           string `json:"desk_id"`
+	DeskName         string `json:"desk_name"`
+	RoomID           string `json:"room_id"`
+	RoomName         string `json:"room_name"`
+	AreaID           string `json:"area_id"`
+	AreaName         string `json:"area_name"`
+	BookingDate      string `json:"booking_date"`
+	CreatedAt        string `json:"created_at"`
+	BookedByUserID   string `json:"booked_by_user_id,omitempty"`
+	BookedByUserName string `json:"booked_by_user_name,omitempty"`
+	BookedForMe      bool   `json:"booked_for_me,omitempty"`
 }
 
 // DeleteHandler returns a handler for canceling a booking.
-// Users can cancel their own bookings; admins can cancel any booking.
+// Users can cancel their own bookings or bookings made for them;
+// The person who booked on behalf can also cancel; admins can cancel any booking.
 func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
@@ -77,9 +85,11 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 			return api.WriteNotFound(c, "Booking not found")
 		}
 
-		// Check authorization: owner or admin
+		// Check authorization: owner, booker, or admin
 		isOwner := booking.UserID == user.ID
-		if !isOwner && !user.IsAdmin {
+		isBooker := booking.BookedByUserID == user.ID
+		canCancel := isOwner || isBooker || user.IsAdmin
+		if !canCancel {
 			return api.WriteNotFound(c, "Booking not found")
 		}
 
@@ -94,8 +104,11 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 			"desk_id", booking.DeskID,
 			"booking_date", booking.BookingDate,
 		}
-		if user.IsAdmin && !isOwner {
-			logFields = append(logFields, "admin_action", true, "booking_owner", booking.UserID)
+		if !isOwner {
+			logFields = append(logFields, "booking_owner", booking.UserID)
+			if user.IsAdmin && !isBooker {
+				logFields = append(logFields, "admin_action", true)
+			}
 		}
 		slog.Info("booking canceled", logFields...)
 
@@ -104,6 +117,7 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 }
 
 // ListHandler returns a handler for listing the current user's future bookings.
+// Includes bookings made by the user AND bookings made for the user by others.
 func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
@@ -127,19 +141,31 @@ func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 				continue
 			}
 
+			attrs := MyBookingAttributes{
+				DeskID:      rec.DeskID,
+				DeskName:    loc.Desk.Name,
+				RoomID:      loc.Room.ID,
+				RoomName:    loc.Room.Name,
+				AreaID:      loc.Area.ID,
+				AreaName:    loc.Area.Name,
+				BookingDate: rec.BookingDate,
+				CreatedAt:   rec.CreatedAt,
+			}
+
+			// Include booked_by info if different from user_id
+			if rec.BookedByUserID != "" && rec.BookedByUserID != rec.UserID {
+				attrs.BookedByUserID = rec.BookedByUserID
+				attrs.BookedByUserName = rec.BookedByUserName
+			}
+			// Mark if this booking was made for the current user by someone else
+			if rec.UserID == user.ID && rec.BookedByUserID != "" && rec.BookedByUserID != user.ID {
+				attrs.BookedForMe = true
+			}
+
 			resources = append(resources, api.Resource{
-				Type: "bookings",
-				ID:   rec.ID,
-				Attributes: MyBookingAttributes{
-					DeskID:      rec.DeskID,
-					DeskName:    loc.Desk.Name,
-					RoomID:      loc.Room.ID,
-					RoomName:    loc.Room.Name,
-					AreaID:      loc.Area.ID,
-					AreaName:    loc.Area.Name,
-					BookingDate: rec.BookingDate,
-					CreatedAt:   rec.CreatedAt,
-				},
+				Type:       "bookings",
+				ID:         rec.ID,
+				Attributes: attrs,
 			})
 		}
 
@@ -150,6 +176,7 @@ func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 }
 
 // CreateHandler returns a handler for creating a single-day booking.
+// Supports booking on behalf of another user via for_user_id/for_user_name.
 func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
@@ -166,28 +193,67 @@ func CreateHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 
 		req, err := parseCreateRequest(c)
 		if err != nil {
-			var valErr validationError
-			if errors.As(err, &valErr) {
-				return api.WriteBadRequest(c, valErr.detail)
-			}
-			return err
+			return handleValidationError(c, err)
 		}
 
 		deskID, bookingDate, err := validateRequestFields(req)
 		if err != nil {
-			var valErr validationError
-			if errors.As(err, &valErr) {
-				return api.WriteBadRequest(c, valErr.detail)
-			}
-			return err
+			return handleValidationError(c, err)
 		}
 
 		if _, exists := cfg.FindDesk(deskID); !exists {
 			return api.WriteNotFound(c, "Desk not found")
 		}
 
-		return processBooking(c, store, deskID, user.ID, user.Name, bookingDate)
+		params, err := resolveBookingParticipants(user, req)
+		if err != nil {
+			return handleValidationError(c, err)
+		}
+
+		return processBooking(
+			c, store, deskID, params.targetUserID, params.targetUserName,
+			params.bookedByUserID, params.bookedByUserName, bookingDate,
+		)
 	}
+}
+
+// bookingParticipants holds the resolved user info for a booking.
+type bookingParticipants struct {
+	targetUserID     string
+	targetUserName   string
+	bookedByUserID   string
+	bookedByUserName string
+}
+
+// resolveBookingParticipants determines the target user and booker for a booking.
+func resolveBookingParticipants(user *auth.User, req *CreateRequest) (*bookingParticipants, error) {
+	params := &bookingParticipants{
+		targetUserID:     user.ID,
+		targetUserName:   user.Name,
+		bookedByUserID:   user.ID,
+		bookedByUserName: user.Name,
+	}
+
+	forUserID := strings.TrimSpace(req.Data.Attributes.ForUserID)
+	forUserName := strings.TrimSpace(req.Data.Attributes.ForUserName)
+	if forUserID != "" {
+		if forUserName == "" {
+			return nil, errBadRequest("for_user_name is required when for_user_id is provided")
+		}
+		params.targetUserID = forUserID
+		params.targetUserName = forUserName
+	}
+
+	return params, nil
+}
+
+func handleValidationError(c echo.Context, err error) error {
+	var valErr validationError
+	if errors.As(err, &valErr) {
+		//nolint:wrapcheck // Terminal response, no wrapping needed
+		return api.WriteBadRequest(c, valErr.detail)
+	}
+	return err
 }
 
 func validateContentType(c echo.Context) error {
@@ -249,7 +315,10 @@ func errBadRequest(detail string) error {
 // errResponseWritten indicates the HTTP response was already written.
 var errResponseWritten = errors.New("response already written")
 
-func processBooking(c echo.Context, store *sql.DB, deskID, userID, userName, bookingDate string) error {
+func processBooking(
+	c echo.Context, store *sql.DB,
+	deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
+) error {
 	ctx := c.Request().Context()
 
 	existingBookingID, err := FindUserBooking(ctx, store, deskID, userID, bookingDate)
@@ -257,16 +326,21 @@ func processBooking(c echo.Context, store *sql.DB, deskID, userID, userName, boo
 		return fmt.Errorf("check existing booking: %w", err)
 	}
 	if existingBookingID != "" {
+		if userID == bookedByUserID {
+			//nolint:wrapcheck // Terminal response, no wrapping needed
+			return api.WriteConflict(c, "You already have this desk booked for this date")
+		}
 		//nolint:wrapcheck // Terminal response, no wrapping needed
-		return api.WriteConflict(c, "You already have this desk booked for this date")
+		return api.WriteConflict(c, "This user already has this desk booked for this date")
 	}
 
-	booking, err := CreateBooking(ctx, store, deskID, userID, userName, bookingDate)
+	booking, err := CreateBooking(ctx, store, deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate)
 	if err != nil {
 		if errors.Is(err, ErrConflict) {
 			slog.Warn("booking conflict",
 				"desk_id", deskID,
 				"user_id", userID,
+				"booked_by", bookedByUserID,
 				"booking_date", bookingDate,
 			)
 			//nolint:wrapcheck // Terminal response, no wrapping needed
@@ -275,27 +349,38 @@ func processBooking(c echo.Context, store *sql.DB, deskID, userID, userName, boo
 		return fmt.Errorf("create booking: %w", err)
 	}
 
-	slog.Info("booking created",
+	logFields := []any{
 		"booking_id", booking.ID,
 		"desk_id", deskID,
 		"user_id", userID,
 		"booking_date", bookingDate,
-	)
+	}
+	if bookedByUserID != userID {
+		logFields = append(logFields, "booked_by", bookedByUserID)
+	}
+	slog.Info("booking created", logFields...)
 
 	return writeBookingResponse(c, booking)
 }
 
 func writeBookingResponse(c echo.Context, booking *Booking) error {
+	attrs := BookingAttributes{
+		DeskID:      booking.DeskID,
+		UserID:      booking.UserID,
+		BookingDate: booking.BookingDate,
+		CreatedAt:   booking.CreatedAt,
+	}
+	// Include booked_by info if booking was made on behalf
+	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
+		attrs.BookedByUserID = booking.BookedByUserID
+		attrs.BookedByUserName = booking.BookedByUserName
+	}
+
 	resp := api.SingleResponse{
 		Data: api.Resource{
-			Type: "bookings",
-			ID:   booking.ID,
-			Attributes: BookingAttributes{
-				DeskID:      booking.DeskID,
-				UserID:      booking.UserID,
-				BookingDate: booking.BookingDate,
-				CreatedAt:   booking.CreatedAt,
-			},
+			Type:       "bookings",
+			ID:         booking.ID,
+			Attributes: attrs,
 		},
 	}
 
@@ -306,13 +391,15 @@ func writeBookingResponse(c echo.Context, booking *Booking) error {
 
 // Booking represents a booking record.
 type Booking struct {
-	ID          string
-	DeskID      string
-	UserID      string
-	UserName    string
-	BookingDate string
-	CreatedAt   string
-	UpdatedAt   string
+	ID               string
+	DeskID           string
+	UserID           string
+	UserName         string
+	BookingDate      string
+	BookedByUserID   string
+	BookedByUserName string
+	CreatedAt        string
+	UpdatedAt        string
 }
 
 // ErrConflict indicates a booking conflict (desk already booked).
@@ -336,14 +423,18 @@ func FindUserBooking(ctx context.Context, store *sql.DB, deskID, userID, booking
 }
 
 // CreateBooking inserts a new booking record.
-func CreateBooking(ctx context.Context, store *sql.DB, deskID, userID, userName, bookingDate string) (*Booking, error) {
+func CreateBooking(
+	ctx context.Context, store *sql.DB,
+	deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
+) (*Booking, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	id := uuid.New().String()
 
-	_, err := store.ExecContext(ctx,
-		`INSERT INTO bookings (id, desk_id, user_id, user_name, booking_date, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, deskID, userID, userName, bookingDate, now, now,
+	_, err := store.ExecContext(ctx, `
+		INSERT INTO bookings 
+		(id, desk_id, user_id, user_name, booked_by_user_id, booked_by_user_name, booking_date, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate, now, now,
 	)
 	if err != nil {
 		var sqliteErr sqlite3.Error
@@ -354,12 +445,14 @@ func CreateBooking(ctx context.Context, store *sql.DB, deskID, userID, userName,
 	}
 
 	return &Booking{
-		ID:          id,
-		DeskID:      deskID,
-		UserID:      userID,
-		UserName:    userName,
-		BookingDate: bookingDate,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:               id,
+		DeskID:           deskID,
+		UserID:           userID,
+		UserName:         userName,
+		BookedByUserID:   bookedByUserID,
+		BookedByUserName: bookedByUserName,
+		BookingDate:      bookingDate,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}, nil
 }

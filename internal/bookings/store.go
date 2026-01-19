@@ -36,21 +36,24 @@ func FindBookedDeskIDs(ctx context.Context, store *sql.DB, bookingDate string) (
 
 // BookingRecord represents a booking row from the database.
 type BookingRecord struct {
-	ID          string
-	DeskID      string
-	UserID      string
-	BookingDate string
-	CreatedAt   string
+	ID               string
+	DeskID           string
+	UserID           string
+	BookingDate      string
+	BookedByUserID   string
+	BookedByUserName string
+	CreatedAt        string
 }
 
 // ListUserBookings returns all bookings for a user on or after the given date, ordered by booking_date.
+// Includes bookings where user_id matches OR booked_by_user_id matches.
 func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate string) (result []BookingRecord, err error) {
-	query := `SELECT id, desk_id, user_id, booking_date, created_at 
+	query := `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, created_at 
 	          FROM bookings 
-	          WHERE user_id = ? AND booking_date >= ? 
+	          WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? 
 	          ORDER BY booking_date ASC`
 
-	rows, err := store.QueryContext(ctx, query, userID, fromDate)
+	rows, err := store.QueryContext(ctx, query, userID, userID, fromDate)
 	if err != nil {
 		return nil, fmt.Errorf("query user bookings: %w", err)
 	}
@@ -62,7 +65,11 @@ func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate strin
 
 	for rows.Next() {
 		var b BookingRecord
-		if err := rows.Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.CreatedAt); err != nil {
+		err := rows.Scan(
+			&b.ID, &b.DeskID, &b.UserID, &b.BookingDate,
+			&b.BookedByUserID, &b.BookedByUserName, &b.CreatedAt,
+		)
+		if err != nil {
 			return nil, fmt.Errorf("scan user booking: %w", err)
 		}
 		result = append(result, b)
@@ -78,9 +85,10 @@ func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate strin
 func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*BookingRecord, error) {
 	var b BookingRecord
 	err := store.QueryRowContext(ctx,
-		"SELECT id, desk_id, user_id, booking_date, created_at FROM bookings WHERE id = ?",
+		`SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, created_at 
+		 FROM bookings WHERE id = ?`,
 		bookingID,
-	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.CreatedAt)
+	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.BookedByUserID, &b.BookedByUserName, &b.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
