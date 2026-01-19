@@ -1,6 +1,9 @@
 get:
   summary: List my bookings
-  description: Returns the current user's future bookings (today and later), ordered by date.
+  description: |
+    Returns the current user's future bookings (today and later), ordered by date.
+    Includes both bookings the user made for themselves and bookings made on their behalf by others.
+    Also includes bookings the current user made for other users.
   operationId: listMyBookings
   tags:
     - Bookings
@@ -24,6 +27,23 @@ get:
                   area_name: Main Office
                   booking_date: '2026-01-20'
                   created_at: '2026-01-19T10:30:00Z'
+                  booked_by_user_id: ''
+                  booked_by_user_name: ''
+                  booked_for_me: false
+              - type: bookings
+                id: c2345678-90ab-cdef-0123-456789abcdef
+                attributes:
+                  desk_id: desk-2
+                  desk_name: Window Desk
+                  room_id: room-101
+                  room_name: Room 101
+                  area_id: area-1
+                  area_name: Main Office
+                  booking_date: '2026-01-21'
+                  created_at: '2026-01-19T11:00:00Z'
+                  booked_by_user_id: colleague-123
+                  booked_by_user_name: Jane Doe
+                  booked_for_me: true
     '401':
       description: Unauthorized - login required
       content:
@@ -33,7 +53,10 @@ get:
 
 post:
   summary: Create a booking
-  description: Creates a single-day booking for a desk on a specific date.
+  description: |
+    Creates a single-day booking for a desk on a specific date.
+    Optionally, you can book on behalf of another user by providing
+    for_user_id and for_user_name in the request.
   operationId: createBooking
   tags:
     - Bookings
@@ -43,12 +66,25 @@ post:
       application/vnd.api+json:
         schema:
           $ref: ../openapi.yaml#/components/schemas/CreateBookingRequest
-        example:
-          data:
-            type: bookings
-            attributes:
-              desk_id: desk-1
-              booking_date: '2026-01-20'
+        examples:
+          self_booking:
+            summary: Book for yourself
+            value:
+              data:
+                type: bookings
+                attributes:
+                  desk_id: desk-1
+                  booking_date: '2026-01-20'
+          on_behalf_booking:
+            summary: Book on behalf of a colleague
+            value:
+              data:
+                type: bookings
+                attributes:
+                  desk_id: desk-1
+                  booking_date: '2026-01-20'
+                  for_user_id: colleague-123
+                  for_user_name: Jane Doe
   responses:
     '201':
       description: Booking created successfully

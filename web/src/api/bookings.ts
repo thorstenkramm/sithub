@@ -17,6 +17,9 @@ export interface MyBookingAttributes {
   area_name: string;
   booking_date: string;
   created_at: string;
+  booked_by_user_id: string;
+  booked_by_user_name: string;
+  booked_for_me: boolean;
 }
 
 export interface CreateBookingPayload {
@@ -25,17 +28,32 @@ export interface CreateBookingPayload {
     attributes: {
       desk_id: string;
       booking_date: string;
+      for_user_id?: string;
+      for_user_name?: string;
     };
   };
 }
 
-export function createBooking(deskId: string, bookingDate: string) {
+export interface BookOnBehalfOptions {
+  forUserId: string;
+  forUserName: string;
+}
+
+export function createBooking(
+  deskId: string,
+  bookingDate: string,
+  onBehalf?: BookOnBehalfOptions
+) {
   const payload: CreateBookingPayload = {
     data: {
       type: 'bookings',
       attributes: {
         desk_id: deskId,
-        booking_date: bookingDate
+        booking_date: bookingDate,
+        ...(onBehalf && {
+          for_user_id: onBehalf.forUserId,
+          for_user_name: onBehalf.forUserName
+        })
       }
     }
   };

@@ -27,6 +27,33 @@
                 aria-label="Select booking date"
               />
             </div>
+            <v-checkbox
+              v-model="bookForColleague"
+              label="Book for a colleague"
+              density="compact"
+              hide-details
+              class="mb-2"
+              data-cy="book-for-colleague-checkbox"
+            />
+            <div v-if="bookForColleague" class="mb-4 pl-4">
+              <v-text-field
+                v-model="colleagueId"
+                label="Colleague ID (email)"
+                density="compact"
+                variant="outlined"
+                class="mb-2"
+                data-cy="colleague-id-input"
+                placeholder="e.g. jane.doe@example.com"
+              />
+              <v-text-field
+                v-model="colleagueName"
+                label="Colleague Name"
+                density="compact"
+                variant="outlined"
+                data-cy="colleague-name-input"
+                placeholder="e.g. Jane Doe"
+              />
+            </div>
             <v-alert
               v-if="bookingSuccessMessage"
               type="success"
@@ -135,7 +162,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
-import { createBooking, cancelBooking } from '../api/bookings';
+import { createBooking, cancelBooking, type BookOnBehalfOptions } from '../api/bookings';
 import { fetchDesks } from '../api/desks';
 import { fetchMe } from '../api/me';
 import type { DeskAttributes } from '../api/desks';
@@ -156,6 +183,9 @@ const route = useRoute();
 const router = useRouter();
 const { loading: desksLoading, run: runDesks } = useApi();
 const activeRoomId = ref<string | null>(null);
+const bookForColleague = ref(false);
+const colleagueId = ref('');
+const colleagueName = ref('');
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
@@ -201,11 +231,33 @@ const loadDesks = async (roomId: string, date: string) => {
 const bookDesk = async (deskId: string) => {
   bookingSuccessMessage.value = null;
   bookingErrorMessage.value = null;
+
+  // Validate colleague fields if booking on behalf
+  if (bookForColleague.value) {
+    if (!colleagueId.value.trim() || !colleagueName.value.trim()) {
+      bookingErrorMessage.value = 'Please enter both colleague ID and name.';
+      return;
+    }
+  }
+
   bookingDeskId.value = deskId;
 
   try {
-    await createBooking(deskId, selectedDate.value);
-    bookingSuccessMessage.value = 'Desk booked successfully!';
+    const onBehalf: BookOnBehalfOptions | undefined = bookForColleague.value
+      ? { forUserId: colleagueId.value.trim(), forUserName: colleagueName.value.trim() }
+      : undefined;
+
+    await createBooking(deskId, selectedDate.value, onBehalf);
+
+    if (bookForColleague.value) {
+      bookingSuccessMessage.value = `Desk booked successfully for ${colleagueName.value}!`;
+      // Reset colleague fields after successful booking
+      colleagueId.value = '';
+      colleagueName.value = '';
+      bookForColleague.value = false;
+    } else {
+      bookingSuccessMessage.value = 'Desk booked successfully!';
+    }
 
     // Reload desks to reflect updated availability
     if (activeRoomId.value) {

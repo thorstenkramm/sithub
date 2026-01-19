@@ -47,9 +47,30 @@
                   :key="booking.id"
                   data-cy="booking-item"
                   :data-cy-booking-id="booking.id"
+                  :data-cy-booked-for-me="booking.attributes.booked_for_me"
                 >
                   <v-list-item-title>
                     {{ booking.attributes.desk_name }}
+                    <v-chip
+                      v-if="booking.attributes.booked_for_me"
+                      size="x-small"
+                      color="info"
+                      variant="tonal"
+                      class="ml-2"
+                      data-cy="booked-for-me-chip"
+                    >
+                      Booked by {{ booking.attributes.booked_by_user_name }}
+                    </v-chip>
+                    <v-chip
+                      v-else-if="booking.attributes.booked_by_user_id"
+                      size="x-small"
+                      color="secondary"
+                      variant="tonal"
+                      class="ml-2"
+                      data-cy="booked-on-behalf-chip"
+                    >
+                      Booked for someone else
+                    </v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>
                     <div data-cy="booking-location">

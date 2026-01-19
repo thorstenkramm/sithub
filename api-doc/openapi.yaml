@@ -203,6 +203,16 @@ components:
           type: string
           format: date
           description: Date to book the desk (YYYY-MM-DD)
+        for_user_id:
+          type: string
+          description: >
+            Optional. ID of another user to book on behalf of.
+            If provided, for_user_name is also required.
+        for_user_name:
+          type: string
+          description: >
+            Optional. Name of the user to book on behalf of.
+            Required if for_user_id is provided.
       required:
         - desk_id
         - booking_date
@@ -280,6 +290,18 @@ components:
         created_at:
           type: string
           format: date-time
+        booked_by_user_id:
+          type: string
+          description: ID of the user who made the booking (empty if self-booked)
+        booked_by_user_name:
+          type: string
+          description: Name of the user who made the booking (empty if self-booked)
+        booked_for_me:
+          type: boolean
+          description: >
+            True if this booking was made on behalf of the current user
+            by someone else. False for self-bookings or bookings the
+            current user made for others.
       required:
         - desk_id
         - desk_name
@@ -289,6 +311,9 @@ components:
         - area_name
         - booking_date
         - created_at
+        - booked_by_user_id
+        - booked_by_user_name
+        - booked_for_me
     MyBookingResource:
       allOf:
         - $ref: '#/components/schemas/Resource'

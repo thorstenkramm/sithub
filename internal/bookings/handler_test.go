@@ -498,6 +498,205 @@ func TestDeleteHandlerAdminCancelCases(t *testing.T) {
 	}
 }
 
+func TestCreateHandlerBookOnBehalf(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"for_user_id":"colleague-1","for_user_name":"Colleague User"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Booker User"})
+
+	h := CreateHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp api.SingleResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	require.True(t, ok)
+
+	// Target user should be the colleague
+	assert.Equal(t, "colleague-1", attrs["user_id"])
+	assert.Equal(t, futureDate, attrs["booking_date"])
+	// booked_by should be included since it's different from user_id
+	assert.Equal(t, "user-1", attrs["booked_by_user_id"])
+	assert.Equal(t, "Booker User", attrs["booked_by_user_name"])
+}
+
+func TestCreateHandlerBookOnBehalfMissingName(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	// for_user_id without for_user_name should fail
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"for_user_id":"colleague-1"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Booker User"})
+
+	h := CreateHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Contains(t, resp.Errors[0].Detail, "for_user_name is required")
+}
+
+func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1", "desk-2"})
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+
+	// User's own booking
+	seedTestBookingFull(t, store, "b1", "desk-1", "user-1", "User One", "user-1", "User One", tomorrow)
+	// Booking made FOR user-1 by colleague
+	seedTestBookingFull(t, store, "b2", "desk-2", "user-1", "User One", "colleague", "Colleague", dayAfter)
+	// Booking made BY user-1 for someone else (should appear)
+	seedTestBookingFull(t, store, "b3", "desk-1", "other-user", "Other", "user-1", "User One", dayAfter)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "User One"})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+
+	// Should return 3 bookings: own booking, booking made for me, booking I made for others
+	require.Len(t, resp.Data, 3)
+
+	// Find the booking made FOR user-1 by colleague
+	var foundBookedForMe bool
+	for _, res := range resp.Data {
+		attrs, ok := res.Attributes.(map[string]interface{})
+		require.True(t, ok)
+		if res.ID == "b2" {
+			foundBookedForMe = true
+			assert.Equal(t, "colleague", attrs["booked_by_user_id"])
+			assert.Equal(t, "Colleague", attrs["booked_by_user_name"])
+			assert.Equal(t, true, attrs["booked_for_me"])
+		}
+	}
+	assert.True(t, foundBookedForMe, "booking made for user should be in list")
+}
+
+func TestDeleteHandlerOnBehalfBookingCancellation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		cancelingUser  *auth.User
+		targetUserID   string
+		bookedByUserID string
+	}{
+		{
+			name:           "booker can cancel",
+			cancelingUser:  &auth.User{ID: "user-1", Name: "Booker"},
+			targetUserID:   "colleague",
+			bookedByUserID: "user-1",
+		},
+		{
+			name:           "target user can cancel",
+			cancelingUser:  &auth.User{ID: "colleague", Name: "Colleague"},
+			targetUserID:   "colleague",
+			bookedByUserID: "someone",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := setupTestStore(t)
+			seedTestDeskData(t, store, []string{"desk-1"})
+
+			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+			seedTestBookingFull(t, store, "booking-1", "desk-1",
+				tc.targetUserID, "Target", tc.bookedByUserID, "Booker", tomorrow)
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues("booking-1")
+			c.Set("user", tc.cancelingUser)
+
+			h := DeleteHandler(store)
+			require.NoError(t, h(c))
+
+			assert.Equal(t, http.StatusNoContent, rec.Code)
+
+			// Verify booking is deleted
+			ctx := context.Background()
+			booking, err := FindBookingByID(ctx, store, "booking-1")
+			require.NoError(t, err)
+			assert.Nil(t, booking)
+		})
+	}
+}
+
+func TestDeleteHandlerUnrelatedUserCannotCancel(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	// Booking for colleague, made by someone-else
+	seedTestBookingFull(t, store, "booking-1", "desk-1", "colleague", "Colleague", "someone", "Someone", tomorrow)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	// Unrelated user trying to cancel
+	c.Set("user", &auth.User{ID: "random-user", Name: "Random"})
+
+	h := DeleteHandler(store)
+	require.NoError(t, h(c))
+
+	// Should return 404 to not reveal booking existence
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func testSpacesConfig() *spaces.Config {
 	return &spaces.Config{
 		Areas: []spaces.Area{

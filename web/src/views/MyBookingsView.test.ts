@@ -22,6 +22,9 @@ describe('MyBookingsView', () => {
     roomName: string;
     areaName: string;
     bookingDate: string;
+    bookedByUserId?: string;
+    bookedByUserName?: string;
+    bookedForMe?: boolean;
   }>) => {
     const fetchBookingsMock = fetchMyBookings as unknown as ReturnType<typeof vi.fn>;
     fetchBookingsMock.mockResolvedValue({
@@ -36,7 +39,10 @@ describe('MyBookingsView', () => {
           area_id: `area-${b.id}`,
           area_name: b.areaName,
           booking_date: b.bookingDate,
-          created_at: '2026-01-19T10:00:00Z'
+          created_at: '2026-01-19T10:00:00Z',
+          booked_by_user_id: b.bookedByUserId ?? '',
+          booked_by_user_name: b.bookedByUserName ?? '',
+          booked_for_me: b.bookedForMe ?? false
         }
       }))
     });
@@ -104,5 +110,26 @@ describe('MyBookingsView', () => {
 
     // The date should be formatted (exact format depends on locale)
     expect(wrapper.text()).toContain('2026');
+  });
+
+  it('shows "Booked by" chip when booking was made on behalf of user', async () => {
+    mockFetchMe();
+    mockFetchBookings([
+      {
+        id: '1',
+        deskName: 'Corner Desk',
+        roomName: 'Room 101',
+        areaName: 'Main Office',
+        bookingDate: '2026-01-20',
+        bookedByUserId: 'colleague-123',
+        bookedByUserName: 'Jane Doe',
+        bookedForMe: true
+      }
+    ]);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Booked by Jane Doe');
   });
 });
