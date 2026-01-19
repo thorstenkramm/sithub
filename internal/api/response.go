@@ -96,3 +96,15 @@ func ParseRoomRequest(roomID, dateParam string) (*RoomRequestParams, error) {
 		BookingDate: bookingDate,
 	}, nil
 }
+
+// BuildINClause creates SQL placeholders and args for an IN clause.
+// Returns the placeholders string (e.g., "?,?,?") and args slice with IDs.
+func BuildINClause(ids []string) (placeholders string, args []any) {
+	ph := make([]string, len(ids))
+	args = make([]any, len(ids))
+	for i, id := range ids {
+		ph[i] = "?"
+		args[i] = id
+	}
+	return strings.Join(ph, ","), args
+}

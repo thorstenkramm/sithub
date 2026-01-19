@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import AreasView from '../views/AreasView.vue';
 import AccessDeniedView from '../views/AccessDeniedView.vue';
+import AreaPresenceView from '../views/AreaPresenceView.vue';
 import RoomsView from '../views/RoomsView.vue';
 import DesksView from '../views/DesksView.vue';
 import MyBookingsView from '../views/MyBookingsView.vue';
@@ -19,6 +20,11 @@ const router = createRouter({
       path: '/areas/:areaId/rooms',
       name: 'rooms',
       component: RoomsView
+    },
+    {
+      path: '/areas/:areaId/presence',
+      name: 'area-presence',
+      component: AreaPresenceView
     },
     {
       path: '/rooms/:roomId/desks',

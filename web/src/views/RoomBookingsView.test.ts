@@ -1,7 +1,11 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import RoomBookingsView from './RoomBookingsView.vue';
 import { fetchRoomBookings } from '../api/roomBookings';
-import { buildViewStubs, defineAuthRedirectTests, mockWindowLocation } from './testHelpers';
+import {
+  buildViewStubs,
+  expectLoginRedirect,
+  expectAccessDeniedRedirect
+} from './testHelpers';
 import { ApiError } from '../api/client';
 
 const pushMock = vi.fn();
@@ -80,21 +84,11 @@ describe('RoomBookingsView', () => {
 
   it('redirects to login on 401', async () => {
     fetchRoomBookingsMock.mockRejectedValue(new ApiError('Unauthorized', 401));
-    const restore = mockWindowLocation();
-
-    mountView();
-    await flushPromises();
-
-    expect(window.location.href).toBe('/oauth/login');
-    restore();
+    await expectLoginRedirect(mountView);
   });
 
   it('redirects to access denied on 403', async () => {
     fetchRoomBookingsMock.mockRejectedValue(new ApiError('Forbidden', 403));
-
-    mountView();
-    await flushPromises();
-
-    expect(pushMock).toHaveBeenCalledWith('/access-denied');
+    await expectAccessDeniedRedirect(mountView, pushMock);
   });
 });

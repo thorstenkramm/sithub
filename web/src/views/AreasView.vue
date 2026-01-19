@@ -27,6 +27,16 @@
                 @click="goToRooms(area.id)"
               >
                 <v-list-item-title>{{ area.attributes.name }}</v-list-item-title>
+                <template #append>
+                  <router-link
+                    :to="{ name: 'area-presence', params: { areaId: area.id } }"
+                    class="text-caption mr-2"
+                    data-cy="area-presence-link"
+                    @click.stop
+                  >
+                    View Presence
+                  </router-link>
+                </template>
               </v-list-item>
             </v-list>
             <div v-else class="text-caption" data-cy="areas-empty">No areas available.</div>

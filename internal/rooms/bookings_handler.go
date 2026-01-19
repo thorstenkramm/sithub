@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -76,23 +75,16 @@ func findRoomBookings(
 		return []api.Resource{}, nil
 	}
 
-	// Query bookings for these desks on the given date
-	placeholders := make([]string, len(deskIDs))
-	args := make([]any, 0, len(deskIDs)+1)
-	for i, id := range deskIDs {
-		placeholders[i] = "?"
-		args = append(args, id)
-	}
+	placeholders, args := api.BuildINClause(deskIDs)
 	args = append(args, bookingDate)
 
-	// Build query with placeholders - safe because placeholders are just "?" characters
-	//nolint:gosec // G201: placeholders array contains only "?" literals, not user input
+	//nolint:gosec // G201: placeholders are "?" literals from BuildINClause, not user input
 	query := fmt.Sprintf(
 		`SELECT id, desk_id, user_id, user_name, booking_date 
 		 FROM bookings 
 		 WHERE desk_id IN (%s) AND booking_date = ?
 		 ORDER BY desk_id`,
-		strings.Join(placeholders, ","),
+		placeholders,
 	)
 
 	rows, err := store.QueryContext(ctx, query, args...)

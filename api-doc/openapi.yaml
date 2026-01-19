@@ -16,6 +16,8 @@ paths:
     $ref: ./endpoints/areas.yaml
   /areas/{area_id}/rooms:
     $ref: ./endpoints/rooms.yaml
+  /areas/{area_id}/presence:
+    $ref: ./endpoints/area-presence.yaml
   /rooms/{room_id}/desks:
     $ref: ./endpoints/desks.yaml
   /rooms/{room_id}/bookings:
@@ -347,5 +349,48 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RoomBookingResource'
+      required:
+        - data
+    AreaPresenceAttributes:
+      type: object
+      properties:
+        user_id:
+          type: string
+        user_name:
+          type: string
+        desk_id:
+          type: string
+        desk_name:
+          type: string
+        room_id:
+          type: string
+        room_name:
+          type: string
+      required:
+        - user_id
+        - user_name
+        - desk_id
+        - desk_name
+        - room_id
+        - room_name
+    AreaPresenceResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: presence
+            attributes:
+              $ref: '#/components/schemas/AreaPresenceAttributes'
+          required:
+            - type
+            - attributes
+    AreaPresenceCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AreaPresenceResource'
       required:
         - data
