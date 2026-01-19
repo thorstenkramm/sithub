@@ -62,6 +62,16 @@
                       Booked by {{ booking.attributes.booked_by_user_name }}
                     </v-chip>
                     <v-chip
+                      v-else-if="booking.attributes.is_guest"
+                      size="x-small"
+                      color="warning"
+                      variant="tonal"
+                      class="ml-2"
+                      data-cy="guest-booking-chip"
+                    >
+                      Guest
+                    </v-chip>
+                    <v-chip
                       v-else-if="booking.attributes.booked_by_user_id"
                       size="x-small"
                       color="secondary"

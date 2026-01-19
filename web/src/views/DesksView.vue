@@ -27,15 +27,12 @@
                 aria-label="Select booking date"
               />
             </div>
-            <v-checkbox
-              v-model="bookForColleague"
-              label="Book for a colleague"
-              density="compact"
-              hide-details
-              class="mb-2"
-              data-cy="book-for-colleague-checkbox"
-            />
-            <div v-if="bookForColleague" class="mb-4 pl-4">
+            <v-radio-group v-model="bookingType" inline density="compact" class="mb-2">
+              <v-radio label="Book for myself" value="self" data-cy="book-self-radio" />
+              <v-radio label="Book for a colleague" value="colleague" data-cy="book-colleague-radio" />
+              <v-radio label="Book for a guest" value="guest" data-cy="book-guest-radio" />
+            </v-radio-group>
+            <div v-if="bookingType === 'colleague'" class="mb-4 pl-4">
               <v-text-field
                 v-model="colleagueId"
                 label="Colleague ID (email)"
@@ -52,6 +49,25 @@
                 variant="outlined"
                 data-cy="colleague-name-input"
                 placeholder="e.g. Jane Doe"
+              />
+            </div>
+            <div v-if="bookingType === 'guest'" class="mb-4 pl-4">
+              <v-text-field
+                v-model="guestName"
+                label="Guest Name"
+                density="compact"
+                variant="outlined"
+                class="mb-2"
+                data-cy="guest-name-input"
+                placeholder="e.g. John Visitor"
+              />
+              <v-text-field
+                v-model="guestEmail"
+                label="Guest Email (optional)"
+                density="compact"
+                variant="outlined"
+                data-cy="guest-email-input"
+                placeholder="e.g. visitor@example.com"
               />
             </div>
             <v-alert
@@ -162,7 +178,12 @@
 import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
-import { createBooking, cancelBooking, type BookOnBehalfOptions } from '../api/bookings';
+import {
+  createBooking,
+  cancelBooking,
+  type BookOnBehalfOptions,
+  type GuestBookingOptions
+} from '../api/bookings';
 import { fetchDesks } from '../api/desks';
 import { fetchMe } from '../api/me';
 import type { DeskAttributes } from '../api/desks';
@@ -183,9 +204,11 @@ const route = useRoute();
 const router = useRouter();
 const { loading: desksLoading, run: runDesks } = useApi();
 const activeRoomId = ref<string | null>(null);
-const bookForColleague = ref(false);
+const bookingType = ref<'self' | 'colleague' | 'guest'>('self');
 const colleagueId = ref('');
 const colleagueName = ref('');
+const guestName = ref('');
+const guestEmail = ref('');
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
@@ -233,9 +256,17 @@ const bookDesk = async (deskId: string) => {
   bookingErrorMessage.value = null;
 
   // Validate colleague fields if booking on behalf
-  if (bookForColleague.value) {
+  if (bookingType.value === 'colleague') {
     if (!colleagueId.value.trim() || !colleagueName.value.trim()) {
       bookingErrorMessage.value = 'Please enter both colleague ID and name.';
+      return;
+    }
+  }
+
+  // Validate guest fields
+  if (bookingType.value === 'guest') {
+    if (!guestName.value.trim()) {
+      bookingErrorMessage.value = 'Please enter the guest name.';
       return;
     }
   }
@@ -243,18 +274,30 @@ const bookDesk = async (deskId: string) => {
   bookingDeskId.value = deskId;
 
   try {
-    const onBehalf: BookOnBehalfOptions | undefined = bookForColleague.value
-      ? { forUserId: colleagueId.value.trim(), forUserName: colleagueName.value.trim() }
-      : undefined;
+    const onBehalf: BookOnBehalfOptions | undefined =
+      bookingType.value === 'colleague'
+        ? { forUserId: colleagueId.value.trim(), forUserName: colleagueName.value.trim() }
+        : undefined;
 
-    await createBooking(deskId, selectedDate.value, onBehalf);
+    const guest: GuestBookingOptions | undefined =
+      bookingType.value === 'guest'
+        ? { guestName: guestName.value.trim(), guestEmail: guestEmail.value.trim() || undefined }
+        : undefined;
 
-    if (bookForColleague.value) {
+    await createBooking(deskId, selectedDate.value, onBehalf, guest);
+
+    if (bookingType.value === 'colleague') {
       bookingSuccessMessage.value = `Desk booked successfully for ${colleagueName.value}!`;
       // Reset colleague fields after successful booking
       colleagueId.value = '';
       colleagueName.value = '';
-      bookForColleague.value = false;
+      bookingType.value = 'self';
+    } else if (bookingType.value === 'guest') {
+      bookingSuccessMessage.value = `Desk booked successfully for guest ${guestName.value}!`;
+      // Reset guest fields after successful booking
+      guestName.value = '';
+      guestEmail.value = '';
+      bookingType.value = 'self';
     } else {
       bookingSuccessMessage.value = 'Desk booked successfully!';
     }

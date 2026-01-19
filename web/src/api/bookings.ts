@@ -20,6 +20,8 @@ export interface MyBookingAttributes {
   booked_by_user_id: string;
   booked_by_user_name: string;
   booked_for_me: boolean;
+  is_guest?: boolean;
+  guest_email?: string;
 }
 
 export interface CreateBookingPayload {
@@ -30,6 +32,8 @@ export interface CreateBookingPayload {
       booking_date: string;
       for_user_id?: string;
       for_user_name?: string;
+      is_guest?: boolean;
+      guest_email?: string;
     };
   };
 }
@@ -39,10 +43,16 @@ export interface BookOnBehalfOptions {
   forUserName: string;
 }
 
+export interface GuestBookingOptions {
+  guestName: string;
+  guestEmail?: string;
+}
+
 export function createBooking(
   deskId: string,
   bookingDate: string,
-  onBehalf?: BookOnBehalfOptions
+  onBehalf?: BookOnBehalfOptions,
+  guest?: GuestBookingOptions
 ) {
   const payload: CreateBookingPayload = {
     data: {
@@ -53,6 +63,11 @@ export function createBooking(
         ...(onBehalf && {
           for_user_id: onBehalf.forUserId,
           for_user_name: onBehalf.forUserName
+        }),
+        ...(guest && {
+          is_guest: true,
+          for_user_name: guest.guestName,
+          guest_email: guest.guestEmail
         })
       }
     }

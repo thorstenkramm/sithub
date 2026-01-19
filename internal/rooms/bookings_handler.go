@@ -18,6 +18,7 @@ type RoomBookingAttributes struct {
 	UserID      string `json:"user_id"`
 	UserName    string `json:"user_name"`
 	BookingDate string `json:"booking_date"`
+	IsGuest     bool   `json:"is_guest,omitempty"`
 }
 
 // BookingsHandler returns a JSON:API list of bookings for a room on a given date.
@@ -58,6 +59,7 @@ type roomBookingRecord struct {
 	UserID      string
 	UserName    string
 	BookingDate string
+	IsGuest     bool
 }
 
 func findRoomBookings(
@@ -80,7 +82,7 @@ func findRoomBookings(
 
 	//nolint:gosec // G201: placeholders are "?" literals from BuildINClause, not user input
 	query := fmt.Sprintf(
-		`SELECT id, desk_id, user_id, user_name, booking_date 
+		`SELECT id, desk_id, user_id, user_name, booking_date, is_guest 
 		 FROM bookings 
 		 WHERE desk_id IN (%s) AND booking_date = ?
 		 ORDER BY desk_id`,
@@ -101,9 +103,14 @@ func findRoomBookings(
 	var resources []api.Resource
 	for rows.Next() {
 		var rec roomBookingRecord
-		if err := rows.Scan(&rec.ID, &rec.DeskID, &rec.UserID, &rec.UserName, &rec.BookingDate); err != nil {
+		var isGuestInt int
+		err := rows.Scan(
+			&rec.ID, &rec.DeskID, &rec.UserID, &rec.UserName, &rec.BookingDate, &isGuestInt,
+		)
+		if err != nil {
 			return nil, fmt.Errorf("scan room booking: %w", err)
 		}
+		rec.IsGuest = isGuestInt == 1
 
 		resources = append(resources, api.Resource{
 			Type: "bookings",
@@ -114,6 +121,7 @@ func findRoomBookings(
 				UserID:      rec.UserID,
 				UserName:    rec.UserName,
 				BookingDate: rec.BookingDate,
+				IsGuest:     rec.IsGuest,
 			},
 		})
 	}

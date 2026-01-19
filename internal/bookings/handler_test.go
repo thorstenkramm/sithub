@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -535,7 +536,60 @@ func TestCreateHandlerBookOnBehalf(t *testing.T) {
 	assert.Equal(t, "Booker User", attrs["booked_by_user_name"])
 }
 
-func TestCreateHandlerBookOnBehalfMissingName(t *testing.T) {
+func TestCreateHandlerMissingNameValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		bodyTemplate   string
+		expectedDetail string
+	}{
+		{
+			name:           "on_behalf_missing_name",
+			bodyTemplate:   `"for_user_id":"colleague-1"`,
+			expectedDetail: "for_user_name is required",
+		},
+		{
+			name:           "guest_missing_name",
+			bodyTemplate:   `"is_guest":true`,
+			expectedDetail: "guest name",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := testSpacesConfig()
+			store := setupTestStore(t)
+			seedTestDeskData(t, store, []string{"desk-1"})
+
+			futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+			body := `{"data":{"type":"bookings","attributes":{` +
+				`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
+				tc.bodyTemplate + `}}}`
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+			req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+			h := CreateHandler(cfg, store)
+			require.NoError(t, h(c))
+
+			assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+			var resp api.ErrorResponse
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+			require.Len(t, resp.Errors, 1)
+			assert.Contains(t, resp.Errors[0].Detail, tc.expectedDetail)
+		})
+	}
+}
+
+func TestCreateHandlerGuestBooking(t *testing.T) {
 	t.Parallel()
 
 	cfg := testSpacesConfig()
@@ -543,27 +597,72 @@ func TestCreateHandlerBookOnBehalfMissingName(t *testing.T) {
 	seedTestDeskData(t, store, []string{"desk-1"})
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
-	// for_user_id without for_user_name should fail
 	body := `{"data":{"type":"bookings","attributes":{` +
 		`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
-		`"for_user_id":"colleague-1"}}}`
+		`"is_guest":true,"for_user_name":"John Visitor","guest_email":"visitor@example.com"}}}`
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
 	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.Set("user", &auth.User{ID: "user-1", Name: "Booker User"})
+	c.Set("user", &auth.User{ID: "user-1", Name: "Host User"})
 
 	h := CreateHandler(cfg, store)
 	require.NoError(t, h(c))
 
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Equal(t, http.StatusCreated, rec.Code)
 
-	var resp api.ErrorResponse
+	var resp api.SingleResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.Len(t, resp.Errors, 1)
-	assert.Contains(t, resp.Errors[0].Detail, "for_user_name is required")
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	require.True(t, ok)
+
+	// User ID should be a generated guest ID
+	userID, ok := attrs["user_id"].(string)
+	require.True(t, ok, "user_id should be a string")
+	assert.True(t, strings.HasPrefix(userID, "guest-"), "guest user_id should start with 'guest-'")
+	assert.Equal(t, futureDate, attrs["booking_date"])
+	// booked_by should be the host (current user)
+	assert.Equal(t, "user-1", attrs["booked_by_user_id"])
+	assert.Equal(t, "Host User", attrs["booked_by_user_name"])
+	// Guest flags should be set
+	assert.Equal(t, true, attrs["is_guest"])
+	assert.Equal(t, "visitor@example.com", attrs["guest_email"])
+}
+
+func TestListHandlerIncludesGuestBookings(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+	seedTestDeskData(t, store, []string{"desk-1"})
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+
+	// Guest booking made by user-1
+	seedTestBookingWithGuest(t, store, "b1", "desk-1", "guest-abc123", "John Visitor",
+		"user-1", "Host User", tomorrow, true, "visitor@example.com")
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Host User"})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 1)
+
+	attrs, ok := resp.Data[0].Attributes.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, true, attrs["is_guest"])
+	assert.Equal(t, "visitor@example.com", attrs["guest_email"])
 }
 
 func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {

@@ -42,13 +42,16 @@ type BookingRecord struct {
 	BookingDate      string
 	BookedByUserID   string
 	BookedByUserName string
+	IsGuest          bool
+	GuestEmail       string
 	CreatedAt        string
 }
 
 // ListUserBookings returns all bookings for a user on or after the given date, ordered by booking_date.
 // Includes bookings where user_id matches OR booked_by_user_id matches.
 func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate string) (result []BookingRecord, err error) {
-	query := `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, created_at 
+	query := `SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+	                 is_guest, guest_email, created_at 
 	          FROM bookings 
 	          WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? 
 	          ORDER BY booking_date ASC`
@@ -65,13 +68,15 @@ func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate strin
 
 	for rows.Next() {
 		var b BookingRecord
+		var isGuestInt int
 		err := rows.Scan(
 			&b.ID, &b.DeskID, &b.UserID, &b.BookingDate,
-			&b.BookedByUserID, &b.BookedByUserName, &b.CreatedAt,
+			&b.BookedByUserID, &b.BookedByUserName, &isGuestInt, &b.GuestEmail, &b.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan user booking: %w", err)
 		}
+		b.IsGuest = isGuestInt == 1
 		result = append(result, b)
 	}
 	if err := rows.Err(); err != nil {
@@ -84,11 +89,14 @@ func ListUserBookings(ctx context.Context, store *sql.DB, userID, fromDate strin
 // FindBookingByID returns a booking by its ID, or nil if not found.
 func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*BookingRecord, error) {
 	var b BookingRecord
+	var isGuestInt int
 	err := store.QueryRowContext(ctx,
-		`SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, created_at 
+		`SELECT id, desk_id, user_id, booking_date, booked_by_user_id, booked_by_user_name, 
+		        is_guest, guest_email, created_at 
 		 FROM bookings WHERE id = ?`,
 		bookingID,
-	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.BookedByUserID, &b.BookedByUserName, &b.CreatedAt)
+	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.BookingDate, &b.BookedByUserID, &b.BookedByUserName,
+		&isGuestInt, &b.GuestEmail, &b.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -96,6 +104,7 @@ func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*Boo
 	if err != nil {
 		return nil, fmt.Errorf("query booking by id: %w", err)
 	}
+	b.IsGuest = isGuestInt == 1
 	return &b, nil
 }
 
