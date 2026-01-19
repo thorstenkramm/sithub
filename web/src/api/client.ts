@@ -2,11 +2,34 @@ const JSON_API = 'application/vnd.api+json';
 
 export class ApiError extends Error {
   status: number;
+  detail: string | null;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail: string | null = null) {
     super(message);
     this.status = status;
+    this.detail = detail;
   }
+}
+
+interface JsonApiErrorResponse {
+  errors?: Array<{
+    status?: string;
+    title?: string;
+    detail?: string;
+    code?: string;
+  }>;
+}
+
+async function parseErrorDetail(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as JsonApiErrorResponse;
+    if (body.errors && body.errors.length > 0 && body.errors[0].detail) {
+      return body.errors[0].detail;
+    }
+  } catch {
+    // Ignore JSON parse errors
+  }
+  return null;
 }
 
 export async function apiRequest<T>(input: RequestInfo, init: RequestInit = {}): Promise<T> {
@@ -22,7 +45,8 @@ export async function apiRequest<T>(input: RequestInfo, init: RequestInit = {}):
   });
 
   if (!response.ok) {
-    throw new ApiError(`Request failed: ${response.status}`, response.status);
+    const detail = await parseErrorDetail(response);
+    throw new ApiError(`Request failed: ${response.status}`, response.status, detail);
   }
 
   return response.json() as Promise<T>;

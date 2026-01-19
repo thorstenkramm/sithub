@@ -64,4 +64,88 @@ describe('desks', () => {
     // After reload, the desk should show as occupied
     cy.wait('@listDesks');
   });
+
+  itIfAuth('should show conflict message with prompt when desk is already booked', () => {
+    cy.intercept('GET', '/api/v1/areas').as('listAreas');
+    cy.intercept('GET', '/api/v1/areas/office_1st_floor/rooms').as('listRooms');
+    cy.intercept('GET', '/api/v1/rooms/room_101/desks*').as('listDesks');
+
+    // Mock a 409 Conflict response for booking
+    cy.intercept('POST', '/api/v1/bookings', {
+      statusCode: 409,
+      headers: { 'Content-Type': 'application/vnd.api+json' },
+      body: {
+        errors: [
+          {
+            status: '409',
+            title: 'Conflict',
+            detail: 'Desk is already booked for this date',
+            code: 'conflict'
+          }
+        ]
+      }
+    }).as('createBookingConflict');
+
+    cy.visit('/oauth/callback');
+    openArea('Office 1st Floor');
+    openRoom('Room 101');
+
+    cy.wait('@listDesks');
+
+    // Click book on an available desk
+    cy.get('[data-cy="desk-item"][data-cy-availability="available"]')
+      .first()
+      .find('[data-cy="book-desk-btn"]')
+      .click();
+
+    cy.wait('@createBookingConflict');
+
+    // Error message should show backend detail + prompt
+    cy.get('[data-cy="booking-error"]')
+      .should('contain', 'Desk is already booked for this date')
+      .and('contain', 'Please choose another desk');
+
+    // Desk list should be refreshed
+    cy.wait('@listDesks');
+  });
+
+  itIfAuth('should show self-duplicate message when user already has booking', () => {
+    cy.intercept('GET', '/api/v1/areas').as('listAreas');
+    cy.intercept('GET', '/api/v1/areas/office_1st_floor/rooms').as('listRooms');
+    cy.intercept('GET', '/api/v1/rooms/room_101/desks*').as('listDesks');
+
+    // Mock a 409 Conflict response for self-duplicate
+    cy.intercept('POST', '/api/v1/bookings', {
+      statusCode: 409,
+      headers: { 'Content-Type': 'application/vnd.api+json' },
+      body: {
+        errors: [
+          {
+            status: '409',
+            title: 'Conflict',
+            detail: 'You already have this desk booked for this date',
+            code: 'conflict'
+          }
+        ]
+      }
+    }).as('createBookingSelfDuplicate');
+
+    cy.visit('/oauth/callback');
+    openArea('Office 1st Floor');
+    openRoom('Room 101');
+
+    cy.wait('@listDesks');
+
+    cy.get('[data-cy="desk-item"][data-cy-availability="available"]')
+      .first()
+      .find('[data-cy="book-desk-btn"]')
+      .click();
+
+    cy.wait('@createBookingSelfDuplicate');
+
+    // Error message should show the self-duplicate message
+    cy.get('[data-cy="booking-error"]')
+      .should('contain', 'You already have this desk booked for this date')
+      .and('contain', 'Please choose another desk');
+  });
 });

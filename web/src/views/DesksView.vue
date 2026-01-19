@@ -179,7 +179,14 @@ const bookDesk = async (deskId: string) => {
       return;
     }
     if (err instanceof ApiError && err.status === 409) {
-      bookingErrorMessage.value = 'This desk is already booked for the selected date.';
+      // Use backend's detail message if available, otherwise a generic message
+      const detail = err.detail || 'This desk is no longer available for the selected date.';
+      bookingErrorMessage.value = `${detail} Please choose another desk.`;
+
+      // Refresh desk list so user sees updated availability
+      if (activeRoomId.value) {
+        await loadDesks(activeRoomId.value, selectedDate.value);
+      }
     } else if (err instanceof ApiError && err.status === 404) {
       bookingErrorMessage.value = 'Desk not found.';
     } else {

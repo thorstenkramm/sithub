@@ -60,4 +60,50 @@ describe('apiRequest', () => {
 
     await expect(apiRequest('/api/v1/ping')).rejects.toBeInstanceOf(ApiError);
   });
+
+  describe('error detail parsing', () => {
+    const expectApiError = async (
+      url: string,
+      expectedStatus: number,
+      expectedDetail: string | null
+    ) => {
+      await expect(apiRequest(url)).rejects.toSatisfy((err: unknown) => {
+        expect(err).toBeInstanceOf(ApiError);
+        const apiErr = err as ApiError;
+        expect(apiErr.status).toBe(expectedStatus);
+        expect(apiErr.detail).toBe(expectedDetail);
+        return true;
+      });
+    };
+
+    it('includes error detail from JSON:API error response', async () => {
+      setFetchMock({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          errors: [{ status: '409', title: 'Conflict', detail: 'Desk is already booked', code: 'conflict' }]
+        })
+      });
+
+      await expectApiError('/api/v1/bookings', 409, 'Desk is already booked');
+    });
+
+    it('sets detail to null when error response has no detail', async () => {
+      setFetchMock({ ok: false, status: 400, json: async () => ({}) });
+
+      await expectApiError('/api/v1/bookings', 400, null);
+    });
+
+    it('handles JSON parse errors gracefully', async () => {
+      setFetchMock({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error('Invalid JSON');
+        }
+      });
+
+      await expectApiError('/api/v1/ping', 500, null);
+    });
+  });
 });
