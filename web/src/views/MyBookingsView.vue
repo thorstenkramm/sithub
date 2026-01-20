@@ -1,119 +1,75 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title data-cy="my-bookings-title">
-            My Bookings
-            <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
-          </v-card-title>
-          <v-card-text>
-            <v-alert
-              v-if="cancelSuccessMessage"
-              type="success"
-              variant="tonal"
-              class="mb-3"
-              closable
-              data-cy="cancel-success"
-              @click:close="cancelSuccessMessage = null"
-            >
-              {{ cancelSuccessMessage }}
-            </v-alert>
-            <v-alert
-              v-if="cancelErrorMessage"
-              type="error"
-              variant="tonal"
-              class="mb-3"
-              closable
-              data-cy="cancel-error"
-              @click:close="cancelErrorMessage = null"
-            >
-              {{ cancelErrorMessage }}
-            </v-alert>
-            <v-progress-linear
-              v-if="bookingsLoading"
-              class="mb-3"
-              indeterminate
-              data-cy="bookings-loading"
-              aria-label="Loading bookings"
-            />
-            <v-alert v-else-if="bookingsError" type="error" variant="tonal" data-cy="bookings-error">
-              Unable to load bookings.
-            </v-alert>
-            <div v-else>
-              <v-list v-if="bookings.length" data-cy="bookings-list">
-                <v-list-item
-                  v-for="booking in bookings"
-                  :key="booking.id"
-                  data-cy="booking-item"
-                  :data-cy-booking-id="booking.id"
-                  :data-cy-booked-for-me="booking.attributes.booked_for_me"
-                >
-                  <v-list-item-title>
-                    {{ booking.attributes.desk_name }}
-                    <v-chip
-                      v-if="booking.attributes.booked_for_me"
-                      size="x-small"
-                      color="info"
-                      variant="tonal"
-                      class="ml-2"
-                      data-cy="booked-for-me-chip"
-                    >
-                      Booked by {{ booking.attributes.booked_by_user_name }}
-                    </v-chip>
-                    <v-chip
-                      v-else-if="booking.attributes.is_guest"
-                      size="x-small"
-                      color="warning"
-                      variant="tonal"
-                      class="ml-2"
-                      data-cy="guest-booking-chip"
-                    >
-                      Guest
-                    </v-chip>
-                    <v-chip
-                      v-else-if="booking.attributes.booked_by_user_id"
-                      size="x-small"
-                      color="secondary"
-                      variant="tonal"
-                      class="ml-2"
-                      data-cy="booked-on-behalf-chip"
-                    >
-                      Booked for someone else
-                    </v-chip>
-                  </v-list-item-title>
-                  <v-list-item-subtitle>
-                    <div data-cy="booking-location">
-                      {{ booking.attributes.room_name }} - {{ booking.attributes.area_name }}
-                    </div>
-                    <div data-cy="booking-date">
-                      {{ formatDate(booking.attributes.booking_date) }}
-                    </div>
-                  </v-list-item-subtitle>
-                  <template #append>
-                    <v-btn
-                      color="error"
-                      size="small"
-                      variant="tonal"
-                      :loading="cancellingBookingId === booking.id"
-                      :disabled="cancellingBookingId !== null"
-                      data-cy="cancel-booking-btn"
-                      @click="handleCancelBooking(booking.id)"
-                    >
-                      Cancel
-                    </v-btn>
-                  </template>
-                </v-list-item>
-              </v-list>
-              <div v-else class="text-caption" data-cy="bookings-empty">
-                No upcoming bookings.
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+  <div class="page-container">
+    <PageHeader
+      title="My Bookings"
+      subtitle="View and manage your upcoming desk reservations"
+      :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'My Bookings' }]"
+    />
+
+    <!-- Success/Error Messages -->
+    <v-alert
+      v-if="cancelSuccessMessage"
+      type="success"
+      class="mb-4"
+      closable
+      data-cy="cancel-success"
+      @click:close="cancelSuccessMessage = null"
+    >
+      {{ cancelSuccessMessage }}
+    </v-alert>
+    <v-alert
+      v-if="cancelErrorMessage"
+      type="error"
+      class="mb-4"
+      closable
+      data-cy="cancel-error"
+      @click:close="cancelErrorMessage = null"
+    >
+      {{ cancelErrorMessage }}
+    </v-alert>
+
+    <!-- Loading State -->
+    <LoadingState v-if="bookingsLoading" type="cards" :count="3" data-cy="bookings-loading" />
+
+    <!-- Error State -->
+    <v-alert v-else-if="bookingsError" type="error" class="mb-4" data-cy="bookings-error">
+      Unable to load bookings. Please try again later.
+    </v-alert>
+
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="!bookings.length"
+      title="No upcoming bookings"
+      message="You don't have any desk reservations scheduled. Browse available desks to make a booking."
+      icon="$calendar"
+      action-text="Find a Desk"
+      action-to="/"
+      data-cy="bookings-empty"
+    />
+
+    <!-- Bookings Grid -->
+    <div v-else class="card-grid" data-cy="bookings-list">
+      <BookingCard
+        v-for="booking in bookings"
+        :key="booking.id"
+        :booking="booking"
+        :show-cancel="true"
+        :cancelling="cancellingBookingId === booking.id"
+        data-cy="booking-item"
+        @cancel="handleCancelBooking"
+      />
+    </div>
+
+    <!-- Confirm Cancel Dialog -->
+    <ConfirmDialog
+      v-model="showCancelDialog"
+      title="Cancel Booking"
+      message="Are you sure you want to cancel this booking? This action cannot be undone."
+      confirm-text="Cancel Booking"
+      confirm-color="error"
+      @confirm="confirmCancelBooking"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -124,12 +80,16 @@ import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api
 import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthStore } from '../stores/useAuthStore';
+import { PageHeader, LoadingState, EmptyState, BookingCard, ConfirmDialog } from '../components';
 
-const userName = ref('');
+const authStore = useAuthStore();
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
 const cancelSuccessMessage = ref<string | null>(null);
 const cancelErrorMessage = ref<string | null>(null);
 const cancellingBookingId = ref<string | null>(null);
+const showCancelDialog = ref(false);
+const pendingCancelId = ref<string | null>(null);
 const router = useRouter();
 const { loading: bookingsLoading, error: bookingsError, run: runBookings } = useApi();
 
@@ -145,16 +105,6 @@ const handleAuthError = async (err: unknown) => {
   return false;
 };
 
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-};
-
 const loadBookings = async () => {
   try {
     const resp = await runBookings(() => fetchMyBookings());
@@ -166,7 +116,15 @@ const loadBookings = async () => {
   }
 };
 
-const handleCancelBooking = async (bookingId: string) => {
+const handleCancelBooking = (bookingId: string) => {
+  pendingCancelId.value = bookingId;
+  showCancelDialog.value = true;
+};
+
+const confirmCancelBooking = async () => {
+  if (!pendingCancelId.value) return;
+
+  const bookingId = pendingCancelId.value;
   cancelSuccessMessage.value = null;
   cancelErrorMessage.value = null;
   cancellingBookingId.value = bookingId;
@@ -186,13 +144,15 @@ const handleCancelBooking = async (bookingId: string) => {
     }
   } finally {
     cancellingBookingId.value = null;
+    pendingCancelId.value = null;
   }
 };
 
 onMounted(async () => {
   try {
     const resp = await fetchMe();
-    userName.value = resp.data.attributes.display_name;
+    authStore.userName = resp.data.attributes.display_name;
+    authStore.isAdmin = resp.data.attributes.is_admin;
   } catch (err) {
     if (await handleAuthError(err)) {
       return;

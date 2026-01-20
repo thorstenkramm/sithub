@@ -1,0 +1,12 @@
+<svg width="140" height="32" viewBox="0 0 140 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Desk icon -->
+  <rect x="2" y="12" width="24" height="3" rx="1.5" fill="currentColor"/>
+  <rect x="5" y="15" width="3" height="12" rx="1" fill="currentColor"/>
+  <rect x="20" y="15" width="3" height="12" rx="1" fill="currentColor"/>
+  <rect x="8" y="6" width="12" height="6" rx="1" fill="currentColor" opacity="0.6"/>
+  
+  <!-- Text: SitHub -->
+  <text x="34" y="23" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="currentColor">
+    <tspan>Sit</tspan><tspan fill="currentColor" opacity="0.7">Hub</tspan>
+  </text>
+</svg>

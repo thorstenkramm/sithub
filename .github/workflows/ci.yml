@@ -63,3 +63,65 @@ jobs:
       - name: Frontend unit tests (coverage)
         working-directory: web
         run: npm run test:unit:coverage
+
+      - name: Build Go binary for E2E tests
+        run: go build -o ./sithub ./cmd/sithub
+
+      - name: Create test config
+        run: |
+          cat > .sithub-test-spaces.yaml <<EOF
+          areas:
+            - id: test_area
+              name: "Test Area"
+              rooms:
+                - id: test_room
+                  name: "Test Room"
+                  desks:
+                    - id: desk_1
+                      name: "Desk 1"
+                      equipment: [Monitor, Keyboard]
+                    - id: desk_2
+                      name: "Desk 2"
+                      equipment: [Monitor]
+          EOF
+          
+          cat > .sithub-test.toml <<EOF
+          [main]
+          port = 8080
+          listen = "127.0.0.1"
+          
+          [log]
+          file = "-"
+          level = "info"
+          
+          [spaces]
+          config_file = "./.sithub-test-spaces.yaml"
+          
+          [test_auth]
+          enabled = true
+          permitted = true
+          EOF
+
+      - name: Cypress E2E tests
+        working-directory: web
+        run: |
+          # Start the server in the background
+          ../sithub run --config ../.sithub-test.toml &
+          SERVER_PID=$!
+          
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          
+          # Run Cypress tests (headless, Electron)
+          npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testAuthEnabled=true,testAuthPermitted=true
+          TEST_EXIT_CODE=$?
+          
+          # Stop the server
+          kill $SERVER_PID 2>/dev/null || true
+          
+          exit $TEST_EXIT_CODE

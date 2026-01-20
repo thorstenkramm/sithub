@@ -1,59 +1,98 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title data-cy="rooms-title">
-            Rooms
-            <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
-          </v-card-title>
-          <v-card-text>
-            <v-progress-linear
-              v-if="roomsLoading"
-              class="mb-3"
-              indeterminate
-              data-cy="rooms-loading"
-              aria-label="Loading rooms"
-            />
-            <v-alert v-else-if="roomsErrorMessage" type="error" variant="tonal" data-cy="rooms-error">
-              {{ roomsErrorMessage }}
-            </v-alert>
-            <div v-else>
-              <v-list v-if="rooms.length" data-cy="rooms-list">
-              <v-list-item
-                v-for="room in rooms"
-                :key="room.id"
-                data-cy="room-item"
-                @click="goToDesks(room.id)"
-              >
-                <v-list-item-title>{{ room.attributes.name }}</v-list-item-title>
-              </v-list-item>
-            </v-list>
-              <div v-else class="text-caption" data-cy="rooms-empty">No rooms available.</div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+  <div class="page-container">
+    <PageHeader
+      title="Rooms"
+      subtitle="Select a room to view available desks"
+      :breadcrumbs="breadcrumbs"
+    />
+
+    <!-- Loading State -->
+    <LoadingState v-if="roomsLoading" type="cards" :count="4" data-cy="rooms-loading" />
+
+    <!-- Error State -->
+    <v-alert v-else-if="roomsErrorMessage" type="error" class="mb-4" data-cy="rooms-error">
+      {{ roomsErrorMessage }}
+    </v-alert>
+
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="!rooms.length"
+      title="No rooms available"
+      message="This area doesn't have any rooms configured yet."
+      icon="$room"
+      action-text="Back to Areas"
+      action-to="/"
+      data-cy="rooms-empty"
+    />
+
+    <!-- Rooms Grid -->
+    <div v-else class="card-grid" data-cy="rooms-list">
+      <v-card
+        v-for="room in rooms"
+        :key="room.id"
+        class="card-hover"
+        data-cy="room-item"
+        @click="goToDesks(room.id)"
+      >
+        <v-card-item>
+          <template #prepend>
+            <v-avatar color="secondary" variant="tonal" size="48">
+              <v-icon size="24">$room</v-icon>
+            </v-avatar>
+          </template>
+          <v-card-title class="text-h6">{{ room.attributes.name }}</v-card-title>
+          <v-card-subtitle v-if="room.attributes.description">
+            {{ room.attributes.description }}
+          </v-card-subtitle>
+        </v-card-item>
+        <v-card-actions class="px-4 pb-4">
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click.stop="goToDesks(room.id)"
+          >
+            View Desks
+          </v-btn>
+          <v-btn
+            variant="text"
+            size="small"
+            :to="{ name: 'room-bookings', params: { roomId: room.id } }"
+            @click.stop
+          >
+            View Bookings
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchMe } from '../api/me';
 import { fetchRooms } from '../api/rooms';
+import { fetchAreas } from '../api/areas';
 import type { RoomAttributes } from '../api/rooms';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthStore } from '../stores/useAuthStore';
+import { PageHeader, LoadingState, EmptyState } from '../components';
 
-const userName = ref('');
+const authStore = useAuthStore();
+const areaName = ref('');
 const rooms = ref<JsonApiResource<RoomAttributes>[]>([]);
 const roomsErrorMessage = ref<string | null>(null);
 const route = useRoute();
 const router = useRouter();
 const { loading: roomsLoading, run: runRooms } = useApi();
+
+const breadcrumbs = computed(() => [
+  { text: 'Home', to: '/' },
+  { text: areaName.value || 'Area' }
+]);
 
 const goToDesks = async (roomId: string) => {
   await router.push({ name: 'desks', params: { roomId } });
@@ -74,7 +113,8 @@ const handleAuthError = async (err: unknown) => {
 onMounted(async () => {
   try {
     const resp = await fetchMe();
-    userName.value = resp.data.attributes.display_name;
+    authStore.userName = resp.data.attributes.display_name;
+    authStore.isAdmin = resp.data.attributes.is_admin;
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
@@ -86,6 +126,17 @@ onMounted(async () => {
   if (typeof areaId !== 'string' || areaId.trim() === '') {
     roomsErrorMessage.value = 'Area not found.';
     return;
+  }
+
+  // Fetch area name for breadcrumb
+  try {
+    const areasResp = await fetchAreas();
+    const area = areasResp.data.find(a => a.id === areaId);
+    if (area) {
+      areaName.value = area.attributes.name;
+    }
+  } catch {
+    // Ignore - breadcrumb will just show "Area"
   }
 
   try {

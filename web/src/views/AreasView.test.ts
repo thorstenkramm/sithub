@@ -1,4 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import AreasView from './AreasView.vue';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
@@ -11,7 +12,14 @@ vi.mock('../api/areas', () => ({ fetchAreas: vi.fn() }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: pushMock }) }));
 
 describe('AreasView', () => {
-  const stubs = buildViewStubs();
+  const stubs = buildViewStubs([
+    'v-card-item',
+    'v-card-subtitle',
+    'v-card-actions',
+    'v-avatar',
+    'v-icon',
+    'router-link'
+  ]);
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
   const mockFetchMeBase = createFetchMeMocker(fetchMeMock);
   const mockFetchMe = (isAdmin: boolean) => mockFetchMeBase('Ada Lovelace', isAdmin);
@@ -34,22 +42,24 @@ describe('AreasView', () => {
   const mountView = () =>
     mount(AreasView, {
       global: {
-        stubs
+        stubs,
+        plugins: [createPinia()]
       }
     });
 
   beforeEach(() => {
+    setActivePinia(createPinia());
     pushMock.mockReset();
     mockFetchAreas(0);
   });
 
-  it('shows the signed-in user name', async () => {
+  it('shows page header with title', async () => {
     mockFetchMe(false);
     const wrapper = mountView();
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Signed in as Ada Lovelace');
+    expect(wrapper.text()).toContain('Areas');
   });
 
   it('shows admin controls for admins only', async () => {
@@ -79,7 +89,7 @@ describe('AreasView', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('No areas available.');
+    expect(wrapper.text()).toContain('No areas available');
   });
 
   it('renders the areas list when data exists', async () => {

@@ -1,6 +1,5 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import { createVuetify } from 'vuetify';
 
 const useMock = vi.fn().mockReturnThis();
 const mountMock = vi.fn();
@@ -16,9 +15,16 @@ vi.mock('pinia', () => ({
   createPinia: vi.fn(() => ({ name: 'pinia' }))
 }));
 
-vi.mock('vuetify', () => ({
-  createVuetify: vi.fn(() => ({ name: 'vuetify' }))
+// Mock vuetify styles import
+vi.mock('vuetify/styles', () => ({}));
+
+// Mock the vuetify plugin module
+vi.mock('./plugins/vuetify', () => ({
+  vuetify: { name: 'vuetify' }
 }));
+
+// Mock global CSS
+vi.mock('./styles/global.css', () => ({}));
 
 vi.mock('./router', () => ({
   default: { name: 'router' }
@@ -34,7 +40,6 @@ describe('main', () => {
 
     expect(createApp).toHaveBeenCalled();
     expect(createPinia).toHaveBeenCalled();
-    expect(createVuetify).toHaveBeenCalled();
 
     expect(useMock).toHaveBeenCalledWith({ name: 'pinia' });
     expect(useMock).toHaveBeenCalledWith({ name: 'router' });

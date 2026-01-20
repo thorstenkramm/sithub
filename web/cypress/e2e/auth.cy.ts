@@ -38,11 +38,16 @@ describe('auth', () => {
 
   itIfPermitted('should show the signed-in user name after callback', () => {
     cy.intercept('GET', '/api/v1/me').as('me');
+    cy.intercept('GET', '/api/v1/areas').as('listAreas');
 
     cy.visit('/oauth/callback');
     cy.location('pathname').should('eq', '/');
     cy.wait('@me').its('response.statusCode').should('eq', 200);
-    cy.get('[data-cy="areas-title"]').should('contain', 'Signed in as');
+    // User info is now shown in the navbar user menu (trigger button)
+    cy.get('[data-cy="user-menu-trigger"]').should('exist');
+    // Verify areas page loads successfully
+    cy.wait('@listAreas').its('response.statusCode').should('eq', 200);
+    cy.get('[data-cy="areas-list"]').should('exist');
   });
 
   itIfForbidden('should show access denied for forbidden users', () => {

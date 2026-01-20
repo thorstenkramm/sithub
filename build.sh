@@ -8,6 +8,6 @@ npm ci
 npm run build
 popd >/dev/null
 
-"$script_dir/tools/embed/copy.sh"
+# Note: vite outputs directly to ../assets/web, no copy needed
 
 go build -o "$script_dir/sithub" ./cmd/sithub

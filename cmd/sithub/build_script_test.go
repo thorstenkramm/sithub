@@ -25,6 +25,6 @@ func TestBuildScriptContents(t *testing.T) {
 	contents := string(data)
 	assert.Contains(t, contents, "npm ci")
 	assert.Contains(t, contents, "npm run build")
-	assert.Contains(t, contents, "tools/embed/copy.sh")
+	// vite outputs directly to ../assets/web, no copy.sh needed
 	assert.Contains(t, contents, "go build -o")
 }

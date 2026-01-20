@@ -1,4 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import MyBookingsView from './MyBookingsView.vue';
 import { fetchMyBookings } from '../api/bookings';
 import { fetchMe } from '../api/me';
@@ -7,12 +8,23 @@ import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './
 /* jscpd:ignore-start */
 const pushMock = vi.fn();
 vi.mock('../api/me', () => ({ fetchMe: vi.fn() }));
-vi.mock('../api/bookings', () => ({ fetchMyBookings: vi.fn() }));
+vi.mock('../api/bookings', () => ({ fetchMyBookings: vi.fn(), cancelBooking: vi.fn() }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: pushMock }) }));
 /* jscpd:ignore-end */
 
 describe('MyBookingsView', () => {
-  const stubs = buildViewStubs(['v-list-item-subtitle']);
+  const stubs = buildViewStubs([
+    'v-list-item-subtitle',
+    'v-card-item',
+    'v-card-subtitle',
+    'v-card-actions',
+    'v-avatar',
+    'v-icon',
+    'v-chip',
+    'v-spacer',
+    'v-skeleton-loader',
+    'router-link'
+  ]);
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
   const mockFetchMe = createFetchMeMocker(fetchMeMock);
 
@@ -51,22 +63,24 @@ describe('MyBookingsView', () => {
   const mountView = () =>
     mount(MyBookingsView, {
       global: {
-        stubs
+        stubs,
+        plugins: [createPinia()]
       }
     });
 
   beforeEach(() => {
+    setActivePinia(createPinia());
     pushMock.mockReset();
     mockFetchBookings([]);
   });
 
-  it('shows the signed-in user name', async () => {
+  it('shows page header with title', async () => {
     mockFetchMe('Jane Doe');
     const wrapper = mountView();
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Signed in as Jane Doe');
+    expect(wrapper.text()).toContain('My Bookings');
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);
@@ -112,7 +126,7 @@ describe('MyBookingsView', () => {
     expect(wrapper.text()).toContain('2026');
   });
 
-  it('shows "Booked by" chip when booking was made on behalf of user', async () => {
+  it('shows "Booked by" info when booking was made on behalf of user', async () => {
     mockFetchMe();
     mockFetchBookings([
       {

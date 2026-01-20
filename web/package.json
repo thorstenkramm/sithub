@@ -16,6 +16,7 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@mdi/js": "^7.4.47",
     "pinia": "*",
     "vue": "*",
     "vue-router": "*",
@@ -23,9 +24,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "*",
-    "@vue/tsconfig": "*",
-    "@vue/test-utils": "*",
     "@vitest/coverage-v8": "3.2.4",
+    "@vue/test-utils": "*",
+    "@vue/tsconfig": "*",
     "cypress": "*",
     "eslint": "*",
     "eslint-plugin-vue": "*",

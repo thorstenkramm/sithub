@@ -1,73 +1,118 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title data-cy="area-presence-title">
-            Today's Presence
-          </v-card-title>
-          <v-card-text>
-            <div class="mb-4">
-              <label class="text-caption font-weight-medium" for="presence-date">Date</label>
-              <input
-                id="presence-date"
-                v-model="selectedDate"
-                class="d-block mt-1"
-                type="date"
-                data-cy="presence-date"
-                aria-label="Select date"
-              />
-            </div>
-            <v-progress-linear
-              v-if="loading"
-              class="mb-3"
-              indeterminate
-              data-cy="presence-loading"
-              aria-label="Loading presence"
+  <div class="page-container">
+    <PageHeader
+      title="Today's Presence"
+      :subtitle="`Who's in the office${areaName ? ' - ' + areaName : ''}`"
+      :breadcrumbs="breadcrumbs"
+    />
+
+    <!-- Date Selection -->
+    <v-card class="mb-6">
+      <v-card-text>
+        <div class="d-flex flex-wrap align-end ga-4">
+          <DatePickerField
+            v-model="selectedDate"
+            label="Select Date"
+            data-cy="presence-date"
+            style="max-width: 280px;"
+          />
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <!-- Loading State -->
+    <LoadingState v-if="loading" type="list" :count="5" data-cy="presence-loading" />
+
+    <!-- Error State -->
+    <v-alert v-else-if="errorMessage" type="error" class="mb-4" data-cy="presence-error">
+      {{ errorMessage }}
+    </v-alert>
+
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="!presence.length"
+      title="No one scheduled"
+      message="No one has a desk booked for this date in this area."
+      icon="$user"
+      data-cy="presence-empty"
+    />
+
+    <!-- Presence List -->
+    <v-card v-else data-cy="presence-list">
+      <v-list lines="two">
+        <v-list-item
+          v-for="entry in presence"
+          :key="entry.id"
+          data-cy="presence-item"
+        >
+          <template #prepend>
+            <v-avatar color="primary" variant="tonal" size="40">
+              <span class="text-body-2 font-weight-medium">
+                {{ getInitials(entry.attributes.user_name) }}
+              </span>
+            </v-avatar>
+          </template>
+          <v-list-item-title>
+            {{ entry.attributes.user_name || 'Unknown' }}
+            <StatusChip
+              v-if="entry.attributes.is_guest"
+              status="guest"
+              size="x-small"
+              class="ml-2"
             />
-            <v-alert v-else-if="errorMessage" type="error" variant="tonal" data-cy="presence-error">
-              {{ errorMessage }}
-            </v-alert>
-            <div v-else>
-              <v-list v-if="presence.length" data-cy="presence-list">
-                <v-list-item
-                  v-for="entry in presence"
-                  :key="entry.id"
-                  data-cy="presence-item"
-                >
-                  <v-list-item-title>{{ entry.attributes.user_name || 'Unknown' }}</v-list-item-title>
-                  <v-list-item-subtitle>
-                    {{ entry.attributes.room_name }} - {{ entry.attributes.desk_name }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-              <div v-else class="text-caption" data-cy="presence-empty">
-                No one is scheduled for this date.
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+          </v-list-item-title>
+          <v-list-item-subtitle>
+            <v-icon size="14" class="mr-1">$room</v-icon>
+            {{ entry.attributes.room_name }}
+            <span class="mx-1">&bull;</span>
+            <v-icon size="14" class="mr-1">$desk</v-icon>
+            {{ entry.attributes.desk_name }}
+          </v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+    </v-card>
+
+    <!-- Summary -->
+    <div v-if="presence.length" class="mt-4 text-body-2 text-medium-emphasis">
+      {{ presence.length }} {{ presence.length === 1 ? 'person' : 'people' }} scheduled for {{ formattedDate }}
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchAreaPresence } from '../api/areaPresence';
+import { fetchAreas } from '../api/areas';
 import type { PresenceAttributes } from '../api/areaPresence';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { PageHeader, LoadingState, EmptyState, DatePickerField, StatusChip } from '../components';
 
 const presence = ref<JsonApiResource<PresenceAttributes>[]>([]);
 const errorMessage = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
+const areaName = ref('');
 const route = useRoute();
 const router = useRouter();
 const { loading, run } = useApi();
 const activeAreaId = ref<string | null>(null);
+
+const breadcrumbs = computed(() => [
+  { text: 'Home', to: '/' },
+  { text: areaName.value || 'Area', to: '/' },
+  { text: 'Presence' }
+]);
+
+const formattedDate = computed(() => {
+  const date = new Date(selectedDate.value);
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  });
+});
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
@@ -79,6 +124,16 @@ const handleAuthError = async (err: unknown) => {
     return true;
   }
   return false;
+};
+
+const getInitials = (name: string | undefined) => {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 };
 
 const loadPresence = async (areaId: string, date: string) => {
@@ -106,6 +161,18 @@ onMounted(async () => {
   }
 
   activeAreaId.value = areaId;
+
+  // Fetch area name for breadcrumb
+  try {
+    const areasResp = await fetchAreas();
+    const area = areasResp.data.find((a) => a.id === areaId);
+    if (area) {
+      areaName.value = area.attributes.name;
+    }
+  } catch {
+    // Ignore - breadcrumb will just show "Area"
+  }
+
   await loadPresence(areaId, selectedDate.value);
 });
 

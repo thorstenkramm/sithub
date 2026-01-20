@@ -1,201 +1,261 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title data-cy="desks-title">
-            Desks
-            <span v-if="userName" class="text-caption ml-2">(Signed in as {{ userName }})</span>
-            <router-link
-              v-if="activeRoomId"
-              :to="`/rooms/${activeRoomId}/bookings`"
-              class="text-caption ml-4"
-              data-cy="view-room-bookings"
-            >
-              View Room Bookings
-            </router-link>
-          </v-card-title>
-          <v-card-text>
-            <div class="mb-4">
-              <label class="text-caption font-weight-medium" for="desks-date">Date</label>
-              <input
-                id="desks-date"
-                v-model="selectedDate"
-                class="d-block mt-1"
-                type="date"
-                data-cy="desks-date"
-                aria-label="Select booking date"
-              />
-            </div>
-            <v-checkbox
-              v-model="multiDayBooking"
-              label="Book multiple days"
+  <div class="page-container">
+    <PageHeader
+      title="Desks"
+      subtitle="Select a desk to book for your chosen date"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #actions>
+        <v-btn
+          v-if="activeRoomId"
+          variant="text"
+          size="small"
+          :to="`/rooms/${activeRoomId}/bookings`"
+          data-cy="view-room-bookings"
+        >
+          View Room Bookings
+        </v-btn>
+      </template>
+    </PageHeader>
+
+    <!-- Date Selection & Booking Options -->
+    <v-card class="mb-6">
+      <v-card-text>
+        <div class="d-flex flex-wrap align-end ga-4 mb-4">
+          <DatePickerField
+            v-model="selectedDate"
+            label="Booking Date"
+            :min="todayDate"
+            data-cy="desks-date"
+            style="max-width: 280px;"
+          />
+        </div>
+
+        <!-- Booking Type Selection -->
+        <v-radio-group v-model="bookingType" inline density="compact" class="mb-2" hide-details>
+          <v-radio label="Book for myself" value="self" data-cy="book-self-radio" />
+          <v-radio label="Book for colleague" value="colleague" data-cy="book-colleague-radio" />
+          <v-radio label="Book for guest" value="guest" data-cy="book-guest-radio" />
+        </v-radio-group>
+
+        <!-- Colleague Fields -->
+        <v-expand-transition>
+          <div v-if="bookingType === 'colleague'" class="mt-4 d-flex flex-wrap ga-4">
+            <v-text-field
+              v-model="colleagueId"
+              label="Colleague Email"
               density="compact"
-              hide-details
-              class="mb-2"
-              data-cy="multi-day-checkbox"
+              data-cy="colleague-id-input"
+              placeholder="jane.doe@example.com"
+              style="max-width: 280px;"
             />
-            <div v-if="multiDayBooking" class="mb-4 pl-4">
-              <v-text-field
-                v-model="additionalDates"
-                label="Additional Dates (comma-separated, YYYY-MM-DD)"
-                density="compact"
-                variant="outlined"
-                data-cy="additional-dates-input"
-                placeholder="e.g. 2026-01-21, 2026-01-22"
-                hint="Selected date above will be included automatically"
-                persistent-hint
-              />
-            </div>
-            <v-radio-group v-model="bookingType" inline density="compact" class="mb-2">
-              <v-radio label="Book for myself" value="self" data-cy="book-self-radio" />
-              <v-radio label="Book for a colleague" value="colleague" data-cy="book-colleague-radio" />
-              <v-radio label="Book for a guest" value="guest" data-cy="book-guest-radio" />
-            </v-radio-group>
-            <div v-if="bookingType === 'colleague'" class="mb-4 pl-4">
-              <v-text-field
-                v-model="colleagueId"
-                label="Colleague ID (email)"
-                density="compact"
-                variant="outlined"
-                class="mb-2"
-                data-cy="colleague-id-input"
-                placeholder="e.g. jane.doe@example.com"
-              />
-              <v-text-field
-                v-model="colleagueName"
-                label="Colleague Name"
-                density="compact"
-                variant="outlined"
-                data-cy="colleague-name-input"
-                placeholder="e.g. Jane Doe"
-              />
-            </div>
-            <div v-if="bookingType === 'guest'" class="mb-4 pl-4">
-              <v-text-field
-                v-model="guestName"
-                label="Guest Name"
-                density="compact"
-                variant="outlined"
-                class="mb-2"
-                data-cy="guest-name-input"
-                placeholder="e.g. John Visitor"
-              />
-              <v-text-field
-                v-model="guestEmail"
-                label="Guest Email (optional)"
-                density="compact"
-                variant="outlined"
-                data-cy="guest-email-input"
-                placeholder="e.g. visitor@example.com"
-              />
-            </div>
-            <v-alert
-              v-if="bookingSuccessMessage"
-              type="success"
-              variant="tonal"
-              class="mb-3"
-              closable
-              data-cy="booking-success"
-              @click:close="bookingSuccessMessage = null"
-            >
-              {{ bookingSuccessMessage }}
-            </v-alert>
-            <v-alert
-              v-if="bookingErrorMessage"
-              type="error"
-              variant="tonal"
-              class="mb-3"
-              closable
-              data-cy="booking-error"
-              @click:close="bookingErrorMessage = null"
-            >
-              {{ bookingErrorMessage }}
-            </v-alert>
-            <v-progress-linear
-              v-if="desksLoading"
-              class="mb-3"
-              indeterminate
-              data-cy="desks-loading"
-              aria-label="Loading desks"
+            <v-text-field
+              v-model="colleagueName"
+              label="Colleague Name"
+              density="compact"
+              data-cy="colleague-name-input"
+              placeholder="Jane Doe"
+              style="max-width: 280px;"
             />
-            <v-alert v-else-if="desksErrorMessage" type="error" variant="tonal" data-cy="desks-error">
-              {{ desksErrorMessage }}
-            </v-alert>
-            <div v-else>
-              <v-list v-if="desks.length" data-cy="desks-list">
-                <v-list-item
-                  v-for="desk in desks"
-                  :key="desk.id"
-                  data-cy="desk-item"
-                  :data-cy-desk-id="desk.id"
-                  :data-cy-availability="desk.attributes.availability"
-                >
-                  <v-list-item-title>{{ desk.attributes.name }}</v-list-item-title>
-                  <v-list-item-subtitle>
-                    <ul class="pl-4" data-cy="desk-equipment">
-                      <li v-for="item in desk.attributes.equipment" :key="item">{{ item }}</li>
-                    </ul>
-                    <div v-if="desk.attributes.warning" class="text-caption mt-1" data-cy="desk-warning">
-                      {{ desk.attributes.warning }}
-                    </div>
-                    <div class="text-caption mt-1" data-cy="desk-status">
-                      Status: {{ desk.attributes.availability === 'occupied' ? 'Occupied' : 'Available' }}
-                      <span
-                        v-if="
-                          authStore.isAdmin &&
-                          desk.attributes.availability === 'occupied' &&
-                          desk.attributes.booking_id
-                        "
-                        data-cy="desk-booker"
-                      >
-                        (Booked)
-                      </span>
-                    </div>
-                  </v-list-item-subtitle>
-                  <template #append>
-                    <v-btn
-                      v-if="desk.attributes.availability === 'available'"
-                      color="primary"
-                      size="small"
-                      variant="tonal"
-                      :loading="bookingDeskId === desk.id"
-                      :disabled="bookingDeskId !== null || cancelingBookingId !== null"
-                      data-cy="book-desk-btn"
-                      @click="bookDesk(desk.id)"
-                    >
-                      Book
-                    </v-btn>
-                    <v-btn
-                      v-if="
-                        authStore.isAdmin &&
-                        desk.attributes.availability === 'occupied' &&
-                        desk.attributes.booking_id
-                      "
-                      color="error"
-                      size="small"
-                      variant="tonal"
-                      :loading="cancelingBookingId === desk.attributes.booking_id"
-                      :disabled="bookingDeskId !== null || cancelingBookingId !== null"
-                      data-cy="admin-cancel-btn"
-                      @click="adminCancelBooking(desk.attributes.booking_id!)"
-                    >
-                      Cancel
-                    </v-btn>
-                  </template>
-                </v-list-item>
-              </v-list>
-              <div v-else class="text-caption" data-cy="desks-empty">No desks available.</div>
+          </div>
+        </v-expand-transition>
+
+        <!-- Guest Fields -->
+        <v-expand-transition>
+          <div v-if="bookingType === 'guest'" class="mt-4 d-flex flex-wrap ga-4">
+            <v-text-field
+              v-model="guestName"
+              label="Guest Name"
+              density="compact"
+              data-cy="guest-name-input"
+              placeholder="John Visitor"
+              style="max-width: 280px;"
+            />
+            <v-text-field
+              v-model="guestEmail"
+              label="Guest Email (optional)"
+              density="compact"
+              data-cy="guest-email-input"
+              placeholder="visitor@example.com"
+              style="max-width: 280px;"
+            />
+          </div>
+        </v-expand-transition>
+
+        <!-- Multi-day booking -->
+        <v-checkbox
+          v-model="multiDayBooking"
+          label="Book multiple days"
+          density="compact"
+          hide-details
+          class="mt-2"
+          data-cy="multi-day-checkbox"
+        />
+        <v-expand-transition>
+          <div v-if="multiDayBooking" class="mt-2">
+            <v-text-field
+              v-model="additionalDates"
+              label="Additional Dates (comma-separated)"
+              density="compact"
+              data-cy="additional-dates-input"
+              placeholder="2026-01-21, 2026-01-22"
+              hint="Format: YYYY-MM-DD. Selected date above will be included."
+              persistent-hint
+              style="max-width: 400px;"
+            />
+          </div>
+        </v-expand-transition>
+      </v-card-text>
+    </v-card>
+
+    <!-- Success/Error Messages -->
+    <v-alert
+      v-if="bookingSuccessMessage"
+      type="success"
+      class="mb-4"
+      closable
+      data-cy="booking-success"
+      @click:close="bookingSuccessMessage = null"
+    >
+      {{ bookingSuccessMessage }}
+    </v-alert>
+    <v-alert
+      v-if="bookingErrorMessage"
+      type="error"
+      class="mb-4"
+      closable
+      data-cy="booking-error"
+      @click:close="bookingErrorMessage = null"
+    >
+      {{ bookingErrorMessage }}
+    </v-alert>
+
+    <!-- Loading State -->
+    <LoadingState v-if="desksLoading" type="cards" :count="6" data-cy="desks-loading" />
+
+    <!-- Error State -->
+    <v-alert v-else-if="desksErrorMessage" type="error" class="mb-4" data-cy="desks-error">
+      {{ desksErrorMessage }}
+    </v-alert>
+
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="!desks.length"
+      title="No desks available"
+      message="This room doesn't have any desks configured yet."
+      icon="$desk"
+      data-cy="desks-empty"
+    />
+
+    <!-- Desks Grid -->
+    <div v-else class="card-grid" data-cy="desks-list">
+      <v-card
+        v-for="desk in desks"
+        :key="desk.id"
+        :class="[
+          'desk-card',
+          { 'desk-available': desk.attributes.availability === 'available' },
+          { 'desk-occupied': desk.attributes.availability === 'occupied' }
+        ]"
+        data-cy="desk-item"
+        :data-cy-desk-id="desk.id"
+        :data-cy-availability="desk.attributes.availability"
+      >
+        <v-card-item>
+          <template #prepend>
+            <v-avatar
+              :color="desk.attributes.availability === 'available' ? 'success' : 'warning'"
+              variant="tonal"
+              size="48"
+            >
+              <v-icon size="24">$desk</v-icon>
+            </v-avatar>
+          </template>
+          <v-card-title class="d-flex align-center">
+            {{ desk.attributes.name }}
+            <StatusChip
+              :status="desk.attributes.availability === 'available' ? 'available' : 'booked'"
+              size="x-small"
+              class="ml-2"
+              data-cy="desk-status"
+            />
+          </v-card-title>
+        </v-card-item>
+
+        <v-card-text class="pt-0">
+          <!-- Equipment -->
+          <div v-if="desk.attributes.equipment?.length" class="mb-2" data-cy="desk-equipment">
+            <div class="text-caption text-medium-emphasis mb-1">Equipment</div>
+            <div class="d-flex flex-wrap ga-1">
+              <v-chip
+                v-for="item in desk.attributes.equipment"
+                :key="item"
+                size="x-small"
+                variant="outlined"
+              >
+                {{ item }}
+              </v-chip>
             </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+          </div>
+
+          <!-- Warning -->
+          <v-alert
+            v-if="desk.attributes.warning"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mt-2"
+            data-cy="desk-warning"
+          >
+            {{ desk.attributes.warning }}
+          </v-alert>
+
+          <!-- Booked by (admin only) -->
+          <div
+            v-if="authStore.isAdmin && desk.attributes.availability === 'occupied' && desk.attributes.booking_id"
+            class="text-caption text-medium-emphasis mt-2"
+            data-cy="desk-booker"
+          >
+            Booked for this date
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="px-4 pb-4">
+          <v-btn
+            v-if="desk.attributes.availability === 'available'"
+            color="primary"
+            variant="flat"
+            block
+            :loading="bookingDeskId === desk.id"
+            :disabled="bookingDeskId !== null || cancelingBookingId !== null"
+            data-cy="book-desk-btn"
+            @click="bookDesk(desk.id)"
+          >
+            Book This Desk
+          </v-btn>
+          <v-btn
+            v-else-if="authStore.isAdmin && desk.attributes.booking_id"
+            color="error"
+            variant="tonal"
+            block
+            :loading="cancelingBookingId === desk.attributes.booking_id"
+            :disabled="bookingDeskId !== null || cancelingBookingId !== null"
+            data-cy="admin-cancel-btn"
+            @click="adminCancelBooking(desk.attributes.booking_id!)"
+          >
+            Cancel Booking
+          </v-btn>
+          <div v-else class="text-center w-100 text-caption text-medium-emphasis py-2">
+            Not available for {{ formattedDate }}
+          </div>
+        </v-card-actions>
+      </v-card>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import {
@@ -207,13 +267,15 @@ import {
 } from '../api/bookings';
 import { fetchDesks } from '../api/desks';
 import { fetchMe } from '../api/me';
+import { fetchRooms } from '../api/rooms';
+import { fetchAreas } from '../api/areas';
 import type { DeskAttributes } from '../api/desks';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthStore } from '../stores/useAuthStore';
+import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
 
 const authStore = useAuthStore();
-const userName = ref('');
 const desks = ref<JsonApiResource<DeskAttributes>[]>([]);
 const desksErrorMessage = ref<string | null>(null);
 const bookingSuccessMessage = ref<string | null>(null);
@@ -221,10 +283,13 @@ const bookingErrorMessage = ref<string | null>(null);
 const bookingDeskId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
+const todayDate = formatDate(new Date());
 const route = useRoute();
 const router = useRouter();
 const { loading: desksLoading, run: runDesks } = useApi();
 const activeRoomId = ref<string | null>(null);
+const areaName = ref('');
+const roomName = ref('');
 const bookingType = ref<'self' | 'colleague' | 'guest'>('self');
 const colleagueId = ref('');
 const colleagueName = ref('');
@@ -232,6 +297,17 @@ const guestName = ref('');
 const guestEmail = ref('');
 const multiDayBooking = ref(false);
 const additionalDates = ref('');
+
+const breadcrumbs = computed(() => [
+  { text: 'Home', to: '/' },
+  { text: areaName.value || 'Area', to: areaName.value ? undefined : '/' },
+  { text: roomName.value || 'Room' }
+]);
+
+const formattedDate = computed(() => {
+  const date = new Date(selectedDate.value);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+});
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
@@ -404,7 +480,6 @@ const adminCancelBooking = async (bookingId: string) => {
 onMounted(async () => {
   try {
     const resp = await fetchMe();
-    userName.value = resp.data.attributes.display_name;
     authStore.userName = resp.data.attributes.display_name;
     authStore.isAdmin = resp.data.attributes.is_admin;
   } catch (err) {
@@ -421,6 +496,23 @@ onMounted(async () => {
   }
 
   activeRoomId.value = roomId;
+
+  // Fetch area and room names for breadcrumbs
+  try {
+    const areasResp = await fetchAreas();
+    for (const area of areasResp.data) {
+      const roomsResp = await fetchRooms(area.id);
+      const room = roomsResp.data.find(r => r.id === roomId);
+      if (room) {
+        areaName.value = area.attributes.name;
+        roomName.value = room.attributes.name;
+        break;
+      }
+    }
+  } catch {
+    // Ignore - breadcrumbs will just show generic names
+  }
+
   await loadDesks(roomId, selectedDate.value);
 });
 

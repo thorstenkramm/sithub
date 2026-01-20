@@ -93,12 +93,12 @@ development_status:
   9-2-usage-analytics: backlog
   epic-9-retrospective: optional
 
-  epic-10: backlog
-  10-1-design-system-foundation: ready-for-dev
-  10-2-reusable-component-library: ready-for-dev
-  10-3-navigation-and-layout-redesign: ready-for-dev
-  10-4-space-discovery-views-redesign: ready-for-dev
-  10-5-booking-flow-redesign: ready-for-dev
-  10-6-booking-management-views-redesign: ready-for-dev
-  10-7-mobile-responsiveness: ready-for-dev
+  epic-10: done
+  10-1-design-system-foundation: done
+  10-2-reusable-component-library: done
+  10-3-navigation-and-layout-redesign: done
+  10-4-space-discovery-views-redesign: done
+  10-5-booking-flow-redesign: done
+  10-6-booking-management-views-redesign: done
+  10-7-mobile-responsiveness: done
   epic-10-retrospective: optional
