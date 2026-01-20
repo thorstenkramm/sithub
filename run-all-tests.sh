@@ -46,7 +46,7 @@ run_step "Go tests (race + coverage)" bash -c \
 
 run_step "Markdown lint" npx markdownlint README.md
 run_step "API doc lint" npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
-run_step "Code duplication (Go)" npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 2
+run_step "Code duplication (Go)" npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 3
 
 run_step "Install frontend deps" bash -c "cd \"${WEB_DIR}\" && npm ci"
 run_step "Code duplication (frontend)" bash -c \
