@@ -84,11 +84,21 @@ development_status:
   7-5-booking-notifications: done
   epic-7-retrospective: optional
 
-  epic-8: backlog
-  8-1-manage-rooms-and-desks-in-admin-ui: backlog
+  epic-8: in-progress
+  8-1-manage-rooms-and-desks-in-admin-ui: in-progress  # Backend API complete, frontend pending
   epic-8-retrospective: optional
 
   epic-9: backlog
   9-1-book-via-floor-map: backlog
   9-2-usage-analytics: backlog
   epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-design-system-foundation: ready-for-dev
+  10-2-reusable-component-library: ready-for-dev
+  10-3-navigation-and-layout-redesign: ready-for-dev
+  10-4-space-discovery-views-redesign: ready-for-dev
+  10-5-booking-flow-redesign: ready-for-dev
+  10-6-booking-management-views-redesign: ready-for-dev
+  10-7-mobile-responsiveness: ready-for-dev
+  epic-10-retrospective: optional

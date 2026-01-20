@@ -601,3 +601,178 @@ So that I can understand utilization.
 **Given** I open the analytics view  
 **When** I select area, room, and date range  
 **Then** I see usage summaries for the selection
+
+## Epic 10 Stories: UI/UX Redesign
+
+Transform the application from basic Vuetify defaults into a polished, modern desk booking experience with consistent design language, reusable components, and excellent mobile support.
+**FRs covered:** NFR6 (Accessibility), enhances all existing FRs
+
+### Story 10.1: Design System Foundation
+
+**FRs covered:** NFR6
+
+As a user,
+I want a visually consistent and branded experience,
+So that the application feels professional and trustworthy.
+
+**Acceptance Criteria:**
+
+**Given** the application loads  
+**When** I view any page  
+**Then** I see consistent colors, typography, and spacing throughout  
+**And** the color scheme reflects a professional brand identity  
+**And** a logo and favicon are displayed
+
+**Technical Requirements:**
+- Custom Vuetify theme in `web/src/plugins/vuetify.ts`
+- Color palette: primary, secondary, success, warning, error, surface colors
+- Typography: Inter font family with defined scale
+- Spacing tokens following 4px base unit
+- Logo SVG and favicon in `web/public/`
+
+### Story 10.2: Reusable Component Library
+
+**FRs covered:** NFR6
+
+As a developer,
+I want reusable UI components,
+So that the interface is consistent and maintainable.
+
+**Acceptance Criteria:**
+
+**Given** I am building a view  
+**When** I need common UI patterns  
+**Then** I can import pre-built components from `web/src/components/`  
+**And** components follow the design system
+
+**Components to create:**
+- `PageHeader.vue` - Page title, breadcrumbs, actions
+- `EmptyState.vue` - Illustrated empty states with action
+- `LoadingState.vue` - Skeleton loaders matching content layout
+- `ConfirmDialog.vue` - Confirmation modal with customizable actions
+- `DatePicker.vue` - Vuetify date picker with consistent styling
+- `DateRangePicker.vue` - Date range selection for filters
+- `StatusChip.vue` - Consistent status indicators (available, booked, etc.)
+
+### Story 10.3: Navigation & Layout Redesign
+
+**FRs covered:** NFR6
+
+As a user,
+I want clear navigation and context awareness,
+So that I always know where I am and can easily move around.
+
+**Acceptance Criteria:**
+
+**Given** I am on any page  
+**When** I look at the navigation  
+**Then** I see the current page highlighted in the nav  
+**And** I see breadcrumbs showing my location in the hierarchy  
+**And** I can access main sections (Areas, My Bookings, History) from any page
+
+**Given** I am on a mobile device  
+**When** I open the navigation  
+**Then** I see a drawer menu that works well on small screens
+
+**Technical Requirements:**
+- Redesigned `App.vue` with improved header
+- Breadcrumb component integrated into layout
+- Mobile navigation drawer
+- User menu with name and logout
+
+### Story 10.4: Space Discovery Views Redesign
+
+**FRs covered:** FR4, FR5, FR6, FR7, FR8, NFR6
+
+As a user,
+I want visually appealing space discovery,
+So that browsing areas, rooms, and desks is enjoyable and efficient.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing the areas list  
+**When** the page loads  
+**Then** I see areas displayed as cards with visual hierarchy  
+**And** empty state shows an illustration and helpful message
+
+**Given** I am viewing rooms in an area  
+**When** the page loads  
+**Then** I see room cards with desk availability summary  
+**And** breadcrumbs show: Home > [Area Name]
+
+**Given** I am viewing desks in a room  
+**When** the page loads  
+**Then** I see desks as visual cards with clear status indicators  
+**And** equipment and warnings are displayed attractively  
+**And** available vs booked desks are visually distinct
+
+### Story 10.5: Booking Flow Redesign
+
+**FRs covered:** FR9, FR20, FR21, FR22, NFR6
+
+As a user,
+I want an intuitive and delightful booking experience,
+So that reserving a desk feels effortless.
+
+**Acceptance Criteria:**
+
+**Given** I want to book a desk  
+**When** I click the book button  
+**Then** I see a clear booking dialog/flow  
+**And** date selection uses a proper calendar picker  
+**And** multi-day selection is visual (calendar-based, not text input)
+
+**Given** I want to book for a colleague  
+**When** I toggle "Book for someone else"  
+**Then** I can search/select a colleague (or enter details)  
+**And** the flow is clearly differentiated from personal booking
+
+**Given** I complete a booking  
+**When** the booking succeeds  
+**Then** I see a success confirmation with booking details  
+**And** I have clear next actions (view bookings, book another)
+
+### Story 10.6: Booking Management Views Redesign
+
+**FRs covered:** FR12, FR13, FR23, NFR6
+
+As a user,
+I want my bookings displayed beautifully,
+So that managing my reservations is pleasant.
+
+**Acceptance Criteria:**
+
+**Given** I open My Bookings  
+**When** the page loads  
+**Then** I see bookings as cards with all relevant info  
+**And** "booked by" and "guest" bookings are visually distinguished  
+**And** cancel action has a confirmation dialog
+
+**Given** I open Booking History  
+**When** the page loads  
+**Then** I see a date range picker for filtering  
+**And** past bookings are displayed in a clean list/table  
+**And** empty state is handled gracefully
+
+### Story 10.7: Mobile Responsiveness
+
+**FRs covered:** NFR6
+
+As a mobile user,
+I want the app to work well on my phone,
+So that I can book desks on the go.
+
+**Acceptance Criteria:**
+
+**Given** I access the app on a mobile device  
+**When** I view any page  
+**Then** the layout adapts to the screen size  
+**And** touch targets are appropriately sized (min 44px)  
+**And** navigation is accessible via drawer menu  
+**And** forms and dialogs are usable on small screens
+
+**Technical Requirements:**
+- Responsive breakpoints for all views
+- Touch-friendly interactions
+- Viewport-appropriate font sizes
+- No horizontal scrolling on mobile
