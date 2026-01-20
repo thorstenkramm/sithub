@@ -3,6 +3,10 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   plugins: [vue()],
+  build: {
+    outDir: '../assets/web',
+    emptyOutDir: true
+  },
   server: {
     proxy: {
       '/oauth': {
