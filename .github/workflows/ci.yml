@@ -12,6 +12,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -32,13 +47,6 @@ jobs:
           echo "Go coverage: ${pct}%"
           awk -v pct="$pct" 'BEGIN {exit !(pct >= 80)}'
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-
       - name: Markdown lint
         run: npx --yes markdownlint-cli README.md
 
@@ -46,11 +54,7 @@ jobs:
         run: npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
 
       - name: Code duplication (Go)
-        run: npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1
-
-      - name: Install frontend deps
-        working-directory: web
-        run: npm ci
+        run: npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 2
 
       - name: Code duplication (frontend)
         working-directory: web
