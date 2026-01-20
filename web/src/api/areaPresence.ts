@@ -1,5 +1,5 @@
-import { apiClient } from './client';
-import type { JsonApiCollectionResponse } from './types';
+import { apiRequest } from './client';
+import type { CollectionResponse } from './types';
 
 export interface PresenceAttributes {
   user_id: string;
@@ -13,8 +13,8 @@ export interface PresenceAttributes {
 export async function fetchAreaPresence(
   areaId: string,
   date: string
-): Promise<JsonApiCollectionResponse<PresenceAttributes>> {
-  return apiClient.get<JsonApiCollectionResponse<PresenceAttributes>>(
+): Promise<CollectionResponse<PresenceAttributes>> {
+  return apiRequest<CollectionResponse<PresenceAttributes>>(
     `/api/v1/areas/${areaId}/presence?date=${date}`
   );
 }
