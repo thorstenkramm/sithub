@@ -95,7 +95,7 @@ jobs:
           level = "info"
           
           [spaces]
-          config_file = "./.sithub-test-spaces.yaml"
+          config_file = "${{ github.workspace }}/.sithub-test-spaces.yaml"
           
           [test_auth]
           enabled = true
@@ -105,9 +105,10 @@ jobs:
       - name: Cypress E2E tests
         working-directory: web
         run: |
-          # Start the server in the background
-          ../sithub run --config ../.sithub-test.toml &
+          # Start the server in the background (from repo root)
+          cd .. && ./sithub run --config ./.sithub-test.toml &
           SERVER_PID=$!
+          cd web
           
           # Wait for server to be ready
           for i in {1..30}; do
