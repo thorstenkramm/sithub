@@ -102,27 +102,26 @@ jobs:
           permitted = true
           EOF
 
-      - name: Cypress E2E tests
-        working-directory: web
+      - name: Start server for E2E tests
         run: |
-          # Start the server in the background (from repo root)
-          cd .. && ./sithub run --config ./.sithub-test.toml &
-          SERVER_PID=$!
-          cd web
-          
+          ./sithub run --config ./.sithub-test.toml &
+          echo $! > /tmp/sithub.pid
           # Wait for server to be ready
           for i in {1..30}; do
             if curl -s http://localhost:8080/health >/dev/null 2>&1; then
+              echo "Server is ready"
               break
             fi
             sleep 1
           done
-          
-          # Run Cypress tests (headless, Electron)
-          npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testAuthEnabled=true,testAuthPermitted=true
-          TEST_EXIT_CODE=$?
-          
-          # Stop the server
-          kill $SERVER_PID 2>/dev/null || true
-          
-          exit $TEST_EXIT_CODE
+
+      - name: Cypress E2E tests
+        working-directory: web
+        run: npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testAuthEnabled=true,testAuthPermitted=true
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/sithub.pid ]; then
+            kill $(cat /tmp/sithub.pid) 2>/dev/null || true
+          fi
