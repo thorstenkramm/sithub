@@ -530,7 +530,7 @@ func processMultiDayBooking(
 ) error {
 	ctx := c.Request().Context()
 
-	var created []api.Resource
+	created := make([]api.Resource, 0, len(dates))
 	var conflicts []string
 
 	for _, bookingDate := range dates {
