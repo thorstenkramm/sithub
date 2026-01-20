@@ -10,7 +10,13 @@ import (
 
 // ListHandler returns a JSON:API list of areas.
 func ListHandler(cfg *spaces.Config) echo.HandlerFunc {
+	return ListHandlerDynamic(func() *spaces.Config { return cfg })
+}
+
+// ListHandlerDynamic returns a JSON:API list of areas using a dynamic config getter.
+func ListHandlerDynamic(getConfig spaces.ConfigGetter) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		cfg := getConfig()
 		resources := api.MapResources(cfg.Areas, func(area spaces.Area) api.Resource {
 			return api.Resource{
 				Type:       "areas",

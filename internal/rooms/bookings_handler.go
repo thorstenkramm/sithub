@@ -23,7 +23,13 @@ type RoomBookingAttributes struct {
 
 // BookingsHandler returns a JSON:API list of bookings for a room on a given date.
 func BookingsHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return BookingsHandlerDynamic(func() *spaces.Config { return cfg }, store)
+}
+
+// BookingsHandlerDynamic returns a JSON:API list of bookings for a room on a given date.
+func BookingsHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		cfg := getConfig()
 		room, err := validateRoomParam(cfg, c.Param("room_id"))
 		if err != nil {
 			return api.WriteNotFound(c, "Room not found")

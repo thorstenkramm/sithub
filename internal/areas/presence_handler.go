@@ -23,7 +23,13 @@ type PresenceAttributes struct {
 
 // PresenceHandler returns a JSON:API list of users present in an area on a given date.
 func PresenceHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return PresenceHandlerDynamic(func() *spaces.Config { return cfg }, store)
+}
+
+// PresenceHandlerDynamic returns a JSON:API list of users present in an area on a given date.
+func PresenceHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		cfg := getConfig()
 		areaID := c.Param("area_id")
 		area, ok := cfg.FindArea(areaID)
 		if !ok {

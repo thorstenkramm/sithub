@@ -147,6 +147,11 @@ func DeleteHandler(store *sql.DB, notifier notifications.Notifier) echo.HandlerF
 // ListHandler returns a handler for listing the current user's future bookings.
 // Includes bookings made by the user AND bookings made for the user by others.
 func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return ListHandlerDynamic(func() *spaces.Config { return cfg }, store)
+}
+
+// ListHandlerDynamic returns a handler for listing the current user's future bookings.
+func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -161,13 +166,18 @@ func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return fmt.Errorf("list user bookings: %w", err)
 		}
 
-		return writeBookingsCollection(c, cfg, user.ID, records)
+		return writeBookingsCollection(c, getConfig(), user.ID, records)
 	}
 }
 
 // HistoryHandler returns a handler for listing the current user's past bookings.
 // Accepts optional query params: from (start date), to (end date) in YYYY-MM-DD format.
 func HistoryHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return HistoryHandlerDynamic(func() *spaces.Config { return cfg }, store)
+}
+
+// HistoryHandlerDynamic returns a handler for listing the current user's past bookings.
+func HistoryHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -203,7 +213,7 @@ func HistoryHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 			return fmt.Errorf("list booking history: %w", err)
 		}
 
-		return writeBookingsCollection(c, cfg, user.ID, records)
+		return writeBookingsCollection(c, getConfig(), user.ID, records)
 	}
 }
 
@@ -261,6 +271,13 @@ func writeBookingsCollection(
 // CreateHandler returns a handler for creating bookings.
 // Supports single-day, multi-day, booking on behalf, and guest bookings.
 func CreateHandler(cfg *spaces.Config, store *sql.DB, notifier notifications.Notifier) echo.HandlerFunc {
+	return CreateHandlerDynamic(func() *spaces.Config { return cfg }, store, notifier)
+}
+
+// CreateHandlerDynamic returns a handler for creating bookings using dynamic config.
+func CreateHandlerDynamic(
+	getConfig spaces.ConfigGetter, store *sql.DB, notifier notifications.Notifier,
+) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -284,6 +301,7 @@ func CreateHandler(cfg *spaces.Config, store *sql.DB, notifier notifications.Not
 			return handleValidationError(c, err)
 		}
 
+		cfg := getConfig()
 		if _, exists := cfg.FindDesk(deskID); !exists {
 			return api.WriteNotFound(c, "Desk not found")
 		}

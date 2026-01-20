@@ -13,6 +13,10 @@ type Config struct {
 	Areas []Area `yaml:"areas"`
 }
 
+// ConfigGetter is a function that returns the current spaces config.
+// This allows handlers to use dynamically reloaded configuration.
+type ConfigGetter func() *Config
+
 // FindArea returns the area matching the provided id.
 func (c *Config) FindArea(id string) (*Area, bool) {
 	for i := range c.Areas {

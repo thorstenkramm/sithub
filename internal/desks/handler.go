@@ -17,7 +17,13 @@ import (
 // ListHandler returns a JSON:API list of desks for a room.
 // For admin users, includes booking details (booking_id, booker_name) for occupied desks.
 func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
+	return ListHandlerDynamic(func() *spaces.Config { return cfg }, store)
+}
+
+// ListHandlerDynamic returns a JSON:API list of desks for a room using dynamic config.
+func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		cfg := getConfig()
 		roomID := c.Param("room_id")
 		room, ok := cfg.FindRoom(roomID)
 		if !ok {
