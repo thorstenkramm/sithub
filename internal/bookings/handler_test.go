@@ -176,7 +176,7 @@ func TestCreateHandlerSuccess(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	body := `{"data":{"type":"bookings","attributes":{"desk_id":"desk-1","booking_date":"` + futureDate + `"}}}`
@@ -236,7 +236,7 @@ func TestCreateHandlerConflictCases(t *testing.T) {
 
 			cfg := testSpacesConfig()
 			store := setupTestStore(t)
-			seedTestDeskData(t, store, []string{"desk-1"})
+			
 
 			futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			seedTestBooking(t, store, "existing-booking", "desk-1", tc.existingUserID, futureDate)
@@ -286,7 +286,7 @@ func TestListHandlerReturnsUserFutureBookings(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1", "desk-2"})
+	
 
 	today := time.Now().UTC().Format(time.DateOnly)
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -368,7 +368,7 @@ func TestHistoryHandlerReturnsPastBookings(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	// Create a past booking (yesterday)
 	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format(time.DateOnly)
@@ -396,7 +396,7 @@ func TestHistoryHandlerWithDateRange(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	// Create bookings at different dates
 	date1 := time.Now().UTC().AddDate(0, 0, -10).Format(time.DateOnly)
@@ -468,7 +468,7 @@ func TestDeleteHandlerOtherUsersBooking(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	seedTestBooking(t, store, "booking-1", "desk-1", "other-user", tomorrow)
@@ -492,7 +492,7 @@ func TestDeleteHandlerSuccess(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
@@ -542,7 +542,7 @@ func TestDeleteHandlerAdminCancelCases(t *testing.T) {
 			t.Parallel()
 
 			store := setupTestStore(t)
-			seedTestDeskData(t, store, []string{"desk-1"})
+			
 
 			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			seedTestBooking(t, store, "booking-1", "desk-1", tc.bookingOwnerID, tomorrow)
@@ -574,7 +574,7 @@ func TestCreateHandlerBookOnBehalf(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	body := `{"data":{"type":"bookings","attributes":{` +
@@ -632,7 +632,7 @@ func TestCreateHandlerMissingNameValidation(t *testing.T) {
 
 			cfg := testSpacesConfig()
 			store := setupTestStore(t)
-			seedTestDeskData(t, store, []string{"desk-1"})
+			
 
 			futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			body := `{"data":{"type":"bookings","attributes":{` +
@@ -664,7 +664,7 @@ func TestCreateHandlerGuestBooking(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	body := `{"data":{"type":"bookings","attributes":{` +
@@ -706,7 +706,7 @@ func TestCreateHandlerMultiDayBooking(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	date2 := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
@@ -737,7 +737,7 @@ func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	date2 := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
@@ -775,7 +775,7 @@ func TestListHandlerIncludesGuestBookings(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 
@@ -809,7 +809,7 @@ func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1", "desk-2"})
+	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
@@ -881,7 +881,7 @@ func TestDeleteHandlerOnBehalfBookingCancellation(t *testing.T) {
 			t.Parallel()
 
 			store := setupTestStore(t)
-			seedTestDeskData(t, store, []string{"desk-1"})
+			
 
 			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			seedTestBookingFull(t, store, "booking-1", "desk-1",
@@ -913,7 +913,7 @@ func TestDeleteHandlerUnrelatedUserCannotCancel(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	// Booking for colleague, made by someone-else

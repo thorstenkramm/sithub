@@ -62,7 +62,7 @@ func TestBookingsHandlerReturnsBookingsForRoom(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestData(t, store)
+	// No need to seed space data - it comes from config now
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", "Alice Smith", tomorrow)
@@ -105,7 +105,7 @@ func TestBookingsHandlerExcludesOtherDates(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestData(t, store)
+	// No need to seed space data - it comes from config now
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
@@ -135,7 +135,7 @@ func TestBookingsHandlerEmptyResult(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	seedTestData(t, store)
+	// No need to seed space data - it comes from config now
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 
@@ -203,39 +203,17 @@ func resolveTestMigrationsPath(t *testing.T) string {
 	return filepath.Join(root, "migrations")
 }
 
-func seedTestData(t *testing.T, store *sql.DB) {
-	t.Helper()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := store.Exec(
-		"INSERT INTO areas (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-		"area-1", "Area", now, now,
-	)
-	require.NoError(t, err)
-
-	_, err = store.Exec(
-		"INSERT INTO rooms (id, area_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-		"room-1", "area-1", "Room", now, now,
-	)
-	require.NoError(t, err)
-
-	for _, deskID := range []string{"desk-1", "desk-2"} {
-		_, err = store.Exec(
-			"INSERT INTO desks (id, room_id, name, equipment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-			deskID, "room-1", deskID, "", now, now,
-		)
-		require.NoError(t, err)
-	}
-}
-
 func seedTestBooking(t *testing.T, store *sql.DB, bookingID, deskID, userID, userName, bookingDate string) {
 	t.Helper()
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := store.Exec(
-		`INSERT INTO bookings (id, desk_id, user_id, user_name, booking_date, created_at, updated_at) 
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		bookingID, deskID, userID, userName, bookingDate, now, now,
+	_, err := store.Exec(`
+		INSERT INTO bookings 
+		(id, desk_id, user_id, user_name, booked_by_user_id, booked_by_user_name, 
+		 booking_date, is_guest, guest_email, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		bookingID, deskID, userID, userName, userID, userName,
+		bookingDate, 0, "", now, now,
 	)
 	require.NoError(t, err)
 }

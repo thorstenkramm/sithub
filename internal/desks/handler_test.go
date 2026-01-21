@@ -162,7 +162,7 @@ func TestListHandlerShowsBookedDesk(t *testing.T) {
 		},
 	}
 	store := setupStore(t)
-	seedDeskData(t, store, "area-1", "room-1", []string{"desk-1", "desk-2"})
+	// No need to seed desk data - desk_id is just a string reference now
 	seedBooking(t, store, "booking-1", "desk-1", "user-1", "2026-01-20")
 
 	e := echo.New()
@@ -225,55 +225,17 @@ func resolveMigrationsPath(t *testing.T) string {
 	return filepath.Join(root, "migrations")
 }
 
-func seedDeskData(t *testing.T, store *sql.DB, areaID, roomID string, deskIDs []string) {
-	t.Helper()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := store.Exec(
-		"INSERT INTO areas (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-		areaID,
-		"Area",
-		now,
-		now,
-	)
-	require.NoError(t, err)
-
-	_, err = store.Exec(
-		"INSERT INTO rooms (id, area_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-		roomID,
-		areaID,
-		"Room",
-		now,
-		now,
-	)
-	require.NoError(t, err)
-
-	for _, deskID := range deskIDs {
-		_, err = store.Exec(
-			"INSERT INTO desks (id, room_id, name, equipment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-			deskID,
-			roomID,
-			deskID,
-			"",
-			now,
-			now,
-		)
-		require.NoError(t, err)
-	}
-}
-
 func seedBooking(t *testing.T, store *sql.DB, bookingID, deskID, userID, bookingDate string) {
 	t.Helper()
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := store.Exec(
-		"INSERT INTO bookings (id, desk_id, user_id, booking_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		bookingID,
-		deskID,
-		userID,
-		bookingDate,
-		now,
-		now,
+	_, err := store.Exec(`
+		INSERT INTO bookings 
+		(id, desk_id, user_id, user_name, booked_by_user_id, booked_by_user_name, 
+		 booking_date, is_guest, guest_email, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		bookingID, deskID, userID, "Test User", userID, "Test User",
+		bookingDate, 0, "", now, now,
 	)
 	require.NoError(t, err)
 }

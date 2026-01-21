@@ -1,4 +1,4 @@
-// Package spaces loads and stores area configuration.
+// Package spaces loads area configuration from YAML files.
 package spaces
 
 import (

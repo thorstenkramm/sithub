@@ -38,46 +38,6 @@ func resolveTestMigrationsPath(t *testing.T) string {
 	return filepath.Join(root, "migrations")
 }
 
-// seedTestDeskData creates test area, room, and desks. Uses fixed area-1 and room-1.
-func seedTestDeskData(t *testing.T, store *sql.DB, deskIDs []string) {
-	t.Helper()
-
-	const areaID = "area-1"
-	const roomID = "room-1"
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := store.Exec(
-		"INSERT INTO areas (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-		areaID,
-		"Area",
-		now,
-		now,
-	)
-	require.NoError(t, err)
-
-	_, err = store.Exec(
-		"INSERT INTO rooms (id, area_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-		roomID,
-		areaID,
-		"Room",
-		now,
-		now,
-	)
-	require.NoError(t, err)
-
-	for _, deskID := range deskIDs {
-		_, err = store.Exec(
-			"INSERT INTO desks (id, room_id, name, equipment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-			deskID,
-			roomID,
-			deskID,
-			"",
-			now,
-			now,
-		)
-		require.NoError(t, err)
-	}
-}
-
 func seedTestBooking(t *testing.T, store *sql.DB, bookingID, deskID, userID, bookingDate string) {
 	seedTestBookingFull(t, store, bookingID, deskID, userID, "Test User", userID, "Test User", bookingDate)
 }

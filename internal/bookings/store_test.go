@@ -11,7 +11,7 @@ import (
 
 func TestFindBookedDeskIDs(t *testing.T) {
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	// No need to seed desk data - desk_id is just a string reference now
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", "2026-01-20")
 
 	booked, err := FindBookedDeskIDs(t.Context(), store, "2026-01-20")
@@ -30,7 +30,7 @@ func TestFindBookedDeskIDsReturnsErrorOnClosedDB(t *testing.T) {
 
 func TestFindDeskBookingsReturnsBookingInfo(t *testing.T) {
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1", "desk-2"})
+	// No need to seed desk data - desk_id is just a string reference now
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", "2026-01-20")
 
 	result, err := FindDeskBookings(t.Context(), store, "2026-01-20")
@@ -44,7 +44,7 @@ func TestFindDeskBookingsReturnsBookingInfo(t *testing.T) {
 
 func TestFindDeskBookingsReturnsEmptyMapForNoBookings(t *testing.T) {
 	store := setupTestStore(t)
-	seedTestDeskData(t, store, []string{"desk-1"})
+	// No need to seed desk data - desk_id is just a string reference now
 
 	result, err := FindDeskBookings(t.Context(), store, "2026-01-20")
 	require.NoError(t, err)

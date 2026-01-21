@@ -15,7 +15,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/thorstenkramm/sithub/internal/admin"
 	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
@@ -53,25 +52,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 
-	// Load YAML config and sync to database
-	yamlConfig, err := spaces.Load(cfg.Spaces.ConfigFile)
+	// Load spaces configuration from YAML (single source of truth)
+	spacesConfig, err := spaces.Load(cfg.Spaces.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("load spaces config: %w", err)
 	}
-
-	spacesStore := spaces.NewStore(store)
-	if err := spacesStore.SyncFromConfig(ctx, yamlConfig); err != nil {
-		return fmt.Errorf("sync spaces config: %w", err)
-	}
-
-	// Load config from database (now the source of truth)
-	spacesConfig, err := spacesStore.LoadConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("load spaces from db: %w", err)
-	}
-
-	// Create config holder for live updates
-	configHolder := admin.NewConfigHolder(spacesConfig)
 
 	authService, err := auth.NewService(cfg)
 	if err != nil {
@@ -87,7 +72,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	indexPath := filepath.Join(staticDir, "index.html")
 
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, configHolder, spacesStore, store, notifier)
+	registerRoutes(e, authService, spacesConfig, store, notifier)
 	registerSPAHandlers(e, staticDir, indexPath)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -113,11 +98,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 }
 
 func registerRoutes(
-	e *echo.Echo, authService *auth.Service, configHolder *admin.ConfigHolder,
-	spacesStore *spaces.Store, store *sql.DB, notifier notifications.Notifier,
+	e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config,
+	store *sql.DB, notifier notifications.Notifier,
 ) {
-	// Helper to get current config
-	getConfig := func() *spaces.Config { return configHolder.Get() }
+	// Helper to get current config (returns the same config, loaded at startup)
+	getConfig := func() *spaces.Config { return spacesConfig }
 
 	e.GET("/oauth/login", auth.LoginHandler(authService))
 	e.GET("/oauth/callback", auth.CallbackHandler(authService))
@@ -138,32 +123,6 @@ func registerRoutes(
 	e.POST("/api/v1/bookings",
 		bookings.CreateHandlerDynamic(getConfig, store, notifier), middleware.RequireAuth(authService))
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), middleware.RequireAuth(authService))
-
-	// Admin routes
-	e.GET("/api/v1/admin/areas",
-		admin.ListAreasHandler(spacesStore), middleware.RequireAuth(authService))
-	e.POST("/api/v1/admin/areas",
-		admin.CreateAreaHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.PATCH("/api/v1/admin/areas/:area_id",
-		admin.UpdateAreaHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.DELETE("/api/v1/admin/areas/:area_id",
-		admin.DeleteAreaHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.GET("/api/v1/admin/areas/:area_id/rooms",
-		admin.ListRoomsHandler(spacesStore), middleware.RequireAuth(authService))
-	e.POST("/api/v1/admin/areas/:area_id/rooms",
-		admin.CreateRoomHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.PATCH("/api/v1/admin/rooms/:room_id",
-		admin.UpdateRoomHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.DELETE("/api/v1/admin/rooms/:room_id",
-		admin.DeleteRoomHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.GET("/api/v1/admin/rooms/:room_id/desks",
-		admin.ListDesksHandler(spacesStore), middleware.RequireAuth(authService))
-	e.POST("/api/v1/admin/rooms/:room_id/desks",
-		admin.CreateDeskHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.PATCH("/api/v1/admin/desks/:desk_id",
-		admin.UpdateDeskHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
-	e.DELETE("/api/v1/admin/desks/:desk_id",
-		admin.DeleteDeskHandler(spacesStore, configHolder), middleware.RequireAuth(authService))
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
