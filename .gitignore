@@ -70,3 +70,9 @@ web/cypress/videos/
 
 # Embedded frontend build output (generated during build)
 /assets/web/
+
+# Personal notes not intended for the team
+notes.md
+
+# Test Areas
+/sithub_areas.yaml

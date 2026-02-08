@@ -88,19 +88,18 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { ApiError } from '../api/client';
 import { fetchBookingHistory, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, DatePickerField, StatusChip } from '../components';
 
 const authStore = useAuthStore();
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
-const router = useRouter();
 const { loading: historyLoading, error: historyError, run: runHistory } = useApi();
+const { handleAuthError } = useAuthErrorHandler();
 
 // Default: last 30 days
 const today = new Date();
@@ -111,20 +110,8 @@ const fromDate = ref(formatDateISO(thirtyDaysAgo));
 const toDate = ref(formatDateISO(new Date(today.getTime() - 24 * 60 * 60 * 1000))); // Yesterday
 
 function formatDateISO(date: Date) {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().slice(0, 10);
 }
-
-const handleAuthError = async (err: unknown) => {
-  if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
-    return true;
-  }
-  if (err instanceof ApiError && err.status === 403) {
-    await router.push('/access-denied');
-    return true;
-  }
-  return false;
-};
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr + 'T00:00:00');

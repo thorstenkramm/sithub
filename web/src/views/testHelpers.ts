@@ -47,7 +47,7 @@ export async function expectLoginRedirect(mountView: () => void) {
   const restore = mockWindowLocation();
   mountView();
   await flushPromises();
-  expect(window.location.href).toBe('/oauth/login');
+  expect(window.location.href).toBe('/login');
   restore();
 }
 

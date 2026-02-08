@@ -28,6 +28,14 @@ paths:
     $ref: ./endpoints/booking.yaml
   /me:
     $ref: ./endpoints/me.yaml
+  /auth/login:
+    $ref: ./endpoints/auth-login.yaml
+  /auth/logout:
+    $ref: ./endpoints/auth-logout.yaml
+  /users:
+    $ref: ./endpoints/users.yaml
+  /users/{user_id}:
+    $ref: ./endpoints/user.yaml
   /presence:
     $ref: ./endpoints/presence.yaml
 components:
@@ -417,5 +425,145 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AreaPresenceResource'
+      required:
+        - data
+    UserAttributes:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        is_admin:
+          type: boolean
+        auth_source:
+          type: string
+          enum:
+            - internal
+            - entraid
+        role:
+          type: string
+          enum:
+            - admin
+            - user
+        last_login:
+          type: string
+          format: date-time
+          description: Timestamp of last successful login (empty if never logged in)
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - email
+        - display_name
+        - is_admin
+        - auth_source
+        - role
+    UserResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: users
+            attributes:
+              $ref: '#/components/schemas/UserAttributes'
+          required:
+            - type
+            - attributes
+    UserSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserResource'
+      required:
+        - data
+    UserCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResource'
+      required:
+        - data
+    CreateUserRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              const: users
+            attributes:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                display_name:
+                  type: string
+                password:
+                  type: string
+                  minLength: 14
+                is_admin:
+                  type: boolean
+              required:
+                - email
+                - display_name
+                - password
+          required:
+            - type
+            - attributes
+      required:
+        - data
+    UpdateUserRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            attributes:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                display_name:
+                  type: string
+                is_admin:
+                  type: boolean
+                password:
+                  type: string
+                  minLength: 14
+                  description: Admin password reset (local users only)
+          required:
+            - attributes
+      required:
+        - data
+    ChangePasswordRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            attributes:
+              type: object
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 14
+              required:
+                - current_password
+                - new_password
+          required:
+            - attributes
       required:
         - data

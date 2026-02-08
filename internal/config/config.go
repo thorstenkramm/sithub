@@ -21,7 +21,6 @@ type Config struct {
 	Main          MainConfig          `mapstructure:"main"`
 	Log           LogConfig           `mapstructure:"log"`
 	EntraID       EntraIDConfig       `mapstructure:"entraid"`
-	TestAuth      TestAuthConfig      `mapstructure:"test_auth"`
 	Spaces        SpacesConfig        `mapstructure:"spaces"`
 	Notifications NotificationsConfig `mapstructure:"notifications"`
 }
@@ -49,14 +48,6 @@ type EntraIDConfig struct {
 	ClientSecret  string `mapstructure:"client_secret"`
 	UsersGroupID  string `mapstructure:"users_group_id"`
 	AdminsGroupID string `mapstructure:"admins_group_id"`
-}
-
-// TestAuthConfig configures local test authentication.
-type TestAuthConfig struct {
-	Enabled   bool   `mapstructure:"enabled"`
-	UserID    string `mapstructure:"user_id"`
-	UserName  string `mapstructure:"user_name"`
-	Permitted bool   `mapstructure:"permitted"`
 }
 
 // SpacesConfig contains space configuration settings.
@@ -89,10 +80,6 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	v.SetDefault("log.file", "")
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "text")
-	v.SetDefault("test_auth.enabled", false)
-	v.SetDefault("test_auth.user_id", "test-user")
-	v.SetDefault("test_auth.user_name", "Test User")
-	v.SetDefault("test_auth.permitted", true)
 	v.SetDefault("spaces.config_file", "")
 	v.SetDefault("notifications.webhook_url", "")
 
@@ -109,11 +96,8 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	if !cfg.TestAuth.Enabled {
-		if cfg.EntraID.AuthorizeURL == "" || cfg.EntraID.TokenURL == "" || cfg.EntraID.RedirectURI == "" ||
-			cfg.EntraID.ClientID == "" || cfg.EntraID.ClientSecret == "" {
-			return nil, fmt.Errorf("validate entraid: %w", ErrMissingEntraIDConfig)
-		}
+	if err := validateEntraIDConfig(&cfg.EntraID); err != nil {
+		return nil, err
 	}
 
 	if strings.TrimSpace(cfg.Spaces.ConfigFile) == "" {
@@ -124,4 +108,27 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	}
 
 	return &cfg, nil
+}
+
+// EntraIDConfigured returns true if Entra ID OAuth is configured.
+func (c *Config) EntraIDConfigured() bool {
+	e := c.EntraID
+	return e.AuthorizeURL != "" && e.TokenURL != "" && e.RedirectURI != "" &&
+		e.ClientID != "" && e.ClientSecret != ""
+}
+
+// validateEntraIDConfig checks that either all 5 required Entra ID fields
+// are set, or none are set (local-only mode).
+func validateEntraIDConfig(e *EntraIDConfig) error {
+	fields := []string{e.AuthorizeURL, e.TokenURL, e.RedirectURI, e.ClientID, e.ClientSecret}
+	setCount := 0
+	for _, f := range fields {
+		if f != "" {
+			setCount++
+		}
+	}
+	if setCount == 0 || setCount == len(fields) {
+		return nil
+	}
+	return fmt.Errorf("validate entraid: %w (all 5 fields required if any is set)", ErrMissingEntraIDConfig)
 }

@@ -1,0 +1,50 @@
+get:
+  summary: List all users
+  operationId: listUsers
+  responses:
+    '200':
+      description: List of users
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/UserCollectionResponse
+    '401':
+      description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+post:
+  summary: Create a local user (admin only)
+  operationId: createUser
+  requestBody:
+    required: true
+    content:
+      application/vnd.api+json:
+        schema:
+          $ref: ../openapi.yaml#/components/schemas/CreateUserRequest
+  responses:
+    '201':
+      description: User created
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/UserSingleResponse
+    '400':
+      description: Validation error
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Admin access required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '409':
+      description: Email already exists
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

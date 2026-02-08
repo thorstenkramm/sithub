@@ -29,7 +29,7 @@ func RedirectForbidden(svc *auth.Service) echo.MiddlewareFunc {
 			}
 
 			if err := svc.RefreshPermissions(req.Context(), user); err != nil {
-				return c.Redirect(http.StatusFound, "/oauth/login")
+				return c.Redirect(http.StatusFound, "/login")
 			}
 			if !user.IsPermitted {
 				return c.Redirect(http.StatusFound, "/access-denied")
@@ -43,5 +43,7 @@ func RedirectForbidden(svc *auth.Service) echo.MiddlewareFunc {
 func isBypassPath(path string) bool {
 	return strings.HasPrefix(path, "/api/") ||
 		strings.HasPrefix(path, "/oauth/") ||
-		strings.HasPrefix(path, "/assets/")
+		strings.HasPrefix(path, "/auth/") ||
+		strings.HasPrefix(path, "/assets/") ||
+		path == "/login"
 }

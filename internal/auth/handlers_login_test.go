@@ -108,7 +108,7 @@ func testEntraConfig() config.EntraIDConfig {
 func newTestService(t *testing.T, cfg *config.Config) *Service {
 	t.Helper()
 
-	svc, err := NewService(cfg)
+	svc, err := NewService(cfg, nil)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}

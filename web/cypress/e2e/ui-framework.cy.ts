@@ -18,6 +18,7 @@ describe('UI Framework Integration', () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
+    cy.login();
   });
 
   it('should render Vuetify components (not raw HTML tags)', () => {
@@ -177,6 +178,7 @@ describe('Page-specific Vuetify Rendering', () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
+    cy.login();
   });
 
   it('should render date picker as Vuetify component on desks page', () => {

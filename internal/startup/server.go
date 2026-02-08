@@ -26,6 +26,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/rooms"
 	"github.com/thorstenkramm/sithub/internal/spaces"
 	"github.com/thorstenkramm/sithub/internal/system"
+	"github.com/thorstenkramm/sithub/internal/users"
 )
 
 // Run starts the HTTP server and blocks until it shuts down.
@@ -58,7 +59,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("load spaces config: %w", err)
 	}
 
-	authService, err := auth.NewService(cfg)
+	authService, err := auth.NewService(cfg, store)
 	if err != nil {
 		return fmt.Errorf("init auth service: %w", err)
 	}
@@ -104,25 +105,45 @@ func registerRoutes(
 	// Helper to get current config (returns the same config, loaded at startup)
 	getConfig := func() *spaces.Config { return spacesConfig }
 
+	// OAuth routes
 	e.GET("/oauth/login", auth.LoginHandler(authService))
 	e.GET("/oauth/callback", auth.CallbackHandler(authService))
 
+	// Auth routes (no auth middleware required)
+	loginLimiter := middleware.NewRateLimiter(60, time.Minute)
+	e.POST("/api/v1/auth/login", auth.LocalLoginHandler(authService),
+		middleware.RateLimit(loginLimiter))
+	e.POST("/api/v1/auth/logout", auth.LogoutHandler())
+
+	// Public
 	e.GET("/api/v1/ping", system.Ping)
-	e.GET("/api/v1/me", auth.MeHandler(), middleware.RequireAuth(authService))
-	e.GET("/api/v1/areas", areas.ListHandlerDynamic(getConfig), middleware.RequireAuth(authService))
-	e.GET("/api/v1/areas/:area_id/rooms", rooms.ListHandlerDynamic(getConfig), middleware.RequireAuth(authService))
+
+	// Authenticated routes
+	requireAuth := middleware.RequireAuth(authService)
+	e.GET("/api/v1/me", auth.MeHandler(), requireAuth)
+	e.PATCH("/api/v1/me", auth.UpdateMeHandler(authService), requireAuth)
+	e.GET("/api/v1/areas", areas.ListHandlerDynamic(getConfig), requireAuth)
+	e.GET("/api/v1/areas/:area_id/rooms", rooms.ListHandlerDynamic(getConfig), requireAuth)
 	e.GET("/api/v1/areas/:area_id/presence",
-		areas.PresenceHandlerDynamic(getConfig, store), middleware.RequireAuth(authService))
+		areas.PresenceHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/rooms/:room_id/desks",
-		desks.ListHandlerDynamic(getConfig, store), middleware.RequireAuth(authService))
+		desks.ListHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/rooms/:room_id/bookings",
-		rooms.BookingsHandlerDynamic(getConfig, store), middleware.RequireAuth(authService))
-	e.GET("/api/v1/bookings", bookings.ListHandlerDynamic(getConfig, store), middleware.RequireAuth(authService))
+		rooms.BookingsHandlerDynamic(getConfig, store), requireAuth)
+	e.GET("/api/v1/bookings", bookings.ListHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/bookings/history",
-		bookings.HistoryHandlerDynamic(getConfig, store), middleware.RequireAuth(authService))
+		bookings.HistoryHandlerDynamic(getConfig, store), requireAuth)
 	e.POST("/api/v1/bookings",
-		bookings.CreateHandlerDynamic(getConfig, store, notifier), middleware.RequireAuth(authService))
-	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), middleware.RequireAuth(authService))
+		bookings.CreateHandlerDynamic(getConfig, store, notifier), requireAuth)
+	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), requireAuth)
+
+	// User management routes
+	requireAdmin := middleware.RequireAdmin()
+	e.GET("/api/v1/users", users.ListHandler(store), requireAuth, requireAdmin)
+	e.GET("/api/v1/users/:id", users.GetHandler(store), requireAuth, requireAdmin)
+	e.POST("/api/v1/users", users.CreateHandler(store), requireAuth, requireAdmin)
+	e.PATCH("/api/v1/users/:id", users.UpdateHandler(store), requireAuth, requireAdmin)
+	e.DELETE("/api/v1/users/:id", users.DeleteHandler(store), requireAuth, requireAdmin)
 }
 
 func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
@@ -134,7 +155,10 @@ func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
 			var httpErr *echo.HTTPError
 			if errors.As(err, &httpErr) && httpErr.Code == http.StatusNotFound {
 				path := req.URL.Path
-				if !strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/oauth/") {
+				apiPath := strings.HasPrefix(path, "/api/")
+				oauthPath := strings.HasPrefix(path, "/oauth/")
+				authPath := strings.HasPrefix(path, "/auth/")
+				if !apiPath && !oauthPath && !authPath {
 					if fileErr := c.File(indexPath); fileErr == nil {
 						return
 					}

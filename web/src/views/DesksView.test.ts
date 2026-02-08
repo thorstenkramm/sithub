@@ -103,7 +103,7 @@ describe('DesksView', () => {
   });
 
   it('fetches desks on mount with current date', async () => {
-    const wrapper = mountView();
+    mountView();
     await flushPromises();
 
     // Should fetch desks with today's date on mount

@@ -37,10 +37,6 @@ func TestRunOptionsOverrides(t *testing.T) {
 	if err := cmd.Flags().Set("spaces-config-file", "./spaces.yaml"); err != nil {
 		t.Fatalf("set spaces-config-file: %v", err)
 	}
-	if err := cmd.Flags().Set("test-auth-enabled", "true"); err != nil {
-		t.Fatalf("set test-auth-enabled: %v", err)
-	}
-
 	overrides := opts.overrides(cmd)
 	if overrides["main.listen"] != "0.0.0.0" {
 		t.Fatalf("listen override missing: %#v", overrides)
@@ -53,9 +49,6 @@ func TestRunOptionsOverrides(t *testing.T) {
 	}
 	if overrides["spaces.config_file"] != "./spaces.yaml" {
 		t.Fatalf("spaces config override missing: %#v", overrides)
-	}
-	if overrides["test_auth.enabled"] != true {
-		t.Fatalf("test auth override missing: %#v", overrides)
 	}
 	if _, ok := overrides["log.level"]; ok {
 		t.Fatalf("unexpected log level override: %#v", overrides)

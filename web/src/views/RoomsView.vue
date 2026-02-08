@@ -100,7 +100,7 @@ const goToDesks = async (roomId: string) => {
 
 const handleAuthError = async (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
+    window.location.href = '/login';
     return true;
   }
   if (err instanceof ApiError && err.status === 403) {

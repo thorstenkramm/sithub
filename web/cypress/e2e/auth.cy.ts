@@ -1,31 +1,38 @@
-const testAuthEnabled = ['true', true, '1', 'yes'].includes(Cypress.env('testAuthEnabled'));
-const testAuthPermitted = ['true', true, '1', 'yes'].includes(Cypress.env('testAuthPermitted'));
-const itIfAuth = testAuthEnabled ? it : it.skip;
-const itIfPermitted = testAuthEnabled && testAuthPermitted ? it : it.skip;
-const itIfNoAuth = testAuthEnabled ? it.skip : it;
-const itIfForbidden = testAuthEnabled && !testAuthPermitted ? it : it.skip;
-
 describe('auth', () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
   });
 
-  itIfNoAuth('should redirect unauthenticated users to Entra ID', () => {
-    cy.intercept('GET', '/api/v1/me').as('me');
-
-    cy.request({
-      url: '/oauth/login',
-      followRedirect: false
-    }).then((response) => {
-      expect(response.status).to.eq(302);
-      expect(response.headers.location).to.contain('/entra/login');
-    });
-
+  it('should redirect unauthenticated users to login page', () => {
     cy.visit('/');
-    cy.wait('@me').its('response.statusCode').should('eq', 401);
-    cy.location('pathname').should('eq', '/entra/login');
+    cy.location('pathname').should('eq', '/login');
+  });
 
+  it('should show the signed-in user name after login', () => {
+    cy.intercept('GET', '/api/v1/me').as('me');
+    cy.intercept('GET', '/api/v1/areas').as('listAreas');
+
+    cy.login();
+    cy.visit('/');
+
+    cy.wait('@me').its('response.statusCode').should('eq', 200);
+    cy.get('[data-cy="user-menu-trigger"]').should('exist');
+    cy.wait('@listAreas').its('response.statusCode').should('eq', 200);
+    cy.get('[data-cy="areas-list"]').should('exist');
+  });
+
+  it('should log out and redirect to login page', () => {
+    cy.login();
+    cy.visit('/');
+
+    cy.get('[data-cy="user-menu-trigger"]').click();
+    cy.get('[data-cy="logout-btn"]').click();
+
+    cy.location('pathname').should('eq', '/login');
+  });
+
+  it('should return 401 for unauthenticated API calls', () => {
     cy.request({
       url: '/api/v1/me',
       failOnStatusCode: false
@@ -33,35 +40,6 @@ describe('auth', () => {
       expect(response.status).to.eq(401);
       expect(response.headers['content-type']).to.contain('application/vnd.api+json');
       expect(response.body.errors[0].code).to.eq('auth_required');
-    });
-  });
-
-  itIfPermitted('should show the signed-in user name after callback', () => {
-    cy.intercept('GET', '/api/v1/me').as('me');
-    cy.intercept('GET', '/api/v1/areas').as('listAreas');
-
-    cy.visit('/oauth/callback');
-    cy.location('pathname').should('eq', '/');
-    cy.wait('@me').its('response.statusCode').should('eq', 200);
-    // User info is now shown in the navbar user menu (trigger button)
-    cy.get('[data-cy="user-menu-trigger"]').should('exist');
-    // Verify areas page loads successfully
-    cy.wait('@listAreas').its('response.statusCode').should('eq', 200);
-    cy.get('[data-cy="areas-list"]').should('exist');
-  });
-
-  itIfForbidden('should show access denied for forbidden users', () => {
-    cy.visit('/oauth/callback');
-    cy.location('pathname').should('eq', '/access-denied');
-    cy.get('[data-cy="access-denied-title"]').should('contain', 'Access denied');
-
-    cy.request({
-      url: '/api/v1/me',
-      failOnStatusCode: false
-    }).then((response) => {
-      expect(response.status).to.eq(403);
-      expect(response.headers['content-type']).to.contain('application/vnd.api+json');
-      expect(response.body.errors[0].code).to.eq('forbidden');
     });
   });
 });

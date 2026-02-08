@@ -40,18 +40,6 @@ config_file = "`+spacePath+`"
 	if cfg.Main.Listen != "127.0.0.1" {
 		t.Fatalf("expected default listen, got %s", cfg.Main.Listen)
 	}
-	if cfg.TestAuth.Enabled {
-		t.Fatalf("expected test auth disabled by default")
-	}
-	if cfg.TestAuth.UserID != "test-user" {
-		t.Fatalf("expected default test auth user id, got %s", cfg.TestAuth.UserID)
-	}
-	if cfg.TestAuth.UserName != "Test User" {
-		t.Fatalf("expected default test auth user name, got %s", cfg.TestAuth.UserName)
-	}
-	if !cfg.TestAuth.Permitted {
-		t.Fatalf("expected test auth permitted by default")
-	}
 }
 
 func TestLoadMissingEntraID(t *testing.T) {
@@ -67,23 +55,65 @@ config_file = "`+spacePath+`"
 `)
 
 	_, err := Load(path)
-	if err == nil {
-		t.Fatalf("expected error for missing Entra ID config")
+	if err != nil {
+		t.Fatalf("expected no error for empty Entra ID (local-only mode), got %v", err)
 	}
 }
 
-func TestLoadMissingEntraIDWithTestAuth(t *testing.T) {
+func TestLoadPartialEntraID(t *testing.T) {
 	spacePath := writeSpaceConfig(t)
 	path := writeConfig(t, `
-[test_auth]
-enabled = true
+[entraid]
+authorize_url = "https://login"
+token_url = ""
+redirect_uri = ""
 
 [spaces]
 config_file = "`+spacePath+`"
 `)
 
-	if _, err := Load(path); err != nil {
-		t.Fatalf("expected no error with test auth enabled, got %v", err)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatalf("expected error for partial Entra ID config")
+	}
+}
+
+func TestLoadNoEntraID_LocalOnly(t *testing.T) {
+	spacePath := writeSpaceConfig(t)
+	path := writeConfig(t, `
+[spaces]
+config_file = "`+spacePath+`"
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected no error for local-only mode, got %v", err)
+	}
+	if cfg.EntraIDConfigured() {
+		t.Fatalf("expected EntraIDConfigured=false for local-only mode")
+	}
+}
+
+func TestEntraIDConfigured(t *testing.T) {
+	spacePath := writeSpaceConfig(t)
+	path := writeConfig(t, `
+[entraid]
+authorize_url = "https://login"
+token_url = "https://token"
+redirect_uri = "http://localhost/callback"
+client_id = "client"
+client_secret = "secret"
+
+[spaces]
+config_file = "`+spacePath+`"
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.EntraIDConfigured() {
+		t.Fatalf("expected EntraIDConfigured=true")
 	}
 }
 

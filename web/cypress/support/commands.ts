@@ -8,6 +8,12 @@ declare global {
   namespace Cypress {
     interface Chainable {
       /**
+       * Programmatic login via POST /api/v1/auth/login.
+       * Uses Cypress env vars `testUserEmail` and `testUserPassword` as defaults.
+       */
+      login(email?: string, password?: string): Chainable<void>;
+
+      /**
        * Verify that Vuetify is properly initialized and rendering components
        */
       verifyVuetifyLoaded(): Chainable<void>;
@@ -24,6 +30,23 @@ declare global {
     }
   }
 }
+
+/**
+ * Programmatic login — calls the local auth API and sets the session cookie.
+ * Faster and more stable than going through the login UI.
+ */
+Cypress.Commands.add('login', (email?: string, password?: string) => {
+  const loginEmail = email ?? Cypress.env('testUserEmail');
+  const loginPassword = password ?? Cypress.env('testUserPassword');
+
+  cy.request({
+    method: 'POST',
+    url: '/api/v1/auth/login',
+    body: { email: loginEmail, password: loginPassword }
+  }).then((response) => {
+    expect(response.status).to.eq(200);
+  });
+});
 
 /**
  * Verify that Vuetify framework is properly loaded and initialized

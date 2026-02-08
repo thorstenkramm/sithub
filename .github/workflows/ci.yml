@@ -23,6 +23,14 @@ jobs:
         working-directory: web
         run: npm ci
 
+      - name: Frontend type-check
+        working-directory: web
+        run: npm run type-check
+
+      - name: Frontend lint
+        working-directory: web
+        run: npm run lint
+
       - name: Build frontend
         working-directory: web
         run: npm run build
@@ -84,25 +92,21 @@ jobs:
                       name: "Desk 2"
                       equipment: [Monitor]
           EOF
-          
+
           cat > .sithub-test.toml <<EOF
           [main]
           port = 8080
           listen = "127.0.0.1"
-          
+
           [log]
           file = "-"
           level = "info"
-          
+
           [spaces]
           config_file = "${{ github.workspace }}/.sithub-test-spaces.yaml"
-          
-          [test_auth]
-          enabled = true
-          permitted = true
           EOF
 
-      - name: Start server for E2E tests
+      - name: Start server and seed demo users
         run: |
           ./sithub run --config ./.sithub-test.toml &
           echo $! > /tmp/sithub.pid
@@ -114,10 +118,12 @@ jobs:
             fi
             sleep 1
           done
+          # Seed demo users into the database
+          sqlite3 sithub.db < tools/database/demo-users.sql
 
       - name: Cypress E2E tests
         working-directory: web
-        run: npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testAuthEnabled=true,testAuthPermitted=true
+        run: npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testUserEmail=anna@sithub.local,testUserPassword=SitHubDemo2026!!
 
       - name: Stop server
         if: always()

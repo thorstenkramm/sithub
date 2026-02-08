@@ -4,19 +4,17 @@ import {
   setupDesksPageIntercepts
 } from '../support/flows';
 
-const testAuthEnabled = ['true', true, '1', 'yes'].includes(Cypress.env('testAuthEnabled'));
-const itIfAuth = testAuthEnabled ? it : it.skip;
-
 describe('desks', () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
+    cy.login();
   });
 
-  itIfAuth('should show desks with equipment for a room', () => {
+  it('should show desks with equipment for a room', () => {
     setupDesksPageIntercepts();
 
-    cy.visit('/oauth/callback');
+    cy.visit('/');
 
     // Verify Vuetify is properly loaded (catches component import issues)
     cy.waitForVuetify();
@@ -46,7 +44,7 @@ describe('desks', () => {
     cy.get('[data-cy="desk-status"]').first().should('have.class', 'v-chip');
   });
 
-  itIfAuth('should book an available desk and show success message', () => {
+  it('should book an available desk and show success message', () => {
     // Mock desks response with an available desk
     const mockDesk = createMockDesk('desk-available-1', 'Available Desk');
     cy.intercept('GET', '/api/v1/rooms/*/desks*', createMockDesksResponse([mockDesk])).as(
@@ -89,7 +87,7 @@ describe('desks', () => {
     cy.get('[data-cy="booking-success"]').should('contain', 'Desk booked successfully');
   });
 
-  itIfAuth('should show conflict message with prompt when desk is already booked', () => {
+  it('should show conflict message with prompt when desk is already booked', () => {
     // Mock desks response with an available desk
     const mockDesk = createMockDesk('desk-mock-1', 'Mock Desk 1');
     cy.intercept('GET', '/api/v1/rooms/*/desks*', createMockDesksResponse([mockDesk])).as(
@@ -133,7 +131,7 @@ describe('desks', () => {
     cy.wait('@listDesks');
   });
 
-  itIfAuth('should show self-duplicate message when user already has booking', () => {
+  it('should show self-duplicate message when user already has booking', () => {
     // Mock desks response with an available desk
     const mockDesk = createMockDesk('desk-mock-2', 'Mock Desk 2');
     cy.intercept('GET', '/api/v1/rooms/*/desks*', createMockDesksResponse([mockDesk])).as(

@@ -74,12 +74,12 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, BookingCard, ConfirmDialog } from '../components';
 
@@ -90,20 +90,8 @@ const cancelErrorMessage = ref<string | null>(null);
 const cancellingBookingId = ref<string | null>(null);
 const showCancelDialog = ref(false);
 const pendingCancelId = ref<string | null>(null);
-const router = useRouter();
 const { loading: bookingsLoading, error: bookingsError, run: runBookings } = useApi();
-
-const handleAuthError = async (err: unknown) => {
-  if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
-    return true;
-  }
-  if (err instanceof ApiError && err.status === 403) {
-    await router.push('/access-denied');
-    return true;
-  }
-  return false;
-};
+const { handleAuthError } = useAuthErrorHandler();
 
 const loadBookings = async () => {
   try {

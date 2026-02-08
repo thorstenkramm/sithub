@@ -1,0 +1,13 @@
+post:
+  summary: Logout and clear session cookie
+  operationId: logout
+  security: []
+  responses:
+    '204':
+      description: Session cleared
+    '405':
+      description: Method not allowed
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

@@ -9,7 +9,7 @@
             Please contact your administrator or try a different account.
           </v-card-text>
           <v-card-actions>
-            <v-btn data-cy="access-denied-login" href="/oauth/login" variant="tonal">
+            <v-btn data-cy="access-denied-login" href="/login" variant="tonal">
               Back to login
             </v-btn>
           </v-card-actions>

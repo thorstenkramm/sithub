@@ -58,10 +58,6 @@ type runOptions struct {
 	entraidClientSecret  string
 	entraidUsersGroupID  string
 	entraidAdminsGroupID string
-	testAuthEnabled      bool
-	testAuthUserID       string
-	testAuthUserName     string
-	testAuthPermitted    bool
 }
 
 func newRunOptions() *runOptions {
@@ -84,10 +80,6 @@ func (o *runOptions) bindFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.entraidClientSecret, "entraid-client-secret", "", "Entra ID client secret")
 	cmd.Flags().StringVar(&o.entraidUsersGroupID, "entraid-users-group-id", "", "Entra ID users group ID")
 	cmd.Flags().StringVar(&o.entraidAdminsGroupID, "entraid-admin-group-id", "", "Entra ID admins group ID")
-	cmd.Flags().BoolVar(&o.testAuthEnabled, "test-auth-enabled", false, "Enable test auth (development only)")
-	cmd.Flags().StringVar(&o.testAuthUserID, "test-auth-user-id", "", "Test auth user ID")
-	cmd.Flags().StringVar(&o.testAuthUserName, "test-auth-user-name", "", "Test auth user name")
-	cmd.Flags().BoolVar(&o.testAuthPermitted, "test-auth-permitted", false, "Whether test auth user is permitted")
 }
 
 func (o *runOptions) overrides(cmd *cobra.Command) map[string]interface{} {
@@ -111,9 +103,5 @@ func (o *runOptions) overrides(cmd *cobra.Command) map[string]interface{} {
 	set("entraid-client-secret", "entraid.client_secret", o.entraidClientSecret)
 	set("entraid-users-group-id", "entraid.users_group_id", o.entraidUsersGroupID)
 	set("entraid-admin-group-id", "entraid.admins_group_id", o.entraidAdminsGroupID)
-	set("test-auth-enabled", "test_auth.enabled", o.testAuthEnabled)
-	set("test-auth-user-id", "test_auth.user_id", o.testAuthUserID)
-	set("test-auth-user-name", "test_auth.user_name", o.testAuthUserName)
-	set("test-auth-permitted", "test_auth.permitted", o.testAuthPermitted)
 	return overrides
 }

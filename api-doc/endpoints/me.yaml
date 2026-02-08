@@ -1,15 +1,43 @@
 get:
-  summary: Get current user
+  summary: Get current user profile
   operationId: getCurrentUser
   responses:
     '200':
-      description: Current user
+      description: Current user profile
       content:
         application/vnd.api+json:
           schema:
-            $ref: ../openapi.yaml#/components/schemas/SingleResponse
+            $ref: ../openapi.yaml#/components/schemas/UserSingleResponse
     '401':
       description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+patch:
+  summary: Change own password (local users only)
+  operationId: updateCurrentUser
+  requestBody:
+    required: true
+    content:
+      application/vnd.api+json:
+        schema:
+          $ref: ../openapi.yaml#/components/schemas/ChangePasswordRequest
+  responses:
+    '200':
+      description: Password changed
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/UserSingleResponse
+    '400':
+      description: Validation error or not a local user
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Current password is incorrect
       content:
         application/vnd.api+json:
           schema:

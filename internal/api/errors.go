@@ -60,6 +60,16 @@ func WriteConflict(c echo.Context, detail string) error {
 	return nil
 }
 
+// WriteTooManyRequests writes a JSON:API rate-limit error response.
+func WriteTooManyRequests(c echo.Context, detail string) error {
+	errResp := NewError(http.StatusTooManyRequests, "Too Many Requests", detail, "rate_limited")
+	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
+	if err := c.JSON(http.StatusTooManyRequests, errResp); err != nil {
+		return fmt.Errorf("write too many requests response: %w", err)
+	}
+	return nil
+}
+
 // WriteUnsupportedMediaType writes a JSON:API unsupported media type error response.
 func WriteUnsupportedMediaType(c echo.Context, detail string) error {
 	errResp := NewError(http.StatusUnsupportedMediaType, "Unsupported Media Type", detail, "unsupported_media_type")

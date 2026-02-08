@@ -9,6 +9,10 @@ workflowType: 'architecture'
 lastStep: 8
 status: 'complete'
 completedAt: '2026-01-17'
+lastEdited: '2026-02-07'
+editHistory:
+  - date: '2026-02-07'
+    changes: "Added dual auth (Entra ID + local), user management API, users module, password hashing, test_auth removal. Updated constraints, patterns, structure, and validation."
 project_name: 'sithub'
 user_name: 'Thorsten'
 date: '2026-01-17'
@@ -24,16 +28,21 @@ architectural decision together._
 ### Requirements Overview
 
 **Functional Requirements:**
-The system must support Entra ID SSO, role-based permissions (regular vs admin), discovery of areas/rooms/desks with
-equipment and status, single-day booking with conflict handling, booking management (view/cancel), room and presence
-overviews, and configuration-driven setup. Post-MVP capabilities include booking on behalf, guests, recurring bookings,
-history, notifications, admin management UI, and later floor-map booking and analytics.
+The system must support dual authentication (Entra ID SSO or local email/password credentials),
+role-based permissions (regular vs admin) with source-dependent admin sync, a user management
+API (`/users` CRUD, `/me` endpoint), self-service and admin password management for local users,
+discovery of areas/rooms/desks with equipment and status, single-day booking with conflict
+handling, booking management (view/cancel), room and presence overviews, and configuration-driven
+setup. Post-MVP capabilities include booking on behalf, guests, recurring bookings, history,
+notifications, admin management UI, and later floor-map booking and analytics.
 
 **Non-Functional Requirements:**
 
 - Performance: for <=50 concurrent users, list navigation p95 <= 2s; booking/cancel p95 <= 3s.
 - Reliability: restart without data loss; no partial records on conflicts.
-- Security: all booking data behind Entra ID auth; unauthenticated access denied.
+- Security: all booking data behind authenticated access (Entra ID or local credentials);
+  unauthenticated access denied; local passwords stored as bcrypt hashes; minimum password
+  length 14 characters.
 - Scalability: single-node deployment sufficient for MVP.
 - Accessibility: WCAG A (labels, keyboard focus, labeled inputs).
 
@@ -45,13 +54,23 @@ history, notifications, admin management UI, and later floor-map booking and ana
 
 ### Technical Constraints & Dependencies
 
-- Entra ID SSO integration is mandatory.
+- Dual authentication: Entra ID SSO is optional; local credentials are always available.
+  The application must be fully usable without Entra ID configured.
+- Email addresses are unique across all authentication sources. A local user cannot share
+  an email with an Entra ID user, and vice versa.
+- The existing `test_auth` mechanism is removed; real local users replace it entirely.
 - Space definition is file-based configuration.
 - Single-binary distribution is a technical success criterion.
 - Existing docs suggest a monolith with SPA + REST; treat as a candidate constraint to validate.
 
 ### Cross-Cutting Concerns Identified
 
+- Dual authentication flow: login page presents both a credentials form and an Entra ID
+  button; both paths produce the same signed-cookie session
+- User lifecycle: Entra ID users inserted on first login and updated on subsequent logins;
+  local users created by admins via API or SQL
+- Admin role sync: Entra ID users sync `is_admin` from group membership on every login
+  (local DB changes blocked); local users have `is_admin` managed via database
 - Real-time availability consistency and conflict handling
 - Authorization boundaries for admin vs regular users
 - Configuration validation and safe startup behavior
@@ -118,6 +137,44 @@ exists for Option C, it could be adopted after verifying active maintenance and 
 - Decision: WebSockets for live availability updates with polling fallback.
 - Rationale: Ensures responsive UX while providing resilience in environments that block WebSockets.
 
+### Category 3: Authentication & Identity
+
+- Decision: Dual-source authentication -- Entra ID SSO and local email/password credentials.
+- Decision: Central users table stores all users regardless of authentication source.
+  Entra ID users are inserted on first login and updated (name, email, `is_admin`) on
+  subsequent logins. Local users are created by admins via the `/users` API or SQL.
+- Decision: Unified session mechanism -- both auth paths produce the same signed cookie
+  (gorilla/securecookie). After successful Entra ID callback or local credential validation,
+  the same cookie is set. All downstream middleware and handlers are auth-source agnostic.
+- Decision: Password storage uses bcrypt hashing for local users. Minimum password length
+  is 14 characters. Entra ID users have no local password.
+- Decision: Admin role determination is source-dependent. For Entra ID users, `is_admin`
+  is synced from group membership on every login; local changes to this field are overwritten.
+  For local users, `is_admin` is managed via the database by administrators.
+- Decision: Email uniqueness is enforced at the database level with a unique constraint.
+  Creating a local user with an email that exists for an Entra ID user is blocked, and
+  vice versa.
+- Decision: The `test_auth` mechanism is removed. Local users with real credentials replace
+  it entirely for development and testing.
+- Rationale: Dual auth makes the application usable for companies without Entra ID while
+  retaining enterprise SSO for those that have it. Unified sessions keep middleware simple.
+  bcrypt is the industry standard for password hashing with adaptive cost factor.
+
+### Category 4: User Management API
+
+- Decision: `/api/v1/users` endpoint for CRUD operations on local users. Admins can list,
+  create, read, update, and delete local users. Non-admin users can only read. Entra ID
+  users cannot be created or deleted via this endpoint.
+- Decision: `/api/v1/me` endpoint returns the current user's profile (id, email, name,
+  role, authentication source). Local users can change their own password via PATCH on
+  `/api/v1/me`.
+- Decision: Admin password reset via PATCH on `/api/v1/users/{id}`. Only works for local
+  users; Entra ID user passwords cannot be reset this way.
+- Decision: A `demo-users.sql` file in `tools/database/` provides 15 local users (2 admins,
+  13 regular) for development and testing setup.
+- Rationale: API-first user management supports the PRD requirement that no user management
+  UI is needed for MVP. The `/me` endpoint provides self-service capabilities.
+
 ## Implementation Patterns & Consistency Rules
 
 ### Naming Patterns
@@ -148,7 +205,9 @@ exists for Option C, it could be adopted after verifying active maintenance and 
 
 ### Process Patterns
 
-- Auth: Entra ID required for all API endpoints; unauthenticated requests return JSON:API errors (401/403).
+- Auth: Dual-source authentication (Entra ID SSO or local credentials); all API endpoints
+  require an authenticated session; unauthenticated requests return JSON:API errors (401/403).
+  Password policy: minimum 14 characters for local users.
 - Config: TOML keys in snake_case with documented defaults per `toml.md`.
 - Logging: structured logging with `log/slog` and error wrapping using `%w`.
 - Tooling: Go 1.25 and golangci-lint 2.5.0; Node.js 24 with create-vue and Vite.
@@ -180,11 +239,12 @@ exists for Option C, it could be adopted after verifying active maintenance and 
 
 ### Requirements to Modules Mapping
 
-- Identity & Access -> `internal/auth`, `internal/middleware`
-- Discovery (areas/rooms/desks) -> `internal/areas`, `internal/rooms`, `internal/desks`
-- Booking creation/management -> `internal/bookings`
-- Room/Presence overviews -> `internal/rooms`, `internal/presence`
-- Config/setup -> `internal/config`, `internal/startup`
+- Identity & Access (FR1-FR3) -> `internal/auth`, `internal/middleware`
+- User Management (FR28-FR35) -> `internal/users`
+- Discovery (FR4-FR8) -> `internal/areas`, `internal/rooms`, `internal/desks`
+- Booking creation/management (FR9-FR14) -> `internal/bookings`
+- Room/Presence overviews (FR15-FR16) -> `internal/rooms`, `internal/presence`
+- Config/setup (FR17-FR19) -> `internal/config`, `internal/startup`
 - JSON:API types -> `internal/api`
 
 ### Proposed Repository Structure
@@ -209,7 +269,8 @@ sithub/
 │       └── main.go            # cobra entrypoint
 ├── internal/
 │   ├── api/                   # JSON:API response types + error builders
-│   ├── auth/                  # Entra ID auth flow + role extraction
+│   ├── auth/                  # dual auth (Entra ID + local) + session management
+│   ├── users/                 # user management API (CRUD, /me, password)
 │   ├── middleware/            # auth/role guards, request logging
 │   ├── config/                # viper config loading/validation
 │   ├── db/                    # SQLite init + migrations runner
@@ -245,13 +306,16 @@ sithub/
 │   │   └── api/               # JSON:API client layer
 │   └── tests/                 # Vitest unit tests
 └── tools/
+    ├── database/
+    │   └── demo-users.sql     # 15 local users (2 admins, 13 regular) for dev/test
     └── embed/                 # build helpers to copy web/dist -> assets/web
 ```
 
 ### Integration Boundaries
 
 - API boundary: `/api/v1/*` JSON:API only, no trailing slashes.
-- Auth boundary: middleware enforces Entra ID on all API routes; role checks inside handlers.
+- Auth boundary: middleware enforces authenticated session (Entra ID or local) on all API
+  routes; role checks inside handlers; auth-source agnostic after session creation.
 - Data boundary: repositories in each domain; no direct SQL in handlers.
 - Frontend boundary: API access only through `web/src/api` and composables; no raw fetches in views.
 
@@ -274,17 +338,19 @@ The repo tree supports domain modules, OpenAPI docs, embedded SPA assets, and te
 
 **Functional Coverage:**
 
-- Identity & Access -> `internal/auth`, `internal/middleware`
-- Discovery -> `internal/areas`, `internal/rooms`, `internal/desks`
-- Booking -> `internal/bookings`
-- Room/Presence -> `internal/rooms`, `internal/presence`
-- Config/Setup -> `internal/config`, `internal/startup`
+- Identity & Access (FR1-FR3) -> `internal/auth`, `internal/middleware`
+- User Management (FR28-FR35) -> `internal/users`
+- Discovery (FR4-FR8) -> `internal/areas`, `internal/rooms`, `internal/desks`
+- Booking (FR9-FR14) -> `internal/bookings`
+- Room/Presence (FR15-FR16) -> `internal/rooms`, `internal/presence`
+- Config/Setup (FR17-FR19) -> `internal/config`, `internal/startup`
 
 **Non-Functional Coverage:**
 
 - Performance targets supported by simple relational model and single-node scope.
 - Reliability supported by migrations and SQLite WAL.
-- Security covered by Entra ID enforcement and JSON:API error handling.
+- Security covered by dual-source auth enforcement, bcrypt password hashing, and
+  JSON:API error handling.
 - Accessibility supported by frontend rules and patterns.
 
 ### Implementation Readiness Validation
@@ -333,10 +399,11 @@ Critical decisions, patterns, and structure are explicit enough for multi-agent 
 
 #### Implementation Ready Foundation
 
-- 4 key architectural decisions made
+- 6 key architectural decisions made (data, real-time, auth/identity, user management,
+  conflict resolution, time granularity)
 - 7 pattern categories defined
-- 8 major architectural components specified
-- 6 functional requirement categories supported
+- 9 major architectural components specified
+- 7 functional requirement categories supported (including user management FR28-FR35)
 
 #### AI Agent Implementation Guide
 
@@ -356,8 +423,9 @@ Initialize the Go CLI entrypoint, Vue app scaffold, and asset embedding pipeline
 **Development Sequence:**
 
 1. Initialize project structure and config loading.
-2. Set up database initialization and migrations.
-3. Implement auth middleware and base API responses.
-4. Build core domain modules (areas, rooms, desks, bookings, presence).
-5. Implement frontend views and API client layer.
-6. Add tests per Vitest and Cypress rules.
+2. Set up database initialization and migrations (including users table).
+3. Implement dual auth (Entra ID + local login) and session middleware.
+4. Implement user management API (`/users` CRUD, `/me`, password management).
+5. Build core domain modules (areas, rooms, desks, bookings, presence).
+6. Implement frontend views and API client layer.
+7. Add tests per Vitest and Cypress rules.

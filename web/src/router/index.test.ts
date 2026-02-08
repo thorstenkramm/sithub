@@ -1,8 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
+const mockBeforeEach = vi.fn();
+
 vi.mock('vue-router', () => ({
-  createRouter: vi.fn(() => ({ name: 'router' })),
+  createRouter: vi.fn(() => ({ name: 'router', beforeEach: mockBeforeEach })),
   createWebHistory: vi.fn(() => ({ name: 'history' }))
+}));
+
+vi.mock('../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn(() => ({ isAuthenticated: false }))
+}));
+
+vi.mock('../api/me', () => ({
+  fetchMe: vi.fn()
 }));
 
 describe('router', () => {
@@ -13,7 +23,12 @@ describe('router', () => {
     expect(createRouter).toHaveBeenCalledWith(
       expect.objectContaining({
         history: { name: 'history' },
-        routes: [
+        routes: expect.arrayContaining([
+          expect.objectContaining({
+            path: '/login',
+            name: 'login',
+            meta: { public: true }
+          }),
           expect.objectContaining({
             path: '/',
             name: 'areas'
@@ -44,12 +59,14 @@ describe('router', () => {
           }),
           expect.objectContaining({
             path: '/access-denied',
-            name: 'access-denied'
+            name: 'access-denied',
+            meta: { public: true }
           })
-        ]
+        ])
       })
     );
 
-    expect(module.default).toEqual({ name: 'router' });
+    expect(mockBeforeEach).toHaveBeenCalledWith(expect.any(Function));
+    expect(module.default).toEqual({ name: 'router', beforeEach: mockBeforeEach });
   });
 });

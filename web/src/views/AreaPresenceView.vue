@@ -54,12 +54,6 @@
           </template>
           <v-list-item-title>
             {{ entry.attributes.user_name || 'Unknown' }}
-            <StatusChip
-              v-if="entry.attributes.is_guest"
-              status="guest"
-              size="x-small"
-              class="ml-2"
-            />
           </v-list-item-title>
           <v-list-item-subtitle>
             <v-icon size="14" class="mr-1">$room</v-icon>
@@ -81,22 +75,23 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchAreaPresence } from '../api/areaPresence';
 import { fetchAreas } from '../api/areas';
 import type { PresenceAttributes } from '../api/areaPresence';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
-import { PageHeader, LoadingState, EmptyState, DatePickerField, StatusChip } from '../components';
+import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
+import { PageHeader, LoadingState, EmptyState, DatePickerField } from '../components';
 
 const presence = ref<JsonApiResource<PresenceAttributes>[]>([]);
 const errorMessage = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
 const areaName = ref('');
 const route = useRoute();
-const router = useRouter();
 const { loading, run } = useApi();
+const { handleAuthError } = useAuthErrorHandler();
 const activeAreaId = ref<string | null>(null);
 
 const breadcrumbs = computed(() => [
@@ -113,18 +108,6 @@ const formattedDate = computed(() => {
     day: 'numeric'
   });
 });
-
-const handleAuthError = async (err: unknown) => {
-  if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
-    return true;
-  }
-  if (err instanceof ApiError && err.status === 403) {
-    await router.push('/access-denied');
-    return true;
-  }
-  return false;
-};
 
 const getInitials = (name: string | undefined) => {
   if (!name) return '?';

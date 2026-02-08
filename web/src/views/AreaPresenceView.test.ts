@@ -87,7 +87,7 @@ describe('AreaPresenceView', () => {
   });
 
   it('fetches presence on mount', async () => {
-    const wrapper = mountView();
+    mountView();
     await flushPromises();
 
     // Should fetch with today's date on mount

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/thorstenkramm/sithub/internal/config"
+	"github.com/thorstenkramm/sithub/internal/users"
 )
 
 // ErrInvalidState indicates an OAuth state mismatch.
@@ -24,11 +26,12 @@ const (
 	userCookieName  = "sithub_user"
 )
 
-// Service handles Entra ID authentication and cookie encoding.
+// Service handles authentication and cookie encoding.
+// Service is safe for concurrent use after construction.
 type Service struct {
 	oauthConfig *oauth2.Config
 	cookieCodec *securecookie.SecureCookie
-	testAuth    config.TestAuthConfig
+	store       *sql.DB
 	adminsGroup string
 	usersGroup  string
 }
@@ -37,43 +40,39 @@ type Service struct {
 type User struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
+	Email       string `json:"email"`
 	IsAdmin     bool   `json:"is_admin"`
 	IsPermitted bool   `json:"is_permitted"`
-	AccessToken string `json:"access_token"`
+	AuthSource  string `json:"auth_source"`
 }
+
+// GetID returns the user's database ID.
+func (u *User) GetID() string { return u.ID }
 
 type graphUser struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"displayName"`
+	Mail        string `json:"mail"`
+	UPN         string `json:"userPrincipalName"`
 }
 
 // NewService configures an authentication service from config.
-func NewService(cfg *config.Config) (*Service, error) {
-	authURL := cfg.EntraID.AuthorizeURL
-	tokenURL := cfg.EntraID.TokenURL
-	redirectURL := cfg.EntraID.RedirectURI
-	clientID := cfg.EntraID.ClientID
-	clientSecret := cfg.EntraID.ClientSecret
-
-	missingAuthConfig := authURL == "" || tokenURL == "" || redirectURL == "" || clientID == "" || clientSecret == ""
-	if missingAuthConfig && !cfg.TestAuth.Enabled {
-		return nil, fmt.Errorf("auth config: %w", config.ErrMissingEntraIDConfig)
-	}
-
+func NewService(cfg *config.Config, store *sql.DB) (*Service, error) {
 	var oauthConfig *oauth2.Config
-	if !missingAuthConfig {
+
+	if cfg.EntraIDConfigured() {
 		scopes := []string{"openid", "profile", "email", "User.Read"}
 		if cfg.EntraID.AdminsGroupID != "" || cfg.EntraID.UsersGroupID != "" {
 			scopes = append(scopes, "GroupMember.Read.All")
 		}
 		oauthConfig = &oauth2.Config{
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			RedirectURL:  redirectURL,
+			ClientID:     cfg.EntraID.ClientID,
+			ClientSecret: cfg.EntraID.ClientSecret,
+			RedirectURL:  cfg.EntraID.RedirectURI,
 			Scopes:       scopes,
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  authURL,
-				TokenURL: tokenURL,
+				AuthURL:  cfg.EntraID.AuthorizeURL,
+				TokenURL: cfg.EntraID.TokenURL,
 			},
 		}
 	}
@@ -90,10 +89,15 @@ func NewService(cfg *config.Config) (*Service, error) {
 	return &Service{
 		oauthConfig: oauthConfig,
 		cookieCodec: securecookie.New(hashKey, blockKey),
-		testAuth:    cfg.TestAuth,
+		store:       store,
 		adminsGroup: cfg.EntraID.AdminsGroupID,
 		usersGroup:  cfg.EntraID.UsersGroupID,
 	}, nil
+}
+
+// Store returns the database handle.
+func (s *Service) Store() *sql.DB {
+	return s.store
 }
 
 // AuthCodeURL returns the authorization URL for the given state.
@@ -132,7 +136,7 @@ func (s *Service) DecodeState(value string) (string, error) {
 }
 
 // EncodeUser encodes a user into a signed cookie value.
-func (s *Service) EncodeUser(user User) (string, error) {
+func (s *Service) EncodeUser(user *User) (string, error) {
 	encoded, err := s.cookieCodec.Encode(userCookieName, user)
 	if err != nil {
 		return "", fmt.Errorf("encode user: %w", err)
@@ -149,11 +153,13 @@ func (s *Service) DecodeUser(value string) (*User, error) {
 	return &user, nil
 }
 
-// FetchUser retrieves the current user profile from Microsoft Graph.
+// FetchUser retrieves the current user profile from Microsoft Graph
+// and upserts the user into the local database.
 func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, error) {
 	client := s.oauthConfig.Client(ctx, token)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://graph.microsoft.com/v1.0/me", http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName", http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("build user request: %w", err)
 	}
@@ -177,39 +183,67 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 		return nil, fmt.Errorf("decode user: %w", err)
 	}
 
-	user := &User{
-		ID:          graph.ID,
-		Name:        graph.DisplayName,
-		IsPermitted: s.usersGroup == "",
+	email := graph.Mail
+	if email == "" {
+		email = graph.UPN
 	}
+
+	isPermitted := s.usersGroup == ""
+	isAdmin := false
 
 	if s.adminsGroup != "" || s.usersGroup != "" {
 		groupIDs, err := s.fetchGroupIDs(ctx, client)
-		if err != nil {
-			return user, nil
+		if err == nil {
+			if s.usersGroup != "" {
+				isPermitted = isGroupMember(groupIDs, s.usersGroup)
+			}
+			isAdmin = s.isAdminGroupMember(groupIDs)
 		}
-		if s.usersGroup != "" {
-			user.IsPermitted = isGroupMember(groupIDs, s.usersGroup)
-		}
-		user.IsAdmin = s.isAdminGroupMember(groupIDs)
+	}
+
+	// Upsert into local DB
+	rec, err := users.UpsertEntraIDUser(ctx, s.store, graph.ID, email, graph.DisplayName, isAdmin)
+	if err != nil {
+		return nil, fmt.Errorf("upsert entra user: %w", err)
+	}
+
+	user := &User{
+		ID:          rec.ID,
+		Name:        graph.DisplayName,
+		Email:       email,
+		IsPermitted: isPermitted,
+		IsAdmin:     isAdmin,
+		AuthSource:  "entraid",
 	}
 
 	return user, nil
 }
 
 // RefreshPermissions re-evaluates group membership for the given user.
+// For local users, permissions are always granted; this is a no-op.
 func (s *Service) RefreshPermissions(ctx context.Context, user *User) error {
-	if user == nil || s.usersGroup == "" {
+	if user == nil {
+		return nil
+	}
+	if user.AuthSource == "internal" {
+		return nil
+	}
+	if s.usersGroup == "" {
 		return nil
 	}
 	if s.oauthConfig == nil {
 		return fmt.Errorf("refresh permissions: missing oauth config")
 	}
-	if user.AccessToken == "" {
+
+	accessToken, err := users.GetAccessToken(ctx, s.store, user.ID)
+	if err != nil {
+		return fmt.Errorf("refresh permissions: %w", err)
+	}
+	if accessToken == "" {
 		return fmt.Errorf("refresh permissions: missing access token")
 	}
 
-	client := s.oauthConfig.Client(ctx, &oauth2.Token{AccessToken: user.AccessToken})
+	client := s.oauthConfig.Client(ctx, &oauth2.Token{AccessToken: accessToken})
 	groupIDs, err := s.fetchGroupIDs(ctx, client)
 	if err != nil {
 		return err

@@ -1,17 +1,15 @@
-const testAuthEnabled = ['true', true, '1', 'yes'].includes(Cypress.env('testAuthEnabled'));
-const itIfAuth = testAuthEnabled ? it : it.skip;
-
 describe('rooms', () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
+    cy.login();
   });
 
-  itIfAuth('should show rooms for selected area', () => {
+  it('should show rooms for selected area', () => {
     cy.intercept('GET', '/api/v1/areas').as('listAreas');
     cy.intercept('GET', '/api/v1/areas/*/rooms').as('listRooms');
 
-    cy.visit('/oauth/callback');
+    cy.visit('/');
 
     // Wait for areas to load and click the first one
     cy.wait('@listAreas').its('response.statusCode').should('eq', 200);

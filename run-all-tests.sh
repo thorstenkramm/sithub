@@ -49,6 +49,8 @@ run_step "API doc lint" npx @redocly/cli lint --lint-config off ./api-doc/openap
 run_step "Code duplication (Go)" npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 3
 
 run_step "Install frontend deps" bash -c "cd \"${WEB_DIR}\" && npm ci"
+run_step "Frontend type-check" bash -c "cd \"${WEB_DIR}\" && npm run type-check"
+run_step "Frontend lint" bash -c "cd \"${WEB_DIR}\" && npm run lint"
 run_step "Code duplication (frontend)" bash -c \
 	"cd \"${WEB_DIR}\" && npx jscpd --pattern \"**/*.ts\" --ignore \"**/node_modules/**\" --threshold 0 --exitCode 1"
 run_step "Frontend unit tests (coverage)" bash -c "cd \"${WEB_DIR}\" && npm run test:unit:coverage"
@@ -59,7 +61,7 @@ log_step "Cypress E2E tests"
 # Build the server
 go build -o "${ROOT_DIR}/sithub" ./cmd/sithub
 
-# Create temporary config files for test auth
+# Create temporary config files
 TEST_CONFIG="${ROOT_DIR}/.sithub-test.toml"
 TEST_SPACES="${ROOT_DIR}/.sithub-test-spaces.yaml"
 
@@ -90,10 +92,6 @@ level = "info"
 
 [spaces]
 config_file = "${TEST_SPACES}"
-
-[test_auth]
-enabled = true
-permitted = true
 EOF
 
 # Start the server in the background
@@ -106,7 +104,7 @@ cleanup() {
 		kill "${SERVER_PID}" 2>/dev/null || true
 		wait "${SERVER_PID}" 2>/dev/null || true
 	fi
-	rm -f "${TEST_CONFIG}" "${TEST_SPACES}"
+	rm -f "${TEST_CONFIG}" "${TEST_SPACES}" "${ROOT_DIR}/sithub.db"
 }
 trap cleanup EXIT
 
@@ -124,8 +122,11 @@ if ! curl -s http://localhost:8080/health >/dev/null 2>&1; then
 	exit 1
 fi
 
+# Seed demo users for local authentication
+sqlite3 "${ROOT_DIR}/sithub.db" <"${ROOT_DIR}/tools/database/demo-users.sql"
+
 # Run Cypress E2E tests (headless, Electron only)
-if cd "${WEB_DIR}" && npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testAuthEnabled=true,testAuthPermitted=true; then
+if cd "${WEB_DIR}" && npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testUserEmail=anna@sithub.local,testUserPassword=SitHubDemo2026!!; then
 	log_ok "Cypress E2E tests passed"
 else
 	log_fail "Cypress E2E tests failed"

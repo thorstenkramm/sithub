@@ -21,6 +21,7 @@ export interface MyBookingAttributes {
   booked_by_user_name: string;
   booked_for_me: boolean;
   is_guest?: boolean;
+  guest_name?: string;
   guest_email?: string;
 }
 

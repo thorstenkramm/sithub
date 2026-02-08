@@ -256,7 +256,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { ApiError } from '../api/client';
 import {
   createBooking,
@@ -272,6 +272,7 @@ import { fetchAreas } from '../api/areas';
 import type { DeskAttributes } from '../api/desks';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
 
@@ -285,7 +286,6 @@ const cancelingBookingId = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
 const todayDate = formatDate(new Date());
 const route = useRoute();
-const router = useRouter();
 const { loading: desksLoading, run: runDesks } = useApi();
 const activeRoomId = ref<string | null>(null);
 const areaName = ref('');
@@ -309,17 +309,7 @@ const formattedDate = computed(() => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 });
 
-const handleAuthError = async (err: unknown) => {
-  if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
-    return true;
-  }
-  if (err instanceof ApiError && err.status === 403) {
-    await router.push('/access-denied');
-    return true;
-  }
-  return false;
-};
+const { handleAuthError } = useAuthErrorHandler();
 
 const ensureDate = (value: string) => {
   if (value.trim() !== '') {

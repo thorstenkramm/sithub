@@ -1,369 +1,209 @@
 ---
-validationTarget: /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
-validationDate: '2026-01-17'
+validationTarget: _bmad-output/planning-artifacts/prd.md
+validationDate: '2026-02-07'
 inputDocuments:
-- /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/product-brief-sithub-2026-01-17.md
-- /Users/thorsten/projects/thorsten/sithub/docs/index.md
-- /Users/thorsten/projects/thorsten/sithub/docs/project-overview.md
-- /Users/thorsten/projects/thorsten/sithub/docs/architecture.md
-- /Users/thorsten/projects/thorsten/sithub/docs/source-tree-analysis.md
-- /Users/thorsten/projects/thorsten/sithub/docs/component-inventory.md
-- /Users/thorsten/projects/thorsten/sithub/docs/development-guide.md
-- /Users/thorsten/projects/thorsten/sithub/docs/deployment-guide.md
-- /Users/thorsten/projects/thorsten/sithub/docs/api-contracts-root.md
-- /Users/thorsten/projects/thorsten/sithub/docs/data-models-root.md
-- /Users/thorsten/projects/thorsten/sithub/README.md
+  - _bmad-output/planning-artifacts/prd.md
+  - _bmad-output/planning-artifacts/product-brief-sithub-2026-01-17.md
 validationStepsCompleted:
-- step-v-01-discovery
-- step-v-02-format-detection
-- step-v-03-density-validation
-- step-v-04-brief-coverage-validation
-- step-v-05-measurability-validation
-- step-v-06-traceability-validation
-- step-v-07-implementation-leakage-validation
-- step-v-08-domain-compliance-validation
-- step-v-09-project-type-validation
-- step-v-10-smart-validation
-- step-v-11-holistic-quality-validation
-- step-v-12-completeness-validation
+  - step-v-01-discovery
+  - step-v-02-format-detection
+  - step-v-03-density-validation
+  - step-v-04-brief-coverage-validation
+  - step-v-05-measurability-validation
+  - step-v-06-traceability-validation
+  - step-v-07-implementation-leakage-validation
+  - step-v-08-domain-compliance-validation
+  - step-v-09-project-type-validation
+  - step-v-10-smart-validation
+  - step-v-11-holistic-quality-validation
+  - step-v-12-completeness-validation
 validationStatus: COMPLETE
-holisticQualityRating: 3/5
-overallStatus: Critical
+holisticQualityRating: 4/5
+overallStatus: Pass
+previousValidation:
+  date: '2026-01-17'
+  rating: 3/5
+  status: Critical
 ---
+
 # PRD Validation Report
 
-**PRD Being Validated:** /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
-**Validation Date:** 2026-01-17
+**PRD Being Validated:** `_bmad-output/planning-artifacts/prd.md`
+**Validation Date:** 2026-02-07
+**Overall Rating:** 4/5 (Good)
+**Overall Status:** PASS
+**Previous Rating:** 3/5 (Critical) on 2026-01-17
 
 ## Input Documents
 
-- /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/product-brief-sithub-2026-01-17.md
-- /Users/thorsten/projects/thorsten/sithub/docs/index.md
-- /Users/thorsten/projects/thorsten/sithub/docs/project-overview.md
-- /Users/thorsten/projects/thorsten/sithub/docs/architecture.md
-- /Users/thorsten/projects/thorsten/sithub/docs/source-tree-analysis.md
-- /Users/thorsten/projects/thorsten/sithub/docs/component-inventory.md
-- /Users/thorsten/projects/thorsten/sithub/docs/development-guide.md
-- /Users/thorsten/projects/thorsten/sithub/docs/deployment-guide.md
-- /Users/thorsten/projects/thorsten/sithub/docs/api-contracts-root.md
-- /Users/thorsten/projects/thorsten/sithub/docs/data-models-root.md
-- /Users/thorsten/projects/thorsten/sithub/README.md
+- PRD: prd.md
+- Product Brief: product-brief-sithub-2026-01-17.md
+
+## Quick Results
+
+| Step | Validation Check | Result |
+| --- | --- | --- |
+| 2 | Format Detection | BMAD Standard (6/6 core sections) |
+| 3 | Information Density | PASS (0 violations) |
+| 4 | Product Brief Coverage | PASS (all 6 dimensions covered) |
+| 5 | Measurability | PASS (3 minor FR violations) |
+| 6 | Traceability | PASS (chain intact, 0 orphans) |
+| 7 | Implementation Leakage | PASS (0 violations) |
+| 8 | Domain Compliance | PASS (general/low correctly classified) |
+| 9 | Project-Type Compliance | PASS (all web_app sections present) |
+| 10 | SMART Requirements | PASS (0/27 FRs flagged) |
+| 11 | Holistic Quality | 4/5 (Good) |
+| 12 | Completeness | PASS (no gaps) |
+
+## Previous Findings Resolution
+
+The 2026-01-17 validation identified 2 critical issues:
+
+- **Orphan FRs (FR20-FR27):** RESOLVED. Post-MVP and Future FR sections now include
+  explicit traceability context explaining how they trace to Growth Features and Vision
+  scope respectively.
+- **Implementation leakage (6 violations):** RESOLVED. Removed technology names (Go/Echo,
+  Vue 3/Vuetify, JSON:API) and specific config file names from requirement sections.
 
 ## Validation Findings
 
-[Findings will be appended as validation progresses]
+### Format Detection
 
-## Format Detection
-
-**PRD Structure:**
-- Executive Summary
-- Differentiators
-- Success Criteria
-- Product Scope
-- User Journeys
-- Web App Specific Requirements
-- UX/UI Requirements
-- Project Scoping & Phased Development
-- Functional Requirements
-- Non-Functional Requirements
-
-**BMAD Core Sections Present:**
-- Executive Summary: Present
-- Success Criteria: Present
-- Product Scope: Present
-- User Journeys: Present
-- Functional Requirements: Present
-- Non-Functional Requirements: Present
-
+**BMAD Core Sections Present:** 6/6
 **Format Classification:** BMAD Standard
-**Core Sections Present:** 6/6
 
-## Information Density Validation
+Level 2 headers: Executive Summary, Differentiators, Success Criteria, Product Scope,
+User Journeys, Web App Specific Requirements, UX/UI Requirements, Project Scoping & Phased
+Development, Functional Requirements, Non-Functional Requirements.
 
-**Anti-Pattern Violations:**
-
-**Conversational Filler:** 0 occurrences
-
-**Wordy Phrases:** 0 occurrences
-
-**Redundant Phrases:** 0 occurrences
+### Information Density
 
 **Total Violations:** 0
+**Severity:** PASS
 
-**Severity Assessment:** Pass
+No conversational filler, wordy phrases, or redundant expressions found. The PRD
+demonstrates excellent information density throughout.
 
-**Recommendation:** PRD demonstrates good information density with minimal violations.
+### Product Brief Coverage
 
-## Product Brief Coverage
+**Severity:** PASS
 
-**Product Brief:** product-brief-sithub-2026-01-17.md
+All 6 brief dimensions fully covered: vision/problem statement, target users, core features,
+success metrics, key differentiators, and future vision. The PRD correctly extends beyond
+the brief with dual authentication features (FR28-FR35) added after the brief was written.
 
-### Coverage Map
+### Measurability
 
-**Vision Statement:** Fully Covered
-**Target Users:** Fully Covered
-**Problem Statement:** Fully Covered
-**Key Features:** Fully Covered
-**Goals/Objectives:** Fully Covered
-**Differentiators:** Fully Covered
+**Total FR Violations:** 3
+**Severity:** PASS (< 5 threshold)
 
-### Coverage Summary
+Minor violations:
 
-**Overall Coverage:** Full
-**Critical Gaps:** 0
-**Moderate Gaps:** 0
-**Informational Gaps:** 0
+- FR17 and FR30: Use "clear error" (subjective adjective)
+- FR2: Says "managed via the database" (minor implementation leakage)
 
-**Recommendation:** Product brief coverage is complete.
+All 35 FRs have explicit, testable acceptance criteria. No vague quantifiers. No missing
+acceptance criteria.
 
-## Measurability Validation
+### Traceability
 
-### Functional Requirements
+**Severity:** PASS (chain intact)
 
-**Total FRs Analyzed:** 27
+- Executive Summary -> Success Criteria: Aligned
+- Success Criteria -> User Journeys: Complete
+- User Journeys -> FRs: Complete
+- Orphan FRs: None
 
-**Format Violations:** 0
+Minor observation: FR16 ("Today's presence") is present in the Journey Requirements Summary
+but has no dedicated journey step. Traceability is indirect but adequate.
 
-**Subjective Adjectives Found:** 0
+### Implementation Leakage
 
-**Vague Quantifiers Found:** 0
-
-**Implementation Leakage:** 0
-
-**FR Violations Total:** 0
-
-### Non-Functional Requirements
-
-**Total NFRs Analyzed:** 6
-
-**Missing Metrics:** 0
-
-**Incomplete Template:** 0
-
-**Missing Context:** 0
-
-**NFR Violations Total:** 0
-
-### Overall Assessment
-
-**Total Requirements:** 33
 **Total Violations:** 0
+**Severity:** PASS
 
-**Severity:** Pass
+No technology names, libraries, or implementation details found in functional or
+non-functional requirements. Architecture-level terms ("SPA", "REST") appear only in the
+dedicated Technical Architecture Considerations subsection.
 
-**Recommendation:** Requirements are measurable and testable.
+### Domain Compliance
 
-## Traceability Validation
+**Severity:** PASS
 
-### Chain Validation
+Classification of general/low complexity is correct. No mandatory regulatory sections are
+required or missing for a desk-booking application.
 
-**Executive Summary -> Success Criteria:** Intact
-**Success Criteria -> User Journeys:** Intact
-**User Journeys -> Functional Requirements:** Gaps Identified
-**Scope -> FR Alignment:** Intact
+### Project-Type Compliance
 
-### Orphan Elements
+**Severity:** PASS
 
-**Orphan Functional Requirements:** 8 (FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR27)
-**Unsupported Success Criteria:** 0
-**User Journeys Without FRs:** 0
+All 4 required web_app sections present and substantive: browser support, responsive/mobile
+requirements, accessibility (WCAG A), and UX/UI requirements. No excluded sections appear.
 
-### Traceability Matrix
+### SMART Requirements
 
-- Executive Summary -> Success Criteria: Intact
-- Success Criteria -> User Journeys: Intact
-- User Journeys -> Functional Requirements: Gaps Identified
-- Scope -> FR Alignment: Intact
+**FRs Flagged:** 0 out of 27 MVP FRs (0%)
+**Severity:** PASS
 
-**Total Traceability Issues:** 2
+All MVP FRs score 3 or above on all 5 SMART dimensions (Specific, Measurable, Attainable,
+Relevant, Traceable).
 
-**Severity:** Critical
+### Holistic Quality
 
-**Recommendation:** Orphan requirements exist - every FR must trace back to a user need or business objective.
+**Rating:** 4/5 (Good)
 
-## Implementation Leakage Validation
+**Top 3 Strengths:**
 
-### Leakage by Category
+- Consistent, testable acceptance criteria on every FR
+- Strong dual-audience design (humans via journeys, LLMs via structured headers)
+- Clean scope boundaries with explicit MVP/Post-MVP/Future separation
 
-**Frontend Frameworks:** 0 violations
+**Top 3 Improvements:**
 
-**Backend Frameworks:** 0 violations
+- Non-contiguous FR numbering (FR1-FR19, gap, FR28-FR35) reduces scannability
+- NFRs lack explicit traceability to which FRs they constrain
+- Real-time availability update mechanism is underspecified (no FR defines refresh behavior)
 
-**Databases:** 0 violations
+### Completeness
 
-**Cloud Platforms:** 0 violations
+**Severity:** PASS
 
-**Infrastructure:** 0 violations
+- Template variables: 0 found
+- Required sections: All 6 present with substantive content
+- All 35 FRs have acceptance criteria
+- All 5 NFR categories have measurable targets
+- All 4 user personas covered by journeys (employee, admin, IT, local user)
+- MVP clearly separated from post-MVP
+- Frontmatter fully populated
 
-**Libraries:** 0 violations
+## Summary
 
-**Other Implementation Details:** 6 violations
-- Line 148: - Fills all required values in `sithub.example.toml`.
-- Line 149: - Defines areas/rooms/desks using `sithub_areas.example.yaml` and validates against `sithub_areas.schema.json`.
-- Line 167: - File-based configuration via TOML + YAML schema.
-- Line 181: - SPA client + REST backend (JSON:API).
-- Line 210: - 1 backend engineer (Go/Echo, REST, SQLite).
-- Line 211: - 1 frontend engineer (Vue 3/Vuetify, responsive UX).
+### Critical Issues
 
-### Summary
+None.
 
-**Total Implementation Leakage Violations:** 6
+### Warnings
 
-**Severity:** Warning
+None.
 
-**Recommendation:** Some implementation leakage detected. Review violations and remove implementation details from requirements.
+### Informational Observations
 
-## Domain Compliance Validation
+- FR17 and FR30 use "clear error" -- consider "descriptive error message stating the
+  failure reason"
+- FR2 says "managed via the database" -- consider "managed locally by administrators"
+- FR numbering is non-contiguous (FR1-FR19, FR28-FR35) due to edit history
+- Real-time availability lacks a dedicated FR specifying update mechanism or staleness
+  tolerance
+- FR16 traceability to journeys is indirect
+- No explicit uptime/availability NFR (acceptable for MVP)
 
-**Domain:** general
-**Complexity:** Low (general/standard)
-**Assessment:** N/A - No special domain compliance requirements
+### Conclusion
 
-**Note:** This PRD is for a standard domain without regulatory compliance requirements.
+The PRD passes all 10 validation checks. It is a well-structured, implementation-ready
+document with consistent acceptance criteria, strong traceability, and clean scope
+boundaries. The 6 informational observations are refinements rather than structural
+deficiencies.
 
-## Project-Type Compliance Validation
-
-**Project Type:** web_app
-
-### Required Sections
-
-**User Journeys:** Present
-**UX/UI Requirements:** Present
-**Responsive Design:** Present
-
-### Excluded Sections (Should Not Be Present)
-
-**None required for web_app**
-
-### Compliance Summary
-
-**Required Sections:** 3/3 present
-**Excluded Sections Present:** 0
-**Compliance Score:** 100% 
-
-**Severity:** Pass
-
-**Recommendation:** Web app required sections are complete.
-
-## SMART Requirements Validation
-
-**Total Functional Requirements:** 27
-
-### Scoring Summary
-
-**Measurability:** Improved; all FRs include explicit acceptance criteria.
-**Traceability:** Still partial for post‑MVP FRs (see Traceability Validation).
-
-### Overall Assessment
-
-**Severity:** Warning
-
-**Recommendation:** Keep acceptance criteria and improve traceability for post‑MVP FRs.
-
-## Holistic Quality Assessment
-
-### Document Flow & Coherence
-
-**Assessment:** Good
-
-**Strengths:**
-- Clear sectioning with required BMAD headers
-- Consistent progression from vision to requirements
-- Journeys and scope are concrete and aligned
-
-**Areas for Improvement:**
-- Post‑MVP FRs lack journey traceability
-- Implementation details appear in requirement/journey sections
-
-### Dual Audience Effectiveness
-
-**For Humans:**
-- Executive-friendly: Good
-- Developer clarity: Adequate
-- Designer clarity: Good
-- Stakeholder decision-making: Good
-
-**For LLMs:**
-- Machine-readable structure: Good
-- UX readiness: Good
-- Architecture readiness: Adequate
-- Epic/Story readiness: Adequate
-
-**Dual Audience Score:** 3/5
-
-### BMAD PRD Principles Compliance
-
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| Information Density | Met |  |
-| Measurability | Met | FRs/NFRs include acceptance criteria |
-| Traceability | Partial | Post‑MVP FRs not linked to journeys |
-| Domain Awareness | Met |  |
-| Zero Anti-Patterns | Met |  |
-| Dual Audience | Met |  |
-| Markdown Format | Met |  |
-
-**Principles Met:** 6/7
-
-### Overall Quality Rating
-
-**Rating:** 3/5 - Adequate
-
-### Top 3 Improvements
-
-1. **Improve traceability for Growth/Vision FRs**
-   Add journeys or scope references that justify FR20–FR27.
-
-2. **Remove implementation leakage**
-   Replace concrete tech/tool choices with outcome-based requirements where possible.
-
-3. **Confirm NFR thresholds**
-   Validate performance and reliability targets against stakeholder expectations.
-
-### Summary
-
-**This PRD is:** Adequate and usable, but needs traceability and leakage refinements.
-
-**To make it great:** Focus on the top 3 improvements above.
-
-## Completeness Validation
-
-### Template Completeness
-
-**Template Variables Found:** 0
-No template variables remaining ✓
-
-### Content Completeness by Section
-
-**Executive Summary:** Complete
-**Success Criteria:** Complete
-**Product Scope:** Complete
-**User Journeys:** Complete
-**Functional Requirements:** Complete
-**Non-Functional Requirements:** Complete
-
-### Section-Specific Completeness
-
-**Success Criteria Measurability:** Some measurable
-**User Journeys Coverage:** Yes - covers all user types
-**FRs Cover MVP Scope:** Yes
-**NFRs Have Specific Criteria:** Some
-
-### Frontmatter Completeness
-
-**stepsCompleted:** Present
-**classification:** Present
-**inputDocuments:** Present
-**date:** Present
-
-**Frontmatter Completeness:** 4/4
-
-### Completeness Summary
-
-**Overall Completeness:** 100% (6/6)
-**Critical Gaps:** 0
-**Minor Gaps:** 0
-
-**Severity:** Pass
-
-**Recommendation:** PRD completeness is solid.
+**Previous validation:** 3/5 (Critical) -- orphan FRs, implementation leakage
+**Current validation:** 4/5 (Good) -- all critical issues resolved, +8 new FRs added
+**Improvement:** +1 rating point, Critical -> Pass

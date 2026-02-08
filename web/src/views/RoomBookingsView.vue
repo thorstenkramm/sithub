@@ -50,20 +50,12 @@
               <v-icon size="20">$desk</v-icon>
             </v-avatar>
           </template>
-          <v-list-item-title class="d-flex align-center flex-wrap ga-2">
+          <v-list-item-title>
             {{ booking.attributes.desk_name }}
-            <StatusChip
-              v-if="booking.attributes.is_guest"
-              status="guest"
-              size="x-small"
-            />
           </v-list-item-title>
           <v-list-item-subtitle>
             <v-icon size="14" class="mr-1">$user</v-icon>
             {{ booking.attributes.user_name || 'Unknown' }}
-            <span v-if="booking.attributes.guest_name" class="ml-1">
-              (Guest: {{ booking.attributes.guest_name }})
-            </span>
           </v-list-item-subtitle>
         </v-list-item>
       </v-list>
@@ -78,7 +70,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchRoomBookings } from '../api/roomBookings';
 import { fetchAreas } from '../api/areas';
@@ -86,7 +78,8 @@ import { fetchRooms } from '../api/rooms';
 import type { RoomBookingAttributes } from '../api/roomBookings';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
-import { PageHeader, LoadingState, EmptyState, DatePickerField, StatusChip } from '../components';
+import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
+import { PageHeader, LoadingState, EmptyState, DatePickerField } from '../components';
 
 const bookings = ref<JsonApiResource<RoomBookingAttributes>[]>([]);
 const errorMessage = ref<string | null>(null);
@@ -94,8 +87,8 @@ const selectedDate = ref(formatDate(new Date()));
 const areaName = ref('');
 const roomName = ref('');
 const route = useRoute();
-const router = useRouter();
 const { loading, run } = useApi();
+const { handleAuthError } = useAuthErrorHandler();
 const activeRoomId = ref<string | null>(null);
 
 const breadcrumbs = computed(() => [
@@ -113,18 +106,6 @@ const formattedDate = computed(() => {
     day: 'numeric'
   });
 });
-
-const handleAuthError = async (err: unknown) => {
-  if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
-    return true;
-  }
-  if (err instanceof ApiError && err.status === 403) {
-    await router.push('/access-denied');
-    return true;
-  }
-  return false;
-};
 
 const loadBookings = async (roomId: string, date: string) => {
   errorMessage.value = null;

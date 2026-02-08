@@ -3,6 +3,10 @@ stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-c
 inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
+lastEdited: '2026-02-07'
+editHistory:
+  - date: '2026-02-07'
+    changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
 ---
 
 # sithub - Epic Breakdown
@@ -16,12 +20,16 @@ Architecture requirements into implementable stories.
 
 ### Functional Requirements
 
-FR1: Users can authenticate via Entra ID SSO. Acceptance: unauthenticated users are redirected to Entra ID and, after
-successful login, return to SitHub with their name displayed.
-FR2: The system can determine user roles (regular vs admin) based on Entra ID group membership. Acceptance: admins see
-admin-only cancellation controls; regular users do not.
-FR3: Users can access the application only if they are permitted by the configured Entra ID settings. Acceptance:
-unauthorized users receive an access-denied screen and cannot view any booking data.
+FR1: Users can authenticate via Entra ID SSO or local credentials (email and password).
+Acceptance: the login page presents a username/password form and a "Login via Entra ID"
+button; both methods result in an authenticated session with the user's name displayed.
+FR2: The system determines user roles (regular vs admin) based on authentication source.
+For Entra ID users, admin status is synced from group membership on every login and cannot
+be changed locally. For local users, admin status is managed via the database.
+Acceptance: admins see admin-only controls; regular users do not; Entra ID admin status
+reflects current group membership after each login.
+FR3: Users can access the application only if they are authenticated. Acceptance:
+unauthenticated users see only the login page and cannot view any booking data.
 FR4: Users can view a list of available areas. Acceptance: after login, the UI lists all configured areas.
 FR5: Users can view a list of rooms within a selected area. Acceptance: selecting an area shows only its rooms.
 FR6: Users can view a list of desks within a selected room. Acceptance: selecting a room lists its desks.
@@ -65,6 +73,24 @@ FR26: Users can book desks using a graphical floor-map view. Acceptance: a desk 
 chosen date.
 FR27: Admins can access advanced reporting and analytics. Acceptance: admins can view usage summaries by area/room and
 date range.
+FR28: All users (Entra ID and local) are stored in a users table. Entra ID users are inserted on first login and
+updated on subsequent logins. Acceptance: after login, the user exists in the users table with correct source, name,
+and email.
+FR29: Email addresses are unique across all authentication sources. Creating a local user with an email that exists for
+an Entra ID user is blocked, and vice versa. Acceptance: attempting to create a duplicate email returns an error
+regardless of authentication source.
+FR30: Local users can log in with email and password. Acceptance: entering valid credentials in the login form creates
+an authenticated session; invalid credentials show a descriptive error.
+FR31: Local users can change their own password via the `/me` endpoint. Acceptance: after changing the password, the old
+password no longer works and the new password (minimum 14 characters) is accepted.
+FR32: Admin users can reset the password of any local user via the `/users/{id}` endpoint. Acceptance: the affected user
+can log in with the new password; Entra ID user passwords cannot be reset this way.
+FR33: The system provides a `/me` endpoint returning the current user's profile information. Acceptance: authenticated
+requests to `/me` return the user's id, email, name, role, and authentication source.
+FR34: The system provides a `/users` endpoint for user management. Acceptance: admins can list, create, read, update,
+and delete local users; non-admin users can only read. Entra ID users cannot be created or deleted via this endpoint.
+FR35: A demo users SQL file is provided for development setup. Acceptance: running the SQL file creates 15 users
+(2 admins, 13 regular users) with local credentials in the database.
 
 ### NonFunctional Requirements
 
@@ -72,11 +98,12 @@ NFR1: For expected usage (<=50 concurrent users), list navigation actions comple
 cancellation complete within 3 seconds at p95.
 NFR2: The system can be restarted without data loss; bookings remain intact after restart and conflicts do not create
 partial records.
-NFR3: All booking data requires authenticated access via Entra ID; unauthenticated requests are denied.
-NFR4: Data at rest is stored without application-layer encryption; in-transit encryption is managed outside the
-application.
-NFR5: Single-node deployment is sufficient; no clustering or horizontal scaling is required for MVP usage levels.
-NFR6: Meets WCAG A: all interactive elements have accessible names, keyboard focus is visible, and form inputs are
+NFR3: All booking data requires authenticated access (Entra ID or local credentials); unauthenticated requests are
+denied. Local user passwords are stored as bcrypt hashes; plaintext passwords are never persisted or logged. Minimum
+password length is 14 characters. Data at rest is stored without application-layer encryption; in-transit encryption is
+managed outside the application.
+NFR4: Single-node deployment is sufficient; no clustering or horizontal scaling is required for MVP usage levels.
+NFR5: Meets WCAG A: all interactive elements have accessible names, keyboard focus is visible, and form inputs are
 labeled.
 
 ### Additional Requirements
@@ -90,6 +117,14 @@ labeled.
 - Bookings are full-day only; store a single booking_date per booking.
 - Target builds: macOS (arm64) and Linux (amd64) only; Windows out of scope.
 - No Docker or Kubernetes workflows.
+- Dual-source authentication: Entra ID SSO (optional) and local credentials (always available).
+- Central users table storing both Entra ID and local users with `user_source` enum.
+- Unified session mechanism: both auth paths produce gorilla/securecookie signed cookies.
+- bcrypt password hashing for local users; minimum 14 characters.
+- Admin role sync: Entra ID users sync `is_admin` from group membership on every login; local admin managed via DB.
+- Email uniqueness enforced at DB level across authentication sources.
+- `test_auth` mechanism removed; replaced by real local users.
+- Demo users SQL file (`tools/database/demo-users.sql`) with 15 users for development and testing.
 - OpenAPI 3.1 docs in `api-doc/` with per-endpoint files; lint with Redocly.
 - Vue 3 + Vuetify + Pinia + Vue Router; Composition API with `<script setup>`.
 - Vitest for unit tests, Cypress for E2E with `data-cy` selectors and real API responses.
@@ -124,12 +159,21 @@ FR24: Epic 7
 FR25: Epic 8  
 FR26: Epic 9  
 FR27: Epic 9
+FR28: Epic 11
+FR29: Epic 11
+FR30: Epic 11
+FR31: Epic 11
+FR32: Epic 11
+FR33: Epic 11
+FR34: Epic 11
+FR35: Epic 11
 
 ## Epic List
 
-### Epic 1: Secure Sign-In & Access Control
+### Epic 1: Dual-Source Authentication & Access Control
 
-Users can authenticate via Entra ID and only permitted users can access SitHub.
+Users can authenticate via Entra ID SSO or local credentials, and only authenticated users
+can access SitHub.
 **FRs covered:** FR1, FR2, FR3
 
 ### Epic 2: Space Discovery & Availability
@@ -172,57 +216,85 @@ Admins manage rooms/desks in a UI.
 Graphical floor map booking and analytics.
 **FRs covered:** FR26, FR27
 
+### Epic 11: User Management & Local Authentication
+
+User management API, local login, password management, and demo users for development.
+**FRs covered:** FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35
+
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
-## Epic 1 Stories: Secure Sign-In & Access Control
+## Epic 1 Stories: Dual-Source Authentication & Access Control
 
-Users can authenticate via Entra ID and only permitted users can access SitHub.
+Users can authenticate via Entra ID SSO or local credentials, and only authenticated users
+can access SitHub.
 **FRs covered:** FR1, FR2, FR3
 
-### Story 1.1: Entra ID SSO Login
+### Story 1.1: Dual-Source Login
 
 **FRs covered:** FR1
 
 As an employee,
-I want to sign in via Entra ID,
-So that I can access SitHub without a separate account.
+I want to sign in via Entra ID or local credentials,
+So that I can access SitHub regardless of my company's identity provider.
 
 **Acceptance Criteria:**
 
-**Given** I am not authenticated  
-**When** I open SitHub  
-**Then** I am redirected to Entra ID for login  
-**And** after successful login I return to SitHub and see my name displayed
+**Given** I am not authenticated
+**When** I open SitHub
+**Then** I see a login page with a username/password form and a "Login via Entra ID" button
 
-### Story 1.2: Role Determination from Entra ID Groups
+**Given** I click "Login via Entra ID"
+**When** I complete the Entra ID flow
+**Then** I return to SitHub with my name displayed
+
+**Given** I enter valid local credentials in the login form
+**When** I submit the form
+**Then** I am authenticated and see my name displayed
+
+**Given** I enter invalid local credentials
+**When** I submit the form
+**Then** I see a descriptive error message
+
+### Story 1.2: Source-Dependent Role Determination
 
 **FRs covered:** FR2
 
 As an admin,
-I want my role determined from Entra ID group membership,
+I want my role determined from my authentication source,
 So that I see admin-only controls.
 
 **Acceptance Criteria:**
 
-**Given** my Entra ID account is in the admin group  
-**When** I log in  
-**Then** the system marks me as admin  
-**And** admin-only cancellation controls are visible
+**Given** my Entra ID account is in the admin group
+**When** I log in via Entra ID
+**Then** the system syncs my admin status from group membership
+**And** admin-only controls are visible
 
-### Story 1.3: Access Denied for Unauthorized Users
+**Given** I am a local user with admin role in the database
+**When** I log in with local credentials
+**Then** admin-only controls are visible
+
+**Given** I am removed from the Entra ID admin group
+**When** I log in again
+**Then** admin-only controls are no longer visible
+
+### Story 1.3: Access Denied for Unauthenticated Users
 
 **FRs covered:** FR3
 
 As a company operator,
-I want unauthorized users blocked,
+I want unauthenticated users blocked,
 So that booking data is protected.
 
 **Acceptance Criteria:**
 
-**Given** my account is not permitted by Entra ID settings  
-**When** I attempt to access SitHub  
-**Then** I see an access-denied screen  
-**And** API requests return a JSON:API error with 401/403 status
+**Given** I am not authenticated
+**When** I attempt to access any protected page
+**Then** I am redirected to the login page
+
+**Given** I am not authenticated
+**When** I make an API request to a protected endpoint
+**Then** the API returns a JSON:API error with 401 status
 
 ## Epic 2 Stories: Space Discovery & Availability
 
@@ -304,10 +376,15 @@ So that I can reserve my workspace.
 
 **Acceptance Criteria:**
 
-**Given** I have selected a desk and date  
-**When** I confirm the booking  
-**Then** the booking is created for that date  
-**And** it appears in “My Bookings”
+**Given** I have selected a desk and date
+**When** I confirm the booking
+**Then** the booking is created for that date
+**And** it appears in "My Bookings"
+
+**Given** I attempt to book a desk for a past date
+**When** I submit the booking
+**Then** the system rejects the booking
+**And** I see a clear error message that past dates cannot be booked
 
 ### Story 3.2: Prevent Double-Booking
 
@@ -354,10 +431,14 @@ So that I can confirm my reservations.
 
 **Acceptance Criteria:**
 
-**Given** I am authenticated  
-**When** I open “My Bookings”  
-**Then** I see a list of my future bookings  
+**Given** I am authenticated
+**When** I open "My Bookings"
+**Then** I see a list of my future bookings
 **And** each entry includes desk, room, area, and date
+
+**Given** I have no upcoming bookings
+**When** I open "My Bookings"
+**Then** I see an empty state with a helpful message and action to book a desk
 
 ### Story 4.2: Cancel My Booking
 
@@ -384,9 +465,13 @@ So that I can resolve conflicts.
 
 **Acceptance Criteria:**
 
-**Given** I am an admin  
-**When** I cancel another user’s booking  
-**Then** the booking is removed from all relevant lists  
+**Given** I am an admin viewing a room booking overview (Epic 5)
+**When** I see another user's booking
+**Then** I see an admin cancel action on that booking
+
+**Given** I am an admin
+**When** I cancel another user's booking
+**Then** the booking is removed from all relevant lists
 **And** the affected user sees the cancellation
 
 ## Epic 5 Stories: Room & Presence Overviews
@@ -604,12 +689,13 @@ So that I can understand utilization.
 
 ## Epic 10 Stories: UI/UX Redesign
 
-Transform the application from basic Vuetify defaults into a polished, modern desk booking experience with consistent design language, reusable components, and excellent mobile support.
-**FRs covered:** NFR6 (Accessibility), enhances all existing FRs
+Transform the application from basic Vuetify defaults into a polished, modern desk booking
+experience with consistent design language, reusable components, and excellent mobile support.
+**FRs covered:** NFR5 (Accessibility), enhances all existing FRs
 
 ### Story 10.1: Design System Foundation
 
-**FRs covered:** NFR6
+**FRs covered:** NFR5
 
 As a user,
 I want a visually consistent and branded experience,
@@ -624,6 +710,7 @@ So that the application feels professional and trustworthy.
 **And** a logo and favicon are displayed
 
 **Technical Requirements:**
+
 - Custom Vuetify theme in `web/src/plugins/vuetify.ts`
 - Color palette: primary, secondary, success, warning, error, surface colors
 - Typography: Inter font family with defined scale
@@ -632,20 +719,21 @@ So that the application feels professional and trustworthy.
 
 ### Story 10.2: Reusable Component Library
 
-**FRs covered:** NFR6
+**FRs covered:** NFR5
 
-As a developer,
-I want reusable UI components,
-So that the interface is consistent and maintainable.
+As a user,
+I want a consistent UI experience across all pages,
+So that the application feels polished and predictable.
 
 **Acceptance Criteria:**
 
-**Given** I am building a view  
-**When** I need common UI patterns  
-**Then** I can import pre-built components from `web/src/components/`  
-**And** components follow the design system
+**Given** I navigate between different views
+**When** I interact with common UI patterns (empty states, loading, confirmations)
+**Then** they look and behave consistently across the application
+**And** all components follow the design system from Story 10.1
 
 **Components to create:**
+
 - `PageHeader.vue` - Page title, breadcrumbs, actions
 - `EmptyState.vue` - Illustrated empty states with action
 - `LoadingState.vue` - Skeleton loaders matching content layout
@@ -656,7 +744,7 @@ So that the interface is consistent and maintainable.
 
 ### Story 10.3: Navigation & Layout Redesign
 
-**FRs covered:** NFR6
+**FRs covered:** NFR5
 
 As a user,
 I want clear navigation and context awareness,
@@ -675,6 +763,7 @@ So that I always know where I am and can easily move around.
 **Then** I see a drawer menu that works well on small screens
 
 **Technical Requirements:**
+
 - Redesigned `App.vue` with improved header
 - Breadcrumb component integrated into layout
 - Mobile navigation drawer
@@ -682,7 +771,7 @@ So that I always know where I am and can easily move around.
 
 ### Story 10.4: Space Discovery Views Redesign
 
-**FRs covered:** FR4, FR5, FR6, FR7, FR8, NFR6
+**FRs covered:** FR4, FR5, FR6, FR7, FR8, NFR5
 
 As a user,
 I want visually appealing space discovery,
@@ -708,7 +797,7 @@ So that browsing areas, rooms, and desks is enjoyable and efficient.
 
 ### Story 10.5: Booking Flow Redesign
 
-**FRs covered:** FR9, FR20, FR21, FR22, NFR6
+**FRs covered:** FR9, NFR5
 
 As a user,
 I want an intuitive and delightful booking experience,
@@ -716,25 +805,19 @@ So that reserving a desk feels effortless.
 
 **Acceptance Criteria:**
 
-**Given** I want to book a desk  
-**When** I click the book button  
-**Then** I see a clear booking dialog/flow  
-**And** date selection uses a proper calendar picker  
-**And** multi-day selection is visual (calendar-based, not text input)
+**Given** I want to book a desk
+**When** I click the book button
+**Then** I see a clear booking dialog/flow
+**And** date selection uses a proper calendar picker
 
-**Given** I want to book for a colleague  
-**When** I toggle "Book for someone else"  
-**Then** I can search/select a colleague (or enter details)  
-**And** the flow is clearly differentiated from personal booking
-
-**Given** I complete a booking  
-**When** the booking succeeds  
-**Then** I see a success confirmation with booking details  
+**Given** I complete a booking
+**When** the booking succeeds
+**Then** I see a success confirmation with booking details
 **And** I have clear next actions (view bookings, book another)
 
 ### Story 10.6: Booking Management Views Redesign
 
-**FRs covered:** FR12, FR13, FR23, NFR6
+**FRs covered:** FR12, FR13, NFR5
 
 As a user,
 I want my bookings displayed beautifully,
@@ -742,21 +825,18 @@ So that managing my reservations is pleasant.
 
 **Acceptance Criteria:**
 
-**Given** I open My Bookings  
-**When** the page loads  
-**Then** I see bookings as cards with all relevant info  
-**And** "booked by" and "guest" bookings are visually distinguished  
+**Given** I open My Bookings
+**When** the page loads
+**Then** I see bookings as cards with all relevant info
 **And** cancel action has a confirmation dialog
 
-**Given** I open Booking History  
-**When** the page loads  
-**Then** I see a date range picker for filtering  
-**And** past bookings are displayed in a clean list/table  
-**And** empty state is handled gracefully
+**Given** I have no upcoming bookings
+**When** I open My Bookings
+**Then** I see a helpful empty state with an action to book a desk
 
 ### Story 10.7: Mobile Responsiveness
 
-**FRs covered:** NFR6
+**FRs covered:** NFR5
 
 As a mobile user,
 I want the app to work well on my phone,
@@ -772,7 +852,176 @@ So that I can book desks on the go.
 **And** forms and dialogs are usable on small screens
 
 **Technical Requirements:**
+
 - Responsive breakpoints for all views
 - Touch-friendly interactions
 - Viewport-appropriate font sizes
 - No horizontal scrolling on mobile
+
+## Epic 11 Stories: User Management & Local Authentication
+
+User management API, local login, password management, and demo users for development.
+**FRs covered:** FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35
+
+### Story 11.1: Users Table and Entra ID User Sync
+
+**FRs covered:** FR28
+
+As an operator,
+I want all users stored in a central users table,
+So that the system has a unified user directory regardless of authentication source.
+
+**Acceptance Criteria:**
+
+**Given** an Entra ID user logs in for the first time
+**When** the login completes
+**Then** the user is inserted into the users table with source "entraid", name, and email
+
+**Given** an Entra ID user logs in again
+**When** the login completes
+**Then** the user's name and admin status are updated from Entra ID
+
+**Given** a local user is created via the API
+**When** the creation succeeds
+**Then** the user exists in the users table with source "internal"
+
+### Story 11.2: Email Uniqueness Across Sources
+
+**FRs covered:** FR29
+
+As an operator,
+I want email addresses unique across all authentication sources,
+So that identity conflicts are prevented.
+
+**Acceptance Criteria:**
+
+**Given** an Entra ID user exists with email `alex@example.com`
+**When** an admin attempts to create a local user with the same email
+**Then** the request is rejected with a JSON:API error
+
+**Given** a local user exists with email `dana@example.com`
+**When** an Entra ID user with the same email logs in for the first time
+**Then** the login fails with a descriptive error
+
+### Story 11.3: Local User Login
+
+**FRs covered:** FR30
+
+As a local user,
+I want to log in with my email and password,
+So that I can use SitHub without Entra ID.
+
+**Acceptance Criteria:**
+
+**Given** I am a local user with valid credentials
+**When** I enter my email and password in the login form and submit
+**Then** I am authenticated and see my name displayed
+
+**Given** I enter an incorrect password
+**When** I submit the login form
+**Then** I see a descriptive error message
+**And** no session is created
+
+### Story 11.4: Self-Service Password Change
+
+**FRs covered:** FR31
+
+As a local user,
+I want to change my own password,
+So that I can maintain my account security.
+
+**Acceptance Criteria:**
+
+**Given** I am authenticated as a local user
+**When** I submit a password change via `/me` with a new password of 14+ characters
+**Then** the password is updated
+**And** the old password no longer works
+
+**Given** I submit a new password shorter than 14 characters
+**When** the request is processed
+**Then** it is rejected with a validation error
+
+**Given** I am an Entra ID user
+**When** I attempt to change my password via `/me`
+**Then** the request is rejected (Entra ID passwords are managed externally)
+
+### Story 11.5: Admin Password Reset
+
+**FRs covered:** FR32
+
+As an admin,
+I want to reset any local user's password,
+So that I can help users who are locked out.
+
+**Acceptance Criteria:**
+
+**Given** I am an admin
+**When** I reset a local user's password via `/users/{id}`
+**Then** the user can log in with the new password
+
+**Given** I attempt to reset an Entra ID user's password
+**When** the request is processed
+**Then** it is rejected with a JSON:API error
+
+### Story 11.6: Current User Profile Endpoint
+
+**FRs covered:** FR33
+
+As an authenticated user,
+I want to retrieve my profile information,
+So that the UI can display my identity and role.
+
+**Acceptance Criteria:**
+
+**Given** I am authenticated
+**When** I request `/me`
+**Then** I receive my id, email, name, role, and authentication source
+
+**Given** I am not authenticated
+**When** I request `/me`
+**Then** I receive a 401 JSON:API error
+
+### Story 11.7: User Management API
+
+**FRs covered:** FR34
+
+As an admin,
+I want to manage local users via the API,
+So that I can create, update, and remove user accounts.
+
+**Acceptance Criteria:**
+
+**Given** I am an admin
+**When** I list users via `GET /users`
+**Then** I see all users (Entra ID and local) with their source and role
+
+**Given** I am an admin
+**When** I create a local user via `POST /users`
+**Then** the user is created with source "internal" and a hashed password
+
+**Given** I am an admin
+**When** I attempt to create or delete an Entra ID user via `/users`
+**Then** the request is rejected with a JSON:API error
+
+**Given** I am a non-admin user
+**When** I attempt to create, update, or delete a user via `/users`
+**Then** the request is rejected with a 403 JSON:API error
+
+**Given** I am a non-admin user
+**When** I list or read users via `/users`
+**Then** I receive the data (read access is allowed for all authenticated users)
+
+### Story 11.8: Demo Users SQL File
+
+**FRs covered:** FR35
+
+As a developer,
+I want a demo users SQL file,
+So that I can quickly set up a development environment with test data.
+
+**Acceptance Criteria:**
+
+**Given** the SQL file at `tools/database/demo-users.sql` exists
+**When** it is executed against the database
+**Then** 15 users are created: 2 admins and 13 regular users with local credentials
+**And** all passwords are bcrypt-hashed

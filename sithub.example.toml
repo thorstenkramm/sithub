@@ -51,7 +51,11 @@
   #config_file = "./sithub_areas.yaml"
 
 [entraid]
-  ## Authorize URL, string, mandatory
+  ## All fields in this section are optional. If omitted entirely, only local
+  ## authentication is available. If any field is set, all 5 required fields
+  ## (authorize_url, token_url, redirect_uri, client_id, client_secret) must be set.
+
+  ## Authorize URL, string, required if entraid is used
   ## Can be overridden with --entraid-authorize-url flag or SITHUB_ENTRAID_AUTHORIZE_URL environment variable.
   ## OAuth provider base URL used for handling the user's authorization.
   ## Called "OAuth 2.0 authorization endpoint (v2)" on Entra ID settings.
@@ -112,30 +116,3 @@
   ## Default: none
   #admins_group_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-[test_auth]
-  ## Test authentication (development only), bool, optional
-  ## Can be overridden with SITHUB_TEST_AUTH_ENABLED environment variable.
-  ## When true, /oauth/callback signs in without Entra ID.
-  ## When true, Entra ID configuration is optional for local testing.
-  ## Example: true
-  ## Default: false
-  #enabled = true
-
-  ## Test user ID, string, optional
-  ## Can be overridden with SITHUB_TEST_USER_ID environment variable.
-  ## Example: "test-user"
-  ## Default: "test-user"
-  #user_id = "test-user"
-
-  ## Test user name, string, optional
-  ## Can be overridden with SITHUB_TEST_USER_NAME environment variable.
-  ## Example: "Test User"
-  ## Default: "Test User"
-  #user_name = "Test User"
-
-  ## Test user permitted flag, bool, optional
-  ## Can be overridden with --test-auth-permitted flag or SITHUB_TEST_AUTH_PERMITTED environment variable.
-  ## When false, the test user is treated as forbidden.
-  ## Example: true
-  ## Default: true
-  #permitted = true

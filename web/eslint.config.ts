@@ -13,6 +13,14 @@ export default [
   ...pluginVue.configs['flat/essential'],
   ...vueTsEslintConfig(),
   {
+    name: 'app/cypress-overrides',
+    files: ['cypress/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-namespace': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
+  {
     name: 'app/vue-rules',
     files: ['**/*.vue'],
     rules: {

@@ -75,12 +75,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ApiError } from '../api/client';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
 import type { AreaAttributes } from '../api/areas';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 
@@ -89,21 +89,10 @@ const isAdmin = ref(false);
 const areas = ref<JsonApiResource<AreaAttributes>[]>([]);
 const router = useRouter();
 const { loading: areasLoading, error: areasError, run: runAreas } = useApi();
+const { handleAuthError } = useAuthErrorHandler();
 
 const goToRooms = async (areaId: string) => {
   await router.push({ name: 'rooms', params: { areaId } });
-};
-
-const handleAuthError = async (err: unknown) => {
-  if (err instanceof ApiError && err.status === 401) {
-    window.location.href = '/oauth/login';
-    return true;
-  }
-  if (err instanceof ApiError && err.status === 403) {
-    await router.push('/access-denied');
-    return true;
-  }
-  return false;
 };
 
 onMounted(async () => {

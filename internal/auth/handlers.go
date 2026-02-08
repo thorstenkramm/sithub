@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/users"
 )
 
 // LoginHandler starts the Entra ID authorization flow.
@@ -24,7 +25,7 @@ func LoginHandler(svc *Service) echo.HandlerFunc {
 			return jsonAPIError(c, http.StatusInternalServerError, "Server Error", detail, "login_state")
 		}
 
-		cookie := newCookie(stateCookieName, encoded, c.Scheme() == "https")
+		cookie := newCookie(stateCookieName, encoded, c.Scheme() == schemeHTTPS)
 		c.SetCookie(cookie)
 
 		authURL := svc.AuthCodeURL(state)
@@ -43,10 +44,6 @@ func LoginHandler(svc *Service) echo.HandlerFunc {
 // CallbackHandler handles the OAuth callback from Entra ID.
 func CallbackHandler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		if user := svc.TestUser(); user != nil {
-			return setUserCookieAndRedirect(svc, c, user, redirectPath(user))
-		}
-
 		state := c.QueryParam("state")
 		code := c.QueryParam("code")
 		if state == "" || code == "" {
@@ -72,7 +69,10 @@ func CallbackHandler(svc *Service) echo.HandlerFunc {
 		if err != nil {
 			return jsonAPIError(c, http.StatusBadRequest, "Login Failed", "User lookup failed", "user_lookup")
 		}
-		user.AccessToken = token.AccessToken
+		// Store access token in DB (best-effort, don't fail the login)
+		_ = users.UpdateAccessToken( //nolint:errcheck // Best-effort
+			c.Request().Context(), svc.Store(), user.ID, token.AccessToken,
+		)
 
 		return setUserCookieAndRedirect(svc, c, user, redirectPath(user))
 	}
@@ -99,11 +99,11 @@ func newCookie(name, value string, secure bool) *http.Cookie {
 }
 
 func setUserCookieAndRedirect(svc *Service, c echo.Context, user *User, location string) error {
-	encodedUser, err := svc.EncodeUser(*user)
+	encodedUser, err := svc.EncodeUser(user)
 	if err != nil {
 		return jsonAPIError(c, http.StatusInternalServerError, "Server Error", "Failed to store user", "user_store")
 	}
-	userCookie := newCookie(userCookieName, encodedUser, c.Scheme() == "https")
+	userCookie := newCookie(userCookieName, encodedUser, c.Scheme() == schemeHTTPS)
 	c.SetCookie(userCookie)
 	if err := c.Redirect(http.StatusFound, location); err != nil {
 		return fmt.Errorf("redirect after login: %w", err)

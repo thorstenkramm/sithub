@@ -73,3 +73,13 @@ This is only for local testing and must not be used in production.
 - SQLite3 for the database.
 - All frontend artifacts are embedded into the distributed binary.
 - GitHub Actions for CI/CD.
+
+### RESTful API
+The backend implements a clean REST API following the JSON:API specification. 
+The API provides endpoints for managing areas, rooms, desks, and desk equipment. 
+It supports CRUD operations and includes pagination and filtering capabilities. 
+
+You can view the API documentation by launching any OpenAPI viewer. example:
+```shell
+npx redoc-cli serve ./docs/openapi.yaml
+```

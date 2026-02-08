@@ -23,8 +23,9 @@ interface JsonApiErrorResponse {
 export async function parseErrorDetail(response: Response): Promise<string | null> {
   try {
     const body = (await response.json()) as JsonApiErrorResponse;
-    if (body.errors && body.errors.length > 0 && body.errors[0].detail) {
-      return body.errors[0].detail;
+    const detail = body.errors?.[0]?.detail;
+    if (detail) {
+      return detail;
     }
   } catch {
     // Ignore JSON parse errors

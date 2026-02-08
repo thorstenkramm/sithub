@@ -1,16 +1,14 @@
-const testAuthEnabled = ['true', true, '1', 'yes'].includes(Cypress.env('testAuthEnabled'));
-const itIfAuth = testAuthEnabled ? it : it.skip;
-
 describe('areas', () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
+    cy.login();
   });
 
-  itIfAuth('should show configured areas', () => {
+  it('should show configured areas', () => {
     cy.intercept('GET', '/api/v1/areas').as('listAreas');
 
-    cy.visit('/oauth/callback');
+    cy.visit('/');
 
     // Verify Vuetify is properly loaded (catches component import issues)
     cy.waitForVuetify();
