@@ -7,9 +7,9 @@ import (
 	"fmt"
 )
 
-// FindBookedDeskIDs returns the desk IDs with bookings on the given date.
-func FindBookedDeskIDs(ctx context.Context, store *sql.DB, bookingDate string) (booked map[string]struct{}, err error) {
-	rows, err := store.QueryContext(ctx, "SELECT desk_id FROM bookings WHERE booking_date = ?", bookingDate)
+// FindBookedItemIDs returns the item IDs with bookings on the given date.
+func FindBookedItemIDs(ctx context.Context, store *sql.DB, bookingDate string) (booked map[string]struct{}, err error) {
+	rows, err := store.QueryContext(ctx, "SELECT item_id FROM bookings WHERE booking_date = ?", bookingDate)
 	if err != nil {
 		return nil, fmt.Errorf("query bookings: %w", err)
 	}
@@ -21,11 +21,11 @@ func FindBookedDeskIDs(ctx context.Context, store *sql.DB, bookingDate string) (
 
 	booked = make(map[string]struct{})
 	for rows.Next() {
-		var deskID string
-		if err := rows.Scan(&deskID); err != nil {
+		var itemID string
+		if err := rows.Scan(&itemID); err != nil {
 			return nil, fmt.Errorf("scan booking: %w", err)
 		}
-		booked[deskID] = struct{}{}
+		booked[itemID] = struct{}{}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate bookings: %w", err)
@@ -36,16 +36,16 @@ func FindBookedDeskIDs(ctx context.Context, store *sql.DB, bookingDate string) (
 
 // BookingRecord represents a booking row from the database.
 type BookingRecord struct {
-	ID               string
-	DeskID           string
-	UserID           string
-	UserName         string
-	BookingDate      string
-	BookedByUserID   string
-	BookedByUserName string
-	IsGuest          bool
-	GuestEmail       string
-	CreatedAt        string
+	ID             string
+	ItemID         string
+	UserID         string
+	BookingDate    string
+	BookedByUserID string
+	IsGuest        bool
+	GuestName      string
+	GuestEmail     string
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 // ListUserBookings returns all bookings for a user on or after the given date, ordered by booking_date.
@@ -64,17 +64,17 @@ func ListUserBookingsRange(
 	var args []interface{}
 
 	if toDate != "" {
-		query = `SELECT id, desk_id, user_id, user_name, booking_date, booked_by_user_id, booked_by_user_name, 
-		                is_guest, guest_email, created_at 
-		         FROM bookings 
+		query = `SELECT id, item_id, user_id, booking_date, booked_by_user_id,
+		                is_guest, guest_name, guest_email, created_at, updated_at
+		         FROM bookings
 		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? AND booking_date <= ?
 		         ORDER BY booking_date DESC`
 		args = []interface{}{userID, userID, fromDate, toDate}
 	} else {
-		query = `SELECT id, desk_id, user_id, user_name, booking_date, booked_by_user_id, booked_by_user_name, 
-		                is_guest, guest_email, created_at 
-		         FROM bookings 
-		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? 
+		query = `SELECT id, item_id, user_id, booking_date, booked_by_user_id,
+		                is_guest, guest_name, guest_email, created_at, updated_at
+		         FROM bookings
+		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ?
 		         ORDER BY booking_date ASC`
 		args = []interface{}{userID, userID, fromDate}
 	}
@@ -93,8 +93,8 @@ func ListUserBookingsRange(
 		var b BookingRecord
 		var isGuestInt int
 		err := rows.Scan(
-			&b.ID, &b.DeskID, &b.UserID, &b.UserName, &b.BookingDate,
-			&b.BookedByUserID, &b.BookedByUserName, &isGuestInt, &b.GuestEmail, &b.CreatedAt,
+			&b.ID, &b.ItemID, &b.UserID, &b.BookingDate,
+			&b.BookedByUserID, &isGuestInt, &b.GuestName, &b.GuestEmail, &b.CreatedAt, &b.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan user booking: %w", err)
@@ -114,12 +114,12 @@ func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*Boo
 	var b BookingRecord
 	var isGuestInt int
 	err := store.QueryRowContext(ctx,
-		`SELECT id, desk_id, user_id, user_name, booking_date, booked_by_user_id, booked_by_user_name, 
-		        is_guest, guest_email, created_at 
+		`SELECT id, item_id, user_id, booking_date, booked_by_user_id,
+		        is_guest, guest_name, guest_email, created_at, updated_at
 		 FROM bookings WHERE id = ?`,
 		bookingID,
-	).Scan(&b.ID, &b.DeskID, &b.UserID, &b.UserName, &b.BookingDate, &b.BookedByUserID, &b.BookedByUserName,
-		&isGuestInt, &b.GuestEmail, &b.CreatedAt)
+	).Scan(&b.ID, &b.ItemID, &b.UserID, &b.BookingDate, &b.BookedByUserID,
+		&isGuestInt, &b.GuestName, &b.GuestEmail, &b.CreatedAt, &b.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -140,41 +140,41 @@ func DeleteBooking(ctx context.Context, store *sql.DB, bookingID string) error {
 	return nil
 }
 
-// DeskBookingInfo contains booking details for a desk.
-type DeskBookingInfo struct {
+// ItemBookingInfo contains booking details for an item.
+type ItemBookingInfo struct {
 	BookingID  string
 	UserID     string
 	BookerName string
 }
 
-// FindDeskBookings returns booking info for desks on a given date, keyed by desk ID.
+// FindItemBookings returns booking info for items on a given date, keyed by item ID.
 // Note: BookerName will be empty; the caller must look up display names separately if needed.
-func FindDeskBookings(
+func FindItemBookings(
 	ctx context.Context, store *sql.DB, bookingDate string,
-) (result map[string]DeskBookingInfo, err error) {
-	query := `SELECT id, desk_id, user_id FROM bookings WHERE booking_date = ?`
+) (result map[string]ItemBookingInfo, err error) {
+	query := `SELECT id, item_id, user_id FROM bookings WHERE booking_date = ?`
 
 	rows, err := store.QueryContext(ctx, query, bookingDate)
 	if err != nil {
-		return nil, fmt.Errorf("query desk bookings: %w", err)
+		return nil, fmt.Errorf("query item bookings: %w", err)
 	}
 	defer func() {
 		if closeErr := rows.Close(); closeErr != nil && err == nil {
-			err = fmt.Errorf("close desk bookings rows: %w", closeErr)
+			err = fmt.Errorf("close item bookings rows: %w", closeErr)
 		}
 	}()
 
-	result = make(map[string]DeskBookingInfo)
+	result = make(map[string]ItemBookingInfo)
 	for rows.Next() {
-		var info DeskBookingInfo
-		var deskID string
-		if err := rows.Scan(&info.BookingID, &deskID, &info.UserID); err != nil {
-			return nil, fmt.Errorf("scan desk booking: %w", err)
+		var info ItemBookingInfo
+		var itemID string
+		if err := rows.Scan(&info.BookingID, &itemID, &info.UserID); err != nil {
+			return nil, fmt.Errorf("scan item booking: %w", err)
 		}
-		result[deskID] = info
+		result[itemID] = info
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate desk bookings: %w", err)
+		return nil, fmt.Errorf("iterate item bookings: %w", err)
 	}
 
 	return result, nil

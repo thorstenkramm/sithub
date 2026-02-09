@@ -1,6 +1,6 @@
 get:
-  summary: List rooms for an area
-  operationId: listRooms
+  summary: List item groups for an area
+  operationId: listItemGroups
   parameters:
     - name: area_id
       in: path
@@ -9,11 +9,11 @@ get:
         type: string
   responses:
     '200':
-      description: Room list
+      description: Item group list
       content:
         application/vnd.api+json:
           schema:
-            $ref: ../openapi.yaml#/components/schemas/RoomCollectionResponse
+            $ref: ../openapi.yaml#/components/schemas/ItemGroupCollectionResponse
     '401':
       description: Unauthorized
       content:

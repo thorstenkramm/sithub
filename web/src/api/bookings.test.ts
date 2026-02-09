@@ -18,7 +18,7 @@ describe('createBooking', () => {
         type: 'bookings',
         id: 'booking-123',
         attributes: {
-          desk_id: 'desk-1',
+          item_id: 'item-1',
           user_id: 'user-1',
           booking_date: '2026-01-20',
           created_at: '2026-01-19T10:00:00Z'
@@ -31,7 +31,7 @@ describe('createBooking', () => {
       json: () => Promise.resolve(mockResponse)
     });
 
-    const result = await createBooking('desk-1', '2026-01-20');
+    const result = await createBooking('item-1', '2026-01-20');
 
     expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings', {
       method: 'POST',
@@ -39,7 +39,7 @@ describe('createBooking', () => {
         data: {
           type: 'bookings',
           attributes: {
-            desk_id: 'desk-1',
+            item_id: 'item-1',
             booking_date: '2026-01-20'
           }
         }
@@ -48,7 +48,7 @@ describe('createBooking', () => {
     });
 
     expect(result.data.id).toBe('booking-123');
-    expect(result.data.attributes.desk_id).toBe('desk-1');
+    expect(result.data.attributes.item_id).toBe('item-1');
   });
 
   it('sends POST request with for_user_id and for_user_name when booking on behalf', async () => {
@@ -57,7 +57,7 @@ describe('createBooking', () => {
         type: 'bookings',
         id: 'booking-123',
         attributes: {
-          desk_id: 'desk-1',
+          item_id: 'item-1',
           user_id: 'colleague-1',
           booking_date: '2026-01-20',
           created_at: '2026-01-19T10:00:00Z'
@@ -70,7 +70,7 @@ describe('createBooking', () => {
       json: () => Promise.resolve(mockResponse)
     });
 
-    await createBooking('desk-1', '2026-01-20', {
+    await createBooking('item-1', '2026-01-20', {
       forUserId: 'colleague-1',
       forUserName: 'Jane Doe'
     });
@@ -81,7 +81,7 @@ describe('createBooking', () => {
         data: {
           type: 'bookings',
           attributes: {
-            desk_id: 'desk-1',
+            item_id: 'item-1',
             booking_date: '2026-01-20',
             for_user_id: 'colleague-1',
             for_user_name: 'Jane Doe'
@@ -99,7 +99,7 @@ describe('createBooking', () => {
       status: 409
     });
 
-    await expect(createBooking('desk-1', '2026-01-20')).rejects.toMatchObject({
+    await expect(createBooking('item-1', '2026-01-20')).rejects.toMatchObject({
       status: 409
     });
   });
@@ -110,7 +110,7 @@ describe('createBooking', () => {
       status: 400
     });
 
-    await expect(createBooking('desk-1', '2026-01-20')).rejects.toMatchObject({
+    await expect(createBooking('item-1', '2026-01-20')).rejects.toMatchObject({
       status: 400
     });
   });
@@ -132,10 +132,10 @@ describe('fetchMyBookings', () => {
           id: 'booking-1',
           type: 'bookings',
           attributes: {
-            desk_id: 'desk-1',
-            desk_name: 'Desk 1',
-            room_id: 'room-1',
-            room_name: 'Room 101',
+            item_id: 'item-1',
+            item_name: 'Desk 1',
+            item_group_id: 'ig-1',
+            item_group_name: 'Room 101',
             area_id: 'area-1',
             area_name: 'Main Office',
             booking_date: '2026-01-20',
@@ -157,8 +157,8 @@ describe('fetchMyBookings', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].attributes.desk_name).toBe('Desk 1');
-    expect(result.data[0].attributes.room_name).toBe('Room 101');
+    expect(result.data[0].attributes.item_name).toBe('Desk 1');
+    expect(result.data[0].attributes.item_group_name).toBe('Room 101');
     expect(result.data[0].attributes.area_name).toBe('Main Office');
   });
 

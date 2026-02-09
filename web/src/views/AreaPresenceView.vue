@@ -32,7 +32,7 @@
     <EmptyState
       v-else-if="!presence.length"
       title="No one scheduled"
-      message="No one has a desk booked for this date in this area."
+      message="No one has an item booked for this date in this area."
       icon="$user"
       data-cy="presence-empty"
     />
@@ -57,10 +57,10 @@
           </v-list-item-title>
           <v-list-item-subtitle>
             <v-icon size="14" class="mr-1">$room</v-icon>
-            {{ entry.attributes.room_name }}
+            {{ entry.attributes.item_group_name }}
             <span class="mx-1">&bull;</span>
             <v-icon size="14" class="mr-1">$desk</v-icon>
-            {{ entry.attributes.desk_name }}
+            {{ entry.attributes.item_name }}
           </v-list-item-subtitle>
         </v-list-item>
       </v-list>

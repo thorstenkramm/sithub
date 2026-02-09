@@ -19,10 +19,10 @@ get:
               - type: bookings
                 id: b1234567-89ab-cdef-0123-456789abcdef
                 attributes:
-                  desk_id: desk-1
-                  desk_name: Corner Desk
-                  room_id: room-101
-                  room_name: Room 101
+                  item_id: item-1
+                  item_name: Corner Desk
+                  item_group_id: ig-101
+                  item_group_name: Room 101
                   area_id: area-1
                   area_name: Main Office
                   booking_date: '2026-01-20'
@@ -33,10 +33,10 @@ get:
               - type: bookings
                 id: c2345678-90ab-cdef-0123-456789abcdef
                 attributes:
-                  desk_id: desk-2
-                  desk_name: Window Desk
-                  room_id: room-101
-                  room_name: Room 101
+                  item_id: item-2
+                  item_name: Window Desk
+                  item_group_id: ig-101
+                  item_group_name: Room 101
                   area_id: area-1
                   area_name: Main Office
                   booking_date: '2026-01-21'
@@ -54,9 +54,9 @@ get:
 post:
   summary: Create a booking
   description: |
-    Creates a single-day booking for a desk on a specific date.
+    Creates a single-day or multi-day booking for an item on specific date(s).
     Optionally, you can book on behalf of another user by providing
-    for_user_id and for_user_name in the request.
+    for_user_id, or create a guest booking with is_guest and for_user_name.
   operationId: createBooking
   tags:
     - Bookings
@@ -73,7 +73,7 @@ post:
               data:
                 type: bookings
                 attributes:
-                  desk_id: desk-1
+                  item_id: item-1
                   booking_date: '2026-01-20'
           on_behalf_booking:
             summary: Book on behalf of a colleague
@@ -81,10 +81,31 @@ post:
               data:
                 type: bookings
                 attributes:
-                  desk_id: desk-1
+                  item_id: item-1
                   booking_date: '2026-01-20'
                   for_user_id: colleague-123
-                  for_user_name: Jane Doe
+          guest_booking:
+            summary: Book for a guest
+            value:
+              data:
+                type: bookings
+                attributes:
+                  item_id: item-1
+                  booking_date: '2026-01-20'
+                  is_guest: true
+                  for_user_name: Guest Visitor
+                  guest_email: guest@example.com
+          multi_day_booking:
+            summary: Multi-day booking
+            value:
+              data:
+                type: bookings
+                attributes:
+                  item_id: item-1
+                  booking_dates:
+                    - '2026-01-20'
+                    - '2026-01-21'
+                    - '2026-01-22'
   responses:
     '201':
       description: Booking created successfully
@@ -97,7 +118,7 @@ post:
               type: bookings
               id: b1234567-89ab-cdef-0123-456789abcdef
               attributes:
-                desk_id: desk-1
+                item_id: item-1
                 user_id: user-123
                 booking_date: '2026-01-20'
                 created_at: '2026-01-19T10:30:00Z'
@@ -111,7 +132,7 @@ post:
             errors:
               - status: '400'
                 title: Bad Request
-                detail: desk_id is required
+                detail: item_id is required
                 code: bad_request
     '401':
       description: Unauthorized - login required
@@ -120,7 +141,7 @@ post:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
     '404':
-      description: Desk not found
+      description: Item not found
       content:
         application/vnd.api+json:
           schema:
@@ -129,10 +150,10 @@ post:
             errors:
               - status: '404'
                 title: Not Found
-                detail: Desk not found
+                detail: Item not found
                 code: not_found
     '409':
-      description: Booking conflict - desk already booked for this date
+      description: Booking conflict - item already booked for this date
       content:
         application/vnd.api+json:
           schema:
@@ -141,5 +162,5 @@ post:
             errors:
               - status: '409'
                 title: Conflict
-                detail: Desk is already booked for this date
+                detail: Item is already booked for this date
                 code: conflict

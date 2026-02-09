@@ -75,11 +75,13 @@ This is only for local testing and must not be used in production.
 - GitHub Actions for CI/CD.
 
 ### RESTful API
-The backend implements a clean REST API following the JSON:API specification. 
-The API provides endpoints for managing areas, rooms, desks, and desk equipment. 
-It supports CRUD operations and includes pagination and filtering capabilities. 
 
-You can view the API documentation by launching any OpenAPI viewer. example:
+The backend implements a clean REST API following the JSON:API specification.
+The API provides endpoints for managing areas, item groups, items, and bookings.
+It supports CRUD operations and includes pagination and filtering capabilities.
+
+You can view the API documentation by launching any OpenAPI viewer. Example:
+
 ```shell
 npx redoc-cli serve ./docs/openapi.yaml
 ```

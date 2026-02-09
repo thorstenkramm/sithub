@@ -27,25 +27,25 @@ func (c *Config) FindArea(id string) (*Area, bool) {
 	return nil, false
 }
 
-// FindRoom returns the room matching the provided id.
-func (c *Config) FindRoom(id string) (*Room, bool) {
+// FindItemGroup returns the item group matching the provided id.
+func (c *Config) FindItemGroup(id string) (*ItemGroup, bool) {
 	for i := range c.Areas {
-		for j := range c.Areas[i].Rooms {
-			if c.Areas[i].Rooms[j].ID == id {
-				return &c.Areas[i].Rooms[j], true
+		for j := range c.Areas[i].ItemGroups {
+			if c.Areas[i].ItemGroups[j].ID == id {
+				return &c.Areas[i].ItemGroups[j], true
 			}
 		}
 	}
 	return nil, false
 }
 
-// FindDesk returns the desk matching the provided id.
-func (c *Config) FindDesk(id string) (*Desk, bool) {
+// FindItem returns the item matching the provided id.
+func (c *Config) FindItem(id string) (*Item, bool) {
 	for i := range c.Areas {
-		for j := range c.Areas[i].Rooms {
-			for k := range c.Areas[i].Rooms[j].Desks {
-				if c.Areas[i].Rooms[j].Desks[k].ID == id {
-					return &c.Areas[i].Rooms[j].Desks[k], true
+		for j := range c.Areas[i].ItemGroups {
+			for k := range c.Areas[i].ItemGroups[j].Items {
+				if c.Areas[i].ItemGroups[j].Items[k].ID == id {
+					return &c.Areas[i].ItemGroups[j].Items[k], true
 				}
 			}
 		}
@@ -53,23 +53,23 @@ func (c *Config) FindDesk(id string) (*Desk, bool) {
 	return nil, false
 }
 
-// DeskLocation contains a desk with its parent room and area.
-type DeskLocation struct {
-	Area *Area
-	Room *Room
-	Desk *Desk
+// ItemLocation contains an item with its parent item group and area.
+type ItemLocation struct {
+	Area      *Area
+	ItemGroup *ItemGroup
+	Item      *Item
 }
 
-// FindDeskLocation returns the desk and its parent room and area.
-func (c *Config) FindDeskLocation(deskID string) (*DeskLocation, bool) {
+// FindItemLocation returns the item and its parent item group and area.
+func (c *Config) FindItemLocation(itemID string) (*ItemLocation, bool) {
 	for i := range c.Areas {
-		for j := range c.Areas[i].Rooms {
-			for k := range c.Areas[i].Rooms[j].Desks {
-				if c.Areas[i].Rooms[j].Desks[k].ID == deskID {
-					return &DeskLocation{
-						Area: &c.Areas[i],
-						Room: &c.Areas[i].Rooms[j],
-						Desk: &c.Areas[i].Rooms[j].Desks[k],
+		for j := range c.Areas[i].ItemGroups {
+			for k := range c.Areas[i].ItemGroups[j].Items {
+				if c.Areas[i].ItemGroups[j].Items[k].ID == itemID {
+					return &ItemLocation{
+						Area:      &c.Areas[i],
+						ItemGroup: &c.Areas[i].ItemGroups[j],
+						Item:      &c.Areas[i].ItemGroups[j].Items[k],
 					}, true
 				}
 			}
@@ -92,8 +92,8 @@ func BaseAttributes(name, description, floorPlan string) map[string]interface{} 
 	return attrs
 }
 
-// DeskAttributes returns attributes for desk resources.
-func DeskAttributes(name string, equipment []string, warning, availability string) map[string]interface{} {
+// ItemAttributes returns attributes for item resources.
+func ItemAttributes(name string, equipment []string, warning, availability string) map[string]interface{} {
 	attrs := map[string]interface{}{
 		"name":      name,
 		"equipment": equipment,
@@ -109,24 +109,24 @@ func DeskAttributes(name string, equipment []string, warning, availability strin
 
 // Area describes a bookable area.
 type Area struct {
+	ID          string      `yaml:"id"`
+	Name        string      `yaml:"name"`
+	Description string      `yaml:"description,omitempty"`
+	FloorPlan   string      `yaml:"floor_plan,omitempty"`
+	ItemGroups  []ItemGroup `yaml:"items"`
+}
+
+// ItemGroup describes a group of bookable items within an area.
+type ItemGroup struct {
 	ID          string `yaml:"id"`
 	Name        string `yaml:"name"`
 	Description string `yaml:"description,omitempty"`
 	FloorPlan   string `yaml:"floor_plan,omitempty"`
-	Rooms       []Room `yaml:"rooms"`
+	Items       []Item `yaml:"items"`
 }
 
-// Room describes a room within an area.
-type Room struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description,omitempty"`
-	FloorPlan   string `yaml:"floor_plan,omitempty"`
-	Desks       []Desk `yaml:"desks"`
-}
-
-// Desk describes a desk within a room.
-type Desk struct {
+// Item describes a bookable item within an item group.
+type Item struct {
 	ID        string   `yaml:"id"`
 	Name      string   `yaml:"name"`
 	Equipment []string `yaml:"equipment"`
@@ -158,13 +158,13 @@ func validateConfig(cfg *Config) error {
 		if area.ID == "" || area.Name == "" {
 			return fmt.Errorf("area requires id and name")
 		}
-		for _, room := range area.Rooms {
-			if room.ID == "" || room.Name == "" {
-				return fmt.Errorf("room requires id and name")
+		for _, ig := range area.ItemGroups {
+			if ig.ID == "" || ig.Name == "" {
+				return fmt.Errorf("item group requires id and name")
 			}
-			for _, desk := range room.Desks {
-				if desk.ID == "" || desk.Name == "" {
-					return fmt.Errorf("desk requires id and name")
+			for _, item := range ig.Items {
+				if item.ID == "" || item.Name == "" {
+					return fmt.Errorf("item requires id and name")
 				}
 			}
 		}

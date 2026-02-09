@@ -233,7 +233,7 @@ const userInitials = computed(() => {
 
 function isRouteActive(path: string): boolean {
   if (path === '/') {
-    return route.path === '/' || route.path.startsWith('/areas') || route.path.startsWith('/rooms');
+    return route.path === '/' || route.path.startsWith('/areas') || route.path.startsWith('/item-groups');
   }
   return route.path.startsWith(path);
 }

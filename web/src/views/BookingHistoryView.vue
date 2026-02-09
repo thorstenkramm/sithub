@@ -2,7 +2,7 @@
   <div class="page-container">
     <PageHeader
       title="Booking History"
-      subtitle="View your past desk reservations"
+      subtitle="View your past reservations"
       :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'Booking History' }]"
     />
 
@@ -68,7 +68,7 @@
             </v-avatar>
           </template>
           <v-list-item-title class="d-flex align-center flex-wrap ga-2">
-            {{ booking.attributes.desk_name }}
+            {{ booking.attributes.item_name }}
             <StatusChip
               v-if="booking.attributes.is_guest"
               status="guest"
@@ -76,7 +76,7 @@
             />
           </v-list-item-title>
           <v-list-item-subtitle>
-            <span>{{ booking.attributes.room_name }} &bull; {{ booking.attributes.area_name }}</span>
+            <span>{{ booking.attributes.item_group_name }} &bull; {{ booking.attributes.area_name }}</span>
             <br />
             <span class="text-primary">{{ formatDate(booking.attributes.booking_date) }}</span>
           </v-list-item-subtitle>

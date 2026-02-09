@@ -1,0 +1,21 @@
+get:
+  summary: List booking history
+  description: |
+    Returns the current user's past bookings (before today), ordered by date descending.
+    Uses the same response format as the my bookings endpoint.
+  operationId: listBookingHistory
+  tags:
+    - Bookings
+  responses:
+    '200':
+      description: List of user's past bookings
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/MyBookingsCollectionResponse
+    '401':
+      description: Unauthorized - login required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

@@ -3,11 +3,11 @@ import { createRouter, createWebHistory } from 'vue-router';
 import AreasView from '../views/AreasView.vue';
 import AccessDeniedView from '../views/AccessDeniedView.vue';
 import AreaPresenceView from '../views/AreaPresenceView.vue';
-import RoomsView from '../views/RoomsView.vue';
-import DesksView from '../views/DesksView.vue';
+import ItemGroupsView from '../views/ItemGroupsView.vue';
+import ItemsView from '../views/ItemsView.vue';
 import MyBookingsView from '../views/MyBookingsView.vue';
 import BookingHistoryView from '../views/BookingHistoryView.vue';
-import RoomBookingsView from '../views/RoomBookingsView.vue';
+import ItemGroupBookingsView from '../views/ItemGroupBookingsView.vue';
 import LoginView from '../views/LoginView.vue';
 
 import { useAuthStore } from '../stores/useAuthStore';
@@ -28,9 +28,9 @@ const router = createRouter({
       component: AreasView
     },
     {
-      path: '/areas/:areaId/rooms',
-      name: 'rooms',
-      component: RoomsView
+      path: '/areas/:areaId/item-groups',
+      name: 'item-groups',
+      component: ItemGroupsView
     },
     {
       path: '/areas/:areaId/presence',
@@ -38,14 +38,14 @@ const router = createRouter({
       component: AreaPresenceView
     },
     {
-      path: '/rooms/:roomId/desks',
-      name: 'desks',
-      component: DesksView
+      path: '/item-groups/:itemGroupId/items',
+      name: 'items',
+      component: ItemsView
     },
     {
-      path: '/rooms/:roomId/bookings',
-      name: 'room-bookings',
-      component: RoomBookingsView
+      path: '/item-groups/:itemGroupId/bookings',
+      name: 'item-group-bookings',
+      component: ItemGroupBookingsView
     },
     {
       path: '/my-bookings',

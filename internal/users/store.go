@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -288,6 +289,61 @@ func GetAccessToken(ctx context.Context, db *sql.DB, id string) (string, error) 
 		return "", fmt.Errorf("get access token: %w", err)
 	}
 	return token, nil
+}
+
+// FindDisplayNames returns a map of user IDs to display names.
+// Unknown IDs are silently omitted from the result.
+func FindDisplayNames(ctx context.Context, db *sql.DB, userIDs []string) (result map[string]string, err error) {
+	if len(userIDs) == 0 {
+		return map[string]string{}, nil
+	}
+
+	// Deduplicate
+	seen := make(map[string]struct{}, len(userIDs))
+	unique := make([]string, 0, len(userIDs))
+	for _, id := range userIDs {
+		if _, ok := seen[id]; !ok {
+			seen[id] = struct{}{}
+			unique = append(unique, id)
+		}
+	}
+
+	placeholders := make([]string, len(unique))
+	args := make([]interface{}, len(unique))
+	for i, id := range unique {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	//nolint:gosec // G201: placeholders are "?" literals, not user input
+	query := fmt.Sprintf(
+		"SELECT id, display_name FROM users WHERE id IN (%s)",
+		strings.Join(placeholders, ","),
+	)
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query display names: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close display names rows: %w", closeErr)
+		}
+	}()
+
+	result = make(map[string]string, len(unique))
+	for rows.Next() {
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, fmt.Errorf("scan display name: %w", err)
+		}
+		result[id] = name
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate display names: %w", err)
+	}
+
+	return result, nil
 }
 
 // VerifyPassword compares a bcrypt hash with a plaintext password.

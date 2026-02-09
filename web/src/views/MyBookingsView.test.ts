@@ -30,8 +30,8 @@ describe('MyBookingsView', () => {
 
   const mockFetchBookings = (bookings: Array<{
     id: string;
-    deskName: string;
-    roomName: string;
+    itemName: string;
+    itemGroupName: string;
     areaName: string;
     bookingDate: string;
     bookedByUserId?: string;
@@ -44,10 +44,10 @@ describe('MyBookingsView', () => {
         id: b.id,
         type: 'bookings',
         attributes: {
-          desk_id: `desk-${b.id}`,
-          desk_name: b.deskName,
-          room_id: `room-${b.id}`,
-          room_name: b.roomName,
+          item_id: `item-${b.id}`,
+          item_name: b.itemName,
+          item_group_id: `ig-${b.id}`,
+          item_group_name: b.itemGroupName,
           area_id: `area-${b.id}`,
           area_name: b.areaName,
           booking_date: b.bookingDate,
@@ -95,11 +95,11 @@ describe('MyBookingsView', () => {
     expect(wrapper.text()).toContain('No upcoming bookings');
   });
 
-  it('renders bookings list with desk, room, area, and date', async () => {
+  it('renders bookings list with item, item group, area, and date', async () => {
     mockFetchMe();
     mockFetchBookings([
-      { id: '1', deskName: 'Corner Desk', roomName: 'Room 101', areaName: 'Main Office', bookingDate: '2026-01-20' },
-      { id: '2', deskName: 'Window Desk', roomName: 'Room 102', areaName: 'Annex', bookingDate: '2026-01-21' }
+      { id: '1', itemName: 'Corner Desk', itemGroupName: 'Room 101', areaName: 'Main Office', bookingDate: '2026-01-20' },
+      { id: '2', itemName: 'Window Desk', itemGroupName: 'Room 102', areaName: 'Annex', bookingDate: '2026-01-21' }
     ]);
     const wrapper = mountView();
 
@@ -116,7 +116,7 @@ describe('MyBookingsView', () => {
   it('displays formatted date', async () => {
     mockFetchMe();
     mockFetchBookings([
-      { id: '1', deskName: 'Desk 1', roomName: 'Room 1', areaName: 'Area 1', bookingDate: '2026-01-20' }
+      { id: '1', itemName: 'Desk 1', itemGroupName: 'Room 1', areaName: 'Area 1', bookingDate: '2026-01-20' }
     ]);
     const wrapper = mountView();
 
@@ -131,8 +131,8 @@ describe('MyBookingsView', () => {
     mockFetchBookings([
       {
         id: '1',
-        deskName: 'Corner Desk',
-        roomName: 'Room 101',
+        itemName: 'Corner Desk',
+        itemGroupName: 'Room 101',
         areaName: 'Main Office',
         bookingDate: '2026-01-20',
         bookedByUserId: 'colleague-123',

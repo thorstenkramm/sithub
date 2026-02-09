@@ -38,37 +38,45 @@ func resolveTestMigrationsPath(t *testing.T) string {
 	return filepath.Join(root, "migrations")
 }
 
-func seedTestBooking(t *testing.T, store *sql.DB, bookingID, deskID, userID, bookingDate string) {
-	seedTestBookingFull(t, store, bookingID, deskID, userID, "Test User", userID, "Test User", bookingDate)
+func seedTestBooking(t *testing.T, store *sql.DB, bookingID, itemID, userID, bookingDate string) {
+	t.Helper()
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := store.Exec(`
+		INSERT INTO bookings
+		(id, item_id, user_id, booked_by_user_id, booking_date,
+		 is_guest, guest_name, guest_email, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, 0, '', '', ?, ?)`,
+		bookingID, itemID, userID, userID, bookingDate, now, now,
+	)
+	require.NoError(t, err)
 }
 
 func seedTestBookingFull(
-	t *testing.T, store *sql.DB, bookingID, deskID,
-	userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
+	t *testing.T, store *sql.DB, bookingID, itemID,
+	userID, bookedByUserID, bookingDate string,
 ) {
-	seedTestBookingWithGuest(t, store, bookingID, deskID, userID, userName,
-		bookedByUserID, bookedByUserName, bookingDate, false, "")
+	seedTestBookingWithGuest(t, store, bookingID, itemID, userID,
+		bookedByUserID, bookingDate, false, "", "")
 }
 
 func seedTestBookingWithGuest(
-	t *testing.T, store *sql.DB, bookingID, deskID,
-	userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
-	isGuest bool, guestEmail string,
+	t *testing.T, store *sql.DB, bookingID, itemID,
+	userID, bookedByUserID, bookingDate string,
+	isGuest bool, guestName, guestEmail string,
 ) {
 	t.Helper()
-
 	now := time.Now().UTC().Format(time.RFC3339)
 	isGuestInt := 0
 	if isGuest {
 		isGuestInt = 1
 	}
 	_, err := store.Exec(`
-		INSERT INTO bookings 
-		(id, desk_id, user_id, user_name, booked_by_user_id, booked_by_user_name, 
-		 booking_date, is_guest, guest_email, created_at, updated_at) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		bookingID, deskID, userID, userName, bookedByUserID, bookedByUserName,
-		bookingDate, isGuestInt, guestEmail, now, now,
+		INSERT INTO bookings
+		(id, item_id, user_id, booked_by_user_id,
+		 booking_date, is_guest, guest_name, guest_email, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		bookingID, itemID, userID, bookedByUserID,
+		bookingDate, isGuestInt, guestName, guestEmail, now, now,
 	)
 	require.NoError(t, err)
 }

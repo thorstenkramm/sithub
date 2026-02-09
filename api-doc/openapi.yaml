@@ -14,16 +14,18 @@ paths:
     $ref: ./endpoints/ping.yaml
   /areas:
     $ref: ./endpoints/areas.yaml
-  /areas/{area_id}/rooms:
-    $ref: ./endpoints/rooms.yaml
+  /areas/{area_id}/item-groups:
+    $ref: ./endpoints/item-groups.yaml
   /areas/{area_id}/presence:
     $ref: ./endpoints/area-presence.yaml
-  /rooms/{room_id}/desks:
-    $ref: ./endpoints/desks.yaml
-  /rooms/{room_id}/bookings:
-    $ref: ./endpoints/room-bookings.yaml
+  /item-groups/{item_group_id}/items:
+    $ref: ./endpoints/items.yaml
+  /item-groups/{item_group_id}/bookings:
+    $ref: ./endpoints/item-group-bookings.yaml
   /bookings:
     $ref: ./endpoints/bookings.yaml
+  /bookings/history:
+    $ref: ./endpoints/bookings-history.yaml
   /bookings/{booking_id}:
     $ref: ./endpoints/booking.yaml
   /me:
@@ -36,8 +38,7 @@ paths:
     $ref: ./endpoints/users.yaml
   /users/{user_id}:
     $ref: ./endpoints/user.yaml
-  /presence:
-    $ref: ./endpoints/presence.yaml
+
 components:
   securitySchemes:
     cookieAuth:
@@ -122,7 +123,7 @@ components:
             $ref: '#/components/schemas/AreaResource'
       required:
         - data
-    RoomAttributes:
+    ItemGroupAttributes:
       type: object
       properties:
         name:
@@ -133,28 +134,28 @@ components:
           type: string
       required:
         - name
-    RoomResource:
+    ItemGroupResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
         - type: object
           properties:
             type:
-              const: rooms
+              const: item-groups
             attributes:
-              $ref: '#/components/schemas/RoomAttributes'
+              $ref: '#/components/schemas/ItemGroupAttributes'
           required:
             - type
             - attributes
-    RoomCollectionResponse:
+    ItemGroupCollectionResponse:
       type: object
       properties:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/RoomResource'
+            $ref: '#/components/schemas/ItemGroupResource'
       required:
         - data
-    DeskAttributes:
+    ItemAttributes:
       type: object
       properties:
         name:
@@ -180,50 +181,66 @@ components:
         - name
         - equipment
         - availability
-    DeskResource:
+    ItemResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
         - type: object
           properties:
             type:
-              const: desks
+              const: items
             attributes:
-              $ref: '#/components/schemas/DeskAttributes'
+              $ref: '#/components/schemas/ItemAttributes'
           required:
             - type
             - attributes
-    DeskCollectionResponse:
+    ItemCollectionResponse:
       type: object
       properties:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/DeskResource'
+            $ref: '#/components/schemas/ItemResource'
       required:
         - data
     CreateBookingRequestAttributes:
       type: object
       properties:
-        desk_id:
+        item_id:
           type: string
-          description: ID of the desk to book
+          description: ID of the item to book
         booking_date:
           type: string
           format: date
-          description: Date to book the desk (YYYY-MM-DD)
+          description: Date to book the item (YYYY-MM-DD), for single-day bookings
+        booking_dates:
+          type: array
+          items:
+            type: string
+            format: date
+          description: >
+            Array of dates to book (YYYY-MM-DD), for multi-day bookings.
+            Use either booking_date or booking_dates, not both.
         for_user_id:
           type: string
           description: >
             Optional. ID of another user to book on behalf of.
-            If provided, for_user_name is also required.
+            The user must exist in the system.
         for_user_name:
           type: string
           description: >
-            Optional. Name of the user to book on behalf of.
-            Required if for_user_id is provided.
+            Optional. Display name for the booking target.
+            Required for guest bookings (when is_guest is true).
+        is_guest:
+          type: boolean
+          description: >
+            Optional. Set to true to create a guest booking.
+            Requires for_user_name.
+        guest_email:
+          type: string
+          format: email
+          description: Optional contact email for guest bookings.
       required:
-        - desk_id
-        - booking_date
+        - item_id
     CreateBookingRequest:
       type: object
       properties:
@@ -243,7 +260,7 @@ components:
     BookingAttributes:
       type: object
       properties:
-        desk_id:
+        item_id:
           type: string
         user_id:
           type: string
@@ -253,8 +270,17 @@ components:
         created_at:
           type: string
           format: date-time
+        booked_by_user_id:
+          type: string
+          description: ID of the user who created the booking (present when different from user_id)
+        is_guest:
+          type: boolean
+          description: Whether this is a guest booking
+        guest_email:
+          type: string
+          description: Contact email for guest bookings
       required:
-        - desk_id
+        - item_id
         - user_id
         - booking_date
         - created_at
@@ -280,13 +306,13 @@ components:
     MyBookingAttributes:
       type: object
       properties:
-        desk_id:
+        item_id:
           type: string
-        desk_name:
+        item_name:
           type: string
-        room_id:
+        item_group_id:
           type: string
-        room_name:
+        item_group_name:
           type: string
         area_id:
           type: string
@@ -310,11 +336,17 @@ components:
             True if this booking was made on behalf of the current user
             by someone else. False for self-bookings or bookings the
             current user made for others.
+        is_guest:
+          type: boolean
+          description: Whether this is a guest booking
+        guest_email:
+          type: string
+          description: Contact email for guest bookings
       required:
-        - desk_id
-        - desk_name
-        - room_id
-        - room_name
+        - item_id
+        - item_name
+        - item_group_id
+        - item_group_name
         - area_id
         - area_name
         - booking_date
@@ -343,12 +375,12 @@ components:
             $ref: '#/components/schemas/MyBookingResource'
       required:
         - data
-    RoomBookingAttributes:
+    ItemGroupBookingAttributes:
       type: object
       properties:
-        desk_id:
+        item_id:
           type: string
-        desk_name:
+        item_name:
           type: string
         user_id:
           type: string
@@ -358,12 +390,12 @@ components:
           type: string
           format: date
       required:
-        - desk_id
-        - desk_name
+        - item_id
+        - item_name
         - user_id
         - user_name
         - booking_date
-    RoomBookingResource:
+    ItemGroupBookingResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
         - type: object
@@ -371,17 +403,17 @@ components:
             type:
               const: bookings
             attributes:
-              $ref: '#/components/schemas/RoomBookingAttributes'
+              $ref: '#/components/schemas/ItemGroupBookingAttributes'
           required:
             - type
             - attributes
-    RoomBookingsCollectionResponse:
+    ItemGroupBookingsCollectionResponse:
       type: object
       properties:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/RoomBookingResource'
+            $ref: '#/components/schemas/ItemGroupBookingResource'
       required:
         - data
     AreaPresenceAttributes:
@@ -391,21 +423,21 @@ components:
           type: string
         user_name:
           type: string
-        desk_id:
+        item_id:
           type: string
-        desk_name:
+        item_name:
           type: string
-        room_id:
+        item_group_id:
           type: string
-        room_name:
+        item_group_name:
           type: string
       required:
         - user_id
         - user_name
-        - desk_id
-        - desk_name
-        - room_id
-        - room_name
+        - item_id
+        - item_name
+        - item_group_id
+        - item_group_name
     AreaPresenceResource:
       allOf:
         - $ref: '#/components/schemas/Resource'

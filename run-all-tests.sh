@@ -69,10 +69,10 @@ cat >"${TEST_SPACES}" <<EOF
 areas:
   - id: test_area
     name: "Test Area"
-    rooms:
+    items:
       - id: test_room
         name: "Test Room"
-        desks:
+        items:
           - id: desk_1
             name: "Desk 1"
             equipment: [Monitor, Keyboard]

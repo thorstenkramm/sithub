@@ -23,11 +23,13 @@ classification:
   complexity: low
   projectContext: brownfield
 date: 2026-01-17
-lastEdited: 2026-02-07
+lastEdited: 2026-02-08
 workflowType: 'prd'
 editHistory:
   - date: 2026-02-07
     changes: "Added multi-source auth (EntraID + local), user management API, password management. Removed test_auth. Fixed validation findings (implementation leakage, post-MVP traceability)."
+  - date: 2026-02-08
+    changes: "Domain rename: rooms/desks to generic items (FR4-FR18 reworded). Added FR36-FR42: weekly availability, booking notes, week booking mode, booker visibility, clickable breadcrumbs, schema normalization, UI label consistency. Resolved all 6 validation observations. Updated all user journeys and UX requirements."
 ---
 
 # Product Requirements Document - sithub
@@ -37,10 +39,11 @@ editHistory:
 
 ## Executive Summary
 
-SitHub is a SPA desk-booking web app for shared offices that replaces manual Confluence tables
-with a fast, mobile-friendly booking flow. Employees can see real-time availability, book
-single-day desks, and manage their bookings; admins can cancel any booking; IT configures
-space definitions via YAML. SitHub supports dual authentication: Entra ID SSO for enterprise
+SitHub is a SPA resource-booking web app for shared offices that replaces manual Confluence
+tables with a fast, mobile-friendly booking flow. Employees can see real-time availability, book
+items (desks, parking lots, lab benches, or any reservable resource) for a single day or an
+entire week, and manage their bookings; admins can cancel any booking; IT configures space
+definitions via YAML. SitHub supports dual authentication: Entra ID SSO for enterprise
 environments and local credentials for teams without Entra ID. The MVP prioritizes a
 low-friction UX and simple deployment (single executable), with success measured by user
 preference over the Confluence workflow after a 5-day trial.
@@ -49,6 +52,7 @@ preference over the Confluence workflow after a 5-day trial.
 
 - Single-executable distribution to minimize operational overhead
 - Dual authentication: Entra ID SSO or local credentials (works with or without Entra ID)
+- Domain-agnostic item booking (desks, parking lots, lab equipment, meeting rooms, etc.)
 - Mobile-first, no-pinch booking experience
 - File-based space configuration for simple administration
 
@@ -56,8 +60,8 @@ preference over the Confluence workflow after a 5-day trial.
 
 ### User Success
 
-- Users can book a desk quickly and easily on mobile or desktop.
-- Users describe SitHub as “worlds better than Confluence.”
+- Users can book an item quickly and easily on mobile or desktop.
+- Users describe SitHub as "worlds better than Confluence."
 - After a 5-day trial, users do not want to return to the Confluence workflow.
 
 ### Business Success
@@ -87,21 +91,25 @@ preference over the Confluence workflow after a 5-day trial.
 - Dual authentication: Entra ID SSO or local credentials
 - User management API (`/users` CRUD, `/me` endpoint)
 - Self-service and admin password management for local users
-- List view of areas, rooms, and desks with equipment
-- Book a desk for a single day
+- List view of areas and items (hierarchical) with equipment
+- Book an item for a single day or an entire week
+- Weekly availability preview for item groups
+- Booking notes (add, view, edit)
 - Cancel a booking
-- Room booking overview (per room)
+- Item group booking overview
 - "Today's presence" view (who is in the office by area)
 
 ### Out of Scope (MVP)
 
 - A UI to manage internal users is not desired for MVP.
 - User self-registration is not supported; local users are created by admins or via SQL.
+- "Book for colleague" and "Book for guest" UI is deferred; backend API exists but is not
+  exposed in the frontend.
 
 ### Growth Features (Post-MVP)
 
-- Booking on behalf of others
-- Guest bookings
+- Booking on behalf of others (UI; backend API exists from MVP)
+- Guest bookings (UI; backend API exists from MVP)
 - Notifications
 - Booking history
 - Multi-day and recurring bookings
@@ -114,63 +122,66 @@ preference over the Confluence workflow after a 5-day trial.
 
 ## User Journeys
 
-### Journey 1: Employee (Happy Path) — "Fast and Easy Booking"
+### Journey 1: Employee (Happy Path) -- "Fast and Easy Booking"
 
 **Opening Scene:**
-Alex, an employee, opens SitHub on a phone or desktop to book a desk for tomorrow.
+Alex, an employee, opens SitHub on a phone or desktop to book for tomorrow.
 
 **Rising Action:**
 
 - Sees the login page with two options: a login form and an "Login via Entra ID" button
 - Logs in with their preferred method
 - Sees a clean list of areas -> selects one
-- Chooses a room -> sees desk list with equipment
-- Selects a desk -> books for a single day
+- Sees item groups (e.g., rooms, parking sections) -> selects one
+- Sees items (e.g., desks, parking lots) with equipment and availability
+- Optionally checks the weekly availability preview to find the best day
+- Books an item for a single day (or toggles to week mode and books multiple days at once)
+- Adds an optional note to the booking (e.g., "arriving after noon")
 - Visits "My Bookings" to confirm
 
 **Climax (Aha Moment):**
-"No pinching or zooming needed - everything is readable and actionable on mobile."
+"No pinching or zooming needed -- everything is readable and actionable on mobile."
 
 **Resolution:**
 Alex feels it was fast and easy and trusts the booking is secured.
 
 ---
 
-### Journey 2: Employee (Edge Case) — “Desk Taken”
+### Journey 2: Employee (Edge Case) -- "Item Taken"
 
-**Opening Scene:**  
-Alex selects a desk and is about to book.
+**Opening Scene:**
+Alex selects an item and is about to book.
 
-**Rising Action:**  
-Another user books the same desk moments earlier.
+**Rising Action:**
+Another user books the same item moments earlier.
 
-**Climax:**  
-The system responds with a clear message: “Sorry. Someone else already picked this desk.”
+**Climax:**
+The system responds with a clear message: "Sorry. Someone else already picked this item."
 
-**Resolution:**  
-Alex quickly picks another desk and completes booking.
+**Resolution:**
+Alex quickly picks another item and completes booking.
 
 ---
 
-### Journey 3: Admin/Operations — “Resolve Conflicts”
+### Journey 3: Admin/Operations -- "Resolve Conflicts"
 
-**Opening Scene:**  
+**Opening Scene:**
 Kim (admin) checks bookings and sees a conflict or needs to free capacity.
 
-**Rising Action:**  
+**Rising Action:**
 
-- Reviews room bookings  
+- Reviews item group bookings and today's presence
 - Cancels a booking that needs resolution (admin privilege)
 
-**Climax:**  
+**Climax:**
 Conflict is resolved immediately.
 
-**Resolution:**  
-Kim says, “This was fast and easy.”
+**Resolution:**
+Kim says, "This was fast and easy."
 
 ---
 
-### Journey 4: IT / Setup — "Low-Friction Launch"
+### Journey 4: IT / Setup -- "Low-Friction Launch"
 
 **Opening Scene:**
 Sam from IT needs to deploy SitHub quickly.
@@ -179,14 +190,14 @@ Sam from IT needs to deploy SitHub quickly.
 
 - Creates a new Entra ID application
 - Configures server settings and Entra ID connection
-- Defines areas, rooms, desks, and equipment in the space configuration file
+- Defines areas, item groups, items, and equipment in the space configuration file
 - Starts the single executable
 
 **Rising Action (without Entra ID):**
 
 - Configures server settings (no Entra ID section needed)
 - Imports demo users via the provided SQL file or creates users via the API
-- Defines areas, rooms, desks, and equipment in the space configuration file
+- Defines areas, item groups, items, and equipment in the space configuration file
 - Starts the single executable
 
 **Climax:**
@@ -197,7 +208,7 @@ Setup is complete and low-maintenance (target: under 30 minutes).
 
 ---
 
-### Journey 5: Employee — "Local Login and Password Change"
+### Journey 5: Employee -- "Local Login and Password Change"
 
 **Opening Scene:**
 Dana works at a company without Entra ID. She uses SitHub with local credentials.
@@ -206,11 +217,11 @@ Dana works at a company without Entra ID. She uses SitHub with local credentials
 
 - Opens SitHub and sees the login page with a username/password form
 - Enters email and password, logs in
-- Books a desk as usual
+- Books an item as usual
 - Later, changes her password via her profile
 
 **Climax:**
-"This works just like any other web app - no special enterprise setup needed."
+"This works just like any other web app -- no special enterprise setup needed."
 
 **Resolution:**
 Dana manages her own credentials and uses SitHub without Entra ID dependency.
@@ -223,12 +234,16 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
 - Admin password reset for local users
 - Users table storing both Entra ID and local users
 - Email uniqueness enforced across authentication sources
-- Responsive list-based navigation (area -> room -> desk)
-- Single-day booking flow with immediate confirmation
-- "My Bookings" view with cancel action
-- Room booking overview and "Today's presence" per area
-- Conflict handling when a desk becomes unavailable
+- Responsive list-based navigation (area -> item group -> item)
+- Single-day and week booking flow with immediate confirmation
+- Booking notes (add, view, edit)
+- Weekly availability preview for item groups with color-coded weekday indicators
+- Booker display name shown on booked items
+- "My Bookings" view with cancel action and note editing
+- Item group booking overview and "Today's presence" per area
+- Conflict handling when an item becomes unavailable
 - Role-based permissions: users cancel own bookings; admins can cancel any
+- Clickable breadcrumbs for navigation hierarchy
 - File-based space configuration
 - Single-binary distribution (frontend + backend)
 - Demo users SQL file for development and testing setup
@@ -261,13 +276,23 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
 
 ## UX/UI Requirements
 
-- Primary flow is list-based and linear: area → room → desk → confirm
+- Primary flow is list-based and linear: area -> item group -> item -> confirm
 - Booking status is visible at-a-glance with clear available/unavailable states
-- Booking and cancellation confirmations are immediate and explicit
-- Error states are plain-language and actionable (e.g., desk taken, retry)
-- “My Bookings” is reachable from the primary navigation on mobile and desktop
+- Weekly availability is visible via color-coded weekday indicators (MO-FR) on item group
+  tiles; green indicates at least one item available, red indicates fully booked
+- Users can toggle between day and week booking modes; the selected mode persists across
+  sessions via browser local storage
+- Booking confirmation includes the item name from the configuration (e.g., "Parking Lot 1
+  booked successfully") and an option to add a note
+- Booking notes are visible in My Bookings, Today's Presence, and item detail views;
+  notes longer than the display width are truncated with an expand indicator
+- Booked items display the booker's display name
+- Breadcrumbs are clickable and navigate to the corresponding hierarchy level
+- Error states are plain-language and actionable (e.g., item taken, retry)
+- "My Bookings" is reachable from the primary navigation on mobile and desktop
 - Layout remains readable and fully operable on small screens without zoom
 - UI uses accessible labels, focus states, and contrast consistent with WCAG A
+- UI action labels use domain-neutral terminology ("BOOK" instead of "VIEW DESK/ROOM")
 
 ## Project Scoping & Phased Development
 
@@ -286,7 +311,7 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
 **Core User Journeys Supported:**
 
 - Employee happy-path booking (Entra ID or local login)
-- Employee edge case (desk taken)
+- Employee edge case (item taken)
 - Employee local login and password change
 - Admin cancellation
 - IT setup and configuration (with or without Entra ID)
@@ -295,10 +320,12 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
 
 - Dual authentication (Entra ID SSO or local credentials)
 - User management API and password management
-- Area -> room -> desk list with equipment
-- Single-day booking + cancel
+- Area -> item group -> item list with equipment
+- Single-day booking + week booking + cancel
+- Weekly availability preview
+- Booking notes (add, view, edit)
 - "My Bookings"
-- Room booking overview + today's presence
+- Item group booking overview + today's presence
 - Real-time availability updates
 - Single executable (frontend + backend)
 - Clear setup docs (including Entra ID steps and local auth setup)
@@ -307,35 +334,35 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
 
 **Phase 2 (Post-MVP):**
 
-- Booking on behalf of others  
-- Guest bookings  
-- Notifications  
-- Booking history  
+- Booking on behalf of others (UI)
+- Guest bookings (UI)
+- Notifications
+- Booking history
 - Multi-day and recurring bookings
 
 **Phase 3 (Expansion):**
 
-- Graphical floor maps  
-- Admin management UI + advanced controls  
+- Graphical floor maps
+- Admin management UI + advanced controls
 - Reporting and analytics
 
 ### Risk Mitigation Strategy
 
-**Technical Risks:**  
+**Technical Risks:**
 
-- Real-time availability sync + conflict resolution  
-- Entra ID setup reliability  
-- Single-binary packaging of frontend + backend  
+- Real-time availability sync + conflict resolution
+- Entra ID setup reliability
+- Single-binary packaging of frontend + backend
 *Mitigation:* build early spikes for live updates and Entra ID, validate packaging early.
 
-**Market Risks:**  
+**Market Risks:**
 
-- Users may tolerate the Confluence workflow and resist change  
+- Users may tolerate the Confluence workflow and resist change
 *Mitigation:* run the 5-day trial, collect explicit preference feedback.
 
-**Resource Risks:**  
+**Resource Risks:**
 
-- Limited capacity across backend/frontend/ops  
+- Limited capacity across backend/frontend/ops
 *Mitigation:* keep strict MVP boundaries and defer non-essentials.
 
 ## Functional Requirements
@@ -347,7 +374,7 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
   button; both methods result in an authenticated session with the user's name displayed.
 - FR2: The system determines user roles (regular vs admin) based on authentication source.
   For Entra ID users, admin status is synced from group membership on every login and cannot
-  be changed locally. For local users, admin status is managed via the database.
+  be changed locally. For local users, admin status is managed locally by administrators.
   Acceptance: admins see admin-only controls; regular users do not; Entra ID admin status
   reflects current group membership after each login.
 - FR3: Users can access the application only if they are authenticated. Acceptance:
@@ -362,7 +389,8 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
   with an email that exists for an Entra ID user is blocked, and vice versa. Acceptance:
   attempting to create a duplicate email returns an error regardless of authentication source.
 - FR30: Local users can log in with email and password. Acceptance: entering valid credentials
-  in the login form creates an authenticated session; invalid credentials show a clear error.
+  in the login form creates an authenticated session; invalid credentials show a descriptive
+  error message.
 - FR31: Local users can change their own password via the `/me` endpoint. Acceptance: after
   changing the password, the old password no longer works and the new password (minimum 14
   characters) is accepted.
@@ -378,49 +406,91 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
 - FR35: A demo users SQL file is provided for development setup. Acceptance: running the SQL
   file creates 15 users (2 admins, 13 regular users) with local credentials in the database.
 
-### Areas, Rooms, and Desks Discovery
+### Areas and Items Discovery
 
-- FR4: Users can view a list of available areas. Acceptance: after login, the UI lists all configured areas.
-- FR5: Users can view a list of rooms within a selected area. Acceptance: selecting an area shows only its rooms.
-- FR6: Users can view a list of desks within a selected room. Acceptance: selecting a room lists its desks.
-- FR7: Users can view desk equipment details for each desk. Acceptance: each desk entry shows its equipment list.
-- FR8: Users can view current booking status for desks. Acceptance: desk entries show
+- FR4: Users can view a list of available areas. Acceptance: after login, the UI lists all
+  configured areas.
+- FR5: Users can view a list of item groups within a selected area. Acceptance: selecting an
+  area shows only its item groups.
+- FR6: Users can view a list of items within a selected item group. Acceptance: selecting an
+  item group lists its items.
+- FR7: Users can view equipment details for each item. Acceptance: each item entry shows its
+  equipment list if configured.
+- FR8: Users can view current booking status for items. Acceptance: item entries show
   available/occupied status for the selected date.
+- FR36: Users can view a weekly availability preview for item groups. Acceptance: the item
+  group list view includes a calendar week selector (next 8 weeks, current week pre-selected);
+  each item group tile displays weekday indicators (MO-FR) colored green (at least one item
+  available) or red (fully booked) for the selected week; the week selector displays dates in
+  locale-aware format with week number (e.g., "2026-03-16 - Week 12").
+- FR39: Users can see the display name of the person who booked an item. Acceptance: in the
+  item detail view, booked items show the booker's display name alongside the booking status.
 
 ### Booking Creation
 
-- FR9: Users can book a desk for a single day. Acceptance: selecting a desk and date creates
+- FR9: Users can book an item for a single day. Acceptance: selecting an item and date creates
   a booking that appears in "My Bookings."
-- FR10: The system prevents double-booking of the same desk for the same day. Acceptance:
+- FR10: The system prevents double-booking of the same item for the same day. Acceptance:
   the second attempt is rejected and no duplicate booking is created.
-- FR11: Users receive a message when a selected desk becomes unavailable during booking.
-  Acceptance: the message states the desk is no longer available for that date and prompts
-  the user to choose another desk.
+- FR11: Users receive a message when a selected item becomes unavailable during booking.
+  Acceptance: the message states the item is no longer available for that date and prompts
+  the user to choose another item.
+- FR38: Users can toggle between day booking mode and week booking mode. Acceptance: the
+  selected mode is persisted in browser local storage and restored on next visit; in week
+  mode, the date selector becomes a calendar week selector (next 8 weeks); item tiles show
+  per-day checkboxes with booker names; existing bookings by other users cannot be unchecked;
+  a single "Confirm My Booking" button submits all selected days at once.
 
 ### Booking Management
 
 - FR12: Users can view their upcoming bookings ("My Bookings"). Acceptance: the list includes
-  desk, room, area, and date for each future booking.
+  item, item group, area, and date for each future booking; booking notes are displayed if
+  present.
 - FR13: Users can cancel their own bookings. Acceptance: cancelling removes the booking from
-  all relevant lists and frees the desk.
+  all relevant lists and frees the item.
 - FR14: Admin users can cancel any booking. Acceptance: admins can cancel another user's
   booking and the affected user sees the cancellation reflected in their list.
+- FR37: Users can add, view, and edit free-text notes on their bookings. Acceptance: after
+  completing a booking, a confirmation message includes an "add note" action; notes are
+  visible in My Bookings, Today's Presence, and item detail views; notes longer than the
+  display width are truncated with an expand indicator that opens the full text; notes are
+  editable from the My Bookings view.
 
-### Room and Presence Overviews
+### Item Group and Presence Overviews
 
-- FR15: Users can view a room-level booking overview. Acceptance: for a selected room and
-  date, the overview lists all booked desks and associated users.
+- FR15: Users can view an item-group-level booking overview. Acceptance: for a selected item
+  group and date, the overview lists all booked items and associated users; booking notes are
+  displayed if present.
 - FR16: Users can view "Today's presence" for an area (who is in the office today).
-  Acceptance: the view lists all users with bookings in that area for today.
+  Acceptance: the view lists all users with bookings in that area for today; booking notes
+  are displayed if present.
 
 ### Configuration & Setup (Operator Capabilities)
 
 - FR17: Operators can configure server settings via a configuration file. Acceptance: invalid
-  settings prevent startup with a clear error; valid settings allow startup.
-- FR18: Operators can configure areas, rooms, desks, and equipment via a configuration file.
-  Acceptance: after restart, the UI reflects the updated space definitions.
+  settings prevent startup with a descriptive error message stating the failure reason; valid
+  settings allow startup.
+- FR18: Operators can configure areas, item groups, items, and equipment via a configuration
+  file. Acceptance: after restart, the UI reflects the updated space definitions.
 - FR19: The system can load and apply configuration changes on startup. Acceptance:
   configuration changes take effect after restart without manual data migration steps.
+
+### Navigation & UI Consistency
+
+- FR40: Breadcrumbs in the navigation hierarchy are clickable and navigate to the
+  corresponding view. Acceptance: clicking any breadcrumb segment navigates to that level of
+  the hierarchy; the current page breadcrumb is not clickable.
+- FR42: UI action labels use domain-neutral terminology. Acceptance: labels read "BOOK"
+  instead of "VIEW DESK" or "VIEW ROOM"; "BOOK THIS ITEM" instead of "BOOK THIS DESK";
+  booking confirmation messages reference the item name from the configuration (e.g.,
+  "Parking Lot 1 booked successfully") rather than the generic term "desk."
+
+### Data Integrity
+
+- FR41: The bookings table references users by `user_id` only; display names are resolved
+  via JOIN with the users table. Acceptance: the bookings table does not store denormalized
+  user name columns; all booking queries that require user names perform a JOIN; existing
+  bookings are migrated to remove redundant columns.
 
 ### Post-MVP (Phase 2+)
 
@@ -429,7 +499,7 @@ They trace to the Growth Features scope and would require new user journeys when
 
 - FR20: Users can book on behalf of another user. Acceptance: the booking appears in both
   users' booking lists and either can cancel.
-- FR21: Users can book desks for guests outside the organization. Acceptance: a guest booking
+- FR21: Users can book items for guests outside the organization. Acceptance: a guest booking
   stores guest name and contact and is visible as a guest booking in overviews.
 - FR22: Users can book multi-day or recurring reservations. Acceptance: the system creates
   individual daily bookings and reports conflicts per day.
@@ -437,8 +507,8 @@ They trace to the Growth Features scope and would require new user journeys when
   range filtering.
 - FR24: Users can receive notifications related to bookings. Acceptance: booking
   creation/cancellation triggers a notification via the configured channel within 5 minutes.
-- FR25: Admins can manage rooms/desks via an admin UI. Acceptance: admins can add/edit/remove
-  rooms/desks and changes appear in discovery lists after save.
+- FR25: Admins can manage item groups and items via an admin UI. Acceptance: admins can
+  add/edit/remove item groups and items; changes appear in discovery lists after save.
 
 ### Future (Phase 3+)
 
@@ -446,10 +516,10 @@ These requirements support the long-term vision of visual space management and d
 decisions. They trace to the Vision scope and would require new user journeys and potentially
 new user personas when implemented.
 
-- FR26: Users can book desks using a graphical floor-map view. Acceptance: a desk selected
+- FR26: Users can book items using a graphical floor-map view. Acceptance: an item selected
   on the map can be booked for a chosen date.
 - FR27: Admins can access advanced reporting and analytics. Acceptance: admins can view usage
-  summaries by area/room and date range.
+  summaries by area/item group and date range.
 
 ## Non-Functional Requirements
 
@@ -482,3 +552,8 @@ new user personas when implemented.
 
 - Meets WCAG A: all interactive elements have accessible names, keyboard focus is visible,
   and form inputs are labeled.
+
+### Availability
+
+- For MVP, no formal uptime SLA is required; the system is recoverable by operator restart
+  within minutes of failure.

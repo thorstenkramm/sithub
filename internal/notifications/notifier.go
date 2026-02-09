@@ -25,15 +25,14 @@ const (
 type BookingEvent struct {
 	Event       EventType `json:"event"`
 	BookingID   string    `json:"booking_id"`
-	DeskID      string    `json:"desk_id"`
+	ItemID      string    `json:"item_id"`
 	UserID      string    `json:"user_id"`
-	UserName    string    `json:"user_name"`
 	BookingDate string    `json:"booking_date"`
 	IsGuest     bool      `json:"is_guest,omitempty"`
+	GuestName   string    `json:"guest_name,omitempty"`
 	GuestEmail  string    `json:"guest_email,omitempty"`
 	// BookedByUserID is set when booking was made on behalf of someone.
-	BookedByUserID   string `json:"booked_by_user_id,omitempty"`
-	BookedByUserName string `json:"booked_by_user_name,omitempty"`
+	BookedByUserID string `json:"booked_by_user_id,omitempty"`
 	// CanceledByUserID is set when a booking is canceled.
 	CanceledByUserID string `json:"canceled_by_user_id,omitempty"`
 	// Timestamp is when the event occurred.

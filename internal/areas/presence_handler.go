@@ -9,16 +9,17 @@ import (
 
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/users"
 )
 
 // PresenceAttributes represents a user present in the area.
 type PresenceAttributes struct {
-	UserID   string `json:"user_id"`
-	UserName string `json:"user_name"`
-	DeskID   string `json:"desk_id"`
-	DeskName string `json:"desk_name"`
-	RoomID   string `json:"room_id"`
-	RoomName string `json:"room_name"`
+	UserID        string `json:"user_id"`
+	UserName      string `json:"user_name"`
+	ItemID        string `json:"item_id"`
+	ItemName      string `json:"item_name"`
+	ItemGroupID   string `json:"item_group_id"`
+	ItemGroupName string `json:"item_group_name"`
 }
 
 // PresenceHandler returns a JSON:API list of users present in an area on a given date.
@@ -36,7 +37,7 @@ func PresenceHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.H
 			return api.WriteNotFound(c, "Area not found")
 		}
 
-		params, err := api.ParseRoomRequest(areaID, c.QueryParam("date"))
+		params, err := api.ParseItemGroupRequest(areaID, c.QueryParam("date"))
 		if err != nil {
 			return api.WriteBadRequest(c, "Invalid date. Use YYYY-MM-DD.")
 		}
@@ -50,54 +51,54 @@ func PresenceHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.H
 	}
 }
 
-// deskDetails holds desk information for presence display.
-type deskDetails struct {
-	DeskName string
-	RoomID   string
-	RoomName string
+// itemDetails holds item information for presence display.
+type itemDetails struct {
+	ItemName      string
+	ItemGroupID   string
+	ItemGroupName string
 }
 
-// buildDeskIndex creates a map of desk IDs to their details for an area.
-func buildDeskIndex(area *spaces.Area) (deskIDs []string, deskInfo map[string]deskDetails) {
-	var totalDesks int
-	for _, room := range area.Rooms {
-		totalDesks += len(room.Desks)
+// buildItemIndex creates a map of item IDs to their details for an area.
+func buildItemIndex(area *spaces.Area) (itemIDs []string, itemInfo map[string]itemDetails) {
+	var totalItems int
+	for _, ig := range area.ItemGroups {
+		totalItems += len(ig.Items)
 	}
 
-	deskIDs = make([]string, 0, totalDesks)
-	deskInfo = make(map[string]deskDetails, totalDesks)
+	itemIDs = make([]string, 0, totalItems)
+	itemInfo = make(map[string]itemDetails, totalItems)
 
-	for _, room := range area.Rooms {
-		for _, desk := range room.Desks {
-			deskIDs = append(deskIDs, desk.ID)
-			deskInfo[desk.ID] = deskDetails{
-				DeskName: desk.Name,
-				RoomID:   room.ID,
-				RoomName: room.Name,
+	for _, ig := range area.ItemGroups {
+		for _, item := range ig.Items {
+			itemIDs = append(itemIDs, item.ID)
+			itemInfo[item.ID] = itemDetails{
+				ItemName:      item.Name,
+				ItemGroupID:   ig.ID,
+				ItemGroupName: ig.Name,
 			}
 		}
 	}
 
-	return deskIDs, deskInfo
+	return itemIDs, itemInfo
 }
 
 func findAreaPresence(
 	ctx context.Context, store *sql.DB, area *spaces.Area, bookingDate string,
 ) ([]api.Resource, error) {
-	deskIDs, deskInfo := buildDeskIndex(area)
-	if len(deskIDs) == 0 {
+	itemIDs, itemInfo := buildItemIndex(area)
+	if len(itemIDs) == 0 {
 		return []api.Resource{}, nil
 	}
 
-	placeholders, args := api.BuildINClause(deskIDs)
+	placeholders, args := api.BuildINClause(itemIDs)
 	args = append(args, bookingDate)
 
 	//nolint:gosec // G201: placeholders are "?" literals from BuildINClause, not user input
 	query := fmt.Sprintf(
-		`SELECT id, desk_id, user_id, user_name 
-		 FROM bookings 
-		 WHERE desk_id IN (%s) AND booking_date = ?
-		 ORDER BY user_name, desk_id`,
+		`SELECT id, item_id, user_id
+		 FROM bookings
+		 WHERE item_id IN (%s) AND booking_date = ?
+		 ORDER BY item_id`,
 		placeholders,
 	)
 
@@ -111,33 +112,63 @@ func findAreaPresence(
 		}
 	}()
 
-	return scanPresenceRows(rows, deskInfo)
+	return scanPresenceRows(ctx, store, rows, itemInfo)
 }
 
-func scanPresenceRows(rows *sql.Rows, deskInfo map[string]deskDetails) ([]api.Resource, error) {
-	var resources []api.Resource
+func scanPresenceRows(
+	ctx context.Context, store *sql.DB, rows *sql.Rows, itemInfo map[string]itemDetails,
+) ([]api.Resource, error) {
+	type booking struct {
+		bookingID string
+		itemID    string
+		userID    string
+	}
+
+	var bookingList []booking
+	userIDSet := make(map[string]struct{})
+
 	for rows.Next() {
-		var bookingID, deskID, userID, userName string
-		if err := rows.Scan(&bookingID, &deskID, &userID, &userName); err != nil {
+		var bookingID, itemID, userID string
+		if err := rows.Scan(&bookingID, &itemID, &userID); err != nil {
 			return nil, fmt.Errorf("scan area presence: %w", err)
 		}
-
-		info := deskInfo[deskID]
-		resources = append(resources, api.Resource{
-			Type: "presence",
-			ID:   bookingID,
-			Attributes: PresenceAttributes{
-				UserID:   userID,
-				UserName: userName,
-				DeskID:   deskID,
-				DeskName: info.DeskName,
-				RoomID:   info.RoomID,
-				RoomName: info.RoomName,
-			},
-		})
+		bookingList = append(bookingList, booking{bookingID: bookingID, itemID: itemID, userID: userID})
+		userIDSet[userID] = struct{}{}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate area presence: %w", err)
+	}
+
+	// Collect unique user IDs and look up display names.
+	userIDs := make([]string, 0, len(userIDSet))
+	for uid := range userIDSet {
+		userIDs = append(userIDs, uid)
+	}
+
+	displayNames := make(map[string]string)
+	if len(userIDs) > 0 {
+		var err error
+		displayNames, err = users.FindDisplayNames(ctx, store, userIDs)
+		if err != nil {
+			return nil, fmt.Errorf("find display names: %w", err)
+		}
+	}
+
+	resources := make([]api.Resource, 0, len(bookingList))
+	for _, b := range bookingList {
+		info := itemInfo[b.itemID]
+		resources = append(resources, api.Resource{
+			Type: "presence",
+			ID:   b.bookingID,
+			Attributes: PresenceAttributes{
+				UserID:        b.userID,
+				UserName:      displayNames[b.userID],
+				ItemID:        b.itemID,
+				ItemName:      info.ItemName,
+				ItemGroupID:   info.ItemGroupID,
+				ItemGroupName: info.ItemGroupName,
+			},
+		})
 	}
 
 	return resources, nil

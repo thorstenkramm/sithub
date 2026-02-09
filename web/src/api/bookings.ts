@@ -2,17 +2,17 @@ import { apiRequest, parseErrorDetail, ApiError } from './client';
 import type { CollectionResponse, SingleResponse } from './types';
 
 export interface BookingAttributes {
-  desk_id: string;
+  item_id: string;
   user_id: string;
   booking_date: string;
   created_at: string;
 }
 
 export interface MyBookingAttributes {
-  desk_id: string;
-  desk_name: string;
-  room_id: string;
-  room_name: string;
+  item_id: string;
+  item_name: string;
+  item_group_id: string;
+  item_group_name: string;
   area_id: string;
   area_name: string;
   booking_date: string;
@@ -29,7 +29,7 @@ export interface CreateBookingPayload {
   data: {
     type: 'bookings';
     attributes: {
-      desk_id: string;
+      item_id: string;
       booking_date?: string;
       booking_dates?: string[];
       for_user_id?: string;
@@ -60,7 +60,7 @@ export interface GuestBookingOptions {
 }
 
 export function createBooking(
-  deskId: string,
+  itemId: string,
   bookingDate: string,
   onBehalf?: BookOnBehalfOptions,
   guest?: GuestBookingOptions
@@ -69,7 +69,7 @@ export function createBooking(
     data: {
       type: 'bookings',
       attributes: {
-        desk_id: deskId,
+        item_id: itemId,
         booking_date: bookingDate,
         ...(onBehalf && {
           for_user_id: onBehalf.forUserId,
@@ -91,7 +91,7 @@ export function createBooking(
 }
 
 export function createMultiDayBooking(
-  deskId: string,
+  itemId: string,
   bookingDates: string[],
   onBehalf?: BookOnBehalfOptions,
   guest?: GuestBookingOptions
@@ -100,7 +100,7 @@ export function createMultiDayBooking(
     data: {
       type: 'bookings',
       attributes: {
-        desk_id: deskId,
+        item_id: itemId,
         booking_dates: bookingDates,
         ...(onBehalf && {
           for_user_id: onBehalf.forUserId,

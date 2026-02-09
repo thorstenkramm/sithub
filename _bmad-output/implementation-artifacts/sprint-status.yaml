@@ -33,14 +33,14 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-01-17 19:11
+generated: 2026-02-08 18:15
 project: sithub
 project_key: sithub
 tracking_system: file-system
 story_location: /Users/thorsten/projects/thorsten/sithub/_bmad-output/implementation-artifacts
 
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-entra-id-sso-login: done
   1-2-role-determination-from-entra-id-groups: done
   1-3-access-denied-for-unauthorized-users: done
@@ -102,3 +102,30 @@ development_status:
   10-6-booking-management-views-redesign: done
   10-7-mobile-responsiveness: done
   epic-10-retrospective: optional
+
+  epic-11: done
+  11-1-user-list-api: done
+  11-2-create-user-api: done
+  11-3-update-user-api: done
+  11-4-delete-user-api: done
+  11-5-local-login-endpoint: done
+  11-6-logout-endpoint: done
+  11-7-change-password: done
+  11-8-login-ui: done
+  epic-11-retrospective: optional
+
+  epic-12: done
+  12-1-rename-backend-internals-and-database-column: done
+  12-2-normalize-bookings-table: done
+  12-3-update-api-routes-and-yaml-configuration: done
+  12-4-rename-rooms-and-desks-to-items-in-frontend: done
+  12-5-update-documentation-and-e2e-tests: done
+  epic-12-retrospective: optional
+
+  epic-13: backlog
+  13-1-clickable-breadcrumbs: backlog
+  13-2-booker-display-name: backlog
+  13-3-weekly-availability-preview: backlog
+  13-4-booking-notes: backlog
+  13-5-week-at-a-time-booking: backlog
+  epic-13-retrospective: optional

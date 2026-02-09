@@ -4,10 +4,10 @@ import type { CollectionResponse } from './types';
 export interface PresenceAttributes {
   user_id: string;
   user_name: string;
-  desk_id: string;
-  desk_name: string;
-  room_id: string;
-  room_name: string;
+  item_id: string;
+  item_name: string;
+  item_group_id: string;
+  item_group_name: string;
 }
 
 export async function fetchAreaPresence(

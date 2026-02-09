@@ -11,7 +11,7 @@
         </v-avatar>
       </template>
       <v-card-title class="d-flex align-center flex-wrap ga-2">
-        {{ booking.attributes.desk_name }}
+        {{ booking.attributes.item_name }}
         <StatusChip
           v-if="booking.attributes.is_guest"
           status="guest"
@@ -32,7 +32,7 @@
         />
       </v-card-title>
       <v-card-subtitle>
-        {{ booking.attributes.room_name }} &bull; {{ booking.attributes.area_name }}
+        {{ booking.attributes.item_group_name }} &bull; {{ booking.attributes.area_name }}
       </v-card-subtitle>
     </v-card-item>
 

@@ -78,21 +78,21 @@ func ParseBookingDate(value string) (string, error) {
 	return parsed.Format(time.DateOnly), nil
 }
 
-// RoomRequestParams contains common params extracted from room-related requests.
-type RoomRequestParams struct {
-	RoomID      string
+// ItemGroupRequestParams contains common params extracted from item-group-related requests.
+type ItemGroupRequestParams struct {
+	ItemGroupID string
 	BookingDate string
 }
 
-// ParseRoomRequest extracts roomID and booking date from a request.
+// ParseItemGroupRequest extracts itemGroupID and booking date from a request.
 // Returns the params or an error if the date is invalid.
-func ParseRoomRequest(roomID, dateParam string) (*RoomRequestParams, error) {
+func ParseItemGroupRequest(itemGroupID, dateParam string) (*ItemGroupRequestParams, error) {
 	bookingDate, err := ParseBookingDate(dateParam)
 	if err != nil {
 		return nil, err
 	}
-	return &RoomRequestParams{
-		RoomID:      roomID,
+	return &ItemGroupRequestParams{
+		ItemGroupID: itemGroupID,
 		BookingDate: bookingDate,
 	}, nil
 }

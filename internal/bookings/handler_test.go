@@ -3,6 +3,7 @@ package bookings
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,18 @@ import (
 // testNotifier returns a noop notifier for tests.
 func testNotifier() notifications.Notifier {
 	return &notifications.NoopNotifier{}
+}
+
+// seedTestUser inserts a user into the users table for display name lookups.
+func seedTestUser(t *testing.T, store *sql.DB, userID, displayName string) {
+	t.Helper()
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := store.Exec(
+		`INSERT INTO users (id, email, display_name, user_source, created_at, updated_at)
+		 VALUES (?, ?, ?, 'internal', ?, ?)`,
+		userID, userID+"@test.local", displayName, now, now,
+	)
+	require.NoError(t, err)
 }
 
 func TestCreateHandlerUnauthorized(t *testing.T) {
@@ -53,7 +66,7 @@ func TestCreateHandlerInvalidContentType(t *testing.T) {
 	cfg := &spaces.Config{}
 	store := setupTestStore(t)
 
-	body := `{"data":{"type":"bookings","attributes":{"desk_id":"desk-1","booking_date":"2026-01-20"}}}`
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"2026-01-20"}}}`
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
@@ -90,29 +103,29 @@ func TestCreateHandlerBadRequestCases(t *testing.T) {
 		},
 		{
 			name:           "wrong resource type",
-			body:           `{"data":{"type":"wrong","attributes":{"desk_id":"desk-1","booking_date":"2026-01-20"}}}`,
+			body:           `{"data":{"type":"wrong","attributes":{"item_id":"desk-1","booking_date":"2026-01-20"}}}`,
 			expectedDetail: "type must be 'bookings'",
 		},
 		{
-			name:           "missing desk_id",
+			name:           "missing item_id",
 			body:           `{"data":{"type":"bookings","attributes":{"booking_date":"2026-01-20"}}}`,
-			expectedDetail: "desk_id is required",
+			expectedDetail: "item_id is required",
 		},
 		{
 			name:           "missing booking_date",
-			body:           `{"data":{"type":"bookings","attributes":{"desk_id":"desk-1"}}}`,
+			body:           `{"data":{"type":"bookings","attributes":{"item_id":"desk-1"}}}`,
 			expectedDetail: "booking_date or booking_dates is required",
 		},
 		{
 			name: "invalid date format",
 			body: `{"data":{"type":"bookings","attributes":` +
-				`{"desk_id":"desk-1","booking_date":"20-01-2026"}}}`,
+				`{"item_id":"desk-1","booking_date":"20-01-2026"}}}`,
 			expectedDetail: "YYYY-MM-DD",
 		},
 		{
 			name: "past date",
 			body: `{"data":{"type":"bookings","attributes":` +
-				`{"desk_id":"desk-1","booking_date":"` + pastDate + `"}}}`,
+				`{"item_id":"desk-1","booking_date":"` + pastDate + `"}}}`,
 			expectedDetail: "cannot be in the past",
 		},
 	}
@@ -151,7 +164,7 @@ func TestCreateHandlerDeskNotFound(t *testing.T) {
 	store := setupTestStore(t)
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
-	body := `{"data":{"type":"bookings","attributes":{"desk_id":"missing","booking_date":"` + futureDate + `"}}}`
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"missing","booking_date":"` + futureDate + `"}}}`
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
@@ -176,10 +189,9 @@ func TestCreateHandlerSuccess(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
-	body := `{"data":{"type":"bookings","attributes":{"desk_id":"desk-1","booking_date":"` + futureDate + `"}}}`
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + futureDate + `"}}}`
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
@@ -201,7 +213,7 @@ func TestCreateHandlerSuccess(t *testing.T) {
 
 	attrs, ok := resp.Data.Attributes.(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, "desk-1", attrs["desk_id"])
+	assert.Equal(t, "desk-1", attrs["item_id"])
 	assert.Equal(t, "user-1", attrs["user_id"])
 	assert.Equal(t, futureDate, attrs["booking_date"])
 	assert.NotEmpty(t, attrs["created_at"])
@@ -217,16 +229,16 @@ func TestCreateHandlerConflictCases(t *testing.T) {
 		expectedDetail string
 	}{
 		{
-			name:           "desk booked by another user",
+			name:           "item booked by another user",
 			existingUserID: "other-user",
 			requestUserID:  "user-1",
-			expectedDetail: "Desk is already booked for this date",
+			expectedDetail: "Item is already booked for this date",
 		},
 		{
 			name:           "self duplicate booking",
 			existingUserID: "user-1",
 			requestUserID:  "user-1",
-			expectedDetail: "You already have this desk booked",
+			expectedDetail: "You already have this item booked",
 		},
 	}
 
@@ -236,12 +248,11 @@ func TestCreateHandlerConflictCases(t *testing.T) {
 
 			cfg := testSpacesConfig()
 			store := setupTestStore(t)
-			
 
 			futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			seedTestBooking(t, store, "existing-booking", "desk-1", tc.existingUserID, futureDate)
 
-			body := `{"data":{"type":"bookings","attributes":{"desk_id":"desk-1","booking_date":"` + futureDate + `"}}}`
+			body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + futureDate + `"}}}`
 
 			e := echo.New()
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
@@ -286,7 +297,6 @@ func TestListHandlerReturnsUserFutureBookings(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	today := time.Now().UTC().Format(time.DateOnly)
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -323,10 +333,10 @@ func TestListHandlerReturnsUserFutureBookings(t *testing.T) {
 	attrs0, ok := resp.Data[0].Attributes.(map[string]interface{})
 	require.True(t, ok, "failed to cast attributes")
 	assert.Equal(t, today, attrs0["booking_date"])
-	assert.Equal(t, "desk-1", attrs0["desk_id"])
-	assert.Equal(t, "Desk 1", attrs0["desk_name"])
-	assert.Equal(t, "room-1", attrs0["room_id"])
-	assert.Equal(t, "Room 1", attrs0["room_name"])
+	assert.Equal(t, "desk-1", attrs0["item_id"])
+	assert.Equal(t, "Desk 1", attrs0["item_name"])
+	assert.Equal(t, "room-1", attrs0["item_group_id"])
+	assert.Equal(t, "Room 1", attrs0["item_group_name"])
 	assert.Equal(t, "area-1", attrs0["area_id"])
 	assert.Equal(t, "Office", attrs0["area_name"])
 
@@ -368,7 +378,6 @@ func TestHistoryHandlerReturnsPastBookings(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	// Create a past booking (yesterday)
 	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format(time.DateOnly)
@@ -396,7 +405,6 @@ func TestHistoryHandlerWithDateRange(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	// Create bookings at different dates
 	date1 := time.Now().UTC().AddDate(0, 0, -10).Format(time.DateOnly)
@@ -468,7 +476,6 @@ func TestDeleteHandlerOtherUsersBooking(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestStore(t)
-	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	seedTestBooking(t, store, "booking-1", "desk-1", "other-user", tomorrow)
@@ -492,7 +499,6 @@ func TestDeleteHandlerSuccess(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestStore(t)
-	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
@@ -542,7 +548,6 @@ func TestDeleteHandlerAdminCancelCases(t *testing.T) {
 			t.Parallel()
 
 			store := setupTestStore(t)
-			
 
 			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			seedTestBooking(t, store, "booking-1", "desk-1", tc.bookingOwnerID, tomorrow)
@@ -574,11 +579,11 @@ func TestCreateHandlerBookOnBehalf(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
+	seedTestUser(t, store, "colleague-1", "Colleague User")
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	body := `{"data":{"type":"bookings","attributes":{` +
-		`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `",` +
 		`"for_user_id":"colleague-1","for_user_name":"Colleague User"}}}`
 
 	e := echo.New()
@@ -603,60 +608,59 @@ func TestCreateHandlerBookOnBehalf(t *testing.T) {
 	assert.Equal(t, futureDate, attrs["booking_date"])
 	// booked_by should be included since it's different from user_id
 	assert.Equal(t, "user-1", attrs["booked_by_user_id"])
-	assert.Equal(t, "Booker User", attrs["booked_by_user_name"])
+}
+
+// createBookingExpectBadRequest sends a create-booking request and asserts a 400 response
+// with an error detail containing expectedDetail.
+func createBookingExpectBadRequest(
+	t *testing.T, cfg *spaces.Config, store *sql.DB, bodyJSON, expectedDetail string,
+) {
+	t.Helper()
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(bodyJSON))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := CreateHandler(cfg, store, testNotifier())
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Contains(t, resp.Errors[0].Detail, expectedDetail)
+}
+
+func TestCreateHandlerBookOnBehalfInvalidUser(t *testing.T) {
+	t.Parallel()
+
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
+
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"for_user_id":"nonexistent-user"}}}`
+
+	createBookingExpectBadRequest(t, cfg, store, body, "user not found")
 }
 
 func TestCreateHandlerMissingNameValidation(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name           string
-		bodyTemplate   string
-		expectedDetail string
-	}{
-		{
-			name:           "on_behalf_missing_name",
-			bodyTemplate:   `"for_user_id":"colleague-1"`,
-			expectedDetail: "for_user_name is required",
-		},
-		{
-			name:           "guest_missing_name",
-			bodyTemplate:   `"is_guest":true`,
-			expectedDetail: "guest name",
-		},
-	}
+	cfg := testSpacesConfig()
+	store := setupTestStore(t)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"is_guest":true}}}`
 
-			cfg := testSpacesConfig()
-			store := setupTestStore(t)
-			
-
-			futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
-			body := `{"data":{"type":"bookings","attributes":{` +
-				`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
-				tc.bodyTemplate + `}}}`
-
-			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
-			req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-			c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
-
-			h := CreateHandler(cfg, store, testNotifier())
-			require.NoError(t, h(c))
-
-			assert.Equal(t, http.StatusBadRequest, rec.Code)
-
-			var resp api.ErrorResponse
-			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-			require.Len(t, resp.Errors, 1)
-			assert.Contains(t, resp.Errors[0].Detail, tc.expectedDetail)
-		})
-	}
+	createBookingExpectBadRequest(t, cfg, store, body, "guest name")
 }
 
 func TestCreateHandlerGuestBooking(t *testing.T) {
@@ -664,11 +668,10 @@ func TestCreateHandlerGuestBooking(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	body := `{"data":{"type":"bookings","attributes":{` +
-		`"desk_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `",` +
 		`"is_guest":true,"for_user_name":"John Visitor","guest_email":"visitor@example.com"}}}`
 
 	e := echo.New()
@@ -695,7 +698,6 @@ func TestCreateHandlerGuestBooking(t *testing.T) {
 	assert.Equal(t, futureDate, attrs["booking_date"])
 	// booked_by should be the host (current user)
 	assert.Equal(t, "user-1", attrs["booked_by_user_id"])
-	assert.Equal(t, "Host User", attrs["booked_by_user_name"])
 	// Guest flags should be set
 	assert.Equal(t, true, attrs["is_guest"])
 	assert.Equal(t, "visitor@example.com", attrs["guest_email"])
@@ -706,13 +708,12 @@ func TestCreateHandlerMultiDayBooking(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	date2 := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
 	date3 := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
 	body := `{"data":{"type":"bookings","attributes":{` +
-		`"desk_id":"desk-1","booking_dates":["` + date1 + `","` + date2 + `","` + date3 + `"]}}}`
+		`"item_id":"desk-1","booking_dates":["` + date1 + `","` + date2 + `","` + date3 + `"]}}}`
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
@@ -737,7 +738,6 @@ func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	date2 := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
@@ -747,7 +747,7 @@ func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 	seedTestBooking(t, store, "existing-booking", "desk-1", "other-user", date2)
 
 	body := `{"data":{"type":"bookings","attributes":{` +
-		`"desk_id":"desk-1","booking_dates":["` + date1 + `","` + date2 + `","` + date3 + `"]}}}`
+		`"item_id":"desk-1","booking_dates":["` + date1 + `","` + date2 + `","` + date3 + `"]}}}`
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
@@ -767,7 +767,7 @@ func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 	assert.Len(t, resp.Created, 2)
 	assert.Len(t, resp.Conflicts, 1)
 	assert.Contains(t, resp.Conflicts[0], date2)
-	assert.Contains(t, resp.Conflicts[0], "desk already booked")
+	assert.Contains(t, resp.Conflicts[0], "item already booked")
 }
 
 func TestListHandlerIncludesGuestBookings(t *testing.T) {
@@ -775,13 +775,12 @@ func TestListHandlerIncludesGuestBookings(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 
 	// Guest booking made by user-1
-	seedTestBookingWithGuest(t, store, "b1", "desk-1", "guest-abc123", "John Visitor",
-		"user-1", "Host User", tomorrow, true, "visitor@example.com")
+	seedTestBookingWithGuest(t, store, "b1", "desk-1", "guest-abc123",
+		"user-1", tomorrow, true, "John Visitor", "visitor@example.com")
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings", http.NoBody)
@@ -809,17 +808,19 @@ func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {
 
 	cfg := testSpacesConfig()
 	store := setupTestStore(t)
-	
+
+	// Seed users so display name lookups work
+	seedTestUser(t, store, "colleague", "Colleague")
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
 
 	// User's own booking
-	seedTestBookingFull(t, store, "b1", "desk-1", "user-1", "User One", "user-1", "User One", tomorrow)
+	seedTestBookingFull(t, store, "b1", "desk-1", "user-1", "user-1", tomorrow)
 	// Booking made FOR user-1 by colleague
-	seedTestBookingFull(t, store, "b2", "desk-2", "user-1", "User One", "colleague", "Colleague", dayAfter)
+	seedTestBookingFull(t, store, "b2", "desk-2", "user-1", "colleague", dayAfter)
 	// Booking made BY user-1 for someone else (should appear)
-	seedTestBookingFull(t, store, "b3", "desk-1", "other-user", "Other", "user-1", "User One", dayAfter)
+	seedTestBookingFull(t, store, "b3", "desk-1", "other-user", "user-1", dayAfter)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings", http.NoBody)
@@ -881,11 +882,10 @@ func TestDeleteHandlerOnBehalfBookingCancellation(t *testing.T) {
 			t.Parallel()
 
 			store := setupTestStore(t)
-			
 
 			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 			seedTestBookingFull(t, store, "booking-1", "desk-1",
-				tc.targetUserID, "Target", tc.bookedByUserID, "Booker", tomorrow)
+				tc.targetUserID, tc.bookedByUserID, tomorrow)
 
 			e := echo.New()
 			req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
@@ -913,11 +913,10 @@ func TestDeleteHandlerUnrelatedUserCannotCancel(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestStore(t)
-	
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	// Booking for colleague, made by someone-else
-	seedTestBookingFull(t, store, "booking-1", "desk-1", "colleague", "Colleague", "someone", "Someone", tomorrow)
+	seedTestBookingFull(t, store, "booking-1", "desk-1", "colleague", "someone", tomorrow)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/bookings/booking-1", http.NoBody)
@@ -941,11 +940,11 @@ func testSpacesConfig() *spaces.Config {
 			{
 				ID:   "area-1",
 				Name: "Office",
-				Rooms: []spaces.Room{
+				ItemGroups: []spaces.ItemGroup{
 					{
 						ID:   "room-1",
 						Name: "Room 1",
-						Desks: []spaces.Desk{
+						Items: []spaces.Item{
 							{
 								ID:        "desk-1",
 								Name:      "Desk 1",

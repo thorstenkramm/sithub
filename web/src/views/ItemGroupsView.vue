@@ -1,38 +1,42 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Rooms"
-      subtitle="Select a room to view available desks"
+      title="Item Groups"
+      subtitle="Select an item group to view available items"
       :breadcrumbs="breadcrumbs"
     />
 
     <!-- Loading State -->
-    <LoadingState v-if="roomsLoading" type="cards" :count="4" data-cy="rooms-loading" />
+    <LoadingState v-if="itemGroupsLoading" type="cards" :count="4" data-cy="item-groups-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="roomsErrorMessage" type="error" class="mb-4" data-cy="rooms-error">
-      {{ roomsErrorMessage }}
+    <v-alert v-else-if="itemGroupsErrorMessage" type="error" class="mb-4" data-cy="item-groups-error">
+      {{ itemGroupsErrorMessage }}
     </v-alert>
 
     <!-- Empty State -->
     <EmptyState
-      v-else-if="!rooms.length"
-      title="No rooms available"
-      message="This area doesn't have any rooms configured yet."
+      v-else-if="!itemGroups.length"
+      title="No item groups available"
+      message="This area doesn't have any item groups configured yet."
       icon="$room"
       action-text="Back to Areas"
       action-to="/"
-      data-cy="rooms-empty"
+      data-cy="item-groups-empty"
     />
 
-    <!-- Rooms Grid -->
-    <div v-else class="card-grid" data-cy="rooms-list">
+    <!-- Item Groups Grid -->
+    <div v-else class="card-grid" data-cy="item-groups-list">
       <v-card
-        v-for="room in rooms"
-        :key="room.id"
+        v-for="ig in itemGroups"
+        :key="ig.id"
         class="card-hover"
-        data-cy="room-item"
-        @click="goToDesks(room.id)"
+        role="button"
+        tabindex="0"
+        :aria-label="`View items in ${ig.attributes.name}`"
+        data-cy="item-group-item"
+        @click="goToItems(ig.id)"
+        @keydown.enter="goToItems(ig.id)"
       >
         <v-card-item>
           <template #prepend>
@@ -40,9 +44,9 @@
               <v-icon size="24">$room</v-icon>
             </v-avatar>
           </template>
-          <v-card-title class="text-h6">{{ room.attributes.name }}</v-card-title>
-          <v-card-subtitle v-if="room.attributes.description">
-            {{ room.attributes.description }}
+          <v-card-title class="text-h6">{{ ig.attributes.name }}</v-card-title>
+          <v-card-subtitle v-if="ig.attributes.description">
+            {{ ig.attributes.description }}
           </v-card-subtitle>
         </v-card-item>
         <v-card-actions class="px-4 pb-4">
@@ -50,14 +54,14 @@
             color="primary"
             variant="tonal"
             size="small"
-            @click.stop="goToDesks(room.id)"
+            @click.stop="goToItems(ig.id)"
           >
-            View Desks
+            View Items
           </v-btn>
           <v-btn
             variant="text"
             size="small"
-            :to="{ name: 'room-bookings', params: { roomId: room.id } }"
+            :to="{ name: 'item-group-bookings', params: { itemGroupId: ig.id } }"
             @click.stop
           >
             View Bookings
@@ -73,9 +77,9 @@ import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchMe } from '../api/me';
-import { fetchRooms } from '../api/rooms';
+import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
-import type { RoomAttributes } from '../api/rooms';
+import type { ItemGroupAttributes } from '../api/itemGroups';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -83,19 +87,19 @@ import { PageHeader, LoadingState, EmptyState } from '../components';
 
 const authStore = useAuthStore();
 const areaName = ref('');
-const rooms = ref<JsonApiResource<RoomAttributes>[]>([]);
-const roomsErrorMessage = ref<string | null>(null);
+const itemGroups = ref<JsonApiResource<ItemGroupAttributes>[]>([]);
+const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
 const router = useRouter();
-const { loading: roomsLoading, run: runRooms } = useApi();
+const { loading: itemGroupsLoading, run: runItemGroups } = useApi();
 
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
   { text: areaName.value || 'Area' }
 ]);
 
-const goToDesks = async (roomId: string) => {
-  await router.push({ name: 'desks', params: { roomId } });
+const goToItems = async (igId: string) => {
+  await router.push({ name: 'items', params: { itemGroupId: igId } });
 };
 
 const handleAuthError = async (err: unknown) => {
@@ -124,7 +128,7 @@ onMounted(async () => {
 
   const areaId = route.params.areaId;
   if (typeof areaId !== 'string' || areaId.trim() === '') {
-    roomsErrorMessage.value = 'Area not found.';
+    itemGroupsErrorMessage.value = 'Area not found.';
     return;
   }
 
@@ -140,17 +144,17 @@ onMounted(async () => {
   }
 
   try {
-    const resp = await runRooms(() => fetchRooms(areaId));
-    rooms.value = resp.data;
+    const resp = await runItemGroups(() => fetchItemGroups(areaId));
+    itemGroups.value = resp.data;
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      roomsErrorMessage.value = 'Area not found.';
+      itemGroupsErrorMessage.value = 'Area not found.';
       return;
     }
-    roomsErrorMessage.value = 'Unable to load rooms.';
+    itemGroupsErrorMessage.value = 'Unable to load item groups.';
   }
 });
 </script>

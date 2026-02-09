@@ -20,6 +20,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/notifications"
 	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/users"
 )
 
 // CreateRequest represents a booking create JSON:API payload.
@@ -27,7 +28,7 @@ type CreateRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
-			DeskID       string   `json:"desk_id"`
+			ItemID       string   `json:"item_id"`
 			BookingDate  string   `json:"booking_date"`
 			BookingDates []string `json:"booking_dates,omitempty"`
 			ForUserID    string   `json:"for_user_id,omitempty"`
@@ -40,14 +41,13 @@ type CreateRequest struct {
 
 // BookingAttributes represents booking resource attributes.
 type BookingAttributes struct {
-	DeskID           string `json:"desk_id"`
-	UserID           string `json:"user_id"`
-	BookingDate      string `json:"booking_date"`
-	CreatedAt        string `json:"created_at"`
-	BookedByUserID   string `json:"booked_by_user_id,omitempty"`
-	BookedByUserName string `json:"booked_by_user_name,omitempty"`
-	IsGuest          bool   `json:"is_guest,omitempty"`
-	GuestEmail       string `json:"guest_email,omitempty"`
+	ItemID         string `json:"item_id"`
+	UserID         string `json:"user_id"`
+	BookingDate    string `json:"booking_date"`
+	CreatedAt      string `json:"created_at"`
+	BookedByUserID string `json:"booked_by_user_id,omitempty"`
+	IsGuest        bool   `json:"is_guest,omitempty"`
+	GuestEmail     string `json:"guest_email,omitempty"`
 }
 
 // MultiDayBookingResult represents the result of a multi-day booking request.
@@ -58,10 +58,10 @@ type MultiDayBookingResult struct {
 
 // MyBookingAttributes represents booking resource attributes with location info.
 type MyBookingAttributes struct {
-	DeskID           string `json:"desk_id"`
-	DeskName         string `json:"desk_name"`
-	RoomID           string `json:"room_id"`
-	RoomName         string `json:"room_name"`
+	ItemID           string `json:"item_id"`
+	ItemName         string `json:"item_name"`
+	ItemGroupID      string `json:"item_group_id"`
+	ItemGroupName    string `json:"item_group_name"`
 	AreaID           string `json:"area_id"`
 	AreaName         string `json:"area_name"`
 	BookingDate      string `json:"booking_date"`
@@ -115,7 +115,7 @@ func DeleteHandler(store *sql.DB, notifier notifications.Notifier) echo.HandlerF
 		logFields := []any{
 			"booking_id", bookingID,
 			"canceled_by", user.ID,
-			"desk_id", booking.DeskID,
+			"item_id", booking.ItemID,
 			"booking_date", booking.BookingDate,
 		}
 		if !isOwner {
@@ -130,11 +130,11 @@ func DeleteHandler(store *sql.DB, notifier notifications.Notifier) echo.HandlerF
 		notifier.NotifyAsync(&notifications.BookingEvent{
 			Event:            notifications.EventBookingCanceled,
 			BookingID:        bookingID,
-			DeskID:           booking.DeskID,
+			ItemID:           booking.ItemID,
 			UserID:           booking.UserID,
-			UserName:         booking.UserName,
 			BookingDate:      booking.BookingDate,
 			IsGuest:          booking.IsGuest,
+			GuestName:        booking.GuestName,
 			GuestEmail:       booking.GuestEmail,
 			CanceledByUserID: user.ID,
 			Timestamp:        time.Now().UTC().Format(time.RFC3339),
@@ -166,7 +166,7 @@ func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.Handl
 			return fmt.Errorf("list user bookings: %w", err)
 		}
 
-		return writeBookingsCollection(c, getConfig(), user.ID, records)
+		return writeBookingsCollection(ctx, c, getConfig(), store, user.ID, records)
 	}
 }
 
@@ -213,37 +213,58 @@ func HistoryHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.Ha
 			return fmt.Errorf("list booking history: %w", err)
 		}
 
-		return writeBookingsCollection(c, getConfig(), user.ID, records)
+		return writeBookingsCollection(ctx, c, getConfig(), store, user.ID, records)
 	}
 }
 
 func writeBookingsCollection(
-	c echo.Context, cfg *spaces.Config, currentUserID string, records []BookingRecord,
+	ctx context.Context, c echo.Context, cfg *spaces.Config, store *sql.DB,
+	currentUserID string, records []BookingRecord,
 ) error {
+	// Collect unique user IDs for display name lookup
+	userIDSet := make(map[string]struct{})
+	for i := range records {
+		if records[i].BookedByUserID != "" {
+			userIDSet[records[i].BookedByUserID] = struct{}{}
+		}
+	}
+	userIDs := make([]string, 0, len(userIDSet))
+	for id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	displayNames, err := users.FindDisplayNames(ctx, store, userIDs)
+	if err != nil {
+		slog.Warn("failed to look up display names", "error", err)
+		displayNames = map[string]string{}
+	}
+
 	resources := make([]api.Resource, 0, len(records))
 	for i := range records {
 		rec := &records[i]
-		loc, found := cfg.FindDeskLocation(rec.DeskID)
+		loc, found := cfg.FindItemLocation(rec.ItemID)
 		if !found {
-			slog.Warn("booking references unknown desk", "booking_id", rec.ID, "desk_id", rec.DeskID)
+			slog.Warn("booking references unknown item", "booking_id", rec.ID, "item_id", rec.ItemID)
 			continue
 		}
 
 		attrs := MyBookingAttributes{
-			DeskID:      rec.DeskID,
-			DeskName:    loc.Desk.Name,
-			RoomID:      loc.Room.ID,
-			RoomName:    loc.Room.Name,
-			AreaID:      loc.Area.ID,
-			AreaName:    loc.Area.Name,
-			BookingDate: rec.BookingDate,
-			CreatedAt:   rec.CreatedAt,
+			ItemID:        rec.ItemID,
+			ItemName:      loc.Item.Name,
+			ItemGroupID:   loc.ItemGroup.ID,
+			ItemGroupName: loc.ItemGroup.Name,
+			AreaID:        loc.Area.ID,
+			AreaName:      loc.Area.Name,
+			BookingDate:   rec.BookingDate,
+			CreatedAt:     rec.CreatedAt,
 		}
 
 		// Include booked_by info if different from user_id
 		if rec.BookedByUserID != "" && rec.BookedByUserID != rec.UserID {
 			attrs.BookedByUserID = rec.BookedByUserID
-			attrs.BookedByUserName = rec.BookedByUserName
+			if name, ok := displayNames[rec.BookedByUserID]; ok {
+				attrs.BookedByUserName = name
+			}
 		}
 		// Mark if this booking was made for the current user by someone else
 		if rec.UserID == currentUserID && rec.BookedByUserID != "" && rec.BookedByUserID != currentUserID {
@@ -296,17 +317,17 @@ func CreateHandlerDynamic(
 			return handleValidationError(c, err)
 		}
 
-		deskID, dates, err := validateRequestFieldsMultiDay(req)
+		itemID, dates, err := validateRequestFieldsMultiDay(req)
 		if err != nil {
 			return handleValidationError(c, err)
 		}
 
 		cfg := getConfig()
-		if _, exists := cfg.FindDesk(deskID); !exists {
-			return api.WriteNotFound(c, "Desk not found")
+		if _, exists := cfg.FindItem(itemID); !exists {
+			return api.WriteNotFound(c, "Item not found")
 		}
 
-		params, err := resolveBookingParticipants(user, req)
+		params, err := resolveBookingParticipants(c.Request().Context(), store, user, req)
 		if err != nil {
 			return handleValidationError(c, err)
 		}
@@ -314,34 +335,34 @@ func CreateHandlerDynamic(
 		// Single day booking
 		if len(dates) == 1 {
 			return processBooking(
-				c, store, notifier, deskID, params.targetUserID, params.targetUserName,
-				params.bookedByUserID, params.bookedByUserName, dates[0],
-				params.isGuest, params.guestEmail,
+				c, store, notifier, itemID, params.targetUserID,
+				params.bookedByUserID, dates[0],
+				params.isGuest, params.guestName, params.guestEmail,
 			)
 		}
 
 		// Multi-day booking
-		return processMultiDayBooking(c, store, notifier, deskID, params, dates)
+		return processMultiDayBooking(c, store, notifier, itemID, params, dates)
 	}
 }
 
 // bookingParticipants holds the resolved user info for a booking.
 type bookingParticipants struct {
-	targetUserID     string
-	targetUserName   string
-	bookedByUserID   string
-	bookedByUserName string
-	isGuest          bool
-	guestEmail       string
+	targetUserID   string
+	bookedByUserID string
+	isGuest        bool
+	guestName      string
+	guestEmail     string
 }
 
 // resolveBookingParticipants determines the target user and booker for a booking.
-func resolveBookingParticipants(user *auth.User, req *CreateRequest) (*bookingParticipants, error) {
+// When for_user_id is provided, it validates that the target user exists in the database.
+func resolveBookingParticipants(
+	ctx context.Context, store *sql.DB, user *auth.User, req *CreateRequest,
+) (*bookingParticipants, error) {
 	params := &bookingParticipants{
-		targetUserID:     user.ID,
-		targetUserName:   user.Name,
-		bookedByUserID:   user.ID,
-		bookedByUserName: user.Name,
+		targetUserID:   user.ID,
+		bookedByUserID: user.ID,
 	}
 
 	// Handle guest booking
@@ -353,21 +374,19 @@ func resolveBookingParticipants(user *auth.User, req *CreateRequest) (*bookingPa
 		}
 		// Generate a unique guest ID
 		params.targetUserID = "guest-" + uuid.New().String()[:8]
-		params.targetUserName = guestName
 		params.isGuest = true
+		params.guestName = guestName
 		params.guestEmail = guestEmail
 		return params, nil
 	}
 
 	// Handle booking on behalf of another user
 	forUserID := strings.TrimSpace(req.Data.Attributes.ForUserID)
-	forUserName := strings.TrimSpace(req.Data.Attributes.ForUserName)
 	if forUserID != "" {
-		if forUserName == "" {
-			return nil, errBadRequest("for_user_name is required when for_user_id is provided")
+		if _, err := users.FindByID(ctx, store, forUserID); err != nil {
+			return nil, errBadRequest("for_user_id: user not found")
 		}
 		params.targetUserID = forUserID
-		params.targetUserName = forUserName
 	}
 
 	return params, nil
@@ -403,10 +422,10 @@ func parseCreateRequest(c echo.Context) (*CreateRequest, error) {
 	return &req, nil
 }
 
-func validateRequestFieldsMultiDay(req *CreateRequest) (deskID string, dates []string, err error) {
-	deskID = strings.TrimSpace(req.Data.Attributes.DeskID)
-	if deskID == "" {
-		return "", nil, errBadRequest("desk_id is required")
+func validateRequestFieldsMultiDay(req *CreateRequest) (itemID string, dates []string, err error) {
+	itemID = strings.TrimSpace(req.Data.Attributes.ItemID)
+	if itemID == "" {
+		return "", nil, errBadRequest("item_id is required")
 	}
 
 	// Collect dates from either booking_date or booking_dates
@@ -443,7 +462,7 @@ func validateRequestFieldsMultiDay(req *CreateRequest) (deskID string, dates []s
 		}
 	}
 
-	return deskID, validDates, nil
+	return itemID, validDates, nil
 }
 
 // validationError is a sentinel for validation errors that need WriteBadRequest.
@@ -462,49 +481,49 @@ var errResponseWritten = errors.New("response already written")
 
 func processBooking(
 	c echo.Context, store *sql.DB, notifier notifications.Notifier,
-	deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
-	isGuest bool, guestEmail string,
+	itemID, userID, bookedByUserID, bookingDate string,
+	isGuest bool, guestName, guestEmail string,
 ) error {
 	ctx := c.Request().Context()
 
 	// Skip duplicate check for guests (they have unique IDs)
 	if !isGuest {
-		existingBookingID, err := FindUserBooking(ctx, store, deskID, userID, bookingDate)
+		existingBookingID, err := FindUserBooking(ctx, store, itemID, userID, bookingDate)
 		if err != nil {
 			return fmt.Errorf("check existing booking: %w", err)
 		}
 		if existingBookingID != "" {
 			if userID == bookedByUserID {
 				//nolint:wrapcheck // Terminal response, no wrapping needed
-				return api.WriteConflict(c, "You already have this desk booked for this date")
+				return api.WriteConflict(c, "You already have this item booked for this date")
 			}
 			//nolint:wrapcheck // Terminal response, no wrapping needed
-			return api.WriteConflict(c, "This user already has this desk booked for this date")
+			return api.WriteConflict(c, "This user already has this item booked for this date")
 		}
 	}
 
 	booking, err := CreateBooking(
-		ctx, store, deskID, userID, userName,
-		bookedByUserID, bookedByUserName, bookingDate,
-		isGuest, guestEmail,
+		ctx, store, itemID, userID,
+		bookedByUserID, bookingDate,
+		isGuest, guestName, guestEmail,
 	)
 	if err != nil {
 		if errors.Is(err, ErrConflict) {
 			slog.Warn("booking conflict",
-				"desk_id", deskID,
+				"item_id", itemID,
 				"user_id", userID,
 				"booked_by", bookedByUserID,
 				"booking_date", bookingDate,
 			)
 			//nolint:wrapcheck // Terminal response, no wrapping needed
-			return api.WriteConflict(c, "Desk is already booked for this date")
+			return api.WriteConflict(c, "Item is already booked for this date")
 		}
 		return fmt.Errorf("create booking: %w", err)
 	}
 
 	logFields := []any{
 		"booking_id", booking.ID,
-		"desk_id", deskID,
+		"item_id", itemID,
 		"user_id", userID,
 		"booking_date", bookingDate,
 	}
@@ -526,7 +545,7 @@ func processBooking(
 // Returns created bookings and reports conflicts per day.
 func processMultiDayBooking(
 	c echo.Context, store *sql.DB, notifier notifications.Notifier,
-	deskID string, params *bookingParticipants, dates []string,
+	itemID string, params *bookingParticipants, dates []string,
 ) error {
 	ctx := c.Request().Context()
 
@@ -537,25 +556,25 @@ func processMultiDayBooking(
 		// Skip duplicate check for guests (they have unique IDs)
 		if !params.isGuest {
 			existingBookingID, err := FindUserBooking(
-				ctx, store, deskID, params.targetUserID, bookingDate,
+				ctx, store, itemID, params.targetUserID, bookingDate,
 			)
 			if err != nil {
 				return fmt.Errorf("check existing booking: %w", err)
 			}
 			if existingBookingID != "" {
-				conflicts = append(conflicts, bookingDate+": user already has this desk booked")
+				conflicts = append(conflicts, bookingDate+": user already has this item booked")
 				continue
 			}
 		}
 
 		booking, err := CreateBooking(
-			ctx, store, deskID, params.targetUserID, params.targetUserName,
-			params.bookedByUserID, params.bookedByUserName, bookingDate,
-			params.isGuest, params.guestEmail,
+			ctx, store, itemID, params.targetUserID,
+			params.bookedByUserID, bookingDate,
+			params.isGuest, params.guestName, params.guestEmail,
 		)
 		if err != nil {
 			if errors.Is(err, ErrConflict) {
-				conflicts = append(conflicts, bookingDate+": desk already booked")
+				conflicts = append(conflicts, bookingDate+": item already booked")
 				continue
 			}
 			return fmt.Errorf("create booking: %w", err)
@@ -563,7 +582,7 @@ func processMultiDayBooking(
 
 		slog.Info("booking created",
 			"booking_id", booking.ID,
-			"desk_id", deskID,
+			"item_id", itemID,
 			"user_id", params.targetUserID,
 			"booking_date", bookingDate,
 		)
@@ -572,14 +591,13 @@ func processMultiDayBooking(
 		sendBookingCreatedNotification(notifier, booking)
 
 		attrs := BookingAttributes{
-			DeskID:      booking.DeskID,
+			ItemID:      booking.ItemID,
 			UserID:      booking.UserID,
 			BookingDate: booking.BookingDate,
 			CreatedAt:   booking.CreatedAt,
 		}
 		if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
 			attrs.BookedByUserID = booking.BookedByUserID
-			attrs.BookedByUserName = booking.BookedByUserName
 		}
 		if booking.IsGuest {
 			attrs.IsGuest = true
@@ -606,7 +624,7 @@ func processMultiDayBooking(
 
 func writeBookingResponse(c echo.Context, booking *Booking) error {
 	attrs := BookingAttributes{
-		DeskID:      booking.DeskID,
+		ItemID:      booking.ItemID,
 		UserID:      booking.UserID,
 		BookingDate: booking.BookingDate,
 		CreatedAt:   booking.CreatedAt,
@@ -614,7 +632,6 @@ func writeBookingResponse(c echo.Context, booking *Booking) error {
 	// Include booked_by info if booking was made on behalf
 	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
 		attrs.BookedByUserID = booking.BookedByUserID
-		attrs.BookedByUserName = booking.BookedByUserName
 	}
 	// Include guest info
 	if booking.IsGuest {
@@ -637,29 +654,28 @@ func writeBookingResponse(c echo.Context, booking *Booking) error {
 
 // Booking represents a booking record.
 type Booking struct {
-	ID               string
-	DeskID           string
-	UserID           string
-	UserName         string
-	BookingDate      string
-	BookedByUserID   string
-	BookedByUserName string
-	IsGuest          bool
-	GuestEmail       string
-	CreatedAt        string
-	UpdatedAt        string
+	ID             string
+	ItemID         string
+	UserID         string
+	BookingDate    string
+	BookedByUserID string
+	IsGuest        bool
+	GuestName      string
+	GuestEmail     string
+	CreatedAt      string
+	UpdatedAt      string
 }
 
-// ErrConflict indicates a booking conflict (desk already booked).
+// ErrConflict indicates a booking conflict (item already booked).
 var ErrConflict = errors.New("booking conflict")
 
-// FindUserBooking checks if a user already has a booking for a specific desk and date.
+// FindUserBooking checks if a user already has a booking for a specific item and date.
 // Returns the booking ID if found, empty string otherwise.
-func FindUserBooking(ctx context.Context, store *sql.DB, deskID, userID, bookingDate string) (string, error) {
+func FindUserBooking(ctx context.Context, store *sql.DB, itemID, userID, bookingDate string) (string, error) {
 	var bookingID string
 	err := store.QueryRowContext(ctx,
-		"SELECT id FROM bookings WHERE desk_id = ? AND user_id = ? AND booking_date = ?",
-		deskID, userID, bookingDate,
+		"SELECT id FROM bookings WHERE item_id = ? AND user_id = ? AND booking_date = ?",
+		itemID, userID, bookingDate,
 	).Scan(&bookingID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
@@ -673,8 +689,8 @@ func FindUserBooking(ctx context.Context, store *sql.DB, deskID, userID, booking
 // CreateBooking inserts a new booking record.
 func CreateBooking(
 	ctx context.Context, store *sql.DB,
-	deskID, userID, userName, bookedByUserID, bookedByUserName, bookingDate string,
-	isGuest bool, guestEmail string,
+	itemID, userID, bookedByUserID, bookingDate string,
+	isGuest bool, guestName, guestEmail string,
 ) (*Booking, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	id := uuid.New().String()
@@ -685,12 +701,12 @@ func CreateBooking(
 	}
 
 	_, err := store.ExecContext(ctx, `
-		INSERT INTO bookings 
-		(id, desk_id, user_id, user_name, booked_by_user_id, booked_by_user_name, 
-		 booking_date, is_guest, guest_email, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, deskID, userID, userName, bookedByUserID, bookedByUserName,
-		bookingDate, isGuestInt, guestEmail, now, now,
+		INSERT INTO bookings
+		(id, item_id, user_id, booked_by_user_id, booking_date,
+		 is_guest, guest_name, guest_email, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, itemID, userID, bookedByUserID,
+		bookingDate, isGuestInt, guestName, guestEmail, now, now,
 	)
 	if err != nil {
 		var sqliteErr sqlite3.Error
@@ -701,17 +717,16 @@ func CreateBooking(
 	}
 
 	return &Booking{
-		ID:               id,
-		DeskID:           deskID,
-		UserID:           userID,
-		UserName:         userName,
-		BookedByUserID:   bookedByUserID,
-		BookedByUserName: bookedByUserName,
-		BookingDate:      bookingDate,
-		IsGuest:          isGuest,
-		GuestEmail:       guestEmail,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID:             id,
+		ItemID:         itemID,
+		UserID:         userID,
+		BookedByUserID: bookedByUserID,
+		BookingDate:    bookingDate,
+		IsGuest:        isGuest,
+		GuestName:      guestName,
+		GuestEmail:     guestEmail,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}, nil
 }
 
@@ -720,17 +735,18 @@ func sendBookingCreatedNotification(notifier notifications.Notifier, booking *Bo
 	event := notifications.BookingEvent{
 		Event:       notifications.EventBookingCreated,
 		BookingID:   booking.ID,
-		DeskID:      booking.DeskID,
+		ItemID:      booking.ItemID,
 		UserID:      booking.UserID,
-		UserName:    booking.UserName,
 		BookingDate: booking.BookingDate,
 		IsGuest:     booking.IsGuest,
 		GuestEmail:  booking.GuestEmail,
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
+	if booking.GuestName != "" {
+		event.GuestName = booking.GuestName
+	}
 	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
 		event.BookedByUserID = booking.BookedByUserID
-		event.BookedByUserName = booking.BookedByUserName
 	}
 	notifier.NotifyAsync(&event)
 }

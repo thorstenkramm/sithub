@@ -9,31 +9,31 @@ import (
 	"github.com/thorstenkramm/sithub/internal/db"
 )
 
-func TestFindBookedDeskIDs(t *testing.T) {
+func TestFindBookedItemIDs(t *testing.T) {
 	store := setupTestStore(t)
-	// No need to seed desk data - desk_id is just a string reference now
+	// No need to seed item data - item_id is just a string reference now
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", "2026-01-20")
 
-	booked, err := FindBookedDeskIDs(t.Context(), store, "2026-01-20")
+	booked, err := FindBookedItemIDs(t.Context(), store, "2026-01-20")
 	require.NoError(t, err)
 	require.Contains(t, booked, "desk-1")
 }
 
-func TestFindBookedDeskIDsReturnsErrorOnClosedDB(t *testing.T) {
+func TestFindBookedItemIDsReturnsErrorOnClosedDB(t *testing.T) {
 	store, err := db.Open(t.TempDir())
 	require.NoError(t, err)
 	require.NoError(t, store.Close())
 
-	_, err = FindBookedDeskIDs(t.Context(), store, "2026-01-20")
+	_, err = FindBookedItemIDs(t.Context(), store, "2026-01-20")
 	require.Error(t, err)
 }
 
-func TestFindDeskBookingsReturnsBookingInfo(t *testing.T) {
+func TestFindItemBookingsReturnsBookingInfo(t *testing.T) {
 	store := setupTestStore(t)
-	// No need to seed desk data - desk_id is just a string reference now
+	// No need to seed item data - item_id is just a string reference now
 	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", "2026-01-20")
 
-	result, err := FindDeskBookings(t.Context(), store, "2026-01-20")
+	result, err := FindItemBookings(t.Context(), store, "2026-01-20")
 	require.NoError(t, err)
 	require.Contains(t, result, "desk-1")
 	assert.Equal(t, "booking-1", result["desk-1"].BookingID)
@@ -42,20 +42,20 @@ func TestFindDeskBookingsReturnsBookingInfo(t *testing.T) {
 	require.NotContains(t, result, "desk-2")
 }
 
-func TestFindDeskBookingsReturnsEmptyMapForNoBookings(t *testing.T) {
+func TestFindItemBookingsReturnsEmptyMapForNoBookings(t *testing.T) {
 	store := setupTestStore(t)
-	// No need to seed desk data - desk_id is just a string reference now
+	// No need to seed item data - item_id is just a string reference now
 
-	result, err := FindDeskBookings(t.Context(), store, "2026-01-20")
+	result, err := FindItemBookings(t.Context(), store, "2026-01-20")
 	require.NoError(t, err)
 	require.Empty(t, result)
 }
 
-func TestFindDeskBookingsReturnsErrorOnClosedDB(t *testing.T) {
+func TestFindItemBookingsReturnsErrorOnClosedDB(t *testing.T) {
 	store, err := db.Open(t.TempDir())
 	require.NoError(t, err)
 	require.NoError(t, store.Close())
 
-	_, err = FindDeskBookings(t.Context(), store, "2026-01-20")
+	_, err = FindItemBookings(t.Context(), store, "2026-01-20")
 	require.Error(t, err)
 }

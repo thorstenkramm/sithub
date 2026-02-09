@@ -2,7 +2,7 @@
   <div class="page-container">
     <PageHeader
       title="Areas"
-      subtitle="Select an area to view available rooms and desks"
+      subtitle="Select an area to view available item groups and items"
       :breadcrumbs="[{ text: 'Home' }]"
     />
 
@@ -29,8 +29,12 @@
         v-for="area in areas"
         :key="area.id"
         class="card-hover"
+        role="button"
+        tabindex="0"
+        :aria-label="`View item groups in ${area.attributes.name}`"
         data-cy="area-item"
-        @click="goToRooms(area.id)"
+        @click="goToItemGroups(area.id)"
+        @keydown.enter="goToItemGroups(area.id)"
       >
         <v-card-item>
           <template #prepend>
@@ -48,9 +52,9 @@
             color="primary"
             variant="tonal"
             size="small"
-            @click.stop="goToRooms(area.id)"
+            @click.stop="goToItemGroups(area.id)"
           >
-            View Rooms
+            View Item Groups
           </v-btn>
           <v-btn
             variant="text"
@@ -91,8 +95,8 @@ const router = useRouter();
 const { loading: areasLoading, error: areasError, run: runAreas } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
 
-const goToRooms = async (areaId: string) => {
-  await router.push({ name: 'rooms', params: { areaId } });
+const goToItemGroups = async (areaId: string) => {
+  await router.push({ name: 'item-groups', params: { areaId } });
 };
 
 onMounted(async () => {

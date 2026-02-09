@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Room Bookings"
-      :subtitle="`Desk reservations${roomName ? ' in ' + roomName : ''}`"
+      title="Item Group Bookings"
+      :subtitle="`Reservations${itemGroupName ? ' in ' + itemGroupName : ''}`"
       :breadcrumbs="breadcrumbs"
     />
 
@@ -32,7 +32,7 @@
     <EmptyState
       v-else-if="!bookings.length"
       title="No bookings"
-      message="No desks have been booked in this room for the selected date."
+      message="No items have been booked in this item group for the selected date."
       icon="$calendar"
       data-cy="bookings-empty"
     />
@@ -51,7 +51,7 @@
             </v-avatar>
           </template>
           <v-list-item-title>
-            {{ booking.attributes.desk_name }}
+            {{ booking.attributes.item_name }}
           </v-list-item-title>
           <v-list-item-subtitle>
             <v-icon size="14" class="mr-1">$user</v-icon>
@@ -63,7 +63,7 @@
 
     <!-- Summary -->
     <div v-if="bookings.length" class="mt-4 text-body-2 text-medium-emphasis">
-      {{ bookings.length }} {{ bookings.length === 1 ? 'desk' : 'desks' }} booked for {{ formattedDate }}
+      {{ bookings.length }} {{ bookings.length === 1 ? 'item' : 'items' }} booked for {{ formattedDate }}
     </div>
   </div>
 </template>
@@ -72,29 +72,29 @@
 import { onMounted, ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ApiError } from '../api/client';
-import { fetchRoomBookings } from '../api/roomBookings';
+import { fetchItemGroupBookings } from '../api/itemGroupBookings';
 import { fetchAreas } from '../api/areas';
-import { fetchRooms } from '../api/rooms';
-import type { RoomBookingAttributes } from '../api/roomBookings';
+import { fetchItemGroups } from '../api/itemGroups';
+import type { ItemGroupBookingAttributes } from '../api/itemGroupBookings';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { PageHeader, LoadingState, EmptyState, DatePickerField } from '../components';
 
-const bookings = ref<JsonApiResource<RoomBookingAttributes>[]>([]);
+const bookings = ref<JsonApiResource<ItemGroupBookingAttributes>[]>([]);
 const errorMessage = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
 const areaName = ref('');
-const roomName = ref('');
+const itemGroupName = ref('');
 const route = useRoute();
 const { loading, run } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
-const activeRoomId = ref<string | null>(null);
+const activeItemGroupId = ref<string | null>(null);
 
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
   { text: areaName.value || 'Area', to: '/' },
-  { text: roomName.value || 'Room' },
+  { text: itemGroupName.value || 'Item Group' },
   { text: 'Bookings' }
 ]);
 
@@ -107,17 +107,17 @@ const formattedDate = computed(() => {
   });
 });
 
-const loadBookings = async (roomId: string, date: string) => {
+const loadBookings = async (itemGroupId: string, date: string) => {
   errorMessage.value = null;
   try {
-    const resp = await run(() => fetchRoomBookings(roomId, date));
+    const resp = await run(() => fetchItemGroupBookings(itemGroupId, date));
     bookings.value = resp.data;
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      errorMessage.value = 'Room not found.';
+      errorMessage.value = 'Item group not found.';
       return;
     }
     errorMessage.value = 'Unable to load bookings.';
@@ -125,23 +125,23 @@ const loadBookings = async (roomId: string, date: string) => {
 };
 
 onMounted(async () => {
-  const roomId = route.params.roomId;
-  if (typeof roomId !== 'string' || roomId.trim() === '') {
-    errorMessage.value = 'Room not found.';
+  const itemGroupId = route.params.itemGroupId;
+  if (typeof itemGroupId !== 'string' || itemGroupId.trim() === '') {
+    errorMessage.value = 'Item group not found.';
     return;
   }
 
-  activeRoomId.value = roomId;
+  activeItemGroupId.value = itemGroupId;
 
-  // Fetch area and room names for breadcrumbs
+  // Fetch area and item group names for breadcrumbs
   try {
     const areasResp = await fetchAreas();
     for (const area of areasResp.data) {
-      const roomsResp = await fetchRooms(area.id);
-      const room = roomsResp.data.find((r) => r.id === roomId);
-      if (room) {
+      const igResp = await fetchItemGroups(area.id);
+      const ig = igResp.data.find((ig) => ig.id === itemGroupId);
+      if (ig) {
         areaName.value = area.attributes.name;
-        roomName.value = room.attributes.name;
+        itemGroupName.value = ig.attributes.name;
         break;
       }
     }
@@ -149,16 +149,16 @@ onMounted(async () => {
     // Ignore - breadcrumbs will just show generic names
   }
 
-  await loadBookings(roomId, selectedDate.value);
+  await loadBookings(itemGroupId, selectedDate.value);
 });
 
 watch(
   selectedDate,
   async (value) => {
-    if (!activeRoomId.value) {
+    if (!activeItemGroupId.value) {
       return;
     }
-    await loadBookings(activeRoomId.value, value);
+    await loadBookings(activeItemGroupId.value, value);
   },
   { flush: 'post' }
 );

@@ -62,10 +62,10 @@ describe('AreaPresenceView', () => {
           attributes: {
             user_id: 'user-1',
             user_name: 'Alice Smith',
-            desk_id: 'desk-1',
-            desk_name: 'Desk 1',
-            room_id: 'room-1',
-            room_name: 'Room One'
+            item_id: 'item-1',
+            item_name: 'Desk 1',
+            item_group_id: 'ig-1',
+            item_group_name: 'Room One'
           }
         }
       ]

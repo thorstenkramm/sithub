@@ -2,7 +2,7 @@
   <div class="page-container">
     <PageHeader
       title="My Bookings"
-      subtitle="View and manage your upcoming desk reservations"
+      subtitle="View and manage your upcoming reservations"
       :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'My Bookings' }]"
     />
 
@@ -40,9 +40,9 @@
     <EmptyState
       v-else-if="!bookings.length"
       title="No upcoming bookings"
-      message="You don't have any desk reservations scheduled. Browse available desks to make a booking."
+      message="You don't have any reservations scheduled. Browse available items to make a booking."
       icon="$calendar"
-      action-text="Find a Desk"
+      action-text="Find an Item"
       action-to="/"
       data-cy="bookings-empty"
     />

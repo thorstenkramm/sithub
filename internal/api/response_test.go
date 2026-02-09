@@ -64,14 +64,14 @@ func TestParseBookingDate(t *testing.T) {
 	})
 }
 
-func TestParseRoomRequest(t *testing.T) {
+func TestParseItemGroupRequest(t *testing.T) {
 	t.Run("valid params", func(t *testing.T) {
-		params, err := ParseRoomRequest("room-1", "2025-01-15")
+		params, err := ParseItemGroupRequest("room-1", "2025-01-15")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if params.RoomID != "room-1" {
-			t.Fatalf("expected room-1, got %s", params.RoomID)
+		if params.ItemGroupID != "room-1" {
+			t.Fatalf("expected room-1, got %s", params.ItemGroupID)
 		}
 		if params.BookingDate != "2025-01-15" {
 			t.Fatalf("expected 2025-01-15, got %s", params.BookingDate)
@@ -79,7 +79,7 @@ func TestParseRoomRequest(t *testing.T) {
 	})
 
 	t.Run("invalid date", func(t *testing.T) {
-		_, err := ParseRoomRequest("room-1", "invalid")
+		_, err := ParseItemGroupRequest("room-1", "invalid")
 		if err == nil {
 			t.Fatal("expected error for invalid date")
 		}

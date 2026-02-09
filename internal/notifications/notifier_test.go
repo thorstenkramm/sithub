@@ -64,9 +64,8 @@ func TestWebhookNotifierSendsEvent(t *testing.T) {
 	event := BookingEvent{
 		Event:       EventBookingCreated,
 		BookingID:   "booking-123",
-		DeskID:      "desk-1",
+		ItemID:      "desk-1",
 		UserID:      "user-1",
-		UserName:    "Test User",
 		BookingDate: "2026-01-20",
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
@@ -78,9 +77,8 @@ func TestWebhookNotifierSendsEvent(t *testing.T) {
 
 	assert.Equal(t, EventBookingCreated, receivedEvent.Event)
 	assert.Equal(t, "booking-123", receivedEvent.BookingID)
-	assert.Equal(t, "desk-1", receivedEvent.DeskID)
+	assert.Equal(t, "desk-1", receivedEvent.ItemID)
 	assert.Equal(t, "user-1", receivedEvent.UserID)
-	assert.Equal(t, "Test User", receivedEvent.UserName)
 }
 
 func TestWebhookNotifierSendsCancelEvent(t *testing.T) {
@@ -101,9 +99,8 @@ func TestWebhookNotifierSendsCancelEvent(t *testing.T) {
 	event := BookingEvent{
 		Event:            EventBookingCanceled,
 		BookingID:        "booking-123",
-		DeskID:           "desk-1",
+		ItemID:           "desk-1",
 		UserID:           "user-1",
-		UserName:         "Test User",
 		BookingDate:      "2026-01-20",
 		CanceledByUserID: "admin-1",
 		Timestamp:        time.Now().UTC().Format(time.RFC3339),

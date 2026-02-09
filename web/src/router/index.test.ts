@@ -34,20 +34,20 @@ describe('router', () => {
             name: 'areas'
           }),
           expect.objectContaining({
-            path: '/areas/:areaId/rooms',
-            name: 'rooms'
+            path: '/areas/:areaId/item-groups',
+            name: 'item-groups'
           }),
           expect.objectContaining({
             path: '/areas/:areaId/presence',
             name: 'area-presence'
           }),
           expect.objectContaining({
-            path: '/rooms/:roomId/desks',
-            name: 'desks'
+            path: '/item-groups/:itemGroupId/items',
+            name: 'items'
           }),
           expect.objectContaining({
-            path: '/rooms/:roomId/bookings',
-            name: 'room-bookings'
+            path: '/item-groups/:itemGroupId/bookings',
+            name: 'item-group-bookings'
           }),
           expect.objectContaining({
             path: '/my-bookings',

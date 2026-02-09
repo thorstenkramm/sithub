@@ -1,9 +1,9 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import DesksView from './DesksView.vue';
-import { fetchDesks } from '../api/desks';
+import ItemsView from './ItemsView.vue';
+import { fetchItems } from '../api/items';
 import { fetchMe } from '../api/me';
-import { fetchRooms } from '../api/rooms';
+import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
 import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 
@@ -11,15 +11,15 @@ import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 
 const pushMock = vi.fn();
 vi.mock('../api/me');
-vi.mock('../api/desks');
-vi.mock('../api/rooms');
+vi.mock('../api/items');
+vi.mock('../api/itemGroups');
 vi.mock('../api/areas');
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { roomId: 'room-1' } }),
+  useRoute: () => ({ params: { itemGroupId: 'ig-1' } }),
   useRouter: () => ({ push: pushMock })
 }));
 
-describe('DesksView', () => {
+describe('ItemsView', () => {
   const stubs = buildViewStubs([
     'v-list-item-subtitle',
     'v-card-item',
@@ -39,12 +39,12 @@ describe('DesksView', () => {
   ]);
 
   const fetchMeMock = vi.mocked(fetchMe);
-  const fetchDesksMock = vi.mocked(fetchDesks);
-  const fetchRoomsMock = vi.mocked(fetchRooms);
+  const fetchItemsMock = vi.mocked(fetchItems);
+  const fetchItemGroupsMock = vi.mocked(fetchItemGroups);
   const fetchAreasMock = vi.mocked(fetchAreas);
 
   const mountView = () =>
-    mount(DesksView, {
+    mount(ItemsView, {
       global: {
         stubs,
         plugins: [createPinia()]
@@ -62,23 +62,23 @@ describe('DesksView', () => {
         }
       }
     });
-    fetchDesksMock.mockResolvedValue({ data: [] });
+    fetchItemsMock.mockResolvedValue({ data: [] });
     fetchAreasMock.mockResolvedValue({
       data: [{ id: 'area-1', type: 'areas', attributes: { name: 'Test Area' } }]
     });
-    fetchRoomsMock.mockResolvedValue({
-      data: [{ id: 'room-1', type: 'rooms', attributes: { name: 'Test Room' } }]
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group' } }]
     });
   });
 
-  it('renders desk equipment, warning, and status', async () => {
-    fetchDesksMock.mockResolvedValue({
+  it('renders item equipment, warning, and status', async () => {
+    fetchItemsMock.mockResolvedValue({
       data: [
         {
-          id: 'desk-1',
-          type: 'desks',
+          id: 'item-1',
+          type: 'items',
           attributes: {
-            name: 'Desk 1',
+            name: 'Item 1',
             equipment: ['Monitor', 'Keyboard'],
             warning: 'USB-C only',
             availability: 'occupied'
@@ -90,27 +90,27 @@ describe('DesksView', () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Desk 1');
+    expect(wrapper.text()).toContain('Item 1');
     expect(wrapper.text()).toContain('Monitor');
     expect(wrapper.text()).toContain('USB-C only');
   });
 
-  it('shows empty state when no desks exist', async () => {
+  it('shows empty state when no items exist', async () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('No desks available');
+    expect(wrapper.text()).toContain('No items available');
   });
 
-  it('fetches desks on mount with current date', async () => {
+  it('fetches items on mount with current date', async () => {
     mountView();
     await flushPromises();
 
-    // Should fetch desks with today's date on mount
-    expect(fetchDesksMock).toHaveBeenCalled();
-    // Check that it was called with room-1 and a date in YYYY-MM-DD format
-    const lastCall = fetchDesksMock.mock.calls[fetchDesksMock.mock.calls.length - 1];
-    expect(lastCall[0]).toBe('room-1');
+    // Should fetch items with today's date on mount
+    expect(fetchItemsMock).toHaveBeenCalled();
+    // Check that it was called with ig-1 and a date in YYYY-MM-DD format
+    const lastCall = fetchItemsMock.mock.calls[fetchItemsMock.mock.calls.length - 1];
+    expect(lastCall[0]).toBe('ig-1');
     expect(lastCall[1]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 

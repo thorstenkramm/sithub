@@ -1,7 +1,7 @@
 import {
-  createMockDesk,
-  createMockDesksResponse,
-  setupDesksPageIntercepts
+  createMockItem,
+  createMockItemsResponse,
+  setupItemsPageIntercepts
 } from '../support/flows';
 
 /**
@@ -181,23 +181,23 @@ describe('Page-specific Vuetify Rendering', () => {
     cy.login();
   });
 
-  it('should render date picker as Vuetify component on desks page', () => {
-    setupDesksPageIntercepts();
+  it('should render date picker as Vuetify component on items page', () => {
+    setupItemsPageIntercepts();
 
-    cy.visit('/rooms/room-1/desks');
+    cy.visit('/item-groups/test_room/items');
 
     // Date picker should be a proper Vuetify text field
-    cy.get('[data-cy="desks-date"]').should('exist');
+    cy.get('[data-cy="items-date"]').should('exist');
     cy.get('.v-text-field').should('exist');
 
     // Should have a calendar icon
     cy.get('.v-field__prepend-inner .v-icon').should('exist');
   });
 
-  it('should render radio buttons as Vuetify components on desks page', () => {
-    cy.intercept('GET', '/api/v1/rooms/*/desks*').as('listDesks');
+  it('should render radio buttons as Vuetify components on items page', () => {
+    cy.intercept('GET', '/api/v1/item-groups/*/items*').as('listItems');
 
-    cy.visit('/rooms/room-1/desks');
+    cy.visit('/item-groups/test_room/items');
 
     // Radio group should render as Vuetify component
     cy.get('.v-radio-group').should('exist');
@@ -210,18 +210,17 @@ describe('Page-specific Vuetify Rendering', () => {
   });
 
   it('should render status chips as Vuetify components', () => {
-    const mockDesk = createMockDesk('desk-1', 'Test Desk');
-    cy.intercept('GET', '/api/v1/rooms/*/desks*', createMockDesksResponse([mockDesk])).as(
-      'listDesks'
+    const mockItem = createMockItem('item-1', 'Test Item');
+    cy.intercept('GET', '/api/v1/item-groups/*/items*', createMockItemsResponse([mockItem])).as(
+      'listItems'
     );
 
-    cy.visit('/rooms/room-1/desks');
-    cy.wait('@listDesks');
+    cy.visit('/item-groups/test_room/items');
+    cy.wait('@listItems');
 
     // Status chip should render as Vuetify chip
-    // StatusChip component IS the v-chip (data-cy is on the root element)
-    cy.get('[data-cy="desk-status"]').should('exist');
-    cy.get('[data-cy="desk-status"]').should('have.class', 'v-chip');
+    cy.get('[data-cy="item-status"]').should('exist');
+    cy.get('[data-cy="item-status"]').should('have.class', 'v-chip');
   });
 
   it('should render alerts as Vuetify components', () => {

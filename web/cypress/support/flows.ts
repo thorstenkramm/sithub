@@ -3,20 +3,20 @@ export function openArea(areaName: string) {
   cy.contains('[data-cy="area-item"]', areaName).click();
 }
 
-export function openRoom(roomName: string) {
-  cy.wait('@listRooms').its('response.statusCode').should('eq', 200);
-  cy.contains('[data-cy="room-item"]', roomName).click();
+export function openItemGroup(itemGroupName: string) {
+  cy.wait('@listItemGroups').its('response.statusCode').should('eq', 200);
+  cy.contains('[data-cy="item-group-item"]', itemGroupName).click();
 }
 
-/** Sets up intercepts for areas, rooms, and desks API endpoints */
-export function setupDesksPageIntercepts() {
+/** Sets up intercepts for areas, item groups, and items API endpoints */
+export function setupItemsPageIntercepts() {
   cy.intercept('GET', '/api/v1/areas').as('listAreas');
-  cy.intercept('GET', '/api/v1/areas/*/rooms').as('listRooms');
-  cy.intercept('GET', '/api/v1/rooms/*/desks*').as('listDesks');
+  cy.intercept('GET', '/api/v1/areas/*/item-groups').as('listItemGroups');
+  cy.intercept('GET', '/api/v1/item-groups/*/items*').as('listItems');
 }
 
-/** Creates a mock desk object for testing */
-export function createMockDesk(
+/** Creates a mock item object for testing */
+export function createMockItem(
   id: string,
   name: string,
   availability: 'available' | 'occupied' = 'available',
@@ -24,7 +24,7 @@ export function createMockDesk(
 ) {
   return {
     id,
-    type: 'desks',
+    type: 'items',
     attributes: {
       name,
       equipment,
@@ -33,12 +33,12 @@ export function createMockDesk(
   };
 }
 
-/** Creates a mock desks API response body */
-export function createMockDesksResponse(desks: ReturnType<typeof createMockDesk>[]) {
+/** Creates a mock items API response body */
+export function createMockItemsResponse(items: ReturnType<typeof createMockItem>[]) {
   return {
     statusCode: 200,
     body: {
-      data: desks
+      data: items
     }
   };
 }

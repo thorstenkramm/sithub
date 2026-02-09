@@ -1,4 +1,4 @@
-package areas
+package itemgroups
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/db"
-	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -28,7 +27,6 @@ func setupTestDB(t *testing.T) *sql.DB {
 		}
 	})
 
-	// Run migrations
 	_, err = store.Exec(`
 		CREATE TABLE IF NOT EXISTS bookings (
 			id TEXT PRIMARY KEY,
@@ -65,7 +63,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return store
 }
 
-func seedTestBooking(t *testing.T, store *sql.DB, id, itemID, userID, date string) {
+func seedBooking(t *testing.T, store *sql.DB, id, itemID, userID, date string) {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	_, err := store.ExecContext(context.Background(),
@@ -75,7 +73,7 @@ func seedTestBooking(t *testing.T, store *sql.DB, id, itemID, userID, date strin
 	require.NoError(t, err)
 }
 
-func seedTestUser(t *testing.T, store *sql.DB, id, displayName string) {
+func seedUser(t *testing.T, store *sql.DB, id, displayName string) {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	_, err := store.ExecContext(context.Background(),
@@ -85,110 +83,63 @@ func seedTestUser(t *testing.T, store *sql.DB, id, displayName string) {
 	require.NoError(t, err)
 }
 
-func testConfig() *spaces.Config {
-	return &spaces.Config{
-		Areas: []spaces.Area{
-			{
-				ID:   "area-1",
-				Name: "Area One",
-				ItemGroups: []spaces.ItemGroup{
-					{
-						ID:   "room-1",
-						Name: "Room One",
-						Items: []spaces.Item{
-							{ID: "desk-1", Name: "Desk 1"},
-							{ID: "desk-2", Name: "Desk 2"},
-						},
-					},
-					{
-						ID:   "room-2",
-						Name: "Room Two",
-						Items: []spaces.Item{
-							{ID: "desk-3", Name: "Desk 3"},
-						},
-					},
-				},
-			},
-			{
-				ID:   "area-2",
-				Name: "Area Two",
-				ItemGroups: []spaces.ItemGroup{
-					{
-						ID:   "room-3",
-						Name: "Room Three",
-						Items: []spaces.Item{
-							{ID: "desk-4", Name: "Desk 4"},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func TestPresenceHandlerAreaNotFound(t *testing.T) {
+func TestBookingsHandlerItemGroupNotFound(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestDB(t)
 	cfg := testConfig()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas/unknown/presence", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/unknown/bookings?date=2025-01-20", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("area_id")
+	c.SetParamNames("item_group_id")
 	c.SetParamValues("unknown")
 
-	h := PresenceHandler(cfg, store)
+	h := BookingsHandler(cfg, store)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestPresenceHandlerInvalidDate(t *testing.T) {
+func TestBookingsHandlerInvalidDate(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestDB(t)
 	cfg := testConfig()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas/area-1/presence?date=invalid", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/bookings?date=bad", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("area_id")
-	c.SetParamValues("area-1")
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
 
-	h := PresenceHandler(cfg, store)
+	h := BookingsHandler(cfg, store)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
-func TestPresenceHandlerReturnsUsersInArea(t *testing.T) {
+func TestBookingsHandlerReturnsBookings(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestDB(t)
 	cfg := testConfig()
 
-	// Seed users
-	seedTestUser(t, store, "user-1", "Alice Smith")
-	seedTestUser(t, store, "user-2", "Bob Jones")
-	seedTestUser(t, store, "user-3", "Carol White")
-
-	// Seed bookings for area-1
-	seedTestBooking(t, store, "b1", "desk-1", "user-1", "2025-01-20")
-	seedTestBooking(t, store, "b2", "desk-3", "user-2", "2025-01-20")
-	// Booking in area-2 should not appear
-	seedTestBooking(t, store, "b3", "desk-4", "user-3", "2025-01-20")
+	seedUser(t, store, "user-1", "Alice Smith")
+	seedUser(t, store, "user-2", "Bob Jones")
+	seedBooking(t, store, "b1", "item-1", "user-1", "2025-01-20")
+	seedBooking(t, store, "b2", "item-2", "user-2", "2025-01-20")
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas/area-1/presence?date=2025-01-20", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/bookings?date=2025-01-20", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("area_id")
-	c.SetParamValues("area-1")
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
 
-	h := PresenceHandler(cfg, store)
+	h := BookingsHandler(cfg, store)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -198,43 +149,33 @@ func TestPresenceHandlerReturnsUsersInArea(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	require.Len(t, resp.Data, 2)
 
-	// Sorted by item_id, so desk-1 comes before desk-3
-	assert.Equal(t, "presence", resp.Data[0].Type)
+	assert.Equal(t, "bookings", resp.Data[0].Type)
 	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
-	require.True(t, ok, "expected map attributes")
-	assert.Equal(t, "Alice Smith", attrs0["user_name"])
-	assert.Equal(t, "desk-1", attrs0["item_id"])
+	require.True(t, ok)
+	assert.Equal(t, "item-1", attrs0["item_id"])
 	assert.Equal(t, "Desk 1", attrs0["item_name"])
-	assert.Equal(t, "room-1", attrs0["item_group_id"])
-	assert.Equal(t, "Room One", attrs0["item_group_name"])
+	assert.Equal(t, "Alice Smith", attrs0["user_name"])
 
 	attrs1, ok := resp.Data[1].Attributes.(map[string]any)
-	require.True(t, ok, "expected map attributes")
+	require.True(t, ok)
+	assert.Equal(t, "item-2", attrs1["item_id"])
 	assert.Equal(t, "Bob Jones", attrs1["user_name"])
-	assert.Equal(t, "desk-3", attrs1["item_id"])
-	assert.Equal(t, "Room Two", attrs1["item_group_name"])
 }
 
-func TestPresenceHandlerExcludesOtherDates(t *testing.T) {
+func TestBookingsHandlerEmptyResult(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestDB(t)
 	cfg := testConfig()
 
-	// Seed user
-	seedTestUser(t, store, "user-1", "Alice")
-
-	// Booking for different date
-	seedTestBooking(t, store, "b1", "desk-1", "user-1", "2025-01-21")
-
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas/area-1/presence?date=2025-01-20", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/bookings?date=2025-01-20", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("area_id")
-	c.SetParamValues("area-1")
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
 
-	h := PresenceHandler(cfg, store)
+	h := BookingsHandler(cfg, store)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -244,20 +185,24 @@ func TestPresenceHandlerExcludesOtherDates(t *testing.T) {
 	assert.Empty(t, resp.Data)
 }
 
-func TestPresenceHandlerEmptyResult(t *testing.T) {
+func TestBookingsHandlerExcludesOtherItemGroups(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestDB(t)
 	cfg := testConfig()
 
+	seedUser(t, store, "user-1", "Alice")
+	// Booking for item-3 which is in ig-2, not ig-1
+	seedBooking(t, store, "b1", "item-3", "user-1", "2025-01-20")
+
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas/area-1/presence?date=2025-01-20", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/bookings?date=2025-01-20", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("area_id")
-	c.SetParamValues("area-1")
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
 
-	h := PresenceHandler(cfg, store)
+	h := BookingsHandler(cfg, store)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusOK, rec.Code)

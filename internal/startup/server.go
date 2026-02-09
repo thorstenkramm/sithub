@@ -20,10 +20,10 @@ import (
 	"github.com/thorstenkramm/sithub/internal/bookings"
 	"github.com/thorstenkramm/sithub/internal/config"
 	"github.com/thorstenkramm/sithub/internal/db"
-	"github.com/thorstenkramm/sithub/internal/desks"
+	"github.com/thorstenkramm/sithub/internal/itemgroups"
+	"github.com/thorstenkramm/sithub/internal/items"
 	"github.com/thorstenkramm/sithub/internal/middleware"
 	"github.com/thorstenkramm/sithub/internal/notifications"
-	"github.com/thorstenkramm/sithub/internal/rooms"
 	"github.com/thorstenkramm/sithub/internal/spaces"
 	"github.com/thorstenkramm/sithub/internal/system"
 	"github.com/thorstenkramm/sithub/internal/users"
@@ -123,13 +123,14 @@ func registerRoutes(
 	e.GET("/api/v1/me", auth.MeHandler(), requireAuth)
 	e.PATCH("/api/v1/me", auth.UpdateMeHandler(authService), requireAuth)
 	e.GET("/api/v1/areas", areas.ListHandlerDynamic(getConfig), requireAuth)
-	e.GET("/api/v1/areas/:area_id/rooms", rooms.ListHandlerDynamic(getConfig), requireAuth)
+	e.GET("/api/v1/areas/:area_id/item-groups",
+		itemgroups.ListHandlerDynamic(getConfig), requireAuth)
 	e.GET("/api/v1/areas/:area_id/presence",
 		areas.PresenceHandlerDynamic(getConfig, store), requireAuth)
-	e.GET("/api/v1/rooms/:room_id/desks",
-		desks.ListHandlerDynamic(getConfig, store), requireAuth)
-	e.GET("/api/v1/rooms/:room_id/bookings",
-		rooms.BookingsHandlerDynamic(getConfig, store), requireAuth)
+	e.GET("/api/v1/item-groups/:item_group_id/items",
+		items.ListHandlerDynamic(getConfig, store), requireAuth)
+	e.GET("/api/v1/item-groups/:item_group_id/bookings",
+		itemgroups.BookingsHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/bookings", bookings.ListHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/bookings/history",
 		bookings.HistoryHandlerDynamic(getConfig, store), requireAuth)

@@ -1,11 +1,11 @@
 get:
-  summary: List bookings for a room
+  summary: List bookings for an item group
   description: |
-    Returns all bookings for desks in the specified room on the given date.
-    Includes desk name and user name for each booking.
-  operationId: listRoomBookings
+    Returns all bookings for items in the specified item group on the given date.
+    Includes item name and user name for each booking.
+  operationId: listItemGroupBookings
   parameters:
-    - name: room_id
+    - name: item_group_id
       in: path
       required: true
       schema:
@@ -19,11 +19,11 @@ get:
       description: Booking date in YYYY-MM-DD format. Defaults to today.
   responses:
     '200':
-      description: Room bookings list
+      description: Item group bookings list
       content:
         application/vnd.api+json:
           schema:
-            $ref: ../openapi.yaml#/components/schemas/RoomBookingsCollectionResponse
+            $ref: ../openapi.yaml#/components/schemas/ItemGroupBookingsCollectionResponse
     '400':
       description: Invalid date format
       content:
@@ -43,7 +43,7 @@ get:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
     '404':
-      description: Room not found
+      description: Item group not found
       content:
         application/vnd.api+json:
           schema:

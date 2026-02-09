@@ -1,19 +1,19 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Desks"
-      subtitle="Select a desk to book for your chosen date"
+      title="Items"
+      subtitle="Select an item to book for your chosen date"
       :breadcrumbs="breadcrumbs"
     >
       <template #actions>
         <v-btn
-          v-if="activeRoomId"
+          v-if="activeItemGroupId"
           variant="text"
           size="small"
-          :to="`/rooms/${activeRoomId}/bookings`"
-          data-cy="view-room-bookings"
+          :to="`/item-groups/${activeItemGroupId}/bookings`"
+          data-cy="view-item-group-bookings"
         >
-          View Room Bookings
+          View Item Group Bookings
         </v-btn>
       </template>
     </PageHeader>
@@ -26,7 +26,7 @@
             v-model="selectedDate"
             label="Booking Date"
             :min="todayDate"
-            data-cy="desks-date"
+            data-cy="items-date"
             style="max-width: 280px;"
           />
         </div>
@@ -131,40 +131,40 @@
     </v-alert>
 
     <!-- Loading State -->
-    <LoadingState v-if="desksLoading" type="cards" :count="6" data-cy="desks-loading" />
+    <LoadingState v-if="itemsLoading" type="cards" :count="6" data-cy="items-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="desksErrorMessage" type="error" class="mb-4" data-cy="desks-error">
-      {{ desksErrorMessage }}
+    <v-alert v-else-if="itemsErrorMessage" type="error" class="mb-4" data-cy="items-error">
+      {{ itemsErrorMessage }}
     </v-alert>
 
     <!-- Empty State -->
     <EmptyState
-      v-else-if="!desks.length"
-      title="No desks available"
-      message="This room doesn't have any desks configured yet."
+      v-else-if="!items.length"
+      title="No items available"
+      message="This item group doesn't have any items configured yet."
       icon="$desk"
-      data-cy="desks-empty"
+      data-cy="items-empty"
     />
 
-    <!-- Desks Grid -->
-    <div v-else class="card-grid" data-cy="desks-list">
+    <!-- Items Grid -->
+    <div v-else class="card-grid" data-cy="items-list">
       <v-card
-        v-for="desk in desks"
-        :key="desk.id"
+        v-for="entry in items"
+        :key="entry.id"
         :class="[
-          'desk-card',
-          { 'desk-available': desk.attributes.availability === 'available' },
-          { 'desk-occupied': desk.attributes.availability === 'occupied' }
+          'item-card',
+          { 'item-available': entry.attributes.availability === 'available' },
+          { 'item-occupied': entry.attributes.availability === 'occupied' }
         ]"
-        data-cy="desk-item"
-        :data-cy-desk-id="desk.id"
-        :data-cy-availability="desk.attributes.availability"
+        data-cy="item-entry"
+        :data-cy-item-id="entry.id"
+        :data-cy-availability="entry.attributes.availability"
       >
         <v-card-item>
           <template #prepend>
             <v-avatar
-              :color="desk.attributes.availability === 'available' ? 'success' : 'warning'"
+              :color="entry.attributes.availability === 'available' ? 'success' : 'warning'"
               variant="tonal"
               size="48"
             >
@@ -172,49 +172,49 @@
             </v-avatar>
           </template>
           <v-card-title class="d-flex align-center">
-            {{ desk.attributes.name }}
+            {{ entry.attributes.name }}
             <StatusChip
-              :status="desk.attributes.availability === 'available' ? 'available' : 'booked'"
+              :status="entry.attributes.availability === 'available' ? 'available' : 'booked'"
               size="x-small"
               class="ml-2"
-              data-cy="desk-status"
+              data-cy="item-status"
             />
           </v-card-title>
         </v-card-item>
 
         <v-card-text class="pt-0">
           <!-- Equipment -->
-          <div v-if="desk.attributes.equipment?.length" class="mb-2" data-cy="desk-equipment">
+          <div v-if="entry.attributes.equipment?.length" class="mb-2" data-cy="item-equipment">
             <div class="text-caption text-medium-emphasis mb-1">Equipment</div>
             <div class="d-flex flex-wrap ga-1">
               <v-chip
-                v-for="item in desk.attributes.equipment"
-                :key="item"
+                v-for="equip in entry.attributes.equipment"
+                :key="equip"
                 size="x-small"
                 variant="outlined"
               >
-                {{ item }}
+                {{ equip }}
               </v-chip>
             </div>
           </div>
 
           <!-- Warning -->
           <v-alert
-            v-if="desk.attributes.warning"
+            v-if="entry.attributes.warning"
             type="warning"
             variant="tonal"
             density="compact"
             class="mt-2"
-            data-cy="desk-warning"
+            data-cy="item-warning"
           >
-            {{ desk.attributes.warning }}
+            {{ entry.attributes.warning }}
           </v-alert>
 
           <!-- Booked by (admin only) -->
           <div
-            v-if="authStore.isAdmin && desk.attributes.availability === 'occupied' && desk.attributes.booking_id"
+            v-if="authStore.isAdmin && entry.attributes.availability === 'occupied' && entry.attributes.booking_id"
             class="text-caption text-medium-emphasis mt-2"
-            data-cy="desk-booker"
+            data-cy="item-booker"
           >
             Booked for this date
           </div>
@@ -222,26 +222,26 @@
 
         <v-card-actions class="px-4 pb-4">
           <v-btn
-            v-if="desk.attributes.availability === 'available'"
+            v-if="entry.attributes.availability === 'available'"
             color="primary"
             variant="flat"
             block
-            :loading="bookingDeskId === desk.id"
-            :disabled="bookingDeskId !== null || cancelingBookingId !== null"
-            data-cy="book-desk-btn"
-            @click="bookDesk(desk.id)"
+            :loading="bookingItemId === entry.id"
+            :disabled="bookingItemId !== null || cancelingBookingId !== null"
+            data-cy="book-item-btn"
+            @click="bookItem(entry.id)"
           >
-            Book This Desk
+            Book This Item
           </v-btn>
           <v-btn
-            v-else-if="authStore.isAdmin && desk.attributes.booking_id"
+            v-else-if="authStore.isAdmin && entry.attributes.booking_id"
             color="error"
             variant="tonal"
             block
-            :loading="cancelingBookingId === desk.attributes.booking_id"
-            :disabled="bookingDeskId !== null || cancelingBookingId !== null"
+            :loading="cancelingBookingId === entry.attributes.booking_id"
+            :disabled="bookingItemId !== null || cancelingBookingId !== null"
             data-cy="admin-cancel-btn"
-            @click="adminCancelBooking(desk.attributes.booking_id!)"
+            @click="adminCancelBooking(entry.attributes.booking_id!)"
           >
             Cancel Booking
           </v-btn>
@@ -265,11 +265,11 @@ import {
   type BookOnBehalfOptions,
   type GuestBookingOptions
 } from '../api/bookings';
-import { fetchDesks } from '../api/desks';
+import { fetchItems } from '../api/items';
 import { fetchMe } from '../api/me';
-import { fetchRooms } from '../api/rooms';
+import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
-import type { DeskAttributes } from '../api/desks';
+import type { ItemAttributes } from '../api/items';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
@@ -277,19 +277,19 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
 
 const authStore = useAuthStore();
-const desks = ref<JsonApiResource<DeskAttributes>[]>([]);
-const desksErrorMessage = ref<string | null>(null);
+const items = ref<JsonApiResource<ItemAttributes>[]>([]);
+const itemsErrorMessage = ref<string | null>(null);
 const bookingSuccessMessage = ref<string | null>(null);
 const bookingErrorMessage = ref<string | null>(null);
-const bookingDeskId = ref<string | null>(null);
+const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
 const todayDate = formatDate(new Date());
 const route = useRoute();
-const { loading: desksLoading, run: runDesks } = useApi();
-const activeRoomId = ref<string | null>(null);
+const { loading: itemsLoading, run: runItems } = useApi();
+const activeItemGroupId = ref<string | null>(null);
 const areaName = ref('');
-const roomName = ref('');
+const itemGroupName = ref('');
 const bookingType = ref<'self' | 'colleague' | 'guest'>('self');
 const colleagueId = ref('');
 const colleagueName = ref('');
@@ -301,7 +301,7 @@ const additionalDates = ref('');
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
   { text: areaName.value || 'Area', to: areaName.value ? undefined : '/' },
-  { text: roomName.value || 'Room' }
+  { text: itemGroupName.value || 'Item Group' }
 ]);
 
 const formattedDate = computed(() => {
@@ -322,25 +322,25 @@ const ensureDate = (value: string) => {
   return today;
 };
 
-const loadDesks = async (roomId: string, date: string) => {
-  desksErrorMessage.value = null;
+const loadItems = async (itemGroupId: string, date: string) => {
+  itemsErrorMessage.value = null;
   try {
     const normalizedDate = ensureDate(date);
-    const resp = await runDesks(() => fetchDesks(roomId, normalizedDate));
-    desks.value = resp.data;
+    const resp = await runItems(() => fetchItems(itemGroupId, normalizedDate));
+    items.value = resp.data;
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      desksErrorMessage.value = 'Room not found.';
+      itemsErrorMessage.value = 'Item group not found.';
       return;
     }
-    desksErrorMessage.value = 'Unable to load desks.';
+    itemsErrorMessage.value = 'Unable to load items.';
   }
 };
 
-const bookDesk = async (deskId: string) => {
+const bookItem = async (itemId: string) => {
   bookingSuccessMessage.value = null;
   bookingErrorMessage.value = null;
 
@@ -360,7 +360,7 @@ const bookDesk = async (deskId: string) => {
     }
   }
 
-  bookingDeskId.value = deskId;
+  bookingItemId.value = itemId;
 
   try {
     const onBehalf: BookOnBehalfOptions | undefined =
@@ -383,7 +383,7 @@ const bookDesk = async (deskId: string) => {
         }
       });
 
-      const result = await createMultiDayBooking(deskId, dates, onBehalf, guest);
+      const result = await createMultiDayBooking(itemId, dates, onBehalf, guest);
       const createdCount = result.created.length;
       const conflictCount = result.conflicts?.length || 0;
 
@@ -398,8 +398,8 @@ const bookDesk = async (deskId: string) => {
       multiDayBooking.value = false;
       additionalDates.value = '';
     } else {
-      await createBooking(deskId, selectedDate.value, onBehalf, guest);
-      bookingSuccessMessage.value = 'Desk booked successfully!';
+      await createBooking(itemId, selectedDate.value, onBehalf, guest);
+      bookingSuccessMessage.value = 'Item booked successfully!';
     }
 
     // Reset booking type fields
@@ -413,9 +413,9 @@ const bookDesk = async (deskId: string) => {
       bookingType.value = 'self';
     }
 
-    // Reload desks to reflect updated availability
-    if (activeRoomId.value) {
-      await loadDesks(activeRoomId.value, selectedDate.value);
+    // Reload items to reflect updated availability
+    if (activeItemGroupId.value) {
+      await loadItems(activeItemGroupId.value, selectedDate.value);
     }
   } catch (err) {
     if (await handleAuthError(err)) {
@@ -423,20 +423,20 @@ const bookDesk = async (deskId: string) => {
     }
     if (err instanceof ApiError && err.status === 409) {
       // Use backend's detail message if available, otherwise a generic message
-      const detail = err.detail || 'This desk is no longer available for the selected date.';
-      bookingErrorMessage.value = `${detail} Please choose another desk.`;
+      const detail = err.detail || 'This item is no longer available for the selected date.';
+      bookingErrorMessage.value = `${detail} Please choose another item.`;
 
-      // Refresh desk list so user sees updated availability
-      if (activeRoomId.value) {
-        await loadDesks(activeRoomId.value, selectedDate.value);
+      // Refresh item list so user sees updated availability
+      if (activeItemGroupId.value) {
+        await loadItems(activeItemGroupId.value, selectedDate.value);
       }
     } else if (err instanceof ApiError && err.status === 404) {
-      bookingErrorMessage.value = 'Desk not found.';
+      bookingErrorMessage.value = 'Item not found.';
     } else {
-      bookingErrorMessage.value = 'Unable to book desk. Please try again.';
+      bookingErrorMessage.value = 'Unable to book item. Please try again.';
     }
   } finally {
-    bookingDeskId.value = null;
+    bookingItemId.value = null;
   }
 };
 
@@ -449,9 +449,9 @@ const adminCancelBooking = async (bookingId: string) => {
     await cancelBooking(bookingId);
     bookingSuccessMessage.value = 'Booking cancelled successfully.';
 
-    // Reload desks to reflect updated availability
-    if (activeRoomId.value) {
-      await loadDesks(activeRoomId.value, selectedDate.value);
+    // Reload items to reflect updated availability
+    if (activeItemGroupId.value) {
+      await loadItems(activeItemGroupId.value, selectedDate.value);
     }
   } catch (err) {
     if (await handleAuthError(err)) {
@@ -479,23 +479,23 @@ onMounted(async () => {
     throw err;
   }
 
-  const roomId = route.params.roomId;
-  if (typeof roomId !== 'string' || roomId.trim() === '') {
-    desksErrorMessage.value = 'Room not found.';
+  const itemGroupId = route.params.itemGroupId;
+  if (typeof itemGroupId !== 'string' || itemGroupId.trim() === '') {
+    itemsErrorMessage.value = 'Item group not found.';
     return;
   }
 
-  activeRoomId.value = roomId;
+  activeItemGroupId.value = itemGroupId;
 
-  // Fetch area and room names for breadcrumbs
+  // Fetch area and item group names for breadcrumbs
   try {
     const areasResp = await fetchAreas();
     for (const area of areasResp.data) {
-      const roomsResp = await fetchRooms(area.id);
-      const room = roomsResp.data.find(r => r.id === roomId);
-      if (room) {
+      const igResp = await fetchItemGroups(area.id);
+      const ig = igResp.data.find(ig => ig.id === itemGroupId);
+      if (ig) {
         areaName.value = area.attributes.name;
-        roomName.value = room.attributes.name;
+        itemGroupName.value = ig.attributes.name;
         break;
       }
     }
@@ -503,16 +503,16 @@ onMounted(async () => {
     // Ignore - breadcrumbs will just show generic names
   }
 
-  await loadDesks(roomId, selectedDate.value);
+  await loadItems(itemGroupId, selectedDate.value);
 });
 
 watch(
   selectedDate,
   async (value) => {
-    if (!activeRoomId.value) {
+    if (!activeItemGroupId.value) {
       return;
     }
-    await loadDesks(activeRoomId.value, value);
+    await loadItems(activeItemGroupId.value, value);
   },
   { flush: 'post' }
 );
