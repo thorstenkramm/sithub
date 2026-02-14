@@ -80,7 +80,7 @@ describe('week booking mode', () => {
     cy.wait('@createBooking');
 
     cy.get('[data-cy="week-booking-results"]', { timeout: 10000 }).should('be.visible');
-    cy.get('[data-cy="week-booking-results"]').should('contain', 'Booked');
+    cy.get('[data-cy="week-booking-results"]').should('contain', 'Booking Results');
   });
 
   it('should switch back to day mode and restore standard UI', () => {

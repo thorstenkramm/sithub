@@ -53,7 +53,7 @@ export interface MultiDayBookingResult {
 
 export interface BookOnBehalfOptions {
   forUserId: string;
-  forUserName: string;
+  forUserName?: string;
 }
 
 export interface GuestBookingOptions {
@@ -75,7 +75,7 @@ export function createBooking(
         booking_date: bookingDate,
         ...(onBehalf && {
           for_user_id: onBehalf.forUserId,
-          for_user_name: onBehalf.forUserName
+          ...(onBehalf.forUserName ? { for_user_name: onBehalf.forUserName } : {})
         }),
         ...(guest && {
           is_guest: true,
@@ -106,7 +106,7 @@ export function createMultiDayBooking(
         booking_dates: bookingDates,
         ...(onBehalf && {
           for_user_id: onBehalf.forUserId,
-          for_user_name: onBehalf.forUserName
+          ...(onBehalf.forUserName ? { for_user_name: onBehalf.forUserName } : {})
         }),
         ...(guest && {
           is_guest: true,

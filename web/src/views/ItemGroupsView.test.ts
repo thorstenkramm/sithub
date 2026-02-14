@@ -99,12 +99,12 @@ describe('ItemGroupsView', () => {
     mockAvailability();
   });
 
-  it('shows page header with title', async () => {
+  it('renders page header with breadcrumbs', async () => {
     const wrapper = mountView();
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Item Groups');
+    expect(wrapper.find('[data-cy="breadcrumbs"]').exists()).toBe(true);
   });
 
   it('shows an empty state when no item groups exist', async () => {
@@ -220,4 +220,14 @@ describe('ItemGroupsView', () => {
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);
+
+  it('shows select button label on item group tiles', async () => {
+    mockFetchItemGroups(1);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Select');
+  });
+
 });

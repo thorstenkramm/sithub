@@ -1,8 +1,7 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Items"
-      subtitle="Select an item to book for your chosen date"
+      title=""
       :breadcrumbs="breadcrumbs"
     >
       <template #actions>
@@ -67,90 +66,47 @@
         <v-radio-group v-model="bookingType" inline density="compact" class="mb-2" hide-details>
           <v-radio label="Book for myself" value="self" data-cy="book-self-radio" />
           <v-radio label="Book for colleague" value="colleague" data-cy="book-colleague-radio" />
-          <v-radio label="Book for guest" value="guest" data-cy="book-guest-radio" />
         </v-radio-group>
 
         <!-- Colleague Fields -->
         <v-expand-transition>
-          <div v-if="bookingType === 'colleague'" class="mt-4 d-flex flex-wrap ga-4">
-            <v-text-field
-              v-model="colleagueId"
-              label="Colleague Email"
+          <div v-if="bookingType === 'colleague'" class="mt-4">
+            <v-autocomplete
+              v-model="selectedColleagueId"
+              :items="usersList"
+              item-title="displayName"
+              item-value="id"
+              label="Select colleague"
               density="compact"
-              data-cy="colleague-id-input"
-              placeholder="jane.doe@example.com"
-              style="max-width: 280px;"
-            />
-            <v-text-field
-              v-model="colleagueName"
-              label="Colleague Name"
-              density="compact"
-              data-cy="colleague-name-input"
-              placeholder="Jane Doe"
-              style="max-width: 280px;"
+              :loading="usersLoading"
+              clearable
+              data-cy="colleague-select"
+              style="max-width: 360px;"
             />
           </div>
         </v-expand-transition>
 
-        <!-- Guest Fields -->
-        <v-expand-transition>
-          <div v-if="bookingType === 'guest'" class="mt-4 d-flex flex-wrap ga-4">
-            <v-text-field
-              v-model="guestName"
-              label="Guest Name"
-              density="compact"
-              data-cy="guest-name-input"
-              placeholder="John Visitor"
-              style="max-width: 280px;"
-            />
-            <v-text-field
-              v-model="guestEmail"
-              label="Guest Email (optional)"
-              density="compact"
-              data-cy="guest-email-input"
-              placeholder="visitor@example.com"
-              style="max-width: 280px;"
-            />
-          </div>
-        </v-expand-transition>
-
-        <!-- Multi-day booking -->
-        <v-checkbox
-          v-if="bookingMode === 'day'"
-          v-model="multiDayBooking"
-          label="Book multiple days"
-          density="compact"
-          hide-details
-          class="mt-2"
-          data-cy="multi-day-checkbox"
-        />
-        <v-expand-transition>
-          <div v-if="bookingMode === 'day' && multiDayBooking" class="mt-2">
-            <v-text-field
-              v-model="additionalDates"
-              label="Additional Dates (comma-separated)"
-              density="compact"
-              data-cy="additional-dates-input"
-              placeholder="2026-01-21, 2026-01-22"
-              hint="Format: YYYY-MM-DD. Selected date above will be included."
-              persistent-hint
-              style="max-width: 400px;"
-            />
-          </div>
-        </v-expand-transition>
       </v-card-text>
     </v-card>
 
     <!-- Success/Error Messages -->
     <v-alert
-      v-if="bookingSuccessMessage"
+      v-if="bookingSuccessMessage || bookingSuccessDetails"
       type="success"
       class="mb-4"
       closable
       data-cy="booking-success"
       @click:close="closeSuccessMessage"
     >
-      {{ bookingSuccessMessage }}
+      <div class="d-flex align-center ga-2">
+        <v-icon color="success" size="18">mdi-check-circle</v-icon>
+        <span class="text-body-2" data-cy="booking-success-text">
+          {{ bookingSuccessDetails
+            ? `${bookingSuccessDetails.itemName} - ${formatDisplayDate(bookingSuccessDetails.date)}`
+            : bookingSuccessMessage
+          }}
+        </span>
+      </div>
       <v-btn
         v-if="lastBookingId"
         variant="text"
@@ -163,14 +119,22 @@
       </v-btn>
     </v-alert>
     <v-alert
-      v-if="bookingErrorMessage"
+      v-if="bookingErrorMessage || bookingErrorDetails"
       type="error"
       class="mb-4"
       closable
       data-cy="booking-error"
-      @click:close="bookingErrorMessage = null"
+      @click:close="clearErrorMessage"
     >
-      {{ bookingErrorMessage }}
+      <div class="d-flex align-center ga-2">
+        <v-icon color="error" size="18">mdi-alert-circle</v-icon>
+        <span class="text-body-2" data-cy="booking-error-text">
+          {{ bookingErrorDetails
+            ? `${bookingErrorDetails.itemName} - ${formatDisplayDate(bookingErrorDetails.date)}: ${bookingErrorDetails.error}`
+            : bookingErrorMessage
+          }}
+        </span>
+      </div>
     </v-alert>
 
     <!-- Loading State -->
@@ -263,7 +227,7 @@
           <!-- Booker name -->
           <div
             v-if="entry.attributes.availability === 'occupied' && entry.attributes.booker_name"
-            class="text-caption text-medium-emphasis mt-2"
+            class="text-body-2 text-medium-emphasis mt-2"
             data-cy="item-booker"
           >
             <v-icon size="14" class="mr-1">$user</v-icon>
@@ -273,7 +237,7 @@
           <!-- Booking note -->
           <div
             v-if="entry.attributes.availability === 'occupied' && entry.attributes.note"
-            class="d-flex align-center ga-1 mt-1 text-caption text-medium-emphasis"
+            class="d-flex align-center ga-1 mt-1 text-body-2 text-medium-emphasis"
             data-cy="item-note"
           >
             <v-icon size="14">mdi-text-box-outline</v-icon>
@@ -302,7 +266,7 @@
             data-cy="book-item-btn"
             @click="bookItem(entry.id)"
           >
-            Book This Item
+            Book
           </v-btn>
           <v-btn
             v-else-if="authStore.isAdmin && entry.attributes.booking_id"
@@ -316,9 +280,7 @@
           >
             Cancel Booking
           </v-btn>
-          <div v-else class="text-center w-100 text-caption text-medium-emphasis py-2">
-            Not available for {{ formattedDate }}
-          </div>
+          <div v-else class="py-2" />
         </v-card-actions>
       </v-card>
     </div>
@@ -425,11 +387,10 @@
       <v-card-text>
         <div v-for="result in weekBookingResults" :key="result.date + result.itemName" class="d-flex align-center ga-2 mb-1">
           <v-icon :color="result.success ? 'success' : 'error'" size="18">
-            {{ result.success ? 'mdi-check-circle' : 'mdi-close-circle' }}
+            {{ result.success ? 'mdi-check-circle' : 'mdi-alert-circle' }}
           </v-icon>
           <span class="text-body-2">
-            {{ result.itemName }} - {{ result.dayLabel }}:
-            {{ result.success ? 'Booked' : result.error }}
+            {{ result.itemName }} - {{ result.dayLabel }}{{ result.success ? '' : ': ' + result.error }}
           </span>
         </div>
       </v-card-text>
@@ -503,14 +464,13 @@ import { useRoute } from 'vue-router';
 import { ApiError } from '../api/client';
 import {
   createBooking,
-  createMultiDayBooking,
   cancelBooking,
   updateBookingNote,
   fetchMyBookings,
-  type BookOnBehalfOptions,
-  type GuestBookingOptions
+  type BookOnBehalfOptions
 } from '../api/bookings';
 import { fetchItems } from '../api/items';
+import { fetchUsers } from '../api/users';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
@@ -527,6 +487,9 @@ const items = ref<JsonApiResource<ItemAttributes>[]>([]);
 const itemsErrorMessage = ref<string | null>(null);
 const bookingSuccessMessage = ref<string | null>(null);
 const bookingErrorMessage = ref<string | null>(null);
+const bookingSuccessDetails = ref<{ itemName: string; date: string } | null>(null);
+const bookingErrorDetails = ref<{ itemName: string; date: string; error: string } | null>(null);
+const lastBookingDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
@@ -536,13 +499,10 @@ const { loading: itemsLoading, run: runItems } = useApi();
 const activeItemGroupId = ref<string | null>(null);
 const areaName = ref('');
 const itemGroupName = ref('');
-const bookingType = ref<'self' | 'colleague' | 'guest'>('self');
-const colleagueId = ref('');
-const colleagueName = ref('');
-const guestName = ref('');
-const guestEmail = ref('');
-const multiDayBooking = ref(false);
-const additionalDates = ref('');
+const bookingType = ref<'self' | 'colleague'>('self');
+const selectedColleagueId = ref<string | null>(null);
+const usersList = ref<Array<{ id: string; displayName: string }>>([]);
+const usersLoading = ref(false);
 const lastBookingId = ref<string | null>(null);
 const showPostBookingNoteDialog = ref(false);
 const noteText = ref('');
@@ -670,23 +630,37 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
   }
 };
 
+const loadUsers = async () => {
+  usersLoading.value = true;
+  try {
+    const resp = await fetchUsers();
+    usersList.value = resp.data.map(u => ({
+      id: u.id,
+      displayName: u.attributes.display_name
+    }));
+  } catch {
+    // Silently fail — colleague dropdown will just be empty
+  } finally {
+    usersLoading.value = false;
+  }
+};
+
+const resolveColleagueName = (userId: string): string | undefined => {
+  const user = usersList.value.find(u => u.id === userId);
+  return user?.displayName;
+};
+
 const submitWeekBookings = async () => {
   if (!activeItemGroupId.value || weekSelections.value.size === 0) return;
 
   bookingErrorMessage.value = null;
+  bookingErrorDetails.value = null;
   if (bookingType.value === 'colleague') {
-    if (!colleagueId.value.trim() || !colleagueName.value.trim()) {
-      bookingErrorMessage.value = 'Please enter both colleague ID and name.';
+    if (!selectedColleagueId.value) {
+      bookingErrorMessage.value = 'Please select a colleague.';
       return;
     }
   }
-  if (bookingType.value === 'guest') {
-    if (!guestName.value.trim()) {
-      bookingErrorMessage.value = 'Please enter the guest name.';
-      return;
-    }
-  }
-
   weekBookingInProgress.value = true;
   weekBookingResults.value = [];
 
@@ -699,18 +673,13 @@ const submitWeekBookings = async () => {
   });
 
   const onBehalf: BookOnBehalfOptions | undefined =
-    bookingType.value === 'colleague'
-      ? { forUserId: colleagueId.value.trim(), forUserName: colleagueName.value.trim() }
-      : undefined;
-
-  const guest: GuestBookingOptions | undefined =
-    bookingType.value === 'guest'
-      ? { guestName: guestName.value.trim(), guestEmail: guestEmail.value.trim() || undefined }
+    bookingType.value === 'colleague' && selectedColleagueId.value
+      ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
       : undefined;
 
   const promises = entries.map(async ({ itemId, itemName, date }) => {
     try {
-      await createBooking(itemId, date, onBehalf, guest);
+      await createBooking(itemId, date, onBehalf);
       return { itemName, date, success: true };
     } catch (err) {
       const msg = err instanceof ApiError && err.detail ? err.detail : 'Booking failed';
@@ -758,11 +727,6 @@ const breadcrumbs = computed(() => [
   { text: itemGroupName.value || 'Item Group' }
 ]);
 
-const formattedDate = computed(() => {
-  const date = new Date(selectedDate.value);
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-});
-
 const { handleAuthError } = useAuthErrorHandler();
 
 const ensureDate = (value: string) => {
@@ -798,20 +762,15 @@ const loadItems = async (itemGroupId: string, date: string) => {
 
 const bookItem = async (itemId: string) => {
   bookingSuccessMessage.value = null;
+  bookingSuccessDetails.value = null;
   bookingErrorMessage.value = null;
+  bookingErrorDetails.value = null;
+  lastBookingDetails.value = null;
 
-  // Validate colleague fields if booking on behalf
+  // Validate colleague selection
   if (bookingType.value === 'colleague') {
-    if (!colleagueId.value.trim() || !colleagueName.value.trim()) {
-      bookingErrorMessage.value = 'Please enter both colleague ID and name.';
-      return;
-    }
-  }
-
-  // Validate guest fields
-  if (bookingType.value === 'guest') {
-    if (!guestName.value.trim()) {
-      bookingErrorMessage.value = 'Please enter the guest name.';
+    if (!selectedColleagueId.value) {
+      bookingErrorMessage.value = 'Please select a colleague.';
       return;
     }
   }
@@ -820,53 +779,21 @@ const bookItem = async (itemId: string) => {
 
   try {
     const onBehalf: BookOnBehalfOptions | undefined =
-      bookingType.value === 'colleague'
-        ? { forUserId: colleagueId.value.trim(), forUserName: colleagueName.value.trim() }
+      bookingType.value === 'colleague' && selectedColleagueId.value
+        ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
         : undefined;
 
-    const guest: GuestBookingOptions | undefined =
-      bookingType.value === 'guest'
-        ? { guestName: guestName.value.trim(), guestEmail: guestEmail.value.trim() || undefined }
-        : undefined;
+    const result = await createBooking(itemId, selectedDate.value, onBehalf);
+    lastBookingId.value = result.data.id;
 
-    // Handle multi-day booking
-    if (multiDayBooking.value && additionalDates.value.trim()) {
-      const dates = [selectedDate.value];
-      additionalDates.value.split(',').forEach((d) => {
-        const trimmed = d.trim();
-        if (trimmed && !dates.includes(trimmed)) {
-          dates.push(trimmed);
-        }
-      });
-
-      const result = await createMultiDayBooking(itemId, dates, onBehalf, guest);
-      const createdCount = result.created.length;
-      const conflictCount = result.conflicts?.length || 0;
-
-      if (conflictCount > 0) {
-        bookingSuccessMessage.value = `Created ${createdCount} booking(s). ${conflictCount} date(s) had conflicts.`;
-        bookingErrorMessage.value = result.conflicts?.join('; ') || null;
-      } else {
-        bookingSuccessMessage.value = `Successfully booked ${createdCount} day(s)!`;
-      }
-
-      // Reset multi-day fields
-      multiDayBooking.value = false;
-      additionalDates.value = '';
-    } else {
-      const result = await createBooking(itemId, selectedDate.value, onBehalf, guest);
-      lastBookingId.value = result.data.id;
-      bookingSuccessMessage.value = 'Item booked successfully!';
-    }
+    const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || 'Item';
+    const details = { itemName, date: selectedDate.value };
+    bookingSuccessDetails.value = details;
+    lastBookingDetails.value = details;
 
     // Reset booking type fields
     if (bookingType.value === 'colleague') {
-      colleagueId.value = '';
-      colleagueName.value = '';
-      bookingType.value = 'self';
-    } else if (bookingType.value === 'guest') {
-      guestName.value = '';
-      guestEmail.value = '';
+      selectedColleagueId.value = null;
       bookingType.value = 'self';
     }
 
@@ -878,20 +805,22 @@ const bookItem = async (itemId: string) => {
     if (await handleAuthError(err)) {
       return;
     }
+
+    const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || 'Item';
+    let detail = 'Unable to book item. Please try again.';
+
     if (err instanceof ApiError && err.status === 409) {
-      // Use backend's detail message if available, otherwise a generic message
-      const detail = err.detail || 'This item is no longer available for the selected date.';
-      bookingErrorMessage.value = `${detail} Please choose another item.`;
+      detail = err.detail || 'This item is no longer available for the selected date.';
 
       // Refresh item list so user sees updated availability
       if (activeItemGroupId.value) {
         await loadItems(activeItemGroupId.value, selectedDate.value);
       }
     } else if (err instanceof ApiError && err.status === 404) {
-      bookingErrorMessage.value = 'Item not found.';
-    } else {
-      bookingErrorMessage.value = 'Unable to book item. Please try again.';
+      detail = 'Item not found.';
     }
+
+    bookingErrorDetails.value = { itemName, date: selectedDate.value, error: detail };
   } finally {
     bookingItemId.value = null;
   }
@@ -899,7 +828,9 @@ const bookItem = async (itemId: string) => {
 
 const adminCancelBooking = async (bookingId: string) => {
   bookingSuccessMessage.value = null;
+  bookingSuccessDetails.value = null;
   bookingErrorMessage.value = null;
+  bookingErrorDetails.value = null;
   cancelingBookingId.value = bookingId;
 
   try {
@@ -926,7 +857,14 @@ const adminCancelBooking = async (bookingId: string) => {
 
 const closeSuccessMessage = () => {
   bookingSuccessMessage.value = null;
+  bookingSuccessDetails.value = null;
   lastBookingId.value = null;
+  lastBookingDetails.value = null;
+};
+
+const clearErrorMessage = () => {
+  bookingErrorMessage.value = null;
+  bookingErrorDetails.value = null;
 };
 
 const openPostBookingNoteDialog = () => {
@@ -940,8 +878,10 @@ const saveNoteAfterBooking = async () => {
   try {
     await updateBookingNote(lastBookingId.value, noteText.value);
     showPostBookingNoteDialog.value = false;
-    bookingSuccessMessage.value = 'Booking created with note!';
+    bookingSuccessMessage.value = null;
+    bookingSuccessDetails.value = lastBookingDetails.value;
     lastBookingId.value = null;
+    lastBookingDetails.value = null;
     if (activeItemGroupId.value) {
       await loadItems(activeItemGroupId.value, selectedDate.value);
     }
@@ -991,6 +931,9 @@ onMounted(async () => {
     throw err;
   }
 
+  // Load users list for colleague dropdown (non-blocking)
+  loadUsers();
+
   const itemGroupId = route.params.itemGroupId;
   if (typeof itemGroupId !== 'string' || itemGroupId.trim() === '') {
     itemsErrorMessage.value = 'Item group not found.';
@@ -1038,8 +981,6 @@ watch(bookingMode, async (mode) => {
   localStorage.setItem('sithub_booking_mode', mode);
   if (!activeItemGroupId.value) return;
   if (mode === 'week') {
-    multiDayBooking.value = false;
-    additionalDates.value = '';
     await loadWeekData(activeItemGroupId.value);
   } else {
     weekData.value = {};
@@ -1080,6 +1021,17 @@ function formatDate(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(dateStr: string) {
+  if (!dateStr) return '';
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  }).format(date);
 }
 </script>
 

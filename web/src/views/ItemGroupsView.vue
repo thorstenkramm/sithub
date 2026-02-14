@@ -1,8 +1,7 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Item Groups"
-      subtitle="Select an item group to view available items"
+      title=""
       :breadcrumbs="breadcrumbs"
     />
 
@@ -50,7 +49,7 @@
         class="card-hover"
         role="button"
         tabindex="0"
-        :aria-label="`View items in ${ig.attributes.name}`"
+        :aria-label="`Select items in ${ig.attributes.name}`"
         data-cy="item-group-item"
         @click="goToItems(ig.id)"
         @keydown.enter="goToItems(ig.id)"
@@ -94,7 +93,7 @@
             size="small"
             @click.stop="goToItems(ig.id)"
           >
-            View Items
+            Select
           </v-btn>
           <v-btn
             variant="text"

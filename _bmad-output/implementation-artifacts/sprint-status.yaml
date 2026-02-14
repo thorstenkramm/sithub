@@ -33,7 +33,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-02-14 16:00
+generated: 2026-02-14 17:30
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -130,25 +130,25 @@ development_status:
   13-5-week-at-a-time-booking: done
   epic-13-retrospective: optional
 
-  epic-14: backlog
-  14-1-simplify-action-labels: backlog
-  14-2-streamline-booking-form: backlog
-  14-3-improve-booked-item-display: backlog
+  epic-14: done
+  14-1-simplify-action-labels: done
+  14-2-streamline-booking-form: done
+  14-3-improve-booked-item-display: done
   epic-14-retrospective: optional
 
-  epic-15: backlog
-  15-1-collapsible-tiles-week-mode: backlog
-  15-2-collapsible-tiles-day-mode: backlog
-  15-3-warning-icon-folded-tiles: backlog
-  15-4-disable-past-date-checkboxes: backlog
+  epic-15: in-progress
+  15-1-collapsible-tiles-week-mode: ready-for-dev
+  15-2-collapsible-tiles-day-mode: ready-for-dev
+  15-3-warning-icon-folded-tiles: ready-for-dev
+  15-4-disable-past-date-checkboxes: ready-for-dev
   epic-15-retrospective: optional
 
-  epic-16: backlog
-  16-1-theme-selector: backlog
-  16-2-show-weekends-toggle: backlog
-  16-3-fix-change-password-icon: backlog
+  epic-16: in-progress
+  16-1-theme-selector: ready-for-dev
+  16-2-show-weekends-toggle: ready-for-dev
+  16-3-fix-change-password-icon: ready-for-dev
   epic-16-retrospective: optional
 
-  epic-17: backlog
-  17-1-equipment-filter-advanced-search: backlog
+  epic-17: in-progress
+  17-1-equipment-filter-advanced-search: ready-for-dev
   epic-17-retrospective: optional

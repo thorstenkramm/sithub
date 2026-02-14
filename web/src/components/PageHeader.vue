@@ -34,7 +34,7 @@
     <!-- Title row -->
     <div class="d-flex align-center justify-space-between flex-wrap ga-4">
       <div>
-        <h1 class="text-h4 font-weight-bold mb-1">{{ title }}</h1>
+        <h1 v-if="title" class="text-h4 font-weight-bold mb-1">{{ title }}</h1>
         <p v-if="subtitle" class="text-body-1 text-medium-emphasis ma-0">{{ subtitle }}</p>
       </div>
       <div v-if="$slots.actions" class="d-flex align-center ga-2">

@@ -201,12 +201,11 @@ describe('Page-specific Vuetify Rendering', () => {
 
     // Radio group should render as Vuetify component
     cy.get('.v-radio-group').should('exist');
-    cy.get('.v-radio').should('have.length.at.least', 3);
+    cy.get('.v-radio').should('have.length.at.least', 2);
 
     // Labels should be visible
     cy.contains('Book for myself').should('be.visible');
     cy.contains('Book for colleague').should('be.visible');
-    cy.contains('Book for guest').should('be.visible');
   });
 
   it('should render status chips as Vuetify components', () => {

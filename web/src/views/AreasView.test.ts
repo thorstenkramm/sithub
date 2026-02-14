@@ -102,4 +102,15 @@ describe('AreasView', () => {
     expect(wrapper.text()).toContain('Area 1');
     expect(wrapper.text()).toContain('Area 2');
   });
+
+  it('shows select button label on area tiles', async () => {
+    mockFetchMe(false);
+    mockFetchAreas(1);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Select');
+  });
+
 });

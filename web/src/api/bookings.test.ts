@@ -92,6 +92,45 @@ describe('createBooking', () => {
     });
   });
 
+  it('omits for_user_name when booking on behalf without a display name', async () => {
+    const mockResponse = {
+      data: {
+        type: 'bookings',
+        id: 'booking-124',
+        attributes: {
+          item_id: 'item-1',
+          user_id: 'colleague-1',
+          booking_date: '2026-01-20',
+          created_at: '2026-01-19T10:00:00Z'
+        }
+      }
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse)
+    });
+
+    await createBooking('item-1', '2026-01-20', {
+      forUserId: 'colleague-1'
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        data: {
+          type: 'bookings',
+          attributes: {
+            item_id: 'item-1',
+            booking_date: '2026-01-20',
+            for_user_id: 'colleague-1'
+          }
+        }
+      }),
+      headers: expect.any(Headers)
+    });
+  });
+
   // Issue 5: Improve error test to verify status code is propagated
   it('throws ApiError with correct status on conflict response', async () => {
     mockFetch.mockResolvedValueOnce({

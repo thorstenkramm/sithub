@@ -82,7 +82,7 @@ describe('items', () => {
     });
 
     // Success message should appear
-    cy.get('[data-cy="booking-success"]').should('contain', 'booked successfully');
+    cy.get('[data-cy="booking-success-text"]').should('contain', 'Available Item');
   });
 
   it('should show conflict message with prompt when item is already booked', () => {
@@ -121,9 +121,9 @@ describe('items', () => {
     cy.wait('@createBookingConflict');
 
     // Error message should show backend detail + prompt
-    cy.get('[data-cy="booking-error"]')
-      .should('contain', 'Item is already booked for this date')
-      .and('contain', 'Please choose another item');
+    cy.get('[data-cy="booking-error-text"]')
+      .should('contain', 'Mock Item 1')
+      .and('contain', 'Item is already booked for this date');
 
     // Item list should be refreshed
     cy.wait('@listItems');

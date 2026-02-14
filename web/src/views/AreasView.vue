@@ -31,7 +31,7 @@
         class="card-hover"
         role="button"
         tabindex="0"
-        :aria-label="`View item groups in ${area.attributes.name}`"
+        :aria-label="`Select item groups in ${area.attributes.name}`"
         data-cy="area-item"
         @click="goToItemGroups(area.id)"
         @keydown.enter="goToItemGroups(area.id)"
@@ -54,7 +54,7 @@
             size="small"
             @click.stop="goToItemGroups(area.id)"
           >
-            View Item Groups
+            Select
           </v-btn>
           <v-btn
             variant="text"

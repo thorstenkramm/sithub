@@ -1,4 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import ItemsView from './ItemsView.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -6,6 +7,7 @@ import { fetchItems } from '../api/items';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
+import { fetchUsers } from '../api/users';
 import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 
 /* jscpd:ignore-start */
@@ -15,6 +17,7 @@ vi.mock('../api/me');
 vi.mock('../api/items');
 vi.mock('../api/itemGroups');
 vi.mock('../api/areas');
+vi.mock('../api/users');
 const routeMock = { params: { itemGroupId: 'ig-1' }, query: { areaId: 'area-1' } };
 vi.mock('vue-router', () => ({
   useRoute: () => routeMock,
@@ -34,6 +37,7 @@ describe('ItemsView', () => {
     'v-text-field',
     'v-checkbox',
     'v-expand-transition',
+    'v-autocomplete',
     'v-menu',
     'v-date-picker',
     'v-skeleton-loader',
@@ -50,6 +54,7 @@ describe('ItemsView', () => {
   const fetchItemsMock = vi.mocked(fetchItems);
   const fetchItemGroupsMock = vi.mocked(fetchItemGroups);
   const fetchAreasMock = vi.mocked(fetchAreas);
+  const fetchUsersMock = vi.mocked(fetchUsers);
 
   const mountView = () =>
     mount(ItemsView, {
@@ -77,6 +82,12 @@ describe('ItemsView', () => {
     });
     fetchItemGroupsMock.mockResolvedValue({
       data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group' } }]
+    });
+    fetchUsersMock.mockResolvedValue({
+      data: [
+        { id: 'u-1', type: 'users', attributes: { display_name: 'Jane Doe', email: 'jane@example.com', is_admin: false, auth_source: 'internal', role: 'user' } },
+        { id: 'u-2', type: 'users', attributes: { display_name: 'Bob Smith', email: 'bob@example.com', is_admin: false, auth_source: 'internal', role: 'user' } }
+      ]
     });
   });
 
@@ -291,6 +302,47 @@ describe('ItemsView', () => {
       const weekCalls = calls.filter(c => c[0] === 'ig-1' && typeof c[1] === 'string');
       expect(weekCalls.length).toBeGreaterThanOrEqual(5);
     });
+  });
+
+  it('renders colleague autocomplete when booking type is colleague', async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    // Colleague fields hidden by default
+    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(false);
+
+    (wrapper.vm as any).bookingType = 'colleague';
+    await nextTick();
+
+    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
+
+    // No old-style text fields anywhere in DOM
+    expect(wrapper.find('[data-cy="colleague-id-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="colleague-name-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="guest-name-input"]').exists()).toBe(false);
+  });
+
+  it('does not render guest radio option', async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="book-guest-radio"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="book-self-radio"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="book-colleague-radio"]').exists()).toBe(true);
+  });
+
+  it('does not render multi-day checkbox', async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="multi-day-checkbox"]').exists()).toBe(false);
+  });
+
+  it('fetches users on mount for colleague dropdown', async () => {
+    mountView();
+    await flushPromises();
+
+    expect(fetchUsersMock).toHaveBeenCalled();
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);

@@ -52,7 +52,7 @@ describe('booking notes', () => {
     cy.wait('@createBooking');
 
     // Success message should appear with add note button
-    cy.get('[data-cy="booking-success"]').should('contain', 'booked successfully');
+    cy.get('[data-cy="booking-success-text"]').should('contain', 'Note Test Item');
     cy.get('[data-cy="add-note-after-booking"]').should('be.visible');
   });
 
@@ -96,7 +96,7 @@ describe('booking notes', () => {
     });
 
     // Success message should update
-    cy.get('[data-cy="booking-success"]').should('contain', 'note');
+    cy.get('[data-cy="booking-success-text"]').should('contain', 'Note Test Item 2');
   });
 
   it('should display and edit note on booking card in My Bookings', () => {
