@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cancelBooking, createBooking, fetchMyBookings } from './bookings';
+import { cancelBooking, createBooking, fetchMyBookings, updateBookingNote } from './bookings';
 
 const mockFetch = vi.fn();
 
@@ -170,6 +170,64 @@ describe('fetchMyBookings', () => {
 
     await expect(fetchMyBookings()).rejects.toMatchObject({
       status: 500
+    });
+  });
+});
+
+describe('updateBookingNote', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends PATCH request with correct JSON:API payload', async () => {
+    const mockResponse = {
+      data: {
+        type: 'bookings',
+        id: 'booking-123',
+        attributes: {
+          item_id: 'item-1',
+          user_id: 'user-1',
+          booking_date: '2026-01-20',
+          created_at: '2026-01-19T10:00:00Z',
+          note: 'Arriving late'
+        }
+      }
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse)
+    });
+
+    const result = await updateBookingNote('booking-123', 'Arriving late');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings/booking-123', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        data: {
+          type: 'bookings',
+          id: 'booking-123',
+          attributes: { note: 'Arriving late' }
+        }
+      }),
+      headers: expect.any(Headers)
+    });
+
+    expect(result.data.attributes.note).toBe('Arriving late');
+  });
+
+  it('throws ApiError on error response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404
+    });
+
+    await expect(updateBookingNote('nonexistent', 'test')).rejects.toMatchObject({
+      status: 404
     });
   });
 });

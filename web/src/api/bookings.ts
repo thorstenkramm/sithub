@@ -6,6 +6,7 @@ export interface BookingAttributes {
   user_id: string;
   booking_date: string;
   created_at: string;
+  note: string;
 }
 
 export interface MyBookingAttributes {
@@ -23,6 +24,7 @@ export interface MyBookingAttributes {
   is_guest?: boolean;
   guest_name?: string;
   guest_email?: string;
+  note: string;
 }
 
 export interface CreateBookingPayload {
@@ -139,6 +141,19 @@ export function fetchBookingHistory(params?: BookingHistoryParams) {
   const url = queryString ? `/api/v1/bookings/history?${queryString}` : '/api/v1/bookings/history';
 
   return apiRequest<CollectionResponse<MyBookingAttributes>>(url);
+}
+
+export function updateBookingNote(bookingId: string, note: string) {
+  return apiRequest<SingleResponse<BookingAttributes>>(`/api/v1/bookings/${bookingId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      data: {
+        type: 'bookings',
+        id: bookingId,
+        attributes: { note }
+      }
+    })
+  });
 }
 
 export async function cancelBooking(bookingId: string): Promise<void> {

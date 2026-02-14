@@ -1,6 +1,7 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ItemGroupBookingsView from './ItemGroupBookingsView.vue';
+import PageHeader from '../components/PageHeader.vue';
 import { fetchItemGroupBookings } from '../api/itemGroupBookings';
 import { fetchAreas } from '../api/areas';
 import { fetchItemGroups } from '../api/itemGroups';
@@ -17,8 +18,9 @@ const pushMock = vi.fn();
 vi.mock('../api/itemGroupBookings');
 vi.mock('../api/areas');
 vi.mock('../api/itemGroups');
+const routeMock = { params: { itemGroupId: 'ig-1' }, query: { areaId: 'area-1' } };
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { itemGroupId: 'ig-1' } }),
+  useRoute: () => routeMock,
   useRouter: () => ({ push: pushMock })
 }));
 
@@ -52,6 +54,7 @@ describe('ItemGroupBookingsView', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     pushMock.mockReset();
+    routeMock.query = { areaId: 'area-1' };
     fetchItemGroupBookingsMock.mockResolvedValue({ data: [] });
     fetchAreasMock.mockResolvedValue({
       data: [{ id: 'area-1', type: 'areas', attributes: { name: 'Test Area' } }]
@@ -110,6 +113,41 @@ describe('ItemGroupBookingsView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Item group not found.');
+  });
+
+  describe('breadcrumbs', () => {
+    it('includes area link when areaId is in query', async () => {
+      routeMock.query = { areaId: 'area-1' };
+      const wrapper = mountView();
+      await flushPromises();
+
+      const breadcrumbs = wrapper.findComponent(PageHeader).props('breadcrumbs') as Array<{ text: string; to?: unknown }>;
+      expect(breadcrumbs[1]?.to).toBe('/areas/area-1/item-groups');
+    });
+
+    it('renders area breadcrumb as non-clickable when areaId is missing and area is unresolved', async () => {
+      routeMock.query = {};
+      fetchAreasMock.mockResolvedValue({ data: [] });
+      fetchItemGroupsMock.mockResolvedValue({ data: [] });
+      const wrapper = mountView();
+      await flushPromises();
+
+      const breadcrumbs = wrapper.findComponent(PageHeader).props('breadcrumbs') as Array<{ text: string; to?: unknown }>;
+      expect(breadcrumbs[1]?.to).toBeUndefined();
+    });
+
+    it('includes item group link to items view', async () => {
+      routeMock.query = { areaId: 'area-1' };
+      const wrapper = mountView();
+      await flushPromises();
+
+      const breadcrumbs = wrapper.findComponent(PageHeader).props('breadcrumbs') as Array<{ text: string; to?: unknown }>;
+      expect(breadcrumbs[2]?.to).toEqual({
+        name: 'items',
+        params: { itemGroupId: 'ig-1' },
+        query: { areaId: 'area-1' }
+      });
+    });
   });
 
   it('redirects to login on 401', async () => {

@@ -1,36 +1,37 @@
-CREATE TABLE areas (
+-- SitHub database schema
+-- Spaces (areas, item groups, items) are loaded from YAML configuration only.
+
+CREATE TABLE users (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  password_hash TEXT NOT NULL DEFAULT '',
+  user_source TEXT NOT NULL CHECK (user_source IN ('internal', 'entraid')),
+  entra_id TEXT NOT NULL DEFAULT '',
+  is_admin INTEGER NOT NULL DEFAULT 0,
+  last_login TEXT NOT NULL DEFAULT '',
+  access_token TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE rooms (
-  id TEXT PRIMARY KEY,
-  area_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
-);
-
-CREATE TABLE desks (
-  id TEXT PRIMARY KEY,
-  room_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  equipment TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
-);
+CREATE UNIQUE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_entra_id ON users(entra_id);
 
 CREATE TABLE bookings (
   id TEXT PRIMARY KEY,
-  desk_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  booked_by_user_id TEXT NOT NULL DEFAULT '',
   booking_date TEXT NOT NULL,
+  is_guest INTEGER NOT NULL DEFAULT 0,
+  guest_name TEXT NOT NULL DEFAULT '',
+  guest_email TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  FOREIGN KEY (desk_id) REFERENCES desks(id) ON DELETE CASCADE,
-  UNIQUE (desk_id, booking_date)
+  UNIQUE (item_id, booking_date)
 );
+
+CREATE INDEX idx_bookings_booking_date ON bookings(booking_date);
+CREATE INDEX idx_bookings_user_id ON bookings(user_id);

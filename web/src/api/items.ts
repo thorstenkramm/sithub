@@ -6,9 +6,9 @@ export interface ItemAttributes {
   equipment: string[];
   availability: 'available' | 'occupied';
   warning?: string;
-  // Admin-only fields (present when user is admin and item is occupied)
-  booking_id?: string;
-  booker_name?: string;
+  booker_name?: string; // present when item is occupied
+  booking_id?: string; // admin-only, present when item is occupied
+  note?: string; // present when item is occupied and has a note
 }
 
 export function fetchItems(itemGroupId: string, date?: string) {

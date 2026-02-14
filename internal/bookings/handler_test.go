@@ -934,6 +934,264 @@ func TestDeleteHandlerUnrelatedUserCannotCancel(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestPatchHandlerUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/booking-1", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestPatchHandlerNotFound(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+
+	body := `{"data":{"type":"bookings","id":"nonexistent","attributes":{"note":"hello"}}}`
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/nonexistent",
+		bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("nonexistent")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestPatchHandlerSuccess(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	body := `{"data":{"type":"bookings","id":"booking-1","attributes":{"note":"Arriving after noon"}}}`
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/booking-1",
+		bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, api.JSONAPIContentType, rec.Header().Get(echo.HeaderContentType))
+
+	var resp api.SingleResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "bookings", resp.Data.Type)
+	assert.Equal(t, "booking-1", resp.Data.ID)
+
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "Arriving after noon", attrs["note"])
+
+	// Verify note is persisted
+	ctx := context.Background()
+	booking, err := FindBookingByID(ctx, store, "booking-1")
+	require.NoError(t, err)
+	assert.Equal(t, "Arriving after noon", booking.Note)
+}
+
+func TestPatchHandlerNoteTooLong(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	longNote := strings.Repeat("a", 501)
+	body := `{"data":{"type":"bookings","id":"booking-1","attributes":{"note":"` + longNote + `"}}}`
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/booking-1",
+		bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func runPatchRequest(t *testing.T, store *sql.DB, bookingID, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/"+bookingID,
+		bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(bookingID)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+
+	return rec
+}
+
+func TestPatchHandlerMissingNote(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	body := `{"data":{"type":"bookings","id":"booking-1","attributes":{}}}`
+	rec := runPatchRequest(t, store, "booking-1", body)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestPatchHandlerIDMismatch(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	body := `{"data":{"type":"bookings","id":"booking-2","attributes":{"note":"test"}}}`
+	rec := runPatchRequest(t, store, "booking-1", body)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestPatchHandlerAuthorizationCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		user           *auth.User
+		bookingOwner   string
+		bookedBy       string
+		expectedStatus int
+	}{
+		{
+			name:           "owner can update note",
+			user:           &auth.User{ID: "user-1", Name: "User"},
+			bookingOwner:   "user-1",
+			bookedBy:       "user-1",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "booker can update note",
+			user:           &auth.User{ID: "booker-1", Name: "Booker"},
+			bookingOwner:   "user-1",
+			bookedBy:       "booker-1",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "admin can update note",
+			user:           &auth.User{ID: "admin-1", Name: "Admin", IsAdmin: true},
+			bookingOwner:   "user-1",
+			bookedBy:       "user-1",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "unrelated user gets 404",
+			user:           &auth.User{ID: "random-user", Name: "Random"},
+			bookingOwner:   "user-1",
+			bookedBy:       "user-1",
+			expectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := setupTestStore(t)
+			tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+			seedTestBookingFull(t, store, "booking-1", "desk-1",
+				tc.bookingOwner, tc.bookedBy, tomorrow)
+
+			body := `{"data":{"type":"bookings","id":"booking-1","attributes":{"note":"test note"}}}`
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/booking-1",
+				bytes.NewBufferString(body))
+			req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues("booking-1")
+			c.Set("user", tc.user)
+
+			h := PatchHandler(store)
+			require.NoError(t, h(c))
+
+			assert.Equal(t, tc.expectedStatus, rec.Code)
+		})
+	}
+}
+
+func TestPatchHandlerClearNote(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	// First set a note
+	ctx := context.Background()
+	require.NoError(t, UpdateNote(ctx, store, "booking-1", "initial note"))
+
+	// Then clear it
+	body := `{"data":{"type":"bookings","id":"booking-1","attributes":{"note":""}}}`
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/booking-1",
+		bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.SingleResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "", attrs["note"])
+
+	// Verify in DB
+	booking, err := FindBookingByID(ctx, store, "booking-1")
+	require.NoError(t, err)
+	assert.Equal(t, "", booking.Note)
+}
+
 func testSpacesConfig() *spaces.Config {
 	return &spaces.Config{
 		Areas: []spaces.Area{

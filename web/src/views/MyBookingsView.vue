@@ -57,6 +57,7 @@
         :cancelling="cancellingBookingId === booking.id"
         data-cy="booking-item"
         @cancel="handleCancelBooking"
+        @note-updated="handleNoteUpdated"
       />
     </div>
 
@@ -101,6 +102,13 @@ const loadBookings = async () => {
     if (await handleAuthError(err)) {
       return;
     }
+  }
+};
+
+const handleNoteUpdated = (bookingId: string, note: string) => {
+  const booking = bookings.value.find(b => b.id === bookingId);
+  if (booking) {
+    booking.attributes.note = note;
   }
 };
 

@@ -23,6 +23,9 @@ describe('MyBookingsView', () => {
     'v-chip',
     'v-spacer',
     'v-skeleton-loader',
+    'v-dialog',
+    'v-bottom-sheet',
+    'v-textarea',
     'router-link'
   ]);
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;

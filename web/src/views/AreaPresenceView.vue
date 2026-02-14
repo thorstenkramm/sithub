@@ -62,6 +62,24 @@
             <v-icon size="14" class="mr-1">$desk</v-icon>
             {{ entry.attributes.item_name }}
           </v-list-item-subtitle>
+          <div
+            v-if="entry.attributes.note"
+            class="d-flex align-center ga-1 mt-1 text-caption text-medium-emphasis"
+            data-cy="presence-note"
+          >
+            <v-icon size="14">mdi-text-box-outline</v-icon>
+            <span :ref="setNoteRef(entry.id)" class="note-text">{{ entry.attributes.note }}</span>
+            <v-btn
+              v-if="noteTruncatedMap[entry.id]"
+              icon
+              size="x-small"
+              variant="text"
+              data-cy="presence-note-expand"
+              @click="expandedNote = entry.attributes.note"
+            >
+              <v-icon size="14">mdi-arrow-expand</v-icon>
+            </v-btn>
+          </div>
         </v-list-item>
       </v-list>
     </v-card>
@@ -70,11 +88,36 @@
     <div v-if="presence.length" class="mt-4 text-body-2 text-medium-emphasis">
       {{ presence.length }} {{ presence.length === 1 ? 'person' : 'people' }} scheduled for {{ formattedDate }}
     </div>
+
+    <!-- Note expand dialog (desktop) -->
+    <v-dialog v-if="!useBottomSheet" v-model="showNoteDialog" max-width="500">
+      <v-card>
+        <v-card-title>Booking Note</v-card-title>
+        <v-card-text data-cy="presence-note-dialog-text">{{ expandedNote }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Note expand bottom sheet (mobile) -->
+    <v-bottom-sheet v-else v-model="showNoteDialog">
+      <v-card>
+        <v-card-title>Booking Note</v-card-title>
+        <v-card-text data-cy="presence-note-dialog-text">{{ expandedNote }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-bottom-sheet>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchAreaPresence } from '../api/areaPresence';
@@ -93,6 +136,15 @@ const route = useRoute();
 const { loading, run } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
 const activeAreaId = ref<string | null>(null);
+const expandedNote = ref('');
+const noteTruncatedMap = ref<Record<string, boolean>>({});
+const noteElements = new Map<string, HTMLElement>();
+const isMobile = ref(false);
+const useBottomSheet = computed(() => isMobile.value);
+const showNoteDialog = computed({
+  get: () => expandedNote.value !== '',
+  set: (v: boolean) => { if (!v) expandedNote.value = ''; }
+});
 
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
@@ -124,6 +176,8 @@ const loadPresence = async (areaId: string, date: string) => {
   try {
     const resp = await run(() => fetchAreaPresence(areaId, date));
     presence.value = resp.data;
+    await nextTick();
+    updateNoteTruncation();
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
@@ -170,6 +224,51 @@ watch(
   { flush: 'post' }
 );
 
+const setNoteRef = (id: string) => (el: Element | ComponentPublicInstance | null) => {
+  if (el instanceof HTMLElement) {
+    noteElements.set(id, el);
+    return;
+  }
+  if (el && '$el' in el && (el.$el instanceof HTMLElement)) {
+    noteElements.set(id, el.$el);
+    return;
+  }
+  noteElements.delete(id);
+};
+
+const updateNoteTruncation = () => {
+  const map: Record<string, boolean> = {};
+  for (const entry of presence.value) {
+    const el = noteElements.get(entry.id);
+    if (el) {
+      map[entry.id] = el.scrollWidth > el.clientWidth;
+    }
+  }
+  noteTruncatedMap.value = map;
+};
+
+function updateViewport() {
+  if (typeof window.matchMedia === 'function') {
+    isMobile.value = window.matchMedia('(max-width: 600px)').matches;
+    return;
+  }
+  isMobile.value = false;
+}
+
+function handleResize() {
+  updateViewport();
+  updateNoteTruncation();
+}
+
+onMounted(() => {
+  updateViewport();
+  window.addEventListener('resize', handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+});
+
 function formatDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -177,3 +276,12 @@ function formatDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 </script>
+
+<style scoped>
+.note-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+</style>

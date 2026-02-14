@@ -60,6 +60,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			is_guest INTEGER NOT NULL DEFAULT 0,
 			guest_name TEXT NOT NULL DEFAULT '',
 			guest_email TEXT NOT NULL DEFAULT '',
+			note TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL,
 			UNIQUE(item_id, booking_date)
@@ -150,6 +151,7 @@ func TestListHandlerReturnsItemsWithAvailability(t *testing.T) {
 	store := setupTestDB(t)
 	cfg := testConfig()
 
+	seedUser(t, store, "user-1", "Alice Smith")
 	seedBooking(t, store, "b1", "item-1", "user-1", "2025-01-20")
 
 	e := echo.New()
@@ -176,6 +178,7 @@ func TestListHandlerReturnsItemsWithAvailability(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Desk 1", attrs0["name"])
 	assert.Equal(t, "occupied", attrs0["availability"])
+	assert.Equal(t, "Alice Smith", attrs0["booker_name"])
 
 	// item-2 is available
 	assert.Equal(t, "item-2", resp.Data[1].ID)
@@ -184,6 +187,7 @@ func TestListHandlerReturnsItemsWithAvailability(t *testing.T) {
 	assert.Equal(t, "Desk 2", attrs1["name"])
 	assert.Equal(t, "available", attrs1["availability"])
 	assert.Equal(t, "Noisy", attrs1["warning"])
+	assert.Nil(t, attrs1["booker_name"])
 }
 
 func TestListHandlerAllAvailable(t *testing.T) {
@@ -248,12 +252,13 @@ func TestListHandlerAdminSeesBookerInfo(t *testing.T) {
 	assert.Equal(t, "Alice Smith", attrs0["booker_name"])
 }
 
-func TestListHandlerNonAdminNoBookerInfo(t *testing.T) {
+func TestListHandlerNonAdminSeesBookerNameButNotBookingID(t *testing.T) {
 	t.Parallel()
 
 	store := setupTestDB(t)
 	cfg := testConfig()
 
+	seedUser(t, store, "user-1", "Alice Smith")
 	seedBooking(t, store, "b1", "item-1", "user-1", "2025-01-20")
 
 	e := echo.New()
@@ -275,7 +280,41 @@ func TestListHandlerNonAdminNoBookerInfo(t *testing.T) {
 	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "occupied", attrs0["availability"])
-	// Non-admin should not see booking_id or booker_name
+	assert.Equal(t, "Alice Smith", attrs0["booker_name"])
+	// Non-admin should not see booking_id
 	assert.Nil(t, attrs0["booking_id"])
-	assert.Nil(t, attrs0["booker_name"])
+}
+
+func TestListHandlerGuestBookingShowsGuestName(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestDB(t)
+	cfg := testConfig()
+
+	now := time.Now().Format(time.RFC3339)
+	_, err := store.ExecContext(context.Background(),
+		`INSERT INTO bookings (id, item_id, user_id, booking_date, is_guest, guest_name, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"b1", "item-1", "booker-1", "2025-01-20", 1, "John Visitor", now, now)
+	require.NoError(t, err)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+
+	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "occupied", attrs0["availability"])
+	assert.Equal(t, "John Visitor", attrs0["booker_name"])
 }

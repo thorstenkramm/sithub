@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // FindBookedItemIDs returns the item IDs with bookings on the given date.
@@ -44,6 +45,7 @@ type BookingRecord struct {
 	IsGuest        bool
 	GuestName      string
 	GuestEmail     string
+	Note           string
 	CreatedAt      string
 	UpdatedAt      string
 }
@@ -65,14 +67,14 @@ func ListUserBookingsRange(
 
 	if toDate != "" {
 		query = `SELECT id, item_id, user_id, booking_date, booked_by_user_id,
-		                is_guest, guest_name, guest_email, created_at, updated_at
+		                is_guest, guest_name, guest_email, note, created_at, updated_at
 		         FROM bookings
 		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ? AND booking_date <= ?
 		         ORDER BY booking_date DESC`
 		args = []interface{}{userID, userID, fromDate, toDate}
 	} else {
 		query = `SELECT id, item_id, user_id, booking_date, booked_by_user_id,
-		                is_guest, guest_name, guest_email, created_at, updated_at
+		                is_guest, guest_name, guest_email, note, created_at, updated_at
 		         FROM bookings
 		         WHERE (user_id = ? OR booked_by_user_id = ?) AND booking_date >= ?
 		         ORDER BY booking_date ASC`
@@ -94,7 +96,7 @@ func ListUserBookingsRange(
 		var isGuestInt int
 		err := rows.Scan(
 			&b.ID, &b.ItemID, &b.UserID, &b.BookingDate,
-			&b.BookedByUserID, &isGuestInt, &b.GuestName, &b.GuestEmail, &b.CreatedAt, &b.UpdatedAt,
+			&b.BookedByUserID, &isGuestInt, &b.GuestName, &b.GuestEmail, &b.Note, &b.CreatedAt, &b.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan user booking: %w", err)
@@ -115,11 +117,11 @@ func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*Boo
 	var isGuestInt int
 	err := store.QueryRowContext(ctx,
 		`SELECT id, item_id, user_id, booking_date, booked_by_user_id,
-		        is_guest, guest_name, guest_email, created_at, updated_at
+		        is_guest, guest_name, guest_email, note, created_at, updated_at
 		 FROM bookings WHERE id = ?`,
 		bookingID,
 	).Scan(&b.ID, &b.ItemID, &b.UserID, &b.BookingDate, &b.BookedByUserID,
-		&isGuestInt, &b.GuestName, &b.GuestEmail, &b.CreatedAt, &b.UpdatedAt)
+		&isGuestInt, &b.GuestName, &b.GuestEmail, &b.Note, &b.CreatedAt, &b.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -129,6 +131,19 @@ func FindBookingByID(ctx context.Context, store *sql.DB, bookingID string) (*Boo
 	}
 	b.IsGuest = isGuestInt == 1
 	return &b, nil
+}
+
+// UpdateNote sets the note text on a booking.
+func UpdateNote(ctx context.Context, store *sql.DB, bookingID, note string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := store.ExecContext(ctx,
+		"UPDATE bookings SET note = ?, updated_at = ? WHERE id = ?",
+		note, now, bookingID,
+	)
+	if err != nil {
+		return fmt.Errorf("update booking note: %w", err)
+	}
+	return nil
 }
 
 // DeleteBooking removes a booking by its ID.
@@ -145,14 +160,18 @@ type ItemBookingInfo struct {
 	BookingID  string
 	UserID     string
 	BookerName string
+	IsGuest    bool
+	GuestName  string
+	Note       string
 }
 
 // FindItemBookings returns booking info for items on a given date, keyed by item ID.
-// Note: BookerName will be empty; the caller must look up display names separately if needed.
+// BookerName will be empty; the caller must look up display names separately if needed.
+// For guest bookings, GuestName is populated from the bookings table.
 func FindItemBookings(
 	ctx context.Context, store *sql.DB, bookingDate string,
 ) (result map[string]ItemBookingInfo, err error) {
-	query := `SELECT id, item_id, user_id FROM bookings WHERE booking_date = ?`
+	query := `SELECT id, item_id, user_id, is_guest, guest_name, note FROM bookings WHERE booking_date = ?`
 
 	rows, err := store.QueryContext(ctx, query, bookingDate)
 	if err != nil {
@@ -168,9 +187,12 @@ func FindItemBookings(
 	for rows.Next() {
 		var info ItemBookingInfo
 		var itemID string
-		if err := rows.Scan(&info.BookingID, &itemID, &info.UserID); err != nil {
+		var isGuestInt int
+		err := rows.Scan(&info.BookingID, &itemID, &info.UserID, &isGuestInt, &info.GuestName, &info.Note)
+		if err != nil {
 			return nil, fmt.Errorf("scan item booking: %w", err)
 		}
+		info.IsGuest = isGuestInt == 1
 		result[itemID] = info
 	}
 	if err := rows.Err(); err != nil {

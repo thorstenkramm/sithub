@@ -16,7 +16,7 @@ import (
 )
 
 // ListHandler returns a JSON:API list of items for an item group.
-// For admin users, includes booking details (booking_id, booker_name) for occupied items.
+// Occupied items include booker_name for all users; booking_id is admin-only.
 func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
 	return ListHandlerDynamic(func() *spaces.Config { return cfg }, store)
 }
@@ -40,15 +40,12 @@ func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.Handl
 		user := auth.GetUserFromContext(c)
 		isAdmin := user != nil && user.IsAdmin
 
-		itemBookings, err := loadItemBookings(ctx, store, bookingDate, isAdmin)
+		itemBookings, err := loadItemBookings(ctx, store, bookingDate)
 		if err != nil {
 			return err
 		}
 
-		// Resolve booker display names for admin users
-		if isAdmin {
-			resolveBookerNames(ctx, store, itemBookings)
-		}
+		resolveBookerNames(ctx, store, itemBookings)
 
 		resources := buildItemResources(ig.Items, itemBookings, isAdmin)
 		return api.WriteCollection(c, resources, "write items response")
@@ -56,52 +53,45 @@ func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.Handl
 }
 
 func loadItemBookings(
-	ctx context.Context, store *sql.DB, bookingDate string, isAdmin bool,
+	ctx context.Context, store *sql.DB, bookingDate string,
 ) (map[string]bookings.ItemBookingInfo, error) {
-	if isAdmin {
-		info, err := bookings.FindItemBookings(ctx, store, bookingDate)
-		if err != nil {
-			return nil, fmt.Errorf("list item bookings: %w", err)
-		}
-		return info, nil
-	}
-
-	bookedItems, err := bookings.FindBookedItemIDs(ctx, store, bookingDate)
+	info, err := bookings.FindItemBookings(ctx, store, bookingDate)
 	if err != nil {
-		return nil, fmt.Errorf("list booked items: %w", err)
+		return nil, fmt.Errorf("list item bookings: %w", err)
 	}
-	// Convert to ItemBookingInfo map for uniform handling
-	result := make(map[string]bookings.ItemBookingInfo, len(bookedItems))
-	for itemID := range bookedItems {
-		result[itemID] = bookings.ItemBookingInfo{}
-	}
-	return result, nil
+	return info, nil
 }
 
 // resolveBookerNames looks up display names for all user IDs in the bookings map
-// and populates the BookerName field. Lookup errors are silently ignored to avoid
-// breaking the items response for a non-critical display field.
+// and populates the BookerName field. For guest bookings, uses the stored guest name
+// directly. Lookup errors are silently ignored to avoid breaking the items response
+// for a non-critical display field.
 func resolveBookerNames(
 	ctx context.Context, store *sql.DB, itemBookings map[string]bookings.ItemBookingInfo,
 ) {
 	userIDs := make([]string, 0, len(itemBookings))
 	for _, info := range itemBookings {
-		if info.UserID != "" {
+		if !info.IsGuest && info.UserID != "" {
 			userIDs = append(userIDs, info.UserID)
 		}
 	}
-	if len(userIDs) == 0 {
-		return
-	}
-	names, err := users.FindDisplayNames(ctx, store, userIDs)
-	if err != nil {
-		return
-	}
-	for itemID, info := range itemBookings {
-		if name, ok := names[info.UserID]; ok {
-			info.BookerName = name
-			itemBookings[itemID] = info
+
+	var names map[string]string
+	if len(userIDs) > 0 {
+		var err error
+		names, err = users.FindDisplayNames(ctx, store, userIDs)
+		if err != nil {
+			names = make(map[string]string)
 		}
+	}
+
+	for itemID, info := range itemBookings {
+		if info.IsGuest {
+			info.BookerName = info.GuestName
+		} else if name, ok := names[info.UserID]; ok {
+			info.BookerName = name
+		}
+		itemBookings[itemID] = info
 	}
 }
 
@@ -112,9 +102,12 @@ func buildItemResources(
 		attrs := spaces.ItemAttributes(item.Name, item.Equipment, item.Warning, "")
 		if info, booked := itemBookings[item.ID]; booked {
 			attrs["availability"] = "occupied"
+			attrs["booker_name"] = info.BookerName
+			if info.Note != "" {
+				attrs["note"] = info.Note
+			}
 			if isAdmin {
 				attrs["booking_id"] = info.BookingID
-				attrs["booker_name"] = info.BookerName
 			}
 		} else {
 			attrs["availability"] = "available"

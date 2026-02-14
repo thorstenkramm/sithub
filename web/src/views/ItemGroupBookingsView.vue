@@ -91,10 +91,31 @@ const { loading, run } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
 const activeItemGroupId = ref<string | null>(null);
 
+const queryAreaId = computed(() => {
+  const value = route.query.areaId;
+  return typeof value === 'string' ? value : undefined;
+});
+const resolvedAreaId = ref<string | null>(null);
+const breadcrumbAreaId = computed(() =>
+  resolvedAreaId.value ? resolvedAreaId.value : areaName.value ? undefined : queryAreaId.value
+);
+
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
-  { text: areaName.value || 'Area', to: '/' },
-  { text: itemGroupName.value || 'Item Group' },
+  {
+    text: areaName.value || 'Area',
+    to: breadcrumbAreaId.value ? `/areas/${breadcrumbAreaId.value}/item-groups` : undefined
+  },
+  {
+    text: itemGroupName.value || 'Item Group',
+    to: activeItemGroupId.value
+      ? {
+        name: 'items' as const,
+        params: { itemGroupId: activeItemGroupId.value },
+        query: breadcrumbAreaId.value ? { areaId: breadcrumbAreaId.value } : {}
+      }
+      : undefined
+  },
   { text: 'Bookings' }
 ]);
 
@@ -142,6 +163,7 @@ onMounted(async () => {
       if (ig) {
         areaName.value = area.attributes.name;
         itemGroupName.value = ig.attributes.name;
+        resolvedAreaId.value = area.id;
         break;
       }
     }

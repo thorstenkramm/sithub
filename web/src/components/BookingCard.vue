@@ -55,9 +55,55 @@
       >
         Guest: {{ booking.attributes.guest_name }}
       </div>
+
+      <!-- Note display -->
+      <div
+        v-if="displayNote"
+        class="d-flex align-center ga-1 mt-2 text-body-2 note-row"
+        data-cy="booking-note"
+      >
+        <v-icon size="14" color="secondary">mdi-text-box-outline</v-icon>
+        <span ref="noteTextEl" class="note-text">{{ displayNote }}</span>
+        <v-btn
+          v-if="isNoteTruncated"
+          icon
+          size="x-small"
+          variant="text"
+          data-cy="note-expand-btn"
+          @click="showNoteDialog = true"
+        >
+          <v-icon size="14">mdi-arrow-expand</v-icon>
+        </v-btn>
+      </div>
+
+      <!-- Add note link (when no note exists) -->
+      <div v-if="showCancel && !displayNote" class="mt-2">
+        <v-btn
+          variant="text"
+          size="small"
+          color="primary"
+          class="px-0"
+          data-cy="add-note-btn"
+          @click="openEditDialog"
+        >
+          <v-icon size="14" start>mdi-plus</v-icon>
+          Add note
+        </v-btn>
+      </div>
     </v-card-text>
 
     <v-card-actions v-if="showCancel" class="px-4 pb-4">
+      <v-btn
+        v-if="displayNote"
+        variant="text"
+        size="small"
+        color="secondary"
+        data-cy="edit-note-btn"
+        @click="openEditDialog"
+      >
+        <v-icon size="14" start>mdi-pencil</v-icon>
+        Edit note
+      </v-btn>
       <v-spacer />
       <v-btn
         color="error"
@@ -71,13 +117,69 @@
         Cancel Booking
       </v-btn>
     </v-card-actions>
+
+    <!-- Note view dialog (desktop) -->
+    <v-dialog v-if="!useBottomSheet" v-model="showNoteDialog" max-width="500">
+      <v-card>
+        <v-card-title>Booking Note</v-card-title>
+        <v-card-text data-cy="note-dialog-text">{{ displayNote }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Note view bottom sheet (mobile) -->
+    <v-bottom-sheet v-else v-model="showNoteDialog">
+      <v-card>
+        <v-card-title>Booking Note</v-card-title>
+        <v-card-text data-cy="note-dialog-text">{{ displayNote }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-bottom-sheet>
+
+    <!-- Note edit dialog -->
+    <v-dialog v-model="showEditDialog" max-width="500">
+      <v-card>
+        <v-card-title>{{ displayNote ? 'Edit Note' : 'Add Note' }}</v-card-title>
+        <v-card-text>
+          <v-textarea
+            v-model="editNoteText"
+            label="Note"
+            :counter="500"
+            :maxlength="500"
+            rows="3"
+            auto-grow
+            data-cy="note-edit-input"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showEditDialog = false">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="savingNote"
+            data-cy="note-save-btn"
+            @click="saveNote"
+          >
+            Save
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue';
 import type { JsonApiResource } from '../api/types';
 import type { MyBookingAttributes } from '../api/bookings';
+import { updateBookingNote } from '../api/bookings';
 import StatusChip from './StatusChip.vue';
 
 const props = withDefaults(defineProps<{
@@ -91,9 +193,21 @@ const props = withDefaults(defineProps<{
   dataCy: 'booking-card'
 });
 
-defineEmits<{
+const emit = defineEmits<{
   cancel: [bookingId: string];
+  'note-updated': [bookingId: string, note: string];
 }>();
+
+const noteTextEl = ref<HTMLElement | null>(null);
+const showNoteDialog = ref(false);
+const showEditDialog = ref(false);
+const editNoteText = ref('');
+const savingNote = ref(false);
+const isNoteTruncated = ref(false);
+const isMobile = ref(false);
+const useBottomSheet = computed(() => isMobile.value);
+
+const displayNote = computed(() => props.booking.attributes.note || '');
 
 const formattedDate = computed(() => {
   const date = new Date(props.booking.attributes.booking_date + 'T00:00:00');
@@ -110,6 +224,58 @@ const avatarColor = computed(() => {
   if (props.booking.attributes.booked_for_me) return 'info';
   return 'primary';
 });
+
+function openEditDialog() {
+  editNoteText.value = displayNote.value;
+  showEditDialog.value = true;
+}
+
+function updateNoteTruncation() {
+  const el = noteTextEl.value;
+  if (!el) {
+    isNoteTruncated.value = false;
+    return;
+  }
+  isNoteTruncated.value = el.scrollWidth > el.clientWidth;
+}
+
+function updateViewport() {
+  if (typeof window.matchMedia === 'function') {
+    isMobile.value = window.matchMedia('(max-width: 600px)').matches;
+    return;
+  }
+  isMobile.value = false;
+}
+
+function handleResize() {
+  updateViewport();
+  updateNoteTruncation();
+}
+
+async function saveNote() {
+  savingNote.value = true;
+  try {
+    await updateBookingNote(props.booking.id, editNoteText.value);
+    emit('note-updated', props.booking.id, editNoteText.value);
+    showEditDialog.value = false;
+  } finally {
+    savingNote.value = false;
+  }
+}
+
+watch(displayNote, async () => {
+  await nextTick();
+  updateNoteTruncation();
+});
+
+onMounted(() => {
+  handleResize();
+  window.addEventListener('resize', handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+});
 </script>
 
 <style scoped>
@@ -120,5 +286,12 @@ const avatarColor = computed(() => {
 .booking-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.note-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
 }
 </style>

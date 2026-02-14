@@ -20,6 +20,7 @@ type PresenceAttributes struct {
 	ItemName      string `json:"item_name"`
 	ItemGroupID   string `json:"item_group_id"`
 	ItemGroupName string `json:"item_group_name"`
+	Note          string `json:"note"`
 }
 
 // PresenceHandler returns a JSON:API list of users present in an area on a given date.
@@ -95,7 +96,7 @@ func findAreaPresence(
 
 	//nolint:gosec // G201: placeholders are "?" literals from BuildINClause, not user input
 	query := fmt.Sprintf(
-		`SELECT id, item_id, user_id
+		`SELECT id, item_id, user_id, note
 		 FROM bookings
 		 WHERE item_id IN (%s) AND booking_date = ?
 		 ORDER BY item_id`,
@@ -122,17 +123,18 @@ func scanPresenceRows(
 		bookingID string
 		itemID    string
 		userID    string
+		note      string
 	}
 
 	var bookingList []booking
 	userIDSet := make(map[string]struct{})
 
 	for rows.Next() {
-		var bookingID, itemID, userID string
-		if err := rows.Scan(&bookingID, &itemID, &userID); err != nil {
+		var bookingID, itemID, userID, note string
+		if err := rows.Scan(&bookingID, &itemID, &userID, &note); err != nil {
 			return nil, fmt.Errorf("scan area presence: %w", err)
 		}
-		bookingList = append(bookingList, booking{bookingID: bookingID, itemID: itemID, userID: userID})
+		bookingList = append(bookingList, booking{bookingID: bookingID, itemID: itemID, userID: userID, note: note})
 		userIDSet[userID] = struct{}{}
 	}
 	if err := rows.Err(); err != nil {
@@ -167,6 +169,7 @@ func scanPresenceRows(
 				ItemName:      info.ItemName,
 				ItemGroupID:   info.ItemGroupID,
 				ItemGroupName: info.ItemGroupName,
+				Note:          b.note,
 			},
 		})
 	}

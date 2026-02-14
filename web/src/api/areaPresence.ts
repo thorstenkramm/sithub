@@ -8,6 +8,7 @@ export interface PresenceAttributes {
   item_name: string;
   item_group_id: string;
   item_group_name: string;
+  note: string;
 }
 
 export async function fetchAreaPresence(

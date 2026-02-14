@@ -27,6 +27,7 @@ get:
                   area_name: Main Office
                   booking_date: '2026-01-20'
                   created_at: '2026-01-19T10:30:00Z'
+                  note: Arriving after noon
                   booked_by_user_id: ''
                   booked_by_user_name: ''
                   booked_for_me: false
@@ -41,6 +42,7 @@ get:
                   area_name: Main Office
                   booking_date: '2026-01-21'
                   created_at: '2026-01-19T11:00:00Z'
+                  note: ''
                   booked_by_user_id: colleague-123
                   booked_by_user_name: Jane Doe
                   booked_for_me: true
@@ -122,6 +124,7 @@ post:
                 user_id: user-123
                 booking_date: '2026-01-20'
                 created_at: '2026-01-19T10:30:00Z'
+                note: ''
     '400':
       description: Bad request - missing or invalid parameters
       content:

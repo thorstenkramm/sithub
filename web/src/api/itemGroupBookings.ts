@@ -8,6 +8,7 @@ export interface ItemGroupBookingAttributes {
   user_name: string;
   booking_date: string;
   is_guest?: boolean;
+  note: string;
 }
 
 export function fetchItemGroupBookings(itemGroupId: string, date?: string) {

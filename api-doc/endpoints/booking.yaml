@@ -1,3 +1,78 @@
+patch:
+  summary: Update a booking
+  description: |
+    Updates a booking's note. The booking owner, the user who made the booking,
+    or an admin can update the note. The note field is limited to 500 characters.
+  operationId: updateBooking
+  tags:
+    - Bookings
+  parameters:
+    - name: booking_id
+      in: path
+      required: true
+      description: The booking ID to update
+      schema:
+        type: string
+  requestBody:
+    required: true
+    content:
+      application/vnd.api+json:
+        schema:
+          $ref: ../openapi.yaml#/components/schemas/UpdateBookingRequest
+        example:
+          data:
+            type: bookings
+            id: b1234567-89ab-cdef-0123-456789abcdef
+            attributes:
+              note: Arriving after 2pm
+  responses:
+    '200':
+      description: Booking updated successfully
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/BookingSingleResponse
+          example:
+            data:
+              type: bookings
+              id: b1234567-89ab-cdef-0123-456789abcdef
+              attributes:
+                item_id: item-1
+                user_id: user-123
+                booking_date: '2026-01-20'
+                created_at: '2026-01-19T10:30:00Z'
+                note: Arriving after 2pm
+    '400':
+      description: Bad request - invalid payload or note too long
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '400'
+                title: Bad Request
+                detail: 'Note exceeds maximum length of 500 characters'
+                code: bad_request
+    '401':
+      description: Unauthorized - login required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '404':
+      description: Booking not found or not authorized to update
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '404'
+                title: Not Found
+                detail: Booking not found
+                code: not_found
+
 delete:
   summary: Cancel a booking
   description: |

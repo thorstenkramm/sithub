@@ -20,6 +20,7 @@ type ItemGroupBookingAttributes struct {
 	UserName    string `json:"user_name"`
 	BookingDate string `json:"booking_date"`
 	IsGuest     bool   `json:"is_guest,omitempty"`
+	Note        string `json:"note"`
 }
 
 // BookingsHandler returns a JSON:API list of bookings for an item group on a given date.
@@ -66,6 +67,7 @@ type itemGroupBookingRecord struct {
 	UserID      string
 	BookingDate string
 	IsGuest     bool
+	Note        string
 }
 
 func findItemGroupBookings(
@@ -88,7 +90,7 @@ func findItemGroupBookings(
 
 	//nolint:gosec // G201: placeholders are "?" literals from BuildINClause, not user input
 	query := fmt.Sprintf(
-		`SELECT id, item_id, user_id, booking_date, is_guest
+		`SELECT id, item_id, user_id, booking_date, is_guest, note
 		 FROM bookings
 		 WHERE item_id IN (%s) AND booking_date = ?
 		 ORDER BY item_id`,
@@ -112,7 +114,7 @@ func findItemGroupBookings(
 		var rec itemGroupBookingRecord
 		var isGuestInt int
 		err := rows.Scan(
-			&rec.ID, &rec.ItemID, &rec.UserID, &rec.BookingDate, &isGuestInt,
+			&rec.ID, &rec.ItemID, &rec.UserID, &rec.BookingDate, &isGuestInt, &rec.Note,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan item group booking: %w", err)
@@ -143,6 +145,7 @@ func findItemGroupBookings(
 				UserName:    displayNames[rec.UserID],
 				BookingDate: rec.BookingDate,
 				IsGuest:     rec.IsGuest,
+				Note:        rec.Note,
 			},
 		})
 	}

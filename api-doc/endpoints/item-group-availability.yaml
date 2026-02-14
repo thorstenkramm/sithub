@@ -1,0 +1,50 @@
+get:
+  summary: Get weekly availability for item groups
+  description: >
+    Returns per-day availability for all item groups in an area
+    for a given ISO 8601 week (Monday through Friday).
+  operationId: getItemGroupAvailability
+  tags:
+    - Item Groups
+  parameters:
+    - name: area_id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "office_1st_floor"
+    - name: week
+      in: query
+      required: false
+      description: >
+        ISO 8601 week in YYYY-Www format (e.g. 2026-W12).
+        Defaults to the current week if omitted.
+      schema:
+        type: string
+        pattern: '^\d{4}-W\d{2}$'
+      example: "2026-W12"
+  responses:
+    "200":
+      description: Weekly availability per item group
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ItemGroupAvailabilityCollectionResponse"
+    "400":
+      description: Invalid week parameter
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ErrorResponse"
+    "401":
+      description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ErrorResponse"
+    "404":
+      description: Area not found
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ErrorResponse"

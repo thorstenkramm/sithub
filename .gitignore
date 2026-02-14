@@ -72,7 +72,7 @@ web/cypress/videos/
 /assets/web/
 
 # Personal notes not intended for the team
-notes.md
+notes*.md
 
 # Test Areas
 /sithub_areas.yaml

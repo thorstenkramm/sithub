@@ -104,14 +104,14 @@ development_status:
   epic-10-retrospective: optional
 
   epic-11: done
-  11-1-user-list-api: done
-  11-2-create-user-api: done
-  11-3-update-user-api: done
-  11-4-delete-user-api: done
-  11-5-local-login-endpoint: done
-  11-6-logout-endpoint: done
-  11-7-change-password: done
-  11-8-login-ui: done
+  11-1-users-table-and-entra-id-user-sync: done
+  11-2-email-uniqueness-across-sources: done
+  11-3-local-user-login: done
+  11-4-self-service-password-change: done
+  11-5-admin-password-reset: done
+  11-6-current-user-profile-endpoint: done
+  11-7-user-management-api: done
+  11-8-demo-users-sql-file: done
   epic-11-retrospective: optional
 
   epic-12: done
@@ -122,10 +122,10 @@ development_status:
   12-5-update-documentation-and-e2e-tests: done
   epic-12-retrospective: optional
 
-  epic-13: backlog
-  13-1-clickable-breadcrumbs: backlog
-  13-2-booker-display-name: backlog
-  13-3-weekly-availability-preview: backlog
-  13-4-booking-notes: backlog
-  13-5-week-at-a-time-booking: backlog
+  epic-13: done
+  13-1-clickable-breadcrumbs: done
+  13-2-booker-display-name: done
+  13-3-weekly-availability-preview: done
+  13-4-booking-notes: done
+  13-5-week-at-a-time-booking: done
   epic-13-retrospective: optional

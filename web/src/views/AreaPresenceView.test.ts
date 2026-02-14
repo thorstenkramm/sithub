@@ -30,6 +30,10 @@ describe('AreaPresenceView', () => {
     'v-date-picker',
     'v-text-field',
     'v-skeleton-loader',
+    'v-dialog',
+    'v-bottom-sheet',
+    'v-card-actions',
+    'v-spacer',
     'router-link'
   ]);
 

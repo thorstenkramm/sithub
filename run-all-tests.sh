@@ -54,6 +54,7 @@ run_step "Frontend lint" bash -c "cd \"${WEB_DIR}\" && npm run lint"
 run_step "Code duplication (frontend)" bash -c \
 	"cd \"${WEB_DIR}\" && npx jscpd --pattern \"**/*.ts\" --ignore \"**/node_modules/**\" --threshold 0 --exitCode 1"
 run_step "Frontend unit tests (coverage)" bash -c "cd \"${WEB_DIR}\" && npm run test:unit:coverage"
+run_step "Frontend build" bash -c "cd \"${WEB_DIR}\" && npm run build"
 
 # Cypress E2E tests require a running server
 log_step "Cypress E2E tests"
@@ -95,7 +96,8 @@ config_file = "${TEST_SPACES}"
 EOF
 
 # Start the server in the background
-"${ROOT_DIR}/sithub" run --config "${TEST_CONFIG}" &
+TEST_DATA_DIR="$(mktemp -d -t sithub-e2e.XXXXXX)"
+SITHUB_MAIN_DATA_DIR="${TEST_DATA_DIR}" "${ROOT_DIR}/sithub" run --config "${TEST_CONFIG}" &
 SERVER_PID=$!
 
 # Cleanup function to stop the server
@@ -104,7 +106,8 @@ cleanup() {
 		kill "${SERVER_PID}" 2>/dev/null || true
 		wait "${SERVER_PID}" 2>/dev/null || true
 	fi
-	rm -f "${TEST_CONFIG}" "${TEST_SPACES}" "${ROOT_DIR}/sithub.db"
+	rm -f "${TEST_CONFIG}" "${TEST_SPACES}"
+	rm -rf "${TEST_DATA_DIR}"
 }
 trap cleanup EXIT
 
@@ -123,7 +126,7 @@ if ! curl -s http://localhost:8080/health >/dev/null 2>&1; then
 fi
 
 # Seed demo users for local authentication
-sqlite3 "${ROOT_DIR}/sithub.db" <"${ROOT_DIR}/tools/database/demo-users.sql"
+sqlite3 "${TEST_DATA_DIR}/sithub.db" <"${ROOT_DIR}/tools/database/demo-users.sql"
 
 # Run Cypress E2E tests (headless, Electron only)
 if cd "${WEB_DIR}" && npx cypress run --browser electron --config baseUrl=http://localhost:8080 --env testUserEmail=anna@sithub.local,testUserPassword=SitHubDemo2026!!; then

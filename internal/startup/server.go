@@ -125,6 +125,8 @@ func registerRoutes(
 	e.GET("/api/v1/areas", areas.ListHandlerDynamic(getConfig), requireAuth)
 	e.GET("/api/v1/areas/:area_id/item-groups",
 		itemgroups.ListHandlerDynamic(getConfig), requireAuth)
+	e.GET("/api/v1/areas/:area_id/item-groups/availability",
+		itemgroups.AvailabilityHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/areas/:area_id/presence",
 		areas.PresenceHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/item-groups/:item_group_id/items",
@@ -136,6 +138,7 @@ func registerRoutes(
 		bookings.HistoryHandlerDynamic(getConfig, store), requireAuth)
 	e.POST("/api/v1/bookings",
 		bookings.CreateHandlerDynamic(getConfig, store, notifier), requireAuth)
+	e.PATCH("/api/v1/bookings/:id", bookings.PatchHandler(store), requireAuth)
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), requireAuth)
 
 	// User management routes

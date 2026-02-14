@@ -129,6 +129,38 @@ describe('items', () => {
     cy.wait('@listItems');
   });
 
+  it('should show booker name on occupied items', () => {
+    const occupiedItem = {
+      id: 'item-occupied-1',
+      type: 'items',
+      attributes: {
+        name: 'Occupied Desk',
+        equipment: ['Monitor'],
+        availability: 'occupied',
+        booker_name: 'Alice Smith'
+      }
+    };
+    const availableItem = createMockItem('item-free-1', 'Free Desk');
+
+    cy.intercept('GET', '/api/v1/item-groups/*/items*', {
+      statusCode: 200,
+      body: { data: [occupiedItem, availableItem] }
+    }).as('listItems');
+
+    cy.visit('/item-groups/test_room/items');
+    cy.wait('@listItems');
+
+    // Occupied item should show booker name
+    cy.get('[data-cy="item-entry"][data-cy-availability="occupied"]')
+      .find('[data-cy="item-booker"]')
+      .should('contain', 'Alice Smith');
+
+    // Available item should not show booker name
+    cy.get('[data-cy="item-entry"][data-cy-availability="available"]')
+      .find('[data-cy="item-booker"]')
+      .should('not.exist');
+  });
+
   it('should show self-duplicate message when user already has booking', () => {
     // Mock items response with an available item
     const mockItem = createMockItem('item-mock-2', 'Mock Item 2');

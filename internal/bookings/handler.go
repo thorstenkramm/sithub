@@ -48,6 +48,7 @@ type BookingAttributes struct {
 	BookedByUserID string `json:"booked_by_user_id,omitempty"`
 	IsGuest        bool   `json:"is_guest,omitempty"`
 	GuestEmail     string `json:"guest_email,omitempty"`
+	Note           string `json:"note"`
 }
 
 // MultiDayBookingResult represents the result of a multi-day booking request.
@@ -71,6 +72,164 @@ type MyBookingAttributes struct {
 	BookedForMe      bool   `json:"booked_for_me,omitempty"`
 	IsGuest          bool   `json:"is_guest,omitempty"`
 	GuestEmail       string `json:"guest_email,omitempty"`
+	Note             string `json:"note"`
+}
+
+// maxNoteLength is the maximum allowed length for a booking note.
+const maxNoteLength = 500
+
+// PatchRequest represents a booking update JSON:API payload.
+type PatchRequest struct {
+	Data struct {
+		Type       string `json:"type"`
+		ID         string `json:"id"`
+		Attributes struct {
+			Note *string `json:"note"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+// PatchHandler returns a handler for updating a booking's note.
+// Authorization: booking owner, the person who booked, or admin.
+func PatchHandler(store *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := auth.GetUserFromContext(c)
+		if user == nil {
+			return api.WriteUnauthorized(c)
+		}
+
+		bookingID := c.Param("id")
+		if bookingID == "" {
+			return api.WriteBadRequest(c, "Booking ID is required")
+		}
+
+		note, err := parsePatchNote(c, bookingID)
+		if err != nil {
+			if errors.Is(err, errResponseWritten) {
+				return nil
+			}
+			return err
+		}
+
+		ctx := c.Request().Context()
+		booking, err := findAuthorizedBooking(ctx, store, bookingID, user)
+		if errors.Is(err, ErrBookingNotFound) {
+			return api.WriteNotFound(c, "Booking not found")
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := UpdateNote(ctx, store, bookingID, note); err != nil {
+			return fmt.Errorf("update note: %w", err)
+		}
+
+		slog.Info("booking note updated",
+			"booking_id", bookingID,
+			"updated_by", user.ID,
+		)
+
+		return writePatchResponse(c, booking, note)
+	}
+}
+
+// parsePatchNote validates content type and parses the note from the PATCH request body.
+// Returns errResponseWritten if an error response was already sent.
+func parsePatchNote(c echo.Context, bookingID string) (string, error) {
+	if err := validateContentType(c); err != nil {
+		return "", err
+	}
+
+	var req PatchRequest
+	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
+		//nolint:errcheck // Error ignored; response already written
+		api.WriteBadRequest(c, "Invalid request body")
+		return "", errResponseWritten
+	}
+	if req.Data.Type != "bookings" {
+		//nolint:errcheck // Error ignored; response already written
+		api.WriteBadRequest(c, "Resource type must be 'bookings'")
+		return "", errResponseWritten
+	}
+	if req.Data.ID == "" {
+		//nolint:errcheck // Error ignored; response already written
+		api.WriteBadRequest(c, "Resource ID is required")
+		return "", errResponseWritten
+	}
+	if req.Data.ID != bookingID {
+		//nolint:errcheck // Error ignored; response already written
+		api.WriteBadRequest(c, "Resource ID must match booking ID")
+		return "", errResponseWritten
+	}
+	if req.Data.Attributes.Note == nil {
+		//nolint:errcheck // Error ignored; response already written
+		api.WriteBadRequest(c, "Note is required")
+		return "", errResponseWritten
+	}
+
+	note := strings.TrimSpace(*req.Data.Attributes.Note)
+	if len(note) > maxNoteLength {
+		//nolint:errcheck // Error ignored; response already written
+		api.WriteBadRequest(c, fmt.Sprintf(
+			"Note must be at most %d characters", maxNoteLength))
+		return "", errResponseWritten
+	}
+
+	return note, nil
+}
+
+// findAuthorizedBooking retrieves a booking and checks that the user is authorized.
+// Returns the booking record or writes an error response and returns a terminal error.
+func findAuthorizedBooking(
+	ctx context.Context, store *sql.DB, bookingID string, user *auth.User,
+) (*BookingRecord, error) {
+	booking, err := FindBookingByID(ctx, store, bookingID)
+	if err != nil {
+		return nil, fmt.Errorf("find booking: %w", err)
+	}
+	if booking == nil {
+		return nil, ErrBookingNotFound
+	}
+
+	isOwner := booking.UserID == user.ID
+	isBooker := booking.BookedByUserID == user.ID
+	if !isOwner && !isBooker && !user.IsAdmin {
+		return nil, ErrBookingNotFound
+	}
+
+	return booking, nil
+}
+
+// ErrBookingNotFound is a sentinel error for booking not found responses.
+var ErrBookingNotFound = errors.New("booking not found")
+
+func writePatchResponse(c echo.Context, booking *BookingRecord, note string) error {
+	attrs := BookingAttributes{
+		ItemID:      booking.ItemID,
+		UserID:      booking.UserID,
+		BookingDate: booking.BookingDate,
+		CreatedAt:   booking.CreatedAt,
+		Note:        note,
+	}
+	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
+		attrs.BookedByUserID = booking.BookedByUserID
+	}
+	if booking.IsGuest {
+		attrs.IsGuest = true
+		attrs.GuestEmail = booking.GuestEmail
+	}
+
+	resp := api.SingleResponse{
+		Data: api.Resource{
+			Type:       "bookings",
+			ID:         booking.ID,
+			Attributes: attrs,
+		},
+	}
+
+	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
+	//nolint:wrapcheck // Terminal response
+	return c.JSON(http.StatusOK, resp)
 }
 
 // DeleteHandler returns a handler for canceling a booking.
@@ -257,6 +416,7 @@ func writeBookingsCollection(
 			AreaName:      loc.Area.Name,
 			BookingDate:   rec.BookingDate,
 			CreatedAt:     rec.CreatedAt,
+			Note:          rec.Note,
 		}
 
 		// Include booked_by info if different from user_id
@@ -595,6 +755,7 @@ func processMultiDayBooking(
 			UserID:      booking.UserID,
 			BookingDate: booking.BookingDate,
 			CreatedAt:   booking.CreatedAt,
+			Note:        booking.Note,
 		}
 		if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
 			attrs.BookedByUserID = booking.BookedByUserID
@@ -628,6 +789,7 @@ func writeBookingResponse(c echo.Context, booking *Booking) error {
 		UserID:      booking.UserID,
 		BookingDate: booking.BookingDate,
 		CreatedAt:   booking.CreatedAt,
+		Note:        booking.Note,
 	}
 	// Include booked_by info if booking was made on behalf
 	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
@@ -662,6 +824,7 @@ type Booking struct {
 	IsGuest        bool
 	GuestName      string
 	GuestEmail     string
+	Note           string
 	CreatedAt      string
 	UpdatedAt      string
 }

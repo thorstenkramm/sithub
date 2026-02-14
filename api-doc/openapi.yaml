@@ -16,6 +16,8 @@ paths:
     $ref: ./endpoints/areas.yaml
   /areas/{area_id}/item-groups:
     $ref: ./endpoints/item-groups.yaml
+  /areas/{area_id}/item-groups/availability:
+    $ref: ./endpoints/item-group-availability.yaml
   /areas/{area_id}/presence:
     $ref: ./endpoints/area-presence.yaml
   /item-groups/{item_group_id}/items:
@@ -176,7 +178,10 @@ components:
           description: Booking ID (admin only, present when occupied)
         booker_name:
           type: string
-          description: Name of user who booked (admin only, present when occupied)
+          description: Name of user who booked (present when occupied)
+        note:
+          type: string
+          description: Booking note (present when occupied and note is not empty)
       required:
         - name
         - equipment
@@ -270,6 +275,9 @@ components:
         created_at:
           type: string
           format: date-time
+        note:
+          type: string
+          description: Free-text note attached to the booking (max 500 characters)
         booked_by_user_id:
           type: string
           description: ID of the user who created the booking (present when different from user_id)
@@ -284,6 +292,7 @@ components:
         - user_id
         - booking_date
         - created_at
+        - note
     BookingResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
@@ -324,6 +333,9 @@ components:
         created_at:
           type: string
           format: date-time
+        note:
+          type: string
+          description: Free-text note attached to the booking (max 500 characters)
         booked_by_user_id:
           type: string
           description: ID of the user who made the booking (empty if self-booked)
@@ -351,6 +363,7 @@ components:
         - area_name
         - booking_date
         - created_at
+        - note
         - booked_by_user_id
         - booked_by_user_name
         - booked_for_me
@@ -389,12 +402,16 @@ components:
         booking_date:
           type: string
           format: date
+        note:
+          type: string
+          description: Free-text note attached to the booking
       required:
         - item_id
         - item_name
         - user_id
         - user_name
         - booking_date
+        - note
     ItemGroupBookingResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
@@ -431,6 +448,9 @@ components:
           type: string
         item_group_name:
           type: string
+        note:
+          type: string
+          description: Free-text note attached to the booking
       required:
         - user_id
         - user_name
@@ -438,6 +458,7 @@ components:
         - item_name
         - item_group_id
         - item_group_name
+        - note
     AreaPresenceResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
@@ -578,6 +599,32 @@ components:
             - attributes
       required:
         - data
+    UpdateBookingRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              const: bookings
+            id:
+              type: string
+            attributes:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 500
+                  description: Free-text note (max 500 characters)
+              required:
+                - note
+          required:
+            - type
+            - id
+            - attributes
+      required:
+        - data
     ChangePasswordRequest:
       type: object
       properties:
@@ -597,5 +644,67 @@ components:
                 - new_password
           required:
             - attributes
+      required:
+        - data
+    DayAvailability:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        weekday:
+          type: string
+          description: Two-letter weekday abbreviation (MO, TU, WE, TH, FR)
+          enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+        total:
+          type: integer
+          description: Total number of items in the group
+        available:
+          type: integer
+          description: Number of items available (not booked) on this day
+      required:
+        - date
+        - weekday
+        - total
+        - available
+    ItemGroupAvailabilityAttributes:
+      type: object
+      properties:
+        item_group_id:
+          type: string
+        item_group_name:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayAvailability'
+      required:
+        - item_group_id
+        - item_group_name
+        - days
+    ItemGroupAvailabilityResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: item-group-availability
+            attributes:
+              $ref: '#/components/schemas/ItemGroupAvailabilityAttributes'
+          required:
+            - type
+            - attributes
+    ItemGroupAvailabilityCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemGroupAvailabilityResource'
       required:
         - data

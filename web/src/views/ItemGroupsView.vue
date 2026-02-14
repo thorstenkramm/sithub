@@ -6,6 +6,23 @@
       :breadcrumbs="breadcrumbs"
     />
 
+    <!-- Week Selector -->
+    <v-card class="mb-6" data-cy="week-selector-card">
+      <v-card-text>
+        <v-select
+          v-model="selectedWeek"
+          :items="weekOptions"
+          item-title="label"
+          item-value="value"
+          label="Calendar Week"
+          density="compact"
+          hide-details
+          data-cy="week-selector"
+          style="max-width: 320px;"
+        />
+      </v-card-text>
+    </v-card>
+
     <!-- Loading State -->
     <LoadingState v-if="itemGroupsLoading" type="cards" :count="4" data-cy="item-groups-loading" />
 
@@ -49,6 +66,27 @@
             {{ ig.attributes.description }}
           </v-card-subtitle>
         </v-card-item>
+
+        <!-- Weekly Availability Indicators -->
+        <v-card-text v-if="availabilityMap[ig.id]" class="pt-0" data-cy="availability-indicators">
+          <div class="d-flex ga-2">
+            <span
+              v-for="day in availabilityMap[ig.id]"
+              :key="day.date"
+              class="availability-indicator"
+              :class="day.available > 0 ? 'available' : 'fully-booked'"
+              :aria-label="`${day.weekday}: ${day.available > 0 ? day.available + ' available' : 'fully booked'}`"
+              :data-cy-weekday="day.weekday"
+            >
+              <span
+                class="indicator-dot"
+                :class="day.available > 0 ? 'dot-available' : 'dot-booked'"
+              />
+              <span class="indicator-label text-caption">{{ day.weekday }}</span>
+            </span>
+          </div>
+        </v-card-text>
+
         <v-card-actions class="px-4 pb-4">
           <v-btn
             color="primary"
@@ -61,7 +99,11 @@
           <v-btn
             variant="text"
             size="small"
-            :to="{ name: 'item-group-bookings', params: { itemGroupId: ig.id } }"
+            :to="{
+              name: 'item-group-bookings',
+              params: { itemGroupId: ig.id },
+              query: { areaId: route.params.areaId as string }
+            }"
             @click.stop
           >
             View Bookings
@@ -73,15 +115,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
+import { fetchWeeklyAvailability } from '../api/itemGroupAvailability';
+import type { DayAvailability } from '../api/itemGroupAvailability';
 import type { ItemGroupAttributes } from '../api/itemGroups';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
+import { useWeekSelector } from '../composables/useWeekSelector';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 
@@ -92,6 +137,9 @@ const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
 const router = useRouter();
 const { loading: itemGroupsLoading, run: runItemGroups } = useApi();
+const availabilityMap = ref<Record<string, DayAvailability[]>>({});
+
+const { weekOptions, selectedWeek } = useWeekSelector();
 
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
@@ -99,7 +147,8 @@ const breadcrumbs = computed(() => [
 ]);
 
 const goToItems = async (igId: string) => {
-  await router.push({ name: 'items', params: { itemGroupId: igId } });
+  const areaId = route.params.areaId as string;
+  await router.push({ name: 'items', params: { itemGroupId: igId }, query: { areaId } });
 };
 
 const handleAuthError = async (err: unknown) => {
@@ -112,6 +161,20 @@ const handleAuthError = async (err: unknown) => {
     return true;
   }
   return false;
+};
+
+const loadAvailability = async (areaId: string, week: string) => {
+  try {
+    const resp = await fetchWeeklyAvailability(areaId, week);
+    const map: Record<string, DayAvailability[]> = {};
+    for (const resource of resp.data) {
+      map[resource.attributes.item_group_id] = resource.attributes.days;
+    }
+    availabilityMap.value = map;
+  } catch {
+    // Non-critical: availability indicators just won't show
+    availabilityMap.value = {};
+  }
 };
 
 onMounted(async () => {
@@ -156,5 +219,47 @@ onMounted(async () => {
     }
     itemGroupsErrorMessage.value = 'Unable to load item groups.';
   }
+
+  await loadAvailability(areaId, selectedWeek.value);
 });
+
+watch(selectedWeek, async (week) => {
+  const areaId = route.params.areaId;
+  if (typeof areaId === 'string' && areaId.trim() !== '') {
+    await loadAvailability(areaId, week);
+  }
+});
+
+
 </script>
+
+<style scoped>
+.availability-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 28px;
+}
+
+.indicator-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-available {
+  background-color: rgb(var(--v-theme-success));
+}
+
+.dot-booked {
+  background-color: transparent;
+  border: 2px solid rgb(var(--v-theme-error));
+}
+
+.indicator-label {
+  font-size: 0.65rem;
+  line-height: 1;
+}
+</style>

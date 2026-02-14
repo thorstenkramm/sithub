@@ -37,6 +37,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			is_guest INTEGER NOT NULL DEFAULT 0,
 			guest_name TEXT NOT NULL DEFAULT '',
 			guest_email TEXT NOT NULL DEFAULT '',
+			note TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL,
 			UNIQUE(item_id, booking_date)

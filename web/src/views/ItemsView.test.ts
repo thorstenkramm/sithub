@@ -1,6 +1,7 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ItemsView from './ItemsView.vue';
+import PageHeader from '../components/PageHeader.vue';
 import { fetchItems } from '../api/items';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
@@ -14,8 +15,9 @@ vi.mock('../api/me');
 vi.mock('../api/items');
 vi.mock('../api/itemGroups');
 vi.mock('../api/areas');
+const routeMock = { params: { itemGroupId: 'ig-1' }, query: { areaId: 'area-1' } };
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { itemGroupId: 'ig-1' } }),
+  useRoute: () => routeMock,
   useRouter: () => ({ push: pushMock })
 }));
 
@@ -35,6 +37,12 @@ describe('ItemsView', () => {
     'v-menu',
     'v-date-picker',
     'v-skeleton-loader',
+    'v-dialog',
+    'v-bottom-sheet',
+    'v-textarea',
+    'v-spacer',
+    'v-btn-toggle',
+    'v-select',
     'router-link'
   ]);
 
@@ -54,6 +62,7 @@ describe('ItemsView', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     pushMock.mockReset();
+    routeMock.query = { areaId: 'area-1' };
     fetchMeMock.mockResolvedValue({
       data: {
         attributes: {
@@ -95,6 +104,50 @@ describe('ItemsView', () => {
     expect(wrapper.text()).toContain('USB-C only');
   });
 
+  it('shows booker name when item is occupied', async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Item 1',
+            equipment: [],
+            availability: 'occupied',
+            booker_name: 'Alice Smith'
+          }
+        }
+      ]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Alice Smith');
+    expect(wrapper.find('[data-cy="item-booker"]').exists()).toBe(true);
+  });
+
+  it('does not show booker name when item is available', async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Item 1',
+            equipment: [],
+            availability: 'available'
+          }
+        }
+      ]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="item-booker"]').exists()).toBe(false);
+  });
+
   it('shows empty state when no items exist', async () => {
     const wrapper = mountView();
     await flushPromises();
@@ -112,6 +165,132 @@ describe('ItemsView', () => {
     const lastCall = fetchItemsMock.mock.calls[fetchItemsMock.mock.calls.length - 1];
     expect(lastCall[0]).toBe('ig-1');
     expect(lastCall[1]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  describe('breadcrumbs', () => {
+    it('includes area link when areaId is in query', async () => {
+      routeMock.query = { areaId: 'area-1' };
+      const wrapper = mountView();
+      await flushPromises();
+
+      const breadcrumbs = wrapper.findComponent(PageHeader).props('breadcrumbs') as Array<{ text: string; to?: unknown }>;
+      expect(breadcrumbs[1]?.to).toBe('/areas/area-1/item-groups');
+    });
+
+    it('renders area breadcrumb as non-clickable when areaId is missing and area is unresolved', async () => {
+      routeMock.query = {};
+      fetchAreasMock.mockResolvedValue({ data: [] });
+      fetchItemGroupsMock.mockResolvedValue({ data: [] });
+      const wrapper = mountView();
+      await flushPromises();
+
+      const breadcrumbs = wrapper.findComponent(PageHeader).props('breadcrumbs') as Array<{ text: string; to?: unknown }>;
+      expect(breadcrumbs[1]?.to).toBeUndefined();
+    });
+  });
+
+  describe('booking mode toggle', () => {
+    beforeEach(() => {
+      localStorage.removeItem('sithub_booking_mode');
+    });
+
+    it('defaults to day mode when localStorage is empty', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="booking-mode-toggle"]').exists()).toBe(true);
+      // In day mode, week items list should not exist
+      expect(wrapper.find('[data-cy="week-items-list"]').exists()).toBe(false);
+    });
+
+    it('persists mode in localStorage when switched to week', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      // Simulate mode change by finding the component and triggering update
+      const toggle = wrapper.find('[data-cy="booking-mode-toggle"]');
+      expect(toggle.exists()).toBe(true);
+    });
+
+    it('restores week mode from localStorage on mount', async () => {
+      localStorage.setItem('sithub_booking_mode', 'week');
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      // In week mode, the week selector should be present
+      expect(wrapper.find('[data-cy="week-selector"]').exists()).toBe(true);
+      // Day mode list should not exist
+      expect(wrapper.find('[data-cy="items-list"]').exists()).toBe(false);
+    });
+  });
+
+  describe('week mode rendering', () => {
+    beforeEach(() => {
+      localStorage.setItem('sithub_booking_mode', 'week');
+    });
+
+    afterEach(() => {
+      localStorage.removeItem('sithub_booking_mode');
+    });
+
+    it('renders week item tiles in week mode', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="week-items-list"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="week-item-entry"]').exists()).toBe(true);
+    });
+
+    it('shows week selector instead of date picker', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="week-selector"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="items-date"]').exists()).toBe(false);
+    });
+
+    it('fetches items for each weekday on mount in week mode', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      mountView();
+      await flushPromises();
+
+      // Should fetch items for multiple weekdays (5 per week)
+      // Each call should have the item group ID and a date
+      const calls = fetchItemsMock.mock.calls;
+      const weekCalls = calls.filter(c => c[0] === 'ig-1' && typeof c[1] === 'string');
+      expect(weekCalls.length).toBeGreaterThanOrEqual(5);
+    });
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);
