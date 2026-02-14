@@ -196,8 +196,8 @@ describe('items', () => {
     cy.wait('@createBookingSelfDuplicate');
 
     // Error message should show the self-duplicate message
-    cy.get('[data-cy="booking-error"]')
-      .should('contain', 'You already have this item booked for this date')
-      .and('contain', 'Please choose another item');
+    cy.get('[data-cy="booking-error-text"]')
+      .should('contain', 'Mock Item 2')
+      .and('contain', 'You already have this item booked for this date');
   });
 });

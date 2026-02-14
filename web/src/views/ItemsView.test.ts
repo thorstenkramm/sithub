@@ -311,7 +311,7 @@ describe('ItemsView', () => {
     // Colleague fields hidden by default
     expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(false);
 
-    (wrapper.vm as any).bookingType = 'colleague';
+    (wrapper.vm as unknown as { bookingType: 'self' | 'colleague' }).bookingType = 'colleague';
     await nextTick();
 
     expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);

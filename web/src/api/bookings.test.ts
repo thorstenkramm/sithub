@@ -3,6 +3,39 @@ import { cancelBooking, createBooking, fetchMyBookings, updateBookingNote } from
 
 const mockFetch = vi.fn();
 
+const expectCreateBookingPayload = (attributes: Record<string, unknown>) => {
+  expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings', {
+    method: 'POST',
+    body: JSON.stringify({
+      data: {
+        type: 'bookings',
+        attributes
+      }
+    }),
+    headers: expect.any(Headers)
+  });
+};
+
+
+const mockCreateBookingResponse = (bookingId: string) => ({
+  data: {
+    type: 'bookings',
+    id: bookingId,
+    attributes: {
+      item_id: 'item-1',
+      user_id: 'colleague-1',
+      booking_date: '2026-01-20',
+      created_at: '2026-01-19T10:00:00Z'
+    }
+  }
+});
+
+const mockFetchSuccess = (response: unknown) => {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () => Promise.resolve(response)
+  });
+};
 describe('createBooking', () => {
   beforeEach(() => {
     global.fetch = mockFetch;
@@ -52,82 +85,34 @@ describe('createBooking', () => {
   });
 
   it('sends POST request with for_user_id and for_user_name when booking on behalf', async () => {
-    const mockResponse = {
-      data: {
-        type: 'bookings',
-        id: 'booking-123',
-        attributes: {
-          item_id: 'item-1',
-          user_id: 'colleague-1',
-          booking_date: '2026-01-20',
-          created_at: '2026-01-19T10:00:00Z'
-        }
-      }
-    };
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResponse)
-    });
+    const mockResponse = mockCreateBookingResponse('booking-123');
+    mockFetchSuccess(mockResponse);
 
     await createBooking('item-1', '2026-01-20', {
       forUserId: 'colleague-1',
       forUserName: 'Jane Doe'
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings', {
-      method: 'POST',
-      body: JSON.stringify({
-        data: {
-          type: 'bookings',
-          attributes: {
-            item_id: 'item-1',
-            booking_date: '2026-01-20',
-            for_user_id: 'colleague-1',
-            for_user_name: 'Jane Doe'
-          }
-        }
-      }),
-      headers: expect.any(Headers)
+    expectCreateBookingPayload({
+      item_id: 'item-1',
+      booking_date: '2026-01-20',
+      for_user_id: 'colleague-1',
+      for_user_name: 'Jane Doe'
     });
   });
 
   it('omits for_user_name when booking on behalf without a display name', async () => {
-    const mockResponse = {
-      data: {
-        type: 'bookings',
-        id: 'booking-124',
-        attributes: {
-          item_id: 'item-1',
-          user_id: 'colleague-1',
-          booking_date: '2026-01-20',
-          created_at: '2026-01-19T10:00:00Z'
-        }
-      }
-    };
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResponse)
-    });
+    const mockResponse = mockCreateBookingResponse('booking-124');
+    mockFetchSuccess(mockResponse);
 
     await createBooking('item-1', '2026-01-20', {
       forUserId: 'colleague-1'
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/bookings', {
-      method: 'POST',
-      body: JSON.stringify({
-        data: {
-          type: 'bookings',
-          attributes: {
-            item_id: 'item-1',
-            booking_date: '2026-01-20',
-            for_user_id: 'colleague-1'
-          }
-        }
-      }),
-      headers: expect.any(Headers)
+    expectCreateBookingPayload({
+      item_id: 'item-1',
+      booking_date: '2026-01-20',
+      for_user_id: 'colleague-1'
     });
   });
 

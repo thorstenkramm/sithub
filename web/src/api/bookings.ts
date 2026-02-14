@@ -61,6 +61,42 @@ export interface GuestBookingOptions {
   guestEmail?: string;
 }
 
+function buildBookingAttributes(params: {
+  itemId: string;
+  bookingDate?: string;
+  bookingDates?: string[];
+  onBehalf?: BookOnBehalfOptions;
+  guest?: GuestBookingOptions;
+}): CreateBookingPayload['data']['attributes'] {
+  const attrs: CreateBookingPayload['data']['attributes'] = {
+    item_id: params.itemId
+  };
+
+  if (params.bookingDate) {
+    attrs.booking_date = params.bookingDate;
+  }
+  if (params.bookingDates) {
+    attrs.booking_dates = params.bookingDates;
+  }
+
+  if (params.onBehalf) {
+    attrs.for_user_id = params.onBehalf.forUserId;
+    if (params.onBehalf.forUserName) {
+      attrs.for_user_name = params.onBehalf.forUserName;
+    }
+  }
+
+  if (params.guest) {
+    attrs.is_guest = true;
+    attrs.for_user_name = params.guest.guestName;
+    if (params.guest.guestEmail) {
+      attrs.guest_email = params.guest.guestEmail;
+    }
+  }
+
+  return attrs;
+}
+
 export function createBooking(
   itemId: string,
   bookingDate: string,
@@ -70,19 +106,12 @@ export function createBooking(
   const payload: CreateBookingPayload = {
     data: {
       type: 'bookings',
-      attributes: {
-        item_id: itemId,
-        booking_date: bookingDate,
-        ...(onBehalf && {
-          for_user_id: onBehalf.forUserId,
-          ...(onBehalf.forUserName ? { for_user_name: onBehalf.forUserName } : {})
-        }),
-        ...(guest && {
-          is_guest: true,
-          for_user_name: guest.guestName,
-          guest_email: guest.guestEmail
-        })
-      }
+      attributes: buildBookingAttributes({
+        itemId,
+        bookingDate,
+        onBehalf,
+        guest
+      })
     }
   };
 
@@ -101,19 +130,12 @@ export function createMultiDayBooking(
   const payload: CreateBookingPayload = {
     data: {
       type: 'bookings',
-      attributes: {
-        item_id: itemId,
-        booking_dates: bookingDates,
-        ...(onBehalf && {
-          for_user_id: onBehalf.forUserId,
-          ...(onBehalf.forUserName ? { for_user_name: onBehalf.forUserName } : {})
-        }),
-        ...(guest && {
-          is_guest: true,
-          for_user_name: guest.guestName,
-          guest_email: guest.guestEmail
-        })
-      }
+      attributes: buildBookingAttributes({
+        itemId,
+        bookingDates,
+        onBehalf,
+        guest
+      })
     }
   };
 
