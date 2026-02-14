@@ -1,6 +1,6 @@
 # Story 13.4: Booking Notes
 
-Status: complete
+Status: done
 
 ## Story
 

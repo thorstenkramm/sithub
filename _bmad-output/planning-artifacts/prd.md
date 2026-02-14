@@ -23,13 +23,15 @@ classification:
   complexity: low
   projectContext: brownfield
 date: 2026-01-17
-lastEdited: 2026-02-08
+lastEdited: 2026-02-14
 workflowType: 'prd'
 editHistory:
   - date: 2026-02-07
     changes: "Added multi-source auth (EntraID + local), user management API, password management. Removed test_auth. Fixed validation findings (implementation leakage, post-MVP traceability)."
   - date: 2026-02-08
     changes: "Domain rename: rooms/desks to generic items (FR4-FR18 reworded). Added FR36-FR42: weekly availability, booking notes, week booking mode, booker visibility, clickable breadcrumbs, schema normalization, UI label consistency. Resolved all 6 validation observations. Updated all user journeys and UX requirements."
+  - date: 2026-02-14
+    changes: "Added FR43-FR53: UI label simplification, booking form streamlining, collapsible item tiles, past date protection, theme selector, show weekends toggle, equipment filter. Added Epics 14-17."
 ---
 
 # Product Requirements Document - sithub
@@ -484,6 +486,70 @@ Dana manages her own credentials and uses SitHub without Entra ID dependency.
   instead of "VIEW DESK" or "VIEW ROOM"; "BOOK THIS ITEM" instead of "BOOK THIS DESK";
   booking confirmation messages reference the item name from the configuration (e.g.,
   "Parking Lot 1 booked successfully") rather than the generic term "desk."
+- FR43: Navigation action labels are simplified for speed. Acceptance: "VIEW ITEM GROUPS"
+  becomes "SELECT" on area tiles; "VIEW ITEMS" becomes "SELECT" on item group tiles;
+  redundant page titles and subtitles are removed from item group and item views; "BOOK
+  THIS ITEM" becomes "BOOK" on available item tiles in day mode.
+- FR44: Redundant "Not available" text is removed from booked items in day mode. Acceptance:
+  booked items show only the "booked" status chip, the booker's name, and any booking notes;
+  the "Not available for \<date\>" message no longer appears.
+- FR45: Booker name and booking notes on occupied items use a readable font size.
+  Acceptance: both are displayed at body-2 size or larger (not caption size); information is
+  legible without zooming on desktop and mobile.
+- FR46: Booking result feedback uses icons. Acceptance: successful bookings show a green
+  checkmark icon; failed bookings show a red warning icon; the item name and day label
+  accompany each icon; raw error text is replaced by concise icon-based feedback.
+
+### Booking Form Simplification
+
+- FR47: Guest booking option is removed from the booking form. Acceptance: the "Book for
+  guest" radio button and associated guest name/email fields no longer appear.
+- FR48: Multi-day booking checkbox is removed from day booking mode. Acceptance: the "Book
+  multiple days" checkbox and associated additional dates field no longer appear; week
+  booking mode is the replacement for multi-day booking.
+- FR49: Colleague booking uses a user dropdown instead of free-text input. Acceptance: when
+  "Book for colleague" is selected, a dropdown lists existing users by display name from the
+  database; booking is submitted with the selected user's ID; free-text email and name
+  fields are removed.
+
+### Collapsible Item Tiles
+
+- FR50: Item tiles in week booking mode are collapsible. Acceptance: each tile has a chevron
+  toggle; folded state shows the compact M-F row with checkboxes and truncated names;
+  unfolded state shows one line per day with full day names, full booker names, equipment,
+  and warnings; the chevron rotates between left (folded) and down (unfolded).
+- FR51: Item tiles in day booking mode are collapsible for booked items. Acceptance: booked
+  item tiles hide equipment and warnings by default; a chevron toggle reveals the full
+  details; available item tiles remain fully expanded (no collapsing).
+- FR52: Folded tiles with warnings show a warning icon. Acceptance: when a tile is folded and
+  the item has a warning, a warning icon appears in the tile header; clicking the icon
+  displays the warning message in a tooltip or popup; the icon is visible in both day and
+  week modes.
+- FR53: Past date checkboxes are disabled in week booking mode. Acceptance: checkboxes for
+  dates before today are disabled and visually grayed out; users cannot select past dates for
+  booking; only future and today's dates have active checkboxes.
+- FR54: Full booker name appears on hover in week mode. Acceptance: in the folded tile view,
+  hovering over a truncated booker name shows the full display name in a tooltip.
+
+### User Preferences
+
+- FR55: Users can select a visual theme. Acceptance: the user menu offers auto (default),
+  dark, and light theme options; the selection is persisted in localStorage; the Vuetify
+  theme updates immediately on selection; auto follows the OS preference.
+- FR56: Users can toggle weekend visibility. Acceptance: the user menu includes a "Show
+  weekends" checkbox; when enabled, all booking pages (day and week mode) show Saturday and
+  Sunday; the preference is persisted in localStorage; the default is weekends hidden.
+- FR57: The Change Password menu item displays its icon. Acceptance: the icon is visible next
+  to "Change Password" in both desktop and mobile navigation menus.
+
+### Equipment Filtering
+
+- FR58: Users can filter items by equipment keywords. Acceptance: a text input labeled
+  "Filter equipment" appears on the booking page; items not matching the filter are blurred
+  with an "equipment not available" overlay; an info icon explains the search syntax;
+  keywords are combined with OR by default; the plus sign combines with AND; single or
+  double quotes trigger exact matching; filtering is case-insensitive; the filter works in
+  both day and week booking modes; filtering is implemented on the frontend only.
 
 ### Data Integrity
 

@@ -3,12 +3,14 @@ stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-c
 inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
-lastEdited: '2026-02-08'
+lastEdited: '2026-02-14'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
   - date: '2026-02-08'
     changes: "Domain rename: reworded FR4-FR19 (rooms/desks to items). Added FR36-FR42 (weekly availability, booking notes, week booking, booker display, breadcrumbs, schema normalization, UI labels). Added Epic 12: Domain Rename & Data Normalization and Epic 13: Enhanced Booking Experience."
+  - date: '2026-02-14'
+    changes: "Added FR43-FR58 and Epics 14-17: UI Cleanup & Booking Simplification, Collapsible Item Tiles, User Preferences & Settings, Equipment Filter."
 ---
 
 # sithub - Epic Breakdown
@@ -135,6 +137,38 @@ FR42: UI action labels use domain-neutral terminology. Acceptance: labels read "
 instead of "VIEW DESK" or "VIEW ROOM"; "BOOK THIS ITEM" instead of "BOOK THIS DESK";
 booking confirmation messages reference the item name from the configuration (e.g.,
 "Parking Lot 1 booked successfully") rather than the generic term "desk."
+FR43: Navigation action labels are simplified. Acceptance: "VIEW ITEM GROUPS" becomes
+"SELECT"; "VIEW ITEMS" becomes "SELECT"; "BOOK THIS ITEM" becomes "BOOK"; redundant page
+titles and subtitles are removed from item group and item views.
+FR44: Redundant "Not available" text is removed from booked items. Acceptance: booked items
+show only the status chip, booker name, and notes; no "Not available for \<date\>" message.
+FR45: Booker name and booking notes use readable font size. Acceptance: displayed at body-2
+or larger, not caption size.
+FR46: Booking result feedback uses icons. Acceptance: green checkmark for success, red
+warning icon for failure, replacing text-based labels.
+FR47: Guest booking option is removed. Acceptance: "Book for guest" radio and fields are no
+longer shown.
+FR48: Multi-day booking checkbox is removed from day mode. Acceptance: checkbox and
+additional dates field no longer shown; week booking mode is the replacement.
+FR49: Colleague booking uses a user dropdown. Acceptance: dropdown lists existing users by
+display name; booking uses user ID; free-text fields removed.
+FR50: Item tiles in week mode are collapsible. Acceptance: chevron toggles between folded
+(compact M-F) and unfolded (one line per day, equipment, warnings).
+FR51: Booked item tiles in day mode are collapsible. Acceptance: equipment and warnings
+hidden by default; chevron reveals details; available items remain expanded.
+FR52: Folded tiles with warnings show a warning icon. Acceptance: clicking the icon shows
+the warning without unfolding.
+FR53: Past date checkboxes disabled in week mode. Acceptance: dates before today are
+grayed out and not interactive.
+FR54: Full booker name on hover in week mode. Acceptance: tooltip shows full name for
+truncated names in folded tiles.
+FR55: Theme selector. Acceptance: auto/dark/light in user menu; stored in localStorage;
+applied immediately.
+FR56: Show weekends toggle. Acceptance: checkbox in user menu; adds Sat/Sun to booking
+pages; stored in localStorage.
+FR57: Change Password icon fix. Acceptance: icon visible in desktop and mobile menus.
+FR58: Equipment filter. Acceptance: text input on booking page; non-matching items blurred;
+info icon explains syntax; OR/AND/exact matching; case-insensitive; frontend-only.
 
 ### NonFunctional Requirements
 
@@ -225,6 +259,22 @@ FR39: Epic 13 - Booker display name
 FR40: Epic 13 - Clickable breadcrumbs
 FR41: Epic 12 - Schema normalization
 FR42: Epic 12 - UI label consistency
+FR43: Epic 14 - Simplified action labels
+FR44: Epic 14 - Remove redundant "Not available" text
+FR45: Epic 14 - Readable font for booker name and notes
+FR46: Epic 14 - Icon-based booking result feedback
+FR47: Epic 14 - Remove guest booking option
+FR48: Epic 14 - Remove multi-day booking checkbox
+FR49: Epic 14 - Colleague booking user dropdown
+FR50: Epic 15 - Collapsible tiles in week mode
+FR51: Epic 15 - Collapsible tiles in day mode
+FR52: Epic 15 - Warning icon on folded tiles
+FR53: Epic 15 - Past date checkboxes disabled
+FR54: Epic 15 - Full booker name on hover
+FR55: Epic 16 - Theme selector
+FR56: Epic 16 - Show weekends toggle
+FR57: Epic 16 - Change Password icon fix
+FR58: Epic 17 - Equipment filter
 
 ## Epic List
 
@@ -292,6 +342,30 @@ Users get powerful new booking capabilities: weekly availability previews, booki
 week-at-a-time booking mode, visibility of who booked what, and clickable navigation
 breadcrumbs.
 **FRs covered:** FR36, FR37, FR38, FR39, FR40
+
+### Epic 14: UI Cleanup & Booking Simplification
+
+Remove visual clutter, simplify action labels, streamline the booking form, and improve the
+display of booked items for a cleaner, faster user experience.
+**FRs covered:** FR43, FR44, FR45, FR46, FR47, FR48, FR49
+
+### Epic 15: Collapsible Item Tiles
+
+Introduce fold/unfold tile behavior across day and week booking modes to manage visual
+complexity, showing equipment, warnings, and full details on demand.
+**FRs covered:** FR50, FR51, FR52, FR53, FR54
+
+### Epic 16: User Preferences & Settings
+
+Let users personalize their booking experience with theme selection, weekend visibility,
+and minor menu fixes.
+**FRs covered:** FR55, FR56, FR57
+
+### Epic 17: Equipment Filter
+
+Enable users to filter items by equipment keywords to quickly find suitable workspaces
+using an advanced search syntax.
+**FRs covered:** FR58
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -1438,3 +1512,319 @@ to `POST /api/v1/bookings`
 **When** the view updates
 **Then** the standard single-day booking interface is restored
 **And** the "BOOK THIS ITEM" button reappears on each item tile
+
+## Epic 14 Stories: UI Cleanup & Booking Simplification
+
+Remove visual clutter, simplify action labels, streamline the booking form, and improve the
+display of booked items for a cleaner, faster user experience.
+**FRs covered:** FR43, FR44, FR45, FR46, FR47, FR48, FR49
+
+### Story 14.1: Simplify Action Labels Across Views
+
+**FRs covered:** FR43
+
+As a user,
+I want concise action labels that get me to my destination faster,
+So that I spend less time reading and more time booking.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing the areas list (Home)
+**When** I see an area tile
+**Then** the action button reads "SELECT" instead of "VIEW ITEM GROUPS"
+
+**Given** I am viewing item groups within an area
+**When** I see the page
+**Then** the page title "Item Groups" and subtitle "Select an item group to view available
+items" are removed
+**And** the action button on each tile reads "SELECT" instead of "VIEW ITEMS"
+
+**Given** I am viewing items within an item group
+**When** I see the page
+**Then** the page title "Items" and subtitle "Select an item to book for your chosen date"
+are removed
+
+**Given** I am viewing available items in day booking mode
+**When** I see an available item tile
+**Then** the booking button reads "BOOK" instead of "BOOK THIS ITEM"
+
+### Story 14.2: Streamline Booking Form
+
+**FRs covered:** FR47, FR48, FR49
+
+As a user,
+I want a simplified booking form with fewer options,
+So that the interface is less overwhelming and common tasks are faster.
+
+**Acceptance Criteria:**
+
+**Given** I am on the booking page
+**When** I see the booking type options
+**Then** "Book for guest" is not available as an option
+**And** only "Book for myself" and "Book for colleague" are shown
+
+**Given** I am on the booking page in day booking mode
+**When** I see the booking options
+**Then** the "Book multiple days" checkbox is not shown
+**And** no additional dates field appears
+
+**Given** I select "Book for colleague"
+**When** the colleague fields appear
+**Then** I see a dropdown listing existing users by display name (fetched from
+`GET /api/v1/users`)
+**And** selecting a user from the dropdown sets the booking to use that user's ID
+**And** the free-text colleague email and name fields are removed
+
+### Story 14.3: Improve Booked Item Display
+
+**FRs covered:** FR44, FR45, FR46
+
+As a user,
+I want booked item details to be clearly readable and booking results to use icons,
+So that I can quickly understand who booked what and whether my bookings succeeded.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing items in day booking mode
+**When** an item is booked by another user
+**Then** the "Not available for \<date\>" message is not shown
+**And** the booker name is displayed at body-2 size or larger (not caption)
+**And** any booking note is displayed at body-2 size or larger
+
+**Given** I submit bookings (day or week mode)
+**When** results are displayed
+**Then** each successful booking shows a green checkmark icon with item name and day
+**And** each failed booking shows a red warning icon with item name and error detail
+**And** raw text labels like "Booked" are replaced by the icons
+
+## Epic 15 Stories: Collapsible Item Tiles
+
+Introduce fold/unfold tile behavior across day and week booking modes to manage visual
+complexity, showing equipment, warnings, and full details on demand.
+**FRs covered:** FR50, FR51, FR52, FR53, FR54
+
+### Story 15.1: Collapsible Tiles in Week Booking Mode
+
+**FRs covered:** FR50, FR54
+
+As a user,
+I want to expand item tiles in week mode to see full details,
+So that the default view is compact and I can drill into specifics on demand.
+
+**Acceptance Criteria:**
+
+**Given** I am in week booking mode viewing item tiles
+**When** I see a tile
+**Then** a chevron-left icon appears in the tile header
+
+**Given** I click the chevron on a folded tile
+**When** the tile unfolds
+**Then** the chevron rotates to chevron-down
+**And** the compact M-F row is replaced by one line per day
+**And** each line shows the full day name (Monday, Tuesday, etc.)
+**And** each line shows the full booker display name (not truncated)
+**And** equipment chips and warning alerts are visible below the daily breakdown
+
+**Given** I click the chevron on an unfolded tile
+**When** the tile folds
+**Then** the chevron rotates back to chevron-left
+**And** the compact M-F row is restored
+
+**Given** I am viewing a folded tile with truncated booker names
+**When** I hover over a truncated name
+**Then** a tooltip shows the full display name
+
+### Story 15.2: Collapsible Tiles in Day Booking Mode
+
+**FRs covered:** FR51
+
+As a user,
+I want booked item tiles in day mode to be collapsed by default,
+So that I can focus on available items and expand booked ones only when needed.
+
+**Acceptance Criteria:**
+
+**Given** I am in day booking mode
+**When** an item is booked
+**Then** the item tile hides equipment and warning details by default
+**And** a chevron-left icon appears in the tile header
+
+**Given** I click the chevron on a folded booked item tile
+**When** the tile unfolds
+**Then** equipment chips and warning alerts become visible
+**And** the chevron rotates to chevron-down
+
+**Given** I am in day booking mode
+**When** an item is available
+**Then** the item tile shows all details (equipment, warnings) without a chevron
+**And** the tile is not collapsible
+
+### Story 15.3: Warning Icon on Folded Tiles
+
+**FRs covered:** FR52
+
+As a user,
+I want to know about item warnings even when a tile is folded,
+So that I can make informed decisions without expanding every tile.
+
+**Acceptance Criteria:**
+
+**Given** a tile is folded and the item has a warning
+**When** I see the tile header
+**Then** a warning icon is visible
+
+**Given** I click the warning icon on a folded tile
+**When** the popup or tooltip appears
+**Then** the full warning message is displayed
+**And** I do not need to unfold the tile to read the warning
+
+**Given** a tile is folded and the item has no warning
+**When** I see the tile header
+**Then** no warning icon appears
+
+### Story 15.4: Disable Past Date Checkboxes in Week Mode
+
+**FRs covered:** FR53
+
+As a user,
+I want past date checkboxes disabled in week booking mode,
+So that I don't waste time selecting dates the backend would reject anyway.
+
+**Acceptance Criteria:**
+
+**Given** I am in week booking mode and the selected week includes past dates
+**When** I see the per-day checkboxes
+**Then** checkboxes for dates before today are disabled and visually grayed out
+**And** I cannot check or uncheck past date checkboxes
+
+**Given** I am in week booking mode and the selected week is entirely in the future
+**When** I see the per-day checkboxes
+**Then** all free day checkboxes are enabled and interactive
+
+## Epic 16 Stories: User Preferences & Settings
+
+Let users personalize their booking experience with theme selection, weekend visibility,
+and minor menu fixes.
+**FRs covered:** FR55, FR56, FR57
+
+### Story 16.1: Theme Selector
+
+**FRs covered:** FR55
+
+As a user,
+I want to choose between light, dark, and auto themes,
+So that the app matches my visual preference or adapts to my system setting.
+
+**Acceptance Criteria:**
+
+**Given** I click my username in the top right corner
+**When** I see the user menu
+**Then** I see a theme option with choices: auto (default), dark, light
+
+**Given** I select "dark" theme
+**When** the selection is applied
+**Then** the Vuetify dark theme is activated immediately
+**And** my choice is persisted in localStorage
+**And** on my next visit, the dark theme is applied without manual selection
+
+**Given** I select "auto" theme
+**When** my OS preference is dark mode
+**Then** the app uses dark theme
+**And** when my OS switches to light mode, the app follows
+
+### Story 16.2: Show Weekends Toggle
+
+**FRs covered:** FR56
+
+As a user,
+I want to optionally show weekends on booking pages,
+So that I can book Saturday and Sunday if my workplace supports it.
+
+**Acceptance Criteria:**
+
+**Given** I click my username in the top right corner
+**When** I see the user menu
+**Then** I see a "Show weekends" checkbox (unchecked by default)
+
+**Given** I enable "Show weekends"
+**When** I view the booking page in week mode
+**Then** Saturday and Sunday columns appear alongside Monday through Friday
+**And** my preference is persisted in localStorage
+
+**Given** I enable "Show weekends"
+**When** I view the weekly availability indicators on item group tiles
+**Then** the indicators include Saturday and Sunday
+
+**Given** I disable "Show weekends"
+**When** I view any booking page
+**Then** only Monday through Friday are shown
+
+### Story 16.3: Fix Change Password Icon
+
+**FRs covered:** FR57
+
+As a user,
+I want the Change Password menu item to show its icon,
+So that the menu has a consistent visual appearance.
+
+**Acceptance Criteria:**
+
+**Given** I am a local user viewing the desktop user menu
+**When** I see the "Change Password" item
+**Then** an icon is displayed next to the text (consistent with other menu items)
+
+**Given** I am a local user viewing the mobile navigation drawer
+**When** I see the "Change Password" item
+**Then** an icon is displayed next to the text
+
+## Epic 17 Stories: Equipment Filter
+
+Enable users to filter items by equipment keywords to quickly find suitable workspaces
+using an advanced search syntax.
+**FRs covered:** FR58
+
+### Story 17.1: Equipment Filter with Advanced Search
+
+**FRs covered:** FR58
+
+As a user,
+I want to filter items by equipment keywords,
+So that I can quickly find a workspace with the tools I need.
+
+**Acceptance Criteria:**
+
+**Given** I am on the booking page (day or week mode)
+**When** I see the booking options card
+**Then** a text input labeled "Filter equipment" appears below the colleague option
+**And** an info icon appears next to the input
+
+**Given** I click the info icon
+**When** the explanation popup appears
+**Then** it describes the search syntax:
+show only items having the filter keyword(s) in any of the equipment items;
+multiple keywords are combined with OR;
+use plus sign to combine with AND;
+use single or double quotation marks for exact matching;
+filters are case-insensitive;
+example: "27 inch display" + webcam
+
+**Given** I type "webcam" into the filter input
+**When** the filter is applied
+**Then** items that have "webcam" in any of their equipment are shown normally
+**And** items without "webcam" in their equipment are blurred with an "equipment not
+available" overlay hint
+**And** blurred items are not removed from the list
+
+**Given** I type `"27 inch display" + webcam` into the filter input
+**When** the filter is applied
+**Then** only items having both "27 inch display" (exact) AND "webcam" in their equipment
+are shown normally
+**And** all other items are blurred
+
+**Given** I clear the filter input
+**When** the filter is removed
+**Then** all items are shown normally without blur
+
+**Given** I am in week booking mode
+**When** I type a filter
+**Then** the same filtering logic applies to the week mode item tiles

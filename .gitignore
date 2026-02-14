@@ -76,3 +76,7 @@ notes*.md
 
 # Test Areas
 /sithub_areas.yaml
+
+# Local artifacts
+node_modules/
+img.png

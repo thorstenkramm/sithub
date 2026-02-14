@@ -506,6 +506,7 @@ import {
   createMultiDayBooking,
   cancelBooking,
   updateBookingNote,
+  fetchMyBookings,
   type BookOnBehalfOptions,
   type GuestBookingOptions
 } from '../api/bookings';
@@ -565,6 +566,7 @@ const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector();
 // Per-day data for week mode: map of date -> items array
 const weekData = ref<Record<string, JsonApiResource<ItemAttributes>[]>>({});
 const weekDataLoading = ref(false);
+const myWeekBookings = ref<Set<string>>(new Set());
 
 // Week day selections: Set of "itemId::date" keys
 const weekSelections = ref<Set<string>>(new Set());
@@ -605,7 +607,7 @@ const getWeekDayStatus = (
   const item = dayItems.find(i => i.id === itemId);
   if (!item) return 'unavailable';
   if (item.attributes.availability === 'available') return 'free';
-  if (item.attributes.booker_name === authStore.userName) return 'booked-by-me';
+  if (isBookedByMe(itemId, date)) return 'booked-by-me';
   return 'booked-by-other';
 };
 
@@ -618,6 +620,9 @@ const getWeekDayBooker = (itemId: string, date: string): string => {
 
 const isWeekDaySelected = (itemId: string, date: string) =>
   weekSelections.value.has(getWeekSelectionKey(itemId, date));
+
+const isBookedByMe = (itemId: string, date: string) =>
+  myWeekBookings.value.has(getWeekSelectionKey(itemId, date));
 
 const toggleWeekDay = (itemId: string, date: string) => {
   if (getWeekDayStatus(itemId, date) !== 'free') return;
@@ -634,6 +639,7 @@ const toggleWeekDay = (itemId: string, date: string) => {
 const loadWeekData = async (itemGroupId: string, keepResults = false) => {
   weekDataLoading.value = true;
   weekSelections.value = new Set();
+  itemsErrorMessage.value = null;
   if (!keepResults) weekBookingResults.value = [];
   try {
     const dates = selectedWeekDates.value;
@@ -645,8 +651,20 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
       data[date] = dayItems;
     }
     weekData.value = data;
+
+    const bookingsResp = await fetchMyBookings().catch(() => ({ data: [] }));
+    const bookedSet = new Set<string>();
+    for (const booking of bookingsResp.data) {
+      const bookingDate = booking.attributes.booking_date;
+      if (dates.includes(bookingDate)) {
+        bookedSet.add(getWeekSelectionKey(booking.attributes.item_id, bookingDate));
+      }
+    }
+    myWeekBookings.value = bookedSet;
   } catch {
     weekData.value = {};
+    myWeekBookings.value = new Set();
+    itemsErrorMessage.value = 'Unable to load weekly items.';
   } finally {
     weekDataLoading.value = false;
   }
@@ -654,6 +672,21 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
 
 const submitWeekBookings = async () => {
   if (!activeItemGroupId.value || weekSelections.value.size === 0) return;
+
+  bookingErrorMessage.value = null;
+  if (bookingType.value === 'colleague') {
+    if (!colleagueId.value.trim() || !colleagueName.value.trim()) {
+      bookingErrorMessage.value = 'Please enter both colleague ID and name.';
+      return;
+    }
+  }
+  if (bookingType.value === 'guest') {
+    if (!guestName.value.trim()) {
+      bookingErrorMessage.value = 'Please enter the guest name.';
+      return;
+    }
+  }
+
   weekBookingInProgress.value = true;
   weekBookingResults.value = [];
 

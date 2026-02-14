@@ -1,6 +1,6 @@
 # Story 13.3: Weekly Availability Preview
 
-Status: review
+Status: done
 
 ## Story
 

@@ -1,6 +1,6 @@
 # Story 13.2: Booker Display Name
 
-Status: review
+Status: done
 
 ## Story
 

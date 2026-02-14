@@ -1,6 +1,6 @@
 # Story 13.5: Week Booking Mode
 
-Status: complete
+Status: done
 
 ## Story
 
@@ -183,6 +183,7 @@ Claude Opus 4.6
 
 ### Completion Notes List
 
+- Review fixes (2026-02-14): week mode uses item IDs, derives "booked by me" from My Bookings instead of display names, validates colleague/guest inputs before submit, surfaces weekly load errors, hides multi-day toggle in week mode.
 - All 7 acceptance criteria implemented and verified
 - Frontend-only story: no backend changes required
 - Extracted `useWeekSelector` composable to share week logic with ItemGroupsView
@@ -196,6 +197,7 @@ Claude Opus 4.6
 
 **Frontend (Vue/TypeScript)**
 
+- `.gitignore` (review fix: ignore local artifacts)
 - `web/src/composables/useWeekSelector.ts` (new - shared week selector logic)
 - `web/src/composables/useWeekSelector.test.ts` (new - 15 unit tests)
 - `web/src/views/ItemsView.vue` (week mode toggle, week selector, per-day breakdown,
