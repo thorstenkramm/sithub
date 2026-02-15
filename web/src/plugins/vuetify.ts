@@ -35,7 +35,8 @@ import {
   mdiHistory,
   mdiFilterVariant,
   mdiRefresh,
-  mdiMapMarker
+  mdiMapMarker,
+  mdiLockReset
 } from '@mdi/js';
 
 // Custom icon aliases for the app
@@ -73,7 +74,8 @@ const customAliases = {
   history: mdiHistory,
   filter: mdiFilterVariant,
   refresh: mdiRefresh,
-  location: mdiMapMarker
+  location: mdiMapMarker,
+  lockReset: mdiLockReset
 };
 
 // Light theme colors

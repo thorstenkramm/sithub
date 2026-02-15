@@ -59,13 +59,41 @@
               </v-list-item-subtitle>
             </v-list-item>
             <v-divider class="my-1" />
+            <v-list-item data-cy="theme-selector">
+              <v-list-item-title class="text-caption text-medium-emphasis mb-1">Theme</v-list-item-title>
+              <v-btn-toggle
+                :model-value="themePreference"
+                mandatory
+                density="compact"
+                color="primary"
+                @update:model-value="setThemePreference($event)"
+              >
+                <v-btn
+                  v-for="opt in themeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                  size="small"
+                >
+                  {{ opt.label }}
+                </v-btn>
+              </v-btn-toggle>
+            </v-list-item>
+            <v-list-item data-cy="show-weekends-toggle">
+              <v-checkbox
+                v-model="showWeekends"
+                label="Show weekends"
+                hide-details
+                density="compact"
+              />
+            </v-list-item>
+            <v-divider class="my-1" />
             <v-list-item
               v-if="authStore.authSource === 'internal'"
               data-cy="change-password-btn"
               @click="showPasswordDialog = true"
             >
               <template #prepend>
-                <v-icon size="small">mdi-lock-reset</v-icon>
+                <v-icon size="small" data-cy="change-password-icon">$lockReset</v-icon>
               </template>
               <v-list-item-title>Change Password</v-list-item-title>
             </v-list-item>
@@ -115,13 +143,41 @@
             <v-list-item-title>History</v-list-item-title>
           </v-list-item>
           <v-divider class="my-2" />
+          <v-list-item data-cy="mobile-theme-selector">
+            <v-list-item-title class="text-caption text-medium-emphasis mb-1">Theme</v-list-item-title>
+            <v-btn-toggle
+              :model-value="themePreference"
+              mandatory
+              density="compact"
+              color="primary"
+              @update:model-value="setThemePreference($event)"
+            >
+              <v-btn
+                v-for="opt in themeOptions"
+                :key="opt.value"
+                :value="opt.value"
+                size="small"
+              >
+                {{ opt.label }}
+              </v-btn>
+            </v-btn-toggle>
+          </v-list-item>
+          <v-list-item data-cy="mobile-show-weekends-toggle">
+            <v-checkbox
+              v-model="showWeekends"
+              label="Show weekends"
+              hide-details
+              density="compact"
+            />
+          </v-list-item>
+          <v-divider class="my-2" />
           <v-list-item
             v-if="authStore.authSource === 'internal'"
             data-cy="mobile-change-password-btn"
             @click="showPasswordDialog = true; mobileDrawer = false"
           >
             <template #prepend>
-              <v-icon>mdi-lock-reset</v-icon>
+              <v-icon data-cy="mobile-change-password-icon">$lockReset</v-icon>
             </template>
             <v-list-item-title>Change Password</v-list-item-title>
           </v-list-item>
@@ -207,11 +263,21 @@ import { useAuthStore } from './stores/useAuthStore';
 import { logout } from './api/auth';
 import { changePassword } from './api/me';
 import { ApiError } from './api/client';
+import { useThemePreference } from './composables/useThemePreference';
+import { useWeekendPreference } from './composables/useWeekendPreference';
+
+const themeOptions = [
+  { label: 'Auto', value: 'auto' as const },
+  { label: 'Light', value: 'light' as const },
+  { label: 'Dark', value: 'dark' as const }
+];
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const mobileDrawer = ref(false);
+const { preference: themePreference, setPreference: setThemePreference } = useThemePreference();
+const { showWeekends } = useWeekendPreference();
 
 const showPasswordDialog = ref(false);
 const currentPassword = ref('');

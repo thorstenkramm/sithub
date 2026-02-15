@@ -126,6 +126,7 @@ import type { ItemGroupAttributes } from '../api/itemGroups';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useWeekSelector } from '../composables/useWeekSelector';
+import { useWeekendPreference } from '../composables/useWeekendPreference';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 
@@ -138,7 +139,8 @@ const router = useRouter();
 const { loading: itemGroupsLoading, run: runItemGroups } = useApi();
 const availabilityMap = ref<Record<string, DayAvailability[]>>({});
 
-const { weekOptions, selectedWeek } = useWeekSelector();
+const { showWeekends } = useWeekendPreference();
+const { weekOptions, selectedWeek } = useWeekSelector(showWeekends);
 
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
@@ -164,7 +166,8 @@ const handleAuthError = async (err: unknown) => {
 
 const loadAvailability = async (areaId: string, week: string) => {
   try {
-    const resp = await fetchWeeklyAvailability(areaId, week);
+    const days = showWeekends.value ? 7 : undefined;
+    const resp = await fetchWeeklyAvailability(areaId, week, days);
     const map: Record<string, DayAvailability[]> = {};
     for (const resource of resp.data) {
       map[resource.attributes.item_group_id] = resource.attributes.days;
@@ -222,7 +225,7 @@ onMounted(async () => {
   await loadAvailability(areaId, selectedWeek.value);
 });
 
-watch(selectedWeek, async (week) => {
+watch([selectedWeek, showWeekends], async ([week]) => {
   const areaId = route.params.areaId;
   if (typeof areaId === 'string' && areaId.trim() !== '') {
     await loadAvailability(areaId, week);

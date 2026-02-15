@@ -50,7 +50,11 @@ func AvailabilityHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) ec
 			return api.WriteBadRequest(c, "Invalid week parameter. Use ISO 8601 format: YYYY-Www (e.g., 2026-W12).")
 		}
 
-		weekdays := weekdayDates(monday)
+		dayCount := 5
+		if daysParam := c.QueryParam("days"); daysParam == "7" {
+			dayCount = 7
+		}
+		weekdays := weekdayDates(monday, dayCount)
 		ctx := c.Request().Context()
 
 		resources, err := buildAvailabilityResources(ctx, store, area, weekdays)
@@ -112,10 +116,11 @@ func mondayOfWeek(t time.Time) time.Time {
 	return base.AddDate(0, 0, -offset)
 }
 
-// weekdayDates returns the Monday through Friday dates for a week starting at monday.
-func weekdayDates(monday time.Time) []time.Time {
-	days := make([]time.Time, 5)
-	for i := range 5 {
+// weekdayDates returns dates for a week starting at monday.
+// count is typically 5 (Mon-Fri) or 7 (Mon-Sun).
+func weekdayDates(monday time.Time, count int) []time.Time {
+	days := make([]time.Time, count)
+	for i := range count {
 		days[i] = monday.AddDate(0, 0, i)
 	}
 	return days
@@ -134,6 +139,10 @@ func weekdayAbbreviation(d time.Weekday) string {
 		return "TH"
 	case time.Friday:
 		return "FR"
+	case time.Saturday:
+		return "SA"
+	case time.Sunday:
+		return "SU"
 	default:
 		return d.String()[:2]
 	}

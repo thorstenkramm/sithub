@@ -32,6 +32,7 @@ export function buildViewStubs(extra: string[] = []) {
     'v-list-item': slotStub,
     'v-list-item-title': slotStub,
     'v-progress-linear': slotStub,
+    'v-skeleton-loader': slotStub,
     'v-alert': slotStub,
     'v-btn': slotStub
   };

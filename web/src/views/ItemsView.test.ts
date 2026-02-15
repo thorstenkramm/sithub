@@ -25,31 +25,37 @@ vi.mock('vue-router', () => ({
 }));
 
 describe('ItemsView', () => {
-  const stubs = buildViewStubs([
-    'v-list-item-subtitle',
-    'v-card-item',
-    'v-card-actions',
-    'v-avatar',
-    'v-icon',
-    'v-chip',
-    'v-radio',
-    'v-radio-group',
-    'v-text-field',
-    'v-checkbox',
-    'v-expand-transition',
-    'v-autocomplete',
-    'v-menu',
-    'v-date-picker',
-    'v-skeleton-loader',
-    'v-dialog',
-    'v-bottom-sheet',
-    'v-textarea',
-    'v-spacer',
-    'v-btn-toggle',
-    'v-select',
-    'v-tooltip',
-    'router-link'
-  ]);
+  const stubs = {
+    ...buildViewStubs([
+      'v-list-item-subtitle',
+      'v-card-actions',
+      'v-avatar',
+      'v-icon',
+      'v-chip',
+      'v-radio',
+      'v-radio-group',
+      'v-text-field',
+      'v-checkbox',
+      'v-expand-transition',
+      'v-autocomplete',
+      'v-menu',
+      'v-date-picker',
+      'v-skeleton-loader',
+      'v-dialog',
+      'v-bottom-sheet',
+      'v-textarea',
+      'v-spacer',
+      'v-btn-toggle',
+      'v-select',
+      'router-link'
+    ]),
+    'v-card-item': {
+      template: '<div><slot name="prepend" /><slot /><slot name="append" /></div>'
+    },
+    'v-tooltip': {
+      template: '<div><slot name="activator" :props="{}" /><slot /></div>'
+    }
+  };
 
   const fetchMeMock = vi.mocked(fetchMe);
   const fetchItemsMock = vi.mocked(fetchItems);
@@ -203,6 +209,10 @@ describe('ItemsView', () => {
 
   describe('booking mode toggle', () => {
     beforeEach(() => {
+      localStorage.removeItem('sithub_booking_mode');
+    });
+
+    afterEach(() => {
       localStorage.removeItem('sithub_booking_mode');
     });
 

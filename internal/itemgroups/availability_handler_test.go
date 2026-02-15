@@ -59,7 +59,7 @@ func TestWeekdayDates(t *testing.T) {
 	t.Parallel()
 
 	monday := time.Date(2026, 3, 16, 0, 0, 0, 0, time.UTC)
-	days := weekdayDates(monday)
+	days := weekdayDates(monday, 5)
 
 	require.Len(t, days, 5)
 	assert.Equal(t, "2026-03-16", days[0].Format(time.DateOnly))
@@ -67,6 +67,19 @@ func TestWeekdayDates(t *testing.T) {
 	assert.Equal(t, "2026-03-18", days[2].Format(time.DateOnly))
 	assert.Equal(t, "2026-03-19", days[3].Format(time.DateOnly))
 	assert.Equal(t, "2026-03-20", days[4].Format(time.DateOnly))
+}
+
+func TestWeekdayDatesFullWeek(t *testing.T) {
+	t.Parallel()
+
+	monday := time.Date(2026, 3, 16, 0, 0, 0, 0, time.UTC)
+	days := weekdayDates(monday, 7)
+
+	require.Len(t, days, 7)
+	assert.Equal(t, "2026-03-16", days[0].Format(time.DateOnly))
+	assert.Equal(t, "2026-03-20", days[4].Format(time.DateOnly))
+	assert.Equal(t, "2026-03-21", days[5].Format(time.DateOnly)) // Saturday
+	assert.Equal(t, "2026-03-22", days[6].Format(time.DateOnly)) // Sunday
 }
 
 func TestWeekdayAbbreviation(t *testing.T) {
@@ -77,6 +90,8 @@ func TestWeekdayAbbreviation(t *testing.T) {
 	assert.Equal(t, "WE", weekdayAbbreviation(time.Wednesday))
 	assert.Equal(t, "TH", weekdayAbbreviation(time.Thursday))
 	assert.Equal(t, "FR", weekdayAbbreviation(time.Friday))
+	assert.Equal(t, "SA", weekdayAbbreviation(time.Saturday))
+	assert.Equal(t, "SU", weekdayAbbreviation(time.Sunday))
 }
 
 func TestAvailabilityHandlerAreaNotFound(t *testing.T) {
@@ -192,6 +207,45 @@ func TestAvailabilityHandlerReturnsPerDayAvailability(t *testing.T) {
 		assert.Equal(t, float64(1), day["total"])
 		assert.Equal(t, float64(1), day["available"])
 	}
+}
+
+func TestAvailabilityHandlerReturnsSevenDays(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestDB(t)
+	cfg := testConfig()
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/v1/areas/area-1/item-groups/availability?week=2026-W04&days=7", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("area_id")
+	c.SetParamValues("area-1")
+
+	h := AvailabilityHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 2)
+
+	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
+	require.True(t, ok)
+	days0, ok := attrs0["days"].([]any)
+	require.True(t, ok)
+	require.Len(t, days0, 7)
+
+	// Verify Saturday and Sunday are included
+	sat, ok := days0[5].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "SA", sat["weekday"])
+
+	sun, ok := days0[6].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "SU", sun["weekday"])
 }
 
 func TestAvailabilityHandlerNoBookings(t *testing.T) {

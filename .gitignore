@@ -79,4 +79,4 @@ notes*.md
 
 # Local artifacts
 node_modules/
-img.png
+img*.png

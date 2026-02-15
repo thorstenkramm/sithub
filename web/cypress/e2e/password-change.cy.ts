@@ -24,6 +24,17 @@ describe('password change', () => {
     cy.get('[data-cy="change-password-btn"]').should('exist');
   });
 
+  it('should show change password icon in desktop and mobile menus', () => {
+    cy.get('[data-cy="user-menu-trigger"]').click();
+    cy.get('[data-cy="change-password-icon"]').should('exist');
+    cy.get('body').click(0, 0);
+
+    cy.viewport(375, 667);
+    cy.get('[data-cy="mobile-menu-btn"]').click();
+    cy.get('[data-cy="mobile-change-password-icon"]').should('exist');
+    cy.viewport(1280, 720);
+  });
+
   it('should open and close the password change dialog', () => {
     openPasswordDialog();
 

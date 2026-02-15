@@ -137,16 +137,16 @@ development_status:
   epic-14-retrospective: optional
 
   epic-15: done
-  15-1-collapsible-tiles-week-mode: review
-  15-2-collapsible-tiles-day-mode: review
-  15-3-warning-icon-folded-tiles: review
-  15-4-disable-past-date-checkboxes: review
+  15-1-collapsible-tiles-week-mode: done
+  15-2-collapsible-tiles-day-mode: done
+  15-3-warning-icon-folded-tiles: done
+  15-4-disable-past-date-checkboxes: done
   epic-15-retrospective: optional
 
-  epic-16: in-progress
-  16-1-theme-selector: ready-for-dev
-  16-2-show-weekends-toggle: ready-for-dev
-  16-3-fix-change-password-icon: ready-for-dev
+  epic-16: done
+  16-1-theme-selector: done
+  16-2-show-weekends-toggle: done
+  16-3-fix-change-password-icon: done
   epic-16-retrospective: optional
 
   epic-17: in-progress

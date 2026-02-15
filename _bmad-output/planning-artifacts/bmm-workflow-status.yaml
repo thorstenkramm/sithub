@@ -25,9 +25,9 @@ workflow_path: "/Users/thorsten/projects/thorsten/sithub/_bmad/bmm/workflows/wor
 workflow_status:
   product-brief: /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/product-brief-sithub-2026-01-17.md
   prd: /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
-  create-ux-design: conditional
-  create-architecture: required
-  create-epics-and-stories: required
-  test-design: optional
-  implementation-readiness: required
-  sprint-planning: required
+  create-ux-design: skipped
+  create-architecture: /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
+  create-epics-and-stories: /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/epics.md
+  test-design: skipped
+  implementation-readiness: /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/implementation-readiness-report-2026-02-07.md
+  sprint-planning: /Users/thorsten/projects/thorsten/sithub/_bmad-output/implementation-artifacts/sprint-status.yaml

@@ -174,7 +174,7 @@ describe('ItemGroupsView', () => {
 
     await flushPromises();
 
-    expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', expect.any(String));
+    expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', expect.any(String), undefined);
   });
 
   it('shows availability indicators when data is returned', async () => {

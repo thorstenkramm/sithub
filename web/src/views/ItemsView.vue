@@ -389,6 +389,7 @@
           <div
             v-if="!expandedWeekTiles.has(item.id)"
             :class="isMobile ? 'week-days-compact' : 'week-days'"
+            :style="isMobile ? { gridTemplateColumns: `repeat(${selectedWeekDates.length}, 1fr)` } : undefined"
             data-cy="week-days"
           >
             <div
@@ -662,6 +663,8 @@ import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useWeekSelector, getWeekdayLabel } from '../composables/useWeekSelector';
+import { useWeekendPreference } from '../composables/useWeekendPreference';
+import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
 
@@ -701,10 +704,12 @@ const showItemNoteDialog = computed({
 });
 
 // Week booking mode
+const storage = getSafeLocalStorage();
 const bookingMode = ref<'day' | 'week'>(
-  (localStorage.getItem('sithub_booking_mode') as 'day' | 'week') || 'day'
+  (storage?.getItem('sithub_booking_mode') as 'day' | 'week') || 'day'
 );
-const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector();
+const { showWeekends } = useWeekendPreference();
+const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends);
 
 // Per-day data for week mode: map of date -> items array
 const weekData = ref<Record<string, JsonApiResource<ItemAttributes>[]>>({});
@@ -734,7 +739,7 @@ const getFullDayLabel = (date: string, fallbackIndex: number): string => {
   if (!Number.isNaN(parsed.getTime())) {
     return WEEKDAY_LONG_FORMATTER.format(parsed);
   }
-  const fallback = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const fallback = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   return fallback[fallbackIndex] ?? date;
 };
 
@@ -939,7 +944,7 @@ const submitWeekBookings = async () => {
       ? r.value
       : { itemName: '', date: '', success: false as const, error: 'Unexpected error' };
     const dayIdx = selectedWeekDates.value.indexOf(val.date);
-    const dayLabel = dayIdx >= 0 ? (FULL_DAY_LABELS[dayIdx] ?? val.date) : val.date;
+    const dayLabel = dayIdx >= 0 ? getFullDayLabel(val.date, dayIdx) : val.date;
     return { itemName: val.itemName, date: val.date, dayLabel, success: val.success, error: val.error };
   });
 
@@ -1224,7 +1229,9 @@ watch(
 );
 
 watch(bookingMode, async (mode) => {
-  localStorage.setItem('sithub_booking_mode', mode);
+  if (storage) {
+    storage.setItem('sithub_booking_mode', mode);
+  }
   if (!activeItemGroupId.value) return;
   if (mode === 'week') {
     await loadWeekData(activeItemGroupId.value);
@@ -1236,7 +1243,7 @@ watch(bookingMode, async (mode) => {
   }
 });
 
-watch(selectedWeek, async () => {
+watch([selectedWeek, showWeekends], async () => {
   if (!activeItemGroupId.value || bookingMode.value !== 'week') return;
   await loadWeekData(activeItemGroupId.value);
 });
@@ -1297,7 +1304,7 @@ function formatDisplayDate(dateStr: string) {
 
 .week-days-compact {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, 1fr); /* overridden by inline style when weekends enabled */
   gap: 4px;
 }
 

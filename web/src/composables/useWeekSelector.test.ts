@@ -1,3 +1,4 @@
+import { ref } from 'vue';
 import {
   getMondayOfWeek,
   getISOWeekNumber,
@@ -53,12 +54,22 @@ describe('getISOWeekString', () => {
 });
 
 describe('getWeekdayDates', () => {
-  it('returns 5 dates Mon-Fri', () => {
+  it('returns 5 dates Mon-Fri by default', () => {
     const monday = new Date(2026, 1, 9);
     const dates = getWeekdayDates(monday);
     expect(dates).toHaveLength(5);
     expect(dates[0]).toBe('2026-02-09');
     expect(dates[4]).toBe('2026-02-13');
+  });
+
+  it('returns 7 dates Mon-Sun when includeWeekends is true', () => {
+    const monday = new Date(2026, 1, 9);
+    const dates = getWeekdayDates(monday, true);
+    expect(dates).toHaveLength(7);
+    expect(dates[0]).toBe('2026-02-09');
+    expect(dates[4]).toBe('2026-02-13');
+    expect(dates[5]).toBe('2026-02-14'); // Saturday
+    expect(dates[6]).toBe('2026-02-15'); // Sunday
   });
 });
 
@@ -73,8 +84,18 @@ describe('getWeekdayLabel', () => {
     expect(getWeekdayLabel(4, true)).toBe('F');
   });
 
+  it('returns weekend labels', () => {
+    expect(getWeekdayLabel(5)).toBe('SA');
+    expect(getWeekdayLabel(6)).toBe('SU');
+  });
+
+  it('returns weekend short labels', () => {
+    expect(getWeekdayLabel(5, true)).toBe('S');
+    expect(getWeekdayLabel(6, true)).toBe('S');
+  });
+
   it('returns empty string for out-of-range', () => {
-    expect(getWeekdayLabel(5)).toBe('');
+    expect(getWeekdayLabel(7)).toBe('');
   });
 });
 
@@ -106,5 +127,17 @@ describe('useWeekSelector', () => {
     for (const option of weekOptions.value) {
       expect(option.label).toMatch(/Week \d+/);
     }
+  });
+
+  it('selectedWeekDates returns 7 dates when showWeekends is true', () => {
+    const showWeekends = ref(true);
+    const { selectedWeekDates } = useWeekSelector(showWeekends);
+    expect(selectedWeekDates.value).toHaveLength(7);
+  });
+
+  it('selectedWeekDates returns 5 dates when showWeekends is false', () => {
+    const showWeekends = ref(false);
+    const { selectedWeekDates } = useWeekSelector(showWeekends);
+    expect(selectedWeekDates.value).toHaveLength(5);
   });
 });

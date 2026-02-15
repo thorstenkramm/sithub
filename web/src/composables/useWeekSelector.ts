@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 
 export interface WeekOption {
   label: string;
@@ -32,10 +32,11 @@ export function getISOWeekString(monday: Date): string {
   return `${year}-W${String(weekNum).padStart(2, '0')}`;
 }
 
-/** Returns the weekday dates (Mon-Fri) for a given Monday. */
-export function getWeekdayDates(monday: Date): string[] {
+/** Returns the weekday dates for a given Monday. 5 days (Mon-Fri) or 7 days (Mon-Sun). */
+export function getWeekdayDates(monday: Date, includeWeekends = false): string[] {
+  const count = includeWeekends ? 7 : 5;
   const dates: string[] = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const year = d.getFullYear();
@@ -46,8 +47,8 @@ export function getWeekdayDates(monday: Date): string[] {
   return dates;
 }
 
-const WEEKDAY_LABELS = ['MO', 'TU', 'WE', 'TH', 'FR'];
-const WEEKDAY_LABELS_SHORT = ['M', 'T', 'W', 'T', 'F'];
+const WEEKDAY_LABELS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+const WEEKDAY_LABELS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function getWeekdayLabel(index: number, short = false): string {
   const labels = short ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS;
@@ -57,8 +58,9 @@ export function getWeekdayLabel(index: number, short = false): string {
 /**
  * Composable providing week selector state and helpers.
  * Generates next 8 weeks, defaults to current week.
+ * @param showWeekends - optional reactive ref; when true, selectedWeekDates returns 7 days
  */
-export function useWeekSelector() {
+export function useWeekSelector(showWeekends?: Ref<boolean>) {
   const dateFormatter = new Intl.DateTimeFormat(undefined, {
     year: 'numeric',
     month: '2-digit',
@@ -100,8 +102,10 @@ export function useWeekSelector() {
     return result;
   });
 
-  /** Returns the 5 weekday date strings (Mon-Fri) for the selected week. */
-  const selectedWeekDates = computed(() => getWeekdayDates(selectedMonday.value));
+  /** Returns weekday date strings for the selected week (5 or 7 depending on showWeekends). */
+  const selectedWeekDates = computed(() =>
+    getWeekdayDates(selectedMonday.value, showWeekends?.value ?? false)
+  );
 
   return {
     weekOptions,
