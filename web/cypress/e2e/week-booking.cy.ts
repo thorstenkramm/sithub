@@ -45,6 +45,8 @@ describe('week booking mode', () => {
   });
 
   it('should show confirm button when days are selected', () => {
+    // Freeze time to a Monday so current week has future dates
+    cy.clock(new Date('2026-02-09T10:00:00').getTime());
     visitItemsAndSwitchToWeek();
 
     cy.get('[data-cy="week-confirm-btn"]').should('not.exist');
@@ -55,6 +57,8 @@ describe('week booking mode', () => {
   });
 
   it('should submit bookings and show results', () => {
+    // Freeze time to a Monday so current week has future dates
+    cy.clock(new Date('2026-02-09T10:00:00').getTime());
     visitItemsAndSwitchToWeek();
 
     cy.intercept('POST', '/api/v1/bookings', {

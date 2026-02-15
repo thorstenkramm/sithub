@@ -47,6 +47,7 @@ describe('ItemsView', () => {
     'v-spacer',
     'v-btn-toggle',
     'v-select',
+    'v-tooltip',
     'router-link'
   ]);
 
@@ -91,7 +92,7 @@ describe('ItemsView', () => {
     });
   });
 
-  it('renders item equipment, warning, and status', async () => {
+  it('renders item equipment, warning, and status on available items', async () => {
     fetchItemsMock.mockResolvedValue({
       data: [
         {
@@ -101,7 +102,7 @@ describe('ItemsView', () => {
             name: 'Item 1',
             equipment: ['Monitor', 'Keyboard'],
             warning: 'USB-C only',
-            availability: 'occupied'
+            availability: 'available'
           }
         }
       ]
@@ -251,6 +252,32 @@ describe('ItemsView', () => {
     });
   });
 
+
+  it('shows warning icon on folded booked day tiles with warnings', async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: 'Item 1',
+          equipment: [],
+          warning: 'Caution',
+          availability: 'occupied'
+        }
+      }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="folded-warning-icon"]').exists()).toBe(true);
+
+    (wrapper.vm as unknown as { expandedDayTiles: Set<string> }).expandedDayTiles = new Set(['item-1']);
+    await nextTick();
+
+    expect(wrapper.find('[data-cy="folded-warning-icon"]').exists()).toBe(false);
+  });
+
   describe('week mode rendering', () => {
     beforeEach(() => {
       localStorage.setItem('sithub_booking_mode', 'week');
@@ -274,6 +301,27 @@ describe('ItemsView', () => {
 
       expect(wrapper.find('[data-cy="week-items-list"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="week-item-entry"]').exists()).toBe(true);
+    });
+
+
+    it('shows warning icon on folded week tiles with warnings', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], warning: 'Cable issue', availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="week-folded-warning-icon"]').exists()).toBe(true);
+
+      (wrapper.vm as unknown as { expandedWeekTiles: Set<string> }).expandedWeekTiles = new Set(['item-1']);
+      await nextTick();
+
+      expect(wrapper.find('[data-cy="week-folded-warning-icon"]').exists()).toBe(false);
     });
 
     it('shows week selector instead of date picker', async () => {
@@ -343,6 +391,82 @@ describe('ItemsView', () => {
     await flushPromises();
 
     expect(fetchUsersMock).toHaveBeenCalled();
+  });
+
+  describe('collapsible day tiles', () => {
+    it('hides equipment on folded booked tiles', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Booked Item',
+            equipment: ['Monitor'],
+            warning: 'USB-C only',
+            availability: 'occupied',
+            booker_name: 'Alice'
+          }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      // Booked tile hides equipment and warning by default
+      expect(wrapper.find('[data-cy="item-equipment"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="item-warning"]').exists()).toBe(false);
+      // Booker name remains visible
+      expect(wrapper.find('[data-cy="item-booker"]').exists()).toBe(true);
+    });
+
+    it('shows equipment on expanded booked tiles', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Booked Item',
+            equipment: ['Monitor'],
+            warning: 'USB-C only',
+            availability: 'occupied',
+            booker_name: 'Alice'
+          }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      // Expand the tile
+      const vm = wrapper.vm as unknown as { expandedDayTiles: Set<string> };
+      vm.expandedDayTiles = new Set(['item-1']);
+      await nextTick();
+
+      // Equipment and warning now visible
+      expect(wrapper.find('[data-cy="item-equipment"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="item-warning"]').exists()).toBe(true);
+    });
+
+    it('always shows equipment on available tiles', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Available Item',
+            equipment: ['Monitor'],
+            warning: 'USB-C only',
+            availability: 'available'
+          }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="item-equipment"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="item-warning"]').exists()).toBe(true);
+    });
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);

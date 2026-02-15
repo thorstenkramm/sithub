@@ -136,11 +136,11 @@ development_status:
   14-3-improve-booked-item-display: done
   epic-14-retrospective: optional
 
-  epic-15: in-progress
-  15-1-collapsible-tiles-week-mode: ready-for-dev
-  15-2-collapsible-tiles-day-mode: ready-for-dev
-  15-3-warning-icon-folded-tiles: ready-for-dev
-  15-4-disable-past-date-checkboxes: ready-for-dev
+  epic-15: done
+  15-1-collapsible-tiles-week-mode: review
+  15-2-collapsible-tiles-day-mode: review
+  15-3-warning-icon-folded-tiles: review
+  15-4-disable-past-date-checkboxes: review
   epic-15-retrospective: optional
 
   epic-16: in-progress
