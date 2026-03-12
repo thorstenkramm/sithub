@@ -67,7 +67,7 @@
             class="d-flex align-center ga-1 mt-1 text-caption text-medium-emphasis"
             data-cy="presence-note"
           >
-            <v-icon size="14">mdi-text-box-outline</v-icon>
+            <v-icon size="14">$textBoxOutline</v-icon>
             <span :ref="setNoteRef(entry.id)" class="note-text">{{ entry.attributes.note }}</span>
             <v-btn
               v-if="noteTruncatedMap[entry.id]"
@@ -77,7 +77,7 @@
               data-cy="presence-note-expand"
               @click="expandedNote = entry.attributes.note"
             >
-              <v-icon size="14">mdi-arrow-expand</v-icon>
+              <v-icon size="14">$arrowExpand</v-icon>
             </v-btn>
           </div>
         </v-list-item>

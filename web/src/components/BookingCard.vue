@@ -62,7 +62,7 @@
         class="d-flex align-center ga-1 mt-2 text-body-2 note-row"
         data-cy="booking-note"
       >
-        <v-icon size="14" color="secondary">mdi-text-box-outline</v-icon>
+        <v-icon size="14" color="secondary">$textBoxOutline</v-icon>
         <span ref="noteTextEl" class="note-text">{{ displayNote }}</span>
         <v-btn
           v-if="isNoteTruncated"
@@ -72,7 +72,7 @@
           data-cy="note-expand-btn"
           @click="showNoteDialog = true"
         >
-          <v-icon size="14">mdi-arrow-expand</v-icon>
+          <v-icon size="14">$arrowExpand</v-icon>
         </v-btn>
       </div>
 
@@ -86,7 +86,7 @@
           data-cy="add-note-btn"
           @click="openEditDialog"
         >
-          <v-icon size="14" start>mdi-plus</v-icon>
+          <v-icon size="14" start>$plus</v-icon>
           Add note
         </v-btn>
       </div>
@@ -101,7 +101,7 @@
         data-cy="edit-note-btn"
         @click="openEditDialog"
       >
-        <v-icon size="14" start>mdi-pencil</v-icon>
+        <v-icon size="14" start>$edit</v-icon>
         Edit note
       </v-btn>
       <v-spacer />

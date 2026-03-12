@@ -16,6 +16,8 @@ import {
   mdiAlert,
   mdiInformation,
   mdiChevronRight,
+  mdiChevronLeft,
+  mdiChevronDown,
   mdiHome,
   mdiMenu,
   mdiLogout,
@@ -36,7 +38,10 @@ import {
   mdiFilterVariant,
   mdiRefresh,
   mdiMapMarker,
-  mdiLockReset
+  mdiLockReset,
+  mdiTextBoxOutline,
+  mdiArrowExpand,
+  mdiFilterOutline
 } from '@mdi/js';
 
 // Custom icon aliases for the app
@@ -55,6 +60,8 @@ const customAliases = {
   alert: mdiAlert,
   info: mdiInformation,
   chevronRight: mdiChevronRight,
+  chevronLeft: mdiChevronLeft,
+  chevronDown: mdiChevronDown,
   home: mdiHome,
   menu: mdiMenu,
   logout: mdiLogout,
@@ -75,7 +82,10 @@ const customAliases = {
   filter: mdiFilterVariant,
   refresh: mdiRefresh,
   location: mdiMapMarker,
-  lockReset: mdiLockReset
+  lockReset: mdiLockReset,
+  textBoxOutline: mdiTextBoxOutline,
+  arrowExpand: mdiArrowExpand,
+  filterOutline: mdiFilterOutline
 };
 
 // Light theme colors
