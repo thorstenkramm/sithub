@@ -200,4 +200,32 @@ describe('items', () => {
       .should('contain', 'Mock Item 2')
       .and('contain', 'You already have this item booked for this date');
   });
+
+  it('should open filter help and blur non-matching items in day mode', () => {
+    const webcamItem = createMockItem('item-webcam', 'Desk Webcam', 'available', ['webcam', '27 inch display']);
+    const keyboardItem = createMockItem('item-keyboard', 'Desk Keyboard', 'available', ['keyboard']);
+
+    cy.intercept(
+      'GET',
+      '/api/v1/item-groups/*/items*',
+      createMockItemsResponse([webcamItem, keyboardItem])
+    ).as('listItems');
+
+    cy.visit('/item-groups/test_room/items');
+    cy.wait('@listItems');
+
+    cy.get('[data-cy="equipment-filter-help"]').should('not.exist');
+    cy.get('[data-cy="equipment-filter-info"]').click();
+    cy.get('[data-cy="equipment-filter-help"]')
+      .should('be.visible')
+      .and('contain', 'use plus sign to combine with AND;');
+    cy.contains('button', 'Close').click();
+    cy.get('[data-cy="equipment-filter-help"]').should('not.exist');
+
+    cy.get('[data-cy="equipment-filter-input"] input').type('webcam');
+
+    cy.get('[data-cy="item-entry"][data-cy-item-id="item-webcam"]').should('not.have.class', 'item-filtered-out');
+    cy.get('[data-cy="item-entry"][data-cy-item-id="item-keyboard"]').should('have.class', 'item-filtered-out');
+    cy.get('[data-cy="equipment-not-available"]').should('have.length', 1);
+  });
 });

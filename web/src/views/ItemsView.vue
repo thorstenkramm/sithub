@@ -86,6 +86,29 @@
           </div>
         </v-expand-transition>
 
+        <!-- Equipment Filter -->
+        <div class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
+          <v-text-field
+            v-model="equipmentFilter"
+            label="Filter equipment"
+            density="compact"
+            hide-details
+            clearable
+            prepend-inner-icon="$filterOutline"
+            data-cy="equipment-filter-input"
+          />
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            data-cy="equipment-filter-info"
+            aria-label="Equipment filter help"
+            @click="showFilterHelp = true"
+          >
+            <v-icon>$info</v-icon>
+          </v-btn>
+        </div>
+
       </v-card-text>
     </v-card>
 
@@ -99,24 +122,24 @@
       @click:close="closeSuccessMessage"
     >
       <div class="d-flex align-center ga-2">
-        <v-icon color="success" size="18">mdi-check-circle</v-icon>
         <span class="text-body-2" data-cy="booking-success-text">
           {{ bookingSuccessDetails
             ? `${bookingSuccessDetails.itemName} - ${formatDisplayDate(bookingSuccessDetails.date)}`
             : bookingSuccessMessage
           }}
         </span>
+        <v-btn
+          v-if="lastBookingId"
+          color="primary"
+          variant="tonal"
+          size="small"
+          data-cy="add-note-after-booking"
+          @click="openPostBookingNoteDialog"
+        >
+          <v-icon size="16" start>$textBoxOutline</v-icon>
+          Add note
+        </v-btn>
       </div>
-      <v-btn
-        v-if="lastBookingId"
-        variant="text"
-        size="small"
-        class="ml-2"
-        data-cy="add-note-after-booking"
-        @click="openPostBookingNoteDialog"
-      >
-        Add note
-      </v-btn>
     </v-alert>
     <v-alert
       v-if="bookingErrorMessage || bookingErrorDetails"
@@ -127,7 +150,6 @@
       @click:close="clearErrorMessage"
     >
       <div class="d-flex align-center ga-2">
-        <v-icon color="error" size="18">mdi-alert-circle</v-icon>
         <span class="text-body-2" data-cy="booking-error-text">
           {{ bookingErrorDetails
             ? `${bookingErrorDetails.itemName} - ${formatDisplayDate(bookingErrorDetails.date)}: ${bookingErrorDetails.error}`
@@ -163,18 +185,29 @@
 
     <!-- Items Grid (Day mode) -->
     <div v-else-if="bookingMode === 'day'" class="card-grid" data-cy="items-list">
-      <v-card
+      <div
         v-for="entry in items"
         :key="entry.id"
-        :class="[
-          'item-card',
-          { 'item-available': entry.attributes.availability === 'available' },
-          { 'item-occupied': entry.attributes.availability === 'occupied' }
-        ]"
-        data-cy="item-entry"
-        :data-cy-item-id="entry.id"
-        :data-cy-availability="entry.attributes.availability"
+        :class="['item-filter-wrapper', { 'item-expanded': expandedDayTiles.has(entry.id) }]"
       >
+        <div
+          v-if="isItemFilteredOut(entry.attributes.equipment || [])"
+          class="item-filtered-overlay"
+          data-cy="equipment-not-available"
+        >
+          <span class="text-body-2 font-weight-medium">equipment not available</span>
+        </div>
+        <v-card
+          :class="[
+            'item-card',
+            { 'item-available': entry.attributes.availability === 'available' },
+            { 'item-occupied': entry.attributes.availability === 'occupied' },
+            { 'item-filtered-out': isItemFilteredOut(entry.attributes.equipment || []) }
+          ]"
+          data-cy="item-entry"
+          :data-cy-item-id="entry.id"
+          :data-cy-availability="entry.attributes.availability"
+        >
         <v-card-item>
           <template #prepend>
             <v-avatar
@@ -185,12 +218,11 @@
               <v-icon size="24">$desk</v-icon>
             </v-avatar>
           </template>
-          <v-card-title class="d-flex align-center">
-            {{ entry.attributes.name }}
+          <v-card-title class="d-flex align-center flex-wrap">
+            <span class="mr-2">{{ entry.attributes.name }}</span>
             <StatusChip
               :status="entry.attributes.availability === 'available' ? 'available' : 'booked'"
               size="x-small"
-              class="ml-2"
               data-cy="item-status"
             />
           </v-card-title>
@@ -199,6 +231,7 @@
               <v-tooltip
                 v-if="!expandedDayTiles.has(entry.id) && entry.attributes.warning"
                 location="top"
+                content-class="warning-tooltip"
               >
                 <template #activator="{ props: tooltipProps }">
                   <v-btn
@@ -211,7 +244,7 @@
                     :aria-label="`View warning for ${entry.attributes.name}`"
                     data-cy="folded-warning-icon"
                   >
-                    <v-icon size="18">mdi-alert</v-icon>
+                    <v-icon size="18">$warning</v-icon>
                   </v-btn>
                 </template>
                 {{ entry.attributes.warning }}
@@ -226,7 +259,7 @@
                 @click="toggleDayTileExpansion(entry.id)"
               >
                 <v-icon>
-                  {{ expandedDayTiles.has(entry.id) ? 'mdi-chevron-down' : 'mdi-chevron-left' }}
+                  {{ expandedDayTiles.has(entry.id) ? '$chevronDown' : '$chevronLeft' }}
                 </v-icon>
               </v-btn>
             </div>
@@ -283,7 +316,7 @@
             class="d-flex align-center ga-1 mt-1 text-body-2 text-medium-emphasis"
             data-cy="item-note"
           >
-            <v-icon size="14">mdi-text-box-outline</v-icon>
+            <v-icon size="14">$textBoxOutline</v-icon>
             <span :ref="setNoteRef(entry.id)" class="note-text">{{ entry.attributes.note }}</span>
             <v-btn
               v-if="noteTruncatedMap[entry.id]"
@@ -293,7 +326,7 @@
               data-cy="item-note-expand"
               @click="expandedNote = entry.attributes.note"
             >
-              <v-icon size="14">mdi-arrow-expand</v-icon>
+              <v-icon size="14">$arrowExpand</v-icon>
             </v-btn>
           </div>
         </v-card-text>
@@ -326,18 +359,29 @@
           <div v-else class="py-2" />
         </v-card-actions>
       </v-card>
+      </div>
     </div>
 
     <!-- Items Grid (Week mode) -->
     <div v-else-if="bookingMode === 'week' && weekItems.length" class="card-grid" data-cy="week-items-list">
-      <v-card
+      <div
         v-for="item in weekItems"
         :key="item.id"
-        class="item-card"
-        data-cy="week-item-entry"
-        :data-cy-item-name="item.name"
-        :data-cy-item-id="item.id"
+        :class="['item-filter-wrapper', { 'item-expanded': expandedWeekTiles.has(item.id) }]"
       >
+        <div
+          v-if="isItemFilteredOut(getWeekItemEquipment(item.id))"
+          class="item-filtered-overlay"
+          data-cy="equipment-not-available"
+        >
+          <span class="text-body-2 font-weight-medium">equipment not available</span>
+        </div>
+        <v-card
+          :class="['item-card', { 'item-filtered-out': isItemFilteredOut(getWeekItemEquipment(item.id)) }]"
+          data-cy="week-item-entry"
+          :data-cy-item-name="item.name"
+          :data-cy-item-id="item.id"
+        >
         <v-card-item>
           <template #prepend>
             <v-avatar color="primary" variant="tonal" size="48">
@@ -350,6 +394,7 @@
               <v-tooltip
                 v-if="!expandedWeekTiles.has(item.id) && getWeekItemAttributes(item.id).warning"
                 location="top"
+                content-class="warning-tooltip"
               >
                 <template #activator="{ props: tooltipProps }">
                   <v-btn
@@ -362,7 +407,7 @@
                     :aria-label="`View warning for ${item.name}`"
                     data-cy="week-folded-warning-icon"
                   >
-                    <v-icon size="18">mdi-alert</v-icon>
+                    <v-icon size="18">$warning</v-icon>
                   </v-btn>
                 </template>
                 {{ getWeekItemAttributes(item.id).warning }}
@@ -377,7 +422,7 @@
                 @click="toggleWeekTileExpansion(item.id)"
               >
                 <v-icon>
-                  {{ expandedWeekTiles.has(item.id) ? 'mdi-chevron-down' : 'mdi-chevron-left' }}
+                  {{ expandedWeekTiles.has(item.id) ? '$chevronDown' : '$chevronLeft' }}
                 </v-icon>
               </v-btn>
             </div>
@@ -465,9 +510,6 @@
               :class="['week-day-expanded', { 'week-day-past': isDateInPast(date) }]"
               :data-cy-weekday="getWeekdayLabel(dayIdx)"
             >
-              <span class="text-body-2 font-weight-medium week-day-expanded-label">
-                {{ getFullDayLabel(date, dayIdx) }}
-              </span>
               <v-checkbox
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
                 :model-value="isWeekDaySelected(item.id, date)"
@@ -499,6 +541,9 @@
                 :data-cy="getWeekDayStatus(item.id, date) === 'unavailable'
                   ? 'week-day-unavailable' : 'week-day-other'"
               />
+              <span class="text-body-2 font-weight-medium week-day-expanded-label">
+                {{ getFullDayLabel(date, dayIdx) }}
+              </span>
               <span
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-success']"
@@ -548,6 +593,7 @@
           </div>
         </v-card-text>
       </v-card>
+      </div>
     </div>
 
     <!-- Confirm Booking Button (Week mode) -->
@@ -571,7 +617,7 @@
       <v-card-text>
         <div v-for="result in weekBookingResults" :key="result.date + result.itemName" class="d-flex align-center ga-2 mb-1">
           <v-icon :color="result.success ? 'success' : 'error'" size="18">
-            {{ result.success ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+            {{ result.success ? '$success' : '$warning' }}
           </v-icon>
           <span class="text-body-2">
             {{ result.itemName }} - {{ result.dayLabel }}{{ result.success ? '' : ': ' + result.error }}
@@ -638,6 +684,27 @@
         </v-card-actions>
       </v-card>
     </v-bottom-sheet>
+
+    <!-- Equipment Filter Help Dialog -->
+    <v-dialog v-model="showFilterHelp" max-width="500">
+      <v-card>
+        <v-card-title>Equipment Filter Syntax</v-card-title>
+        <v-card-text data-cy="equipment-filter-help">
+          <p class="mb-3">show only items having the filter keyword(s) in any of the equipment items;</p>
+          <ul class="mb-3">
+            <li>multiple keywords are combined with OR;</li>
+            <li>use plus sign to combine with AND;</li>
+            <li>use single or double quotation marks for exact matching;</li>
+            <li>filters are case-insensitive;</li>
+          </ul>
+          <p class="text-caption text-medium-emphasis">example: <code>"27 inch display" + webcam</code></p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showFilterHelp = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -654,7 +721,7 @@ import {
   type BookOnBehalfOptions
 } from '../api/bookings';
 import { fetchItems } from '../api/items';
-import { fetchUsers } from '../api/users';
+import { fetchColleagues } from '../api/users';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
@@ -664,6 +731,7 @@ import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useWeekSelector, getWeekdayLabel } from '../composables/useWeekSelector';
 import { useWeekendPreference } from '../composables/useWeekendPreference';
+import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
@@ -703,6 +771,23 @@ const showItemNoteDialog = computed({
   set: (v: boolean) => { if (!v) expandedNote.value = ''; }
 });
 
+// Equipment filter
+const equipmentFilter = ref('');
+const showFilterHelp = ref(false);
+const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
+
+const isItemFilteredOut = (equipment: string[]): boolean => {
+  return !matchesParsedFilter(equipment, parsedEquipmentFilter.value);
+};
+
+const getWeekItemEquipment = (itemId: string): string[] => {
+  for (const dayItems of Object.values(weekData.value)) {
+    const item = dayItems.find(i => i.id === itemId);
+    if (item?.attributes.equipment?.length) return item.attributes.equipment;
+  }
+  return [];
+};
+
 // Week booking mode
 const storage = getSafeLocalStorage();
 const bookingMode = ref<'day' | 'week'>(
@@ -737,7 +822,10 @@ const WEEK_NAME_TRUNCATE_LIMIT = 12;
 const getFullDayLabel = (date: string, fallbackIndex: number): string => {
   const parsed = new Date(`${date}T00:00:00`);
   if (!Number.isNaN(parsed.getTime())) {
-    return WEEKDAY_LONG_FORMATTER.format(parsed);
+    const weekday = WEEKDAY_LONG_FORMATTER.format(parsed);
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    return `${weekday}, ${dd}.${mm}.`;
   }
   const fallback = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   return fallback[fallbackIndex] ?? date;
@@ -883,7 +971,7 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
 const loadUsers = async () => {
   usersLoading.value = true;
   try {
-    const resp = await fetchUsers();
+    const resp = await fetchColleagues();
     usersList.value = resp.data.map(u => ({
       id: u.id,
       displayName: u.attributes.display_name
@@ -1343,13 +1431,51 @@ function formatDisplayDate(dateStr: string) {
 }
 
 .week-day-expanded {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px 180px 1fr;
   align-items: center;
-  gap: 8px;
   padding: 4px 0;
 }
 
 .week-day-expanded-label {
-  min-width: 90px;
+  white-space: nowrap;
+}
+
+.item-filter-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-filter-wrapper .item-card {
+  flex: 1;
+}
+
+.item-expanded {
+  grid-column: 1 / -1;
+}
+
+.item-filtered-out {
+  filter: blur(3px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.item-filtered-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+}
+</style>
+
+<style>
+.warning-tooltip.v-overlay__content {
+  background-color: #fff3e0 !important;
+  color: #e65100 !important;
+  font-weight: 500;
 }
 </style>

@@ -7,7 +7,7 @@ import { fetchItems } from '../api/items';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
-import { fetchUsers } from '../api/users';
+import { fetchColleagues } from '../api/users';
 import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 
 /* jscpd:ignore-start */
@@ -25,12 +25,14 @@ vi.mock('vue-router', () => ({
 }));
 
 describe('ItemsView', () => {
+  const slotStub = {
+    template: '<div><slot /></div>'
+  };
   const stubs = {
     ...buildViewStubs([
       'v-list-item-subtitle',
       'v-card-actions',
       'v-avatar',
-      'v-icon',
       'v-chip',
       'v-radio',
       'v-radio-group',
@@ -41,27 +43,37 @@ describe('ItemsView', () => {
       'v-menu',
       'v-date-picker',
       'v-skeleton-loader',
-      'v-dialog',
-      'v-bottom-sheet',
       'v-textarea',
       'v-spacer',
       'v-btn-toggle',
       'v-select',
       'router-link'
     ]),
+    'v-btn': {
+      template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>'
+    },
+    'v-dialog': {
+      props: ['modelValue'],
+      template: '<div v-if="modelValue"><slot /></div>'
+    },
+    'v-bottom-sheet': {
+      props: ['modelValue'],
+      template: '<div v-if="modelValue"><slot /></div>'
+    },
     'v-card-item': {
       template: '<div><slot name="prepend" /><slot /><slot name="append" /></div>'
     },
     'v-tooltip': {
       template: '<div><slot name="activator" :props="{}" /><slot /></div>'
-    }
+    },
+    'v-icon': slotStub
   };
 
   const fetchMeMock = vi.mocked(fetchMe);
   const fetchItemsMock = vi.mocked(fetchItems);
   const fetchItemGroupsMock = vi.mocked(fetchItemGroups);
   const fetchAreasMock = vi.mocked(fetchAreas);
-  const fetchUsersMock = vi.mocked(fetchUsers);
+  const fetchColleaguesMock = vi.mocked(fetchColleagues);
 
   const mountView = () =>
     mount(ItemsView, {
@@ -90,10 +102,10 @@ describe('ItemsView', () => {
     fetchItemGroupsMock.mockResolvedValue({
       data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group' } }]
     });
-    fetchUsersMock.mockResolvedValue({
+    fetchColleaguesMock.mockResolvedValue({
       data: [
-        { id: 'u-1', type: 'users', attributes: { display_name: 'Jane Doe', email: 'jane@example.com', is_admin: false, auth_source: 'internal', role: 'user' } },
-        { id: 'u-2', type: 'users', attributes: { display_name: 'Bob Smith', email: 'bob@example.com', is_admin: false, auth_source: 'internal', role: 'user' } }
+        { id: 'u-1', type: 'colleagues', attributes: { display_name: 'Jane Doe' } },
+        { id: 'u-2', type: 'colleagues', attributes: { display_name: 'Bob Smith' } }
       ]
     });
   });
@@ -400,7 +412,7 @@ describe('ItemsView', () => {
     mountView();
     await flushPromises();
 
-    expect(fetchUsersMock).toHaveBeenCalled();
+    expect(fetchColleaguesMock).toHaveBeenCalled();
   });
 
   describe('collapsible day tiles', () => {
@@ -476,6 +488,123 @@ describe('ItemsView', () => {
 
       expect(wrapper.find('[data-cy="item-equipment"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="item-warning"]').exists()).toBe(true);
+    });
+  });
+
+  describe('equipment filter', () => {
+    it('renders filter input', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="equipment-filter-input"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="equipment-filter-info"]').exists()).toBe(true);
+    });
+
+    it('blurs items that do not match the filter', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          {
+            id: 'item-1',
+            type: 'items',
+            attributes: { name: 'Desk A', equipment: ['webcam', 'monitor'], availability: 'available' as const }
+          },
+          {
+            id: 'item-2',
+            type: 'items',
+            attributes: { name: 'Desk B', equipment: ['keyboard'], availability: 'available' as const }
+          }
+        ]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      // No overlay initially
+      expect(wrapper.findAll('[data-cy="equipment-not-available"]')).toHaveLength(0);
+
+      // Set filter
+      (wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter = 'webcam';
+      await nextTick();
+
+      // One item matches, one does not
+      const overlays = wrapper.findAll('[data-cy="equipment-not-available"]');
+      expect(overlays).toHaveLength(1);
+
+      // The matching item should not have the blur class
+      const cards = wrapper.findAll('[data-cy="item-entry"]');
+      const deskA = cards.find(c => c.attributes('data-cy-item-id') === 'item-1');
+      const deskB = cards.find(c => c.attributes('data-cy-item-id') === 'item-2');
+      expect(deskA?.classes()).not.toContain('item-filtered-out');
+      expect(deskB?.classes()).toContain('item-filtered-out');
+    });
+
+    it('removes blur when filter is cleared', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: ['keyboard'], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      (wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter = 'webcam';
+      await nextTick();
+      expect(wrapper.findAll('[data-cy="equipment-not-available"]')).toHaveLength(1);
+
+      (wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter = '';
+      await nextTick();
+      expect(wrapper.findAll('[data-cy="equipment-not-available"]')).toHaveLength(0);
+    });
+
+    it('opens filter help dialog when the info button is clicked', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="equipment-filter-help"]').exists()).toBe(false);
+      await wrapper.find('[data-cy="equipment-filter-info"]').trigger('click');
+      await nextTick();
+
+      const help = wrapper.find('[data-cy="equipment-filter-help"]');
+      expect(help.exists()).toBe(true);
+      expect(help.text()).toContain('show only items having the filter keyword(s) in any of the equipment items;');
+      expect(help.text()).toContain('multiple keywords are combined with OR;');
+      expect(help.text()).toContain('use plus sign to combine with AND;');
+    });
+
+    it('applies the same filter blur behavior in week mode', async () => {
+      localStorage.setItem('sithub_booking_mode', 'week');
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          {
+            id: 'item-1',
+            type: 'items',
+            attributes: { name: 'Desk A', equipment: ['webcam', 'monitor'], availability: 'available' as const }
+          },
+          {
+            id: 'item-2',
+            type: 'items',
+            attributes: { name: 'Desk B', equipment: ['keyboard'], availability: 'available' as const }
+          }
+        ]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      (wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter = 'webcam';
+      await nextTick();
+
+      const cards = wrapper.findAll('[data-cy="week-item-entry"]');
+      const deskA = cards.find(c => c.attributes('data-cy-item-id') === 'item-1');
+      const deskB = cards.find(c => c.attributes('data-cy-item-id') === 'item-2');
+      expect(deskA?.classes()).not.toContain('item-filtered-out');
+      expect(deskB?.classes()).toContain('item-filtered-out');
+      expect(wrapper.findAll('[data-cy="equipment-not-available"]').length).toBeGreaterThanOrEqual(1);
+
+      localStorage.removeItem('sithub_booking_mode');
     });
   });
 

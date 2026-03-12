@@ -109,4 +109,25 @@ describe('week booking mode', () => {
     cy.visit('/item-groups/test_room/items');
     cy.get('[data-cy="week-selector"]').should('be.visible');
   });
+
+  it('should blur non-matching items in week mode', () => {
+    cy.intercept('GET', '/api/v1/item-groups/*/items*', (req) => {
+      req.reply(
+        createMockItemsResponse([
+          createMockItem('item-1', 'Desk A', 'available', ['webcam', 'monitor']),
+          createMockItem('item-2', 'Desk B', 'available', ['keyboard'])
+        ])
+      );
+    }).as('listItems');
+
+    cy.visit('/item-groups/test_room/items');
+    cy.wait('@listItems');
+    cy.get('[data-cy="mode-week-btn"]').click();
+
+    cy.get('[data-cy="equipment-filter-input"] input').type('webcam');
+
+    cy.get('[data-cy="week-item-entry"][data-cy-item-id="item-1"]').should('not.have.class', 'item-filtered-out');
+    cy.get('[data-cy="week-item-entry"][data-cy-item-id="item-2"]').should('have.class', 'item-filtered-out');
+    cy.get('[data-cy="equipment-not-available"]').should('have.length.at.least', 1);
+  });
 });
