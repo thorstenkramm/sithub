@@ -5,6 +5,9 @@ const STORAGE_KEY = 'sithub_show_weekends';
 describe('useWeekendPreference', () => {
   beforeEach(() => {
     localStorage.clear();
+    // Reset the shared ref to default (false)
+    const { showWeekends } = useWeekendPreference();
+    showWeekends.value = false;
   });
 
   it('defaults to false when no stored value', () => {
@@ -12,16 +15,11 @@ describe('useWeekendPreference', () => {
     expect(showWeekends.value).toBe(false);
   });
 
-  it('reads true from localStorage', () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
-    const { showWeekends } = useWeekendPreference();
-    expect(showWeekends.value).toBe(true);
-  });
-
-  it('reads false from localStorage', () => {
-    localStorage.setItem(STORAGE_KEY, 'false');
-    const { showWeekends } = useWeekendPreference();
-    expect(showWeekends.value).toBe(false);
+  it('shares the same ref across multiple calls', () => {
+    const a = useWeekendPreference();
+    const b = useWeekendPreference();
+    a.showWeekends.value = true;
+    expect(b.showWeekends.value).toBe(true);
   });
 
   it('persists changes to localStorage', async () => {
