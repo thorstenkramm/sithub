@@ -56,6 +56,36 @@ func ListHandler(store *sql.DB) echo.HandlerFunc {
 	}
 }
 
+// ColleagueAttributes represents the minimal attributes for the colleagues endpoint.
+type ColleagueAttributes struct {
+	DisplayName string `json:"display_name"`
+}
+
+// ColleaguesHandler returns a handler for listing all users with minimal data.
+// This endpoint is accessible to all authenticated users (not admin-only).
+func ColleaguesHandler(store *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ctx := c.Request().Context()
+
+		colleagues, err := ListColleagues(ctx, store)
+		if err != nil {
+			return fmt.Errorf("list colleagues: %w", err)
+		}
+
+		resources := api.MapResources(colleagues, func(col ColleagueSummary) api.Resource {
+			return api.Resource{
+				Type:       "colleagues",
+				ID:         col.ID,
+				Attributes: ColleagueAttributes{DisplayName: col.DisplayName},
+			}
+		})
+
+		resp := api.CollectionResponse{Data: resources}
+		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
+		return c.JSON(http.StatusOK, resp)
+	}
+}
+
 // GetHandler returns a handler for getting a single user by ID.
 func GetHandler(store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {

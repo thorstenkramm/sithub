@@ -133,6 +133,37 @@ func ListAll(ctx context.Context, db *sql.DB) ([]Record, error) {
 	return result, nil
 }
 
+// ColleagueSummary holds only the fields needed for the colleague dropdown.
+type ColleagueSummary struct {
+	ID          string
+	DisplayName string
+}
+
+// ListColleagues returns id and display_name for all users, ordered by display_name.
+func ListColleagues(ctx context.Context, db *sql.DB) ([]ColleagueSummary, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, display_name FROM users ORDER BY display_name`)
+	if err != nil {
+		return nil, fmt.Errorf("list colleagues: %w", err)
+	}
+	defer func() {
+		_ = rows.Close() //nolint:errcheck // Defer close, error not critical
+	}()
+
+	var result []ColleagueSummary
+	for rows.Next() {
+		var c ColleagueSummary
+		if err := rows.Scan(&c.ID, &c.DisplayName); err != nil {
+			return nil, fmt.Errorf("scan colleague: %w", err)
+		}
+		result = append(result, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate colleagues: %w", err)
+	}
+	return result, nil
+}
+
 // UpdateFields contains optional fields to update on a user.
 type UpdateFields struct {
 	Email       *string

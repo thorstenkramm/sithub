@@ -141,6 +141,9 @@ func registerRoutes(
 	e.PATCH("/api/v1/bookings/:id", bookings.PatchHandler(store), requireAuth)
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), requireAuth)
 
+	// Colleagues endpoint (all authenticated users)
+	e.GET("/api/v1/colleagues", users.ColleaguesHandler(store), requireAuth)
+
 	// User management routes
 	requireAdmin := middleware.RequireAdmin()
 	e.GET("/api/v1/users", users.ListHandler(store), requireAuth, requireAdmin)

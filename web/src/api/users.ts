@@ -12,3 +12,11 @@ export interface UserListAttributes {
 export function fetchUsers() {
   return apiRequest<CollectionResponse<UserListAttributes>>('/api/v1/users');
 }
+
+export interface ColleagueAttributes {
+  display_name: string;
+}
+
+export function fetchColleagues() {
+  return apiRequest<CollectionResponse<ColleagueAttributes>>('/api/v1/colleagues');
+}
