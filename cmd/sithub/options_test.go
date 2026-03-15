@@ -34,8 +34,11 @@ func TestRunOptionsOverrides(t *testing.T) {
 	if err := cmd.Flags().Set("entraid-client-id", "client-1"); err != nil {
 		t.Fatalf("set entraid-client-id: %v", err)
 	}
-	if err := cmd.Flags().Set("spaces-config-file", "./spaces.yaml"); err != nil {
-		t.Fatalf("set spaces-config-file: %v", err)
+	if err := cmd.Flags().Set("areas-config-file", "./areas.yaml"); err != nil {
+		t.Fatalf("set areas-config-file: %v", err)
+	}
+	if err := cmd.Flags().Set("areas-floor-plans", "./floor_plans"); err != nil {
+		t.Fatalf("set areas-floor-plans: %v", err)
 	}
 	overrides := opts.overrides(cmd)
 	if overrides["main.listen"] != "0.0.0.0" {
@@ -47,8 +50,11 @@ func TestRunOptionsOverrides(t *testing.T) {
 	if overrides["entraid.client_id"] != "client-1" {
 		t.Fatalf("entraid client override missing: %#v", overrides)
 	}
-	if overrides["spaces.config_file"] != "./spaces.yaml" {
-		t.Fatalf("spaces config override missing: %#v", overrides)
+	if overrides["areas.config_file"] != "./areas.yaml" {
+		t.Fatalf("areas config override missing: %#v", overrides)
+	}
+	if overrides["areas.floor_plans"] != "./floor_plans" {
+		t.Fatalf("areas floor plans override missing: %#v", overrides)
 	}
 	if _, ok := overrides["log.level"]; ok {
 		t.Fatalf("unexpected log level override: %#v", overrides)

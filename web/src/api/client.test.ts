@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from './client';
+import { ApiError, apiRequest, isConnectionError, CONNECTION_LOST_MESSAGE } from './client';
 
 const JSON_API = 'application/vnd.api+json';
 
@@ -104,6 +104,35 @@ describe('apiRequest', () => {
       });
 
       await expectApiError('/api/v1/ping', 500, null);
+    });
+  });
+
+  describe('connection error handling', () => {
+    it('throws ApiError with status 0 when fetch fails', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
+
+      await expect(apiRequest('/api/v1/ping')).rejects.toSatisfy((err: unknown) => {
+        expect(err).toBeInstanceOf(ApiError);
+        const apiErr = err as ApiError;
+        expect(apiErr.status).toBe(0);
+        expect(apiErr.message).toBe(CONNECTION_LOST_MESSAGE);
+        return true;
+      });
+    });
+
+    it('isConnectionError returns true for status 0 ApiError', () => {
+      const err = new ApiError(CONNECTION_LOST_MESSAGE, 0);
+      expect(isConnectionError(err)).toBe(true);
+    });
+
+    it('isConnectionError returns false for other ApiErrors', () => {
+      const err = new ApiError('Not Found', 404);
+      expect(isConnectionError(err)).toBe(false);
+    });
+
+    it('isConnectionError returns false for non-ApiError', () => {
+      expect(isConnectionError(new Error('something'))).toBe(false);
+      expect(isConnectionError(null)).toBe(false);
     });
   });
 });

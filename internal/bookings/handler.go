@@ -19,7 +19,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/notifications"
-	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
 
@@ -305,12 +305,12 @@ func DeleteHandler(store *sql.DB, notifier notifications.Notifier) echo.HandlerF
 
 // ListHandler returns a handler for listing the current user's future bookings.
 // Includes bookings made by the user AND bookings made for the user by others.
-func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
-	return ListHandlerDynamic(func() *spaces.Config { return cfg }, store)
+func ListHandler(cfg *areas.Config, store *sql.DB) echo.HandlerFunc {
+	return ListHandlerDynamic(func() *areas.Config { return cfg }, store)
 }
 
 // ListHandlerDynamic returns a handler for listing the current user's future bookings.
-func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
+func ListHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -331,12 +331,12 @@ func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.Handl
 
 // HistoryHandler returns a handler for listing the current user's past bookings.
 // Accepts optional query params: from (start date), to (end date) in YYYY-MM-DD format.
-func HistoryHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
-	return HistoryHandlerDynamic(func() *spaces.Config { return cfg }, store)
+func HistoryHandler(cfg *areas.Config, store *sql.DB) echo.HandlerFunc {
+	return HistoryHandlerDynamic(func() *areas.Config { return cfg }, store)
 }
 
 // HistoryHandlerDynamic returns a handler for listing the current user's past bookings.
-func HistoryHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
+func HistoryHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
@@ -377,7 +377,7 @@ func HistoryHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.Ha
 }
 
 func writeBookingsCollection(
-	ctx context.Context, c echo.Context, cfg *spaces.Config, store *sql.DB,
+	ctx context.Context, c echo.Context, cfg *areas.Config, store *sql.DB,
 	currentUserID string, records []BookingRecord,
 ) error {
 	// Collect unique user IDs for display name lookup
@@ -451,13 +451,13 @@ func writeBookingsCollection(
 
 // CreateHandler returns a handler for creating bookings.
 // Supports single-day, multi-day, booking on behalf, and guest bookings.
-func CreateHandler(cfg *spaces.Config, store *sql.DB, notifier notifications.Notifier) echo.HandlerFunc {
-	return CreateHandlerDynamic(func() *spaces.Config { return cfg }, store, notifier)
+func CreateHandler(cfg *areas.Config, store *sql.DB, notifier notifications.Notifier) echo.HandlerFunc {
+	return CreateHandlerDynamic(func() *areas.Config { return cfg }, store, notifier)
 }
 
 // CreateHandlerDynamic returns a handler for creating bookings using dynamic config.
 func CreateHandlerDynamic(
-	getConfig spaces.ConfigGetter, store *sql.DB, notifier notifications.Notifier,
+	getConfig areas.ConfigGetter, store *sql.DB, notifier notifications.Notifier,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)

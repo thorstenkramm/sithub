@@ -15,7 +15,6 @@ import (
 
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/db"
-	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -86,17 +85,17 @@ func seedTestUser(t *testing.T, store *sql.DB, id, displayName string) {
 	require.NoError(t, err)
 }
 
-func testConfig() *spaces.Config {
-	return &spaces.Config{
-		Areas: []spaces.Area{
+func testConfig() *Config {
+	return &Config{
+		Areas: []Area{
 			{
 				ID:   "area-1",
 				Name: "Area One",
-				ItemGroups: []spaces.ItemGroup{
+				ItemGroups: []ItemGroup{
 					{
 						ID:   "room-1",
 						Name: "Room One",
-						Items: []spaces.Item{
+						Items: []Item{
 							{ID: "desk-1", Name: "Desk 1"},
 							{ID: "desk-2", Name: "Desk 2"},
 						},
@@ -104,7 +103,7 @@ func testConfig() *spaces.Config {
 					{
 						ID:   "room-2",
 						Name: "Room Two",
-						Items: []spaces.Item{
+						Items: []Item{
 							{ID: "desk-3", Name: "Desk 3"},
 						},
 					},
@@ -113,11 +112,11 @@ func testConfig() *spaces.Config {
 			{
 				ID:   "area-2",
 				Name: "Area Two",
-				ItemGroups: []spaces.ItemGroup{
+				ItemGroups: []ItemGroup{
 					{
 						ID:   "room-3",
 						Name: "Room Three",
-						Items: []spaces.Item{
+						Items: []Item{
 							{ID: "desk-4", Name: "Desk 4"},
 						},
 					},

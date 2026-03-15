@@ -50,7 +50,9 @@ type runOptions struct {
 	logFile              string
 	logLevel             string
 	logFormat            string
-	spacesConfigFile     string
+	areasConfigFile      string
+	floorPlansDir        string
+	legacyFloorPlansDir  string
 	entraidAuthorizeURL  string
 	entraidTokenURL      string
 	entraidRedirectURI   string
@@ -72,7 +74,9 @@ func (o *runOptions) bindFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.logFile, "log-file", "", "Log file path, or '-' for stdout")
 	cmd.Flags().StringVar(&o.logLevel, "log-level", "", "Log level (debug, info, warn, error)")
 	cmd.Flags().StringVar(&o.logFormat, "log-format", "", "Log format (text or json)")
-	cmd.Flags().StringVar(&o.spacesConfigFile, "spaces-config-file", "", "Path to spaces configuration YAML")
+	cmd.Flags().StringVar(&o.areasConfigFile, "areas-config-file", "", "Path to areas configuration YAML")
+	cmd.Flags().StringVar(&o.floorPlansDir, "areas-floor-plans", "", "Directory containing floor plan images")
+	cmd.Flags().StringVar(&o.legacyFloorPlansDir, "floor-plans-dir", "", "Deprecated: use --areas-floor-plans")
 	cmd.Flags().StringVar(&o.entraidAuthorizeURL, "entraid-authorize-url", "", "Entra ID OAuth authorize URL")
 	cmd.Flags().StringVar(&o.entraidTokenURL, "entraid-token-url", "", "Entra ID OAuth token URL")
 	cmd.Flags().StringVar(&o.entraidRedirectURI, "entraid-redirect-uri", "", "Entra ID OAuth redirect URI")
@@ -95,7 +99,11 @@ func (o *runOptions) overrides(cmd *cobra.Command) map[string]interface{} {
 	set("log-file", "log.file", o.logFile)
 	set("log-level", "log.level", o.logLevel)
 	set("log-format", "log.format", o.logFormat)
-	set("spaces-config-file", "spaces.config_file", o.spacesConfigFile)
+	set("areas-config-file", "areas.config_file", o.areasConfigFile)
+	set("areas-floor-plans", "areas.floor_plans", o.floorPlansDir)
+	if cmd.Flags().Changed("floor-plans-dir") && !cmd.Flags().Changed("areas-floor-plans") {
+		overrides["areas.floor_plans"] = o.legacyFloorPlansDir
+	}
 	set("entraid-authorize-url", "entraid.authorize_url", o.entraidAuthorizeURL)
 	set("entraid-token-url", "entraid.token_url", o.entraidTokenURL)
 	set("entraid-redirect-uri", "entraid.redirect_uri", o.entraidRedirectURI)

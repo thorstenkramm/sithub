@@ -152,3 +152,13 @@ development_status:
   epic-17: done
   17-1-equipment-filter-advanced-search: done
   epic-17-retrospective: optional
+
+  epic-18: done
+  18-1-rename-config-section-spaces-to-areas: done
+  18-2-enforce-areas-config-inside-data-dir: done
+  18-3-floor-plans-directory-config-and-validation: done
+  18-4-authenticated-floor-plan-image-serving: done
+  18-5-area-floor-plan-display: done
+  18-6-item-group-floor-plan-display: done
+  18-7-connection-lost-error-messaging: done
+  epic-18-retrospective: optional

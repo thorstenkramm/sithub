@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
-	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
 
@@ -24,12 +24,12 @@ type ItemGroupBookingAttributes struct {
 }
 
 // BookingsHandler returns a JSON:API list of bookings for an item group on a given date.
-func BookingsHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
-	return BookingsHandlerDynamic(func() *spaces.Config { return cfg }, store)
+func BookingsHandler(cfg *areas.Config, store *sql.DB) echo.HandlerFunc {
+	return BookingsHandlerDynamic(func() *areas.Config { return cfg }, store)
 }
 
 // BookingsHandlerDynamic returns a JSON:API list of bookings for an item group on a given date.
-func BookingsHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
+func BookingsHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cfg := getConfig()
 		ig, err := validateItemGroupParam(cfg, c.Param("item_group_id"))
@@ -52,7 +52,7 @@ func BookingsHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.H
 }
 
 // validateItemGroupParam checks if an item group exists in the config.
-func validateItemGroupParam(cfg *spaces.Config, itemGroupID string) (*spaces.ItemGroup, error) {
+func validateItemGroupParam(cfg *areas.Config, itemGroupID string) (*areas.ItemGroup, error) {
 	ig, ok := cfg.FindItemGroup(itemGroupID)
 	if !ok {
 		return nil, fmt.Errorf("item group %s not found", itemGroupID)
@@ -71,7 +71,7 @@ type itemGroupBookingRecord struct {
 }
 
 func findItemGroupBookings(
-	ctx context.Context, store *sql.DB, ig *spaces.ItemGroup, bookingDate string,
+	ctx context.Context, store *sql.DB, ig *areas.ItemGroup, bookingDate string,
 ) ([]api.Resource, error) {
 	// Build list of item IDs in this item group
 	itemIDs := make([]string, 0, len(ig.Items))

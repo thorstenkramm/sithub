@@ -18,7 +18,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/notifications"
-	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/areas"
 )
 
 // testNotifier returns a noop notifier for tests.
@@ -41,7 +41,7 @@ func seedTestUser(t *testing.T, store *sql.DB, userID, displayName string) {
 func TestCreateHandlerUnauthorized(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{}
+	cfg := &areas.Config{}
 	store := setupTestStore(t)
 
 	e := echo.New()
@@ -63,7 +63,7 @@ func TestCreateHandlerUnauthorized(t *testing.T) {
 func TestCreateHandlerInvalidContentType(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{}
+	cfg := &areas.Config{}
 	store := setupTestStore(t)
 
 	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"2026-01-20"}}}`
@@ -134,7 +134,7 @@ func TestCreateHandlerBadRequestCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &spaces.Config{}
+			cfg := &areas.Config{}
 			store := setupTestStore(t)
 
 			e := echo.New()
@@ -160,7 +160,7 @@ func TestCreateHandlerBadRequestCases(t *testing.T) {
 func TestCreateHandlerDeskNotFound(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{}
+	cfg := &areas.Config{}
 	store := setupTestStore(t)
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -187,7 +187,7 @@ func TestCreateHandlerDeskNotFound(t *testing.T) {
 func TestCreateHandlerSuccess(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -246,7 +246,7 @@ func TestCreateHandlerConflictCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := testSpacesConfig()
+			cfg := testAreasConfig()
 			store := setupTestStore(t)
 
 			futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -278,7 +278,7 @@ func TestCreateHandlerConflictCases(t *testing.T) {
 func TestListHandlerUnauthorized(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{}
+	cfg := &areas.Config{}
 	store := setupTestStore(t)
 
 	e := echo.New()
@@ -295,7 +295,7 @@ func TestListHandlerUnauthorized(t *testing.T) {
 func TestListHandlerReturnsUserFutureBookings(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	today := time.Now().UTC().Format(time.DateOnly)
@@ -354,7 +354,7 @@ func TestListHandlerReturnsUserFutureBookings(t *testing.T) {
 func TestListHandlerEmptyList(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	e := echo.New()
@@ -376,7 +376,7 @@ func TestListHandlerEmptyList(t *testing.T) {
 func TestHistoryHandlerReturnsPastBookings(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	// Create a past booking (yesterday)
@@ -403,7 +403,7 @@ func TestHistoryHandlerReturnsPastBookings(t *testing.T) {
 func TestHistoryHandlerWithDateRange(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	// Create bookings at different dates
@@ -577,7 +577,7 @@ func TestDeleteHandlerAdminCancelCases(t *testing.T) {
 func TestCreateHandlerBookOnBehalf(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 	seedTestUser(t, store, "colleague-1", "Colleague User")
 
@@ -613,7 +613,7 @@ func TestCreateHandlerBookOnBehalf(t *testing.T) {
 // createBookingExpectBadRequest sends a create-booking request and asserts a 400 response
 // with an error detail containing expectedDetail.
 func createBookingExpectBadRequest(
-	t *testing.T, cfg *spaces.Config, store *sql.DB, bodyJSON, expectedDetail string,
+	t *testing.T, cfg *areas.Config, store *sql.DB, bodyJSON, expectedDetail string,
 ) {
 	t.Helper()
 
@@ -638,7 +638,7 @@ func createBookingExpectBadRequest(
 func TestCreateHandlerBookOnBehalfInvalidUser(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -652,7 +652,7 @@ func TestCreateHandlerBookOnBehalfInvalidUser(t *testing.T) {
 func TestCreateHandlerMissingNameValidation(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -666,7 +666,7 @@ func TestCreateHandlerMissingNameValidation(t *testing.T) {
 func TestCreateHandlerGuestBooking(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -706,7 +706,7 @@ func TestCreateHandlerGuestBooking(t *testing.T) {
 func TestCreateHandlerMultiDayBooking(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -736,7 +736,7 @@ func TestCreateHandlerMultiDayBooking(t *testing.T) {
 func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	date1 := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -773,7 +773,7 @@ func TestCreateHandlerMultiDayWithConflicts(t *testing.T) {
 func TestListHandlerIncludesGuestBookings(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -806,7 +806,7 @@ func TestListHandlerIncludesGuestBookings(t *testing.T) {
 func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {
 	t.Parallel()
 
-	cfg := testSpacesConfig()
+	cfg := testAreasConfig()
 	store := setupTestStore(t)
 
 	// Seed users so display name lookups work
@@ -1192,17 +1192,17 @@ func TestPatchHandlerClearNote(t *testing.T) {
 	assert.Equal(t, "", booking.Note)
 }
 
-func testSpacesConfig() *spaces.Config {
-	return &spaces.Config{
-		Areas: []spaces.Area{
+func testAreasConfig() *areas.Config {
+	return &areas.Config{
+		Areas: []areas.Area{
 			{
 				ID:   "area-1",
 				Name: "Office",
-				ItemGroups: []spaces.ItemGroup{
+				ItemGroups: []areas.ItemGroup{
 					{
 						ID:   "room-1",
 						Name: "Room 1",
-						Items: []spaces.Item{
+						Items: []areas.Item{
 							{
 								ID:        "desk-1",
 								Name:      "Desk 1",

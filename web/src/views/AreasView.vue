@@ -11,7 +11,7 @@
 
     <!-- Error State -->
     <v-alert v-else-if="areasError" type="error" class="mb-4" data-cy="areas-error">
-      Unable to load areas. Please try again later.
+      {{ areasError }}
     </v-alert>
 
     <!-- Empty State -->
@@ -81,6 +81,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
+import { isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import type { AreaAttributes } from '../api/areas';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
@@ -107,6 +108,10 @@ onMounted(async () => {
     isAdmin.value = resp.data.attributes.is_admin;
   } catch (err) {
     if (await handleAuthError(err)) {
+      return;
+    }
+    if (isConnectionError(err)) {
+      areasError.value = CONNECTION_LOST_MESSAGE;
       return;
     }
     throw err;

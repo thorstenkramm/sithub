@@ -67,7 +67,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { loginLocal } from '../api/auth';
 import { useAuthStore } from '../stores/useAuthStore';
-import { ApiError } from '../api/client';
+import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -91,7 +91,9 @@ async function handleLogin() {
     });
     router.push('/');
   } catch (err) {
-    if (err instanceof ApiError) {
+    if (isConnectionError(err)) {
+      errorMessage.value = CONNECTION_LOST_MESSAGE;
+    } else if (err instanceof ApiError) {
       errorMessage.value = err.detail || 'Invalid email or password';
     } else {
       errorMessage.value = 'An error occurred. Please try again.';

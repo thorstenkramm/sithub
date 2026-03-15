@@ -3,7 +3,7 @@ stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-c
 inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
-lastEdited: '2026-02-14'
+lastEdited: '2026-03-13'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -11,6 +11,8 @@ editHistory:
     changes: "Domain rename: reworded FR4-FR19 (rooms/desks to items). Added FR36-FR42 (weekly availability, booking notes, week booking, booker display, breadcrumbs, schema normalization, UI labels). Added Epic 12: Domain Rename & Data Normalization and Epic 13: Enhanced Booking Experience."
   - date: '2026-02-14'
     changes: "Added FR43-FR58 and Epics 14-17: UI Cleanup & Booking Simplification, Collapsible Item Tiles, User Preferences & Settings, Equipment Filter."
+  - date: '2026-03-13'
+    changes: "Added FR59-FR66 and Epic 18: Floor Plan Display & Config Consistency. Covers terminology rename, file location enforcement, floor plan serving/display, and connection error handling."
 ---
 
 # sithub - Epic Breakdown
@@ -169,6 +171,31 @@ pages; stored in localStorage.
 FR57: Change Password icon fix. Acceptance: icon visible in desktop and mobile menus.
 FR58: Equipment filter. Acceptance: text input on booking page; non-matching items blurred;
 info icon explains syntax; OR/AND/exact matching; case-insensitive; frontend-only.
+FR59: Rename `[spaces]` config section to `[areas]`. Acceptance: sithub.toml uses `[areas]`
+table; data models, CLI flags, and environment variables use "areas" terminology; the term
+"space" is no longer used anywhere in the codebase.
+FR60: Enforce `areas.config_file` inside `main.data_dir`. Acceptance: areas config file path
+is resolved relative to `main.data_dir`; startup validation rejects paths outside
+`main.data_dir`.
+FR61: Floor plans image directory configuration. Acceptance: optional `floor_plans` key under
+`[areas]` in sithub.toml specifies a directory inside `main.data_dir`; overridable via
+`--areas-floor-plans` flag or `SITHUB_AREAS_FLOOR_PLANS` env var; if set, directory existence
+is validated at startup; missing directory causes server exit with error.
+FR62: Validate floor plan image references at startup. Acceptance: all images referenced in
+`areas.config_file` are checked for existence and format (jpg, png, svg only); missing images
+or unsupported formats cause server exit with descriptive error.
+FR63: Authenticated floor plan image serving. Acceptance: floor plan images are served via an
+authenticated API endpoint; unauthenticated requests are denied.
+FR64: Area floor plan display. Acceptance: when an area has a floor plan, a "Floor plan"
+button with icon appears next to the calendar week selector; clicking opens the floor plan
+image in an overlay with the area name as heading; button is hidden when no floor plan exists.
+FR65: Item group floor plan display. Acceptance: when an item group has a floor plan, a
+"Floor plan" button with icon appears beneath the day/week selector; clicking opens the floor
+plan image in an overlay with the item group name as heading; button is hidden when no floor
+plan exists.
+FR66: Connection lost error messaging. Acceptance: when the backend is unavailable, the
+frontend shows a clear "Connection to server lost" error instead of misleading content like
+"no areas available".
 
 ### NonFunctional Requirements
 
@@ -275,6 +302,14 @@ FR55: Epic 16 - Theme selector
 FR56: Epic 16 - Show weekends toggle
 FR57: Epic 16 - Change Password icon fix
 FR58: Epic 17 - Equipment filter
+FR59: Epic 18 - Rename [spaces] to [areas] in config
+FR60: Epic 18 - Enforce areas config inside data_dir
+FR61: Epic 18 - Floor plans directory configuration
+FR62: Epic 18 - Validate floor plan image references at startup
+FR63: Epic 18 - Authenticated floor plan image serving
+FR64: Epic 18 - Area floor plan display
+FR65: Epic 18 - Item group floor plan display
+FR66: Epic 18 - Connection lost error messaging
 
 ## Epic List
 
@@ -366,6 +401,12 @@ and minor menu fixes.
 Enable users to filter items by equipment keywords to quickly find suitable workspaces
 using an advanced search syntax.
 **FRs covered:** FR58
+
+### Epic 18: Floor Plan Display & Config Consistency
+
+Users can view floor plan images for areas and item groups while booking, and operators
+benefit from consistent configuration terminology and stricter file location validation.
+**FRs covered:** FR59, FR60, FR61, FR62, FR63, FR64, FR65, FR66
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -1828,3 +1869,170 @@ are shown normally
 **Given** I am in week booking mode
 **When** I type a filter
 **Then** the same filtering logic applies to the week mode item tiles
+
+## Epic 18 Stories: Floor Plan Display & Config Consistency
+
+Users can view floor plan images for areas and item groups while booking, and operators
+benefit from consistent configuration terminology and stricter file location validation.
+**FRs covered:** FR59, FR60, FR61, FR62, FR63, FR64, FR65, FR66
+
+### Story 18.1: Rename Config Section from [spaces] to [areas]
+
+**FRs covered:** FR59
+
+As an operator,
+I want the configuration to use consistent `[areas]` terminology everywhere,
+So that there is no confusion between "spaces" and "areas" in configuration, code,
+and documentation.
+
+**Acceptance Criteria:**
+
+**Given** I have a `sithub.toml` with `[areas]` section
+**When** the server starts
+**Then** it reads configuration from the `[areas]` table
+
+**Given** I use `--areas-config-file` flag or `SITHUB_AREAS_CONFIG_FILE` env var
+**When** the server starts
+**Then** it applies the override correctly
+
+**Given** the codebase
+**When** searching for the term "space" or "spaces"
+**Then** no references to the old terminology exist (data models, CLI flags, env vars)
+
+### Story 18.2: Enforce Areas Config Inside data_dir
+
+**FRs covered:** FR60
+
+As an operator,
+I want the areas config file path resolved relative to `main.data_dir`,
+So that all data files are consistently located in one directory.
+
+**Acceptance Criteria:**
+
+**Given** `areas.config_file` is set to a relative filename like `sithub_areas.yaml`
+**When** the server starts
+**Then** the file is resolved inside `main.data_dir`
+
+**Given** `areas.config_file` contains an absolute path outside `main.data_dir`
+**When** the server starts
+**Then** startup fails with a descriptive error message
+
+### Story 18.3: Floor Plans Directory Configuration & Validation
+
+**FRs covered:** FR61, FR62
+
+As an operator,
+I want to configure a floor plans directory and have all image references validated
+at startup,
+So that runtime errors from missing or invalid images are caught early.
+
+**Acceptance Criteria:**
+
+**Given** `areas.floor_plans` is set to a directory name
+**When** the server starts
+**Then** the directory is resolved inside `main.data_dir` and its existence is validated
+
+**Given** `areas.floor_plans` points to a non-existent directory
+**When** the server starts
+**Then** the server exits with a descriptive error
+
+**Given** the areas config references floor plan images
+**When** the server starts
+**Then** each referenced image is checked for existence in the floor plans directory
+
+**Given** a referenced image has an unsupported format (not jpg, png, svg)
+**When** the server starts
+**Then** the server exits with a descriptive error listing the invalid file
+
+**Given** `areas.floor_plans` is not set
+**When** the server starts
+**Then** floor plan features are disabled and no validation occurs
+
+### Story 18.4: Authenticated Floor Plan Image Serving
+
+**FRs covered:** FR63
+
+As a user,
+I want floor plan images served through an authenticated endpoint,
+So that floor plans are protected from unauthorized access.
+
+**Acceptance Criteria:**
+
+**Given** I am authenticated
+**When** I request a floor plan image via the API
+**Then** the image is returned with the correct content type
+
+**Given** I am not authenticated
+**When** I request a floor plan image
+**Then** the request is denied with 401
+
+**Given** I request an image that does not exist
+**When** the request is processed
+**Then** I receive a 404 response
+
+### Story 18.5: Area Floor Plan Display
+
+**FRs covered:** FR64
+
+As a user,
+I want to see a "Floor plan" button when viewing an area that has a floor plan,
+So that I can see where items are located.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing an area that has a floor plan configured
+**When** the page loads
+**Then** a "Floor plan" button with an appropriate icon appears next to the calendar
+week selector
+
+**Given** I click the "Floor plan" button
+**When** the overlay opens
+**Then** the floor plan image is displayed with the area name as heading
+**And** I can close the overlay
+
+**Given** I am viewing an area without a floor plan
+**When** the page loads
+**Then** no "Floor plan" button appears
+
+### Story 18.6: Item Group Floor Plan Display
+
+**FRs covered:** FR65
+
+As a user,
+I want to see a "Floor plan" button when viewing an item group that has a floor plan,
+So that I can see the layout of individual items within the group.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing an item group that has a floor plan configured
+**When** the page loads
+**Then** a "Floor plan" button with an appropriate icon appears beneath the day/week
+selector
+
+**Given** I click the "Floor plan" button
+**When** the overlay opens
+**Then** the floor plan image is displayed with the item group name as heading
+**And** I can close the overlay
+
+**Given** I am viewing an item group without a floor plan
+**When** the page loads
+**Then** no "Floor plan" button appears
+
+### Story 18.7: Connection Lost Error Messaging
+
+**FRs covered:** FR66
+
+As a user,
+I want to see a clear "Connection to server lost" error when the backend is unavailable,
+So that I understand the real problem instead of seeing misleading messages like
+"no areas available."
+
+**Acceptance Criteria:**
+
+**Given** the backend server is unavailable
+**When** the frontend attempts to load data
+**Then** a clear error message "Connection to server lost" is displayed
+
+**Given** the backend was available and then goes down
+**When** subsequent API calls fail
+**Then** the error message is shown instead of empty or misleading content

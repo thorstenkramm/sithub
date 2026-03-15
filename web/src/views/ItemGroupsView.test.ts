@@ -6,6 +6,7 @@ import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
 import { fetchWeeklyAvailability } from '../api/itemGroupAvailability';
 import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
+import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const pushMock = vi.fn();
 
@@ -19,24 +20,34 @@ vi.mock('vue-router', () => ({
 }));
 
 describe('ItemGroupsView', () => {
-  const stubs = buildViewStubs([
-    'v-card-item',
-    'v-card-subtitle',
-    'v-card-actions',
-    'v-avatar',
-    'v-icon',
-    'v-skeleton-loader',
-    'v-select',
-    'router-link'
-  ]);
+  const stubs = {
+    ...buildViewStubs([
+      'v-card-item',
+      'v-card-subtitle',
+      'v-card-actions',
+      'v-avatar',
+      'v-icon',
+      'v-skeleton-loader',
+      'v-select',
+      'v-spacer',
+      'router-link'
+    ]),
+    'v-btn': {
+      template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>'
+    },
+    'v-dialog': {
+      props: ['modelValue'],
+      template: '<div v-if="modelValue"><slot /></div>'
+    }
+  };
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
   const fetchAvailabilityMock = fetchWeeklyAvailability as unknown as ReturnType<typeof vi.fn>;
   const mockFetchMe = () => createFetchMeMocker(fetchMeMock)('Ada Lovelace');
 
-  const mockFetchAreas = () => {
+  const mockFetchAreas = (floorPlan: string | undefined = undefined) => {
     const fetchAreasMock = fetchAreas as unknown as ReturnType<typeof vi.fn>;
     fetchAreasMock.mockResolvedValue({
-      data: [{ id: 'area-1', type: 'areas', attributes: { name: 'Test Area' } }]
+      data: [{ id: 'area-1', type: 'areas', attributes: { name: 'Test Area', floor_plan: floorPlan } }]
     });
   };
 
@@ -217,6 +228,39 @@ describe('ItemGroupsView', () => {
     // Should still render item groups without availability indicators
     expect(wrapper.text()).toContain('Item Group 1');
     expect(wrapper.find('[data-cy="availability-indicators"]').exists()).toBe(false);
+  });
+
+  it('shows floor plan button and dialog when the area has a floor plan', async () => {
+    mockFetchItemGroups(1);
+    mockFetchAreas('area.svg');
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="area-floor-plan-btn"]').exists()).toBe(true);
+    await wrapper.get('[data-cy="area-floor-plan-btn"]').trigger('click');
+    expect(wrapper.get('[data-cy="floor-plan-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-cy="floor-plan-image"]').attributes('src')).toBe('/api/v1/floor-plans/area.svg');
+  });
+
+  it('hides the floor plan button when the area has no floor plan', async () => {
+    mockFetchItemGroups(1);
+    mockFetchAreas();
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="area-floor-plan-btn"]').exists()).toBe(false);
+  });
+
+  it('shows a connection lost error when loading the area metadata fails', async () => {
+    const fetchAreasMock = fetchAreas as unknown as ReturnType<typeof vi.fn>;
+    fetchAreasMock.mockRejectedValue(new ApiError(CONNECTION_LOST_MESSAGE, 0));
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);

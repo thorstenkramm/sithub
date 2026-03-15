@@ -11,13 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
-	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
 func TestListHandlerEmpty(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{}
+	cfg := &Config{}
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas", http.NoBody)
@@ -38,13 +37,13 @@ func TestListHandlerEmpty(t *testing.T) {
 func TestListHandlerReturnsAreas(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{
-		Areas: []spaces.Area{
+	cfg := &Config{
+		Areas: []Area{
 			{
 				ID:          "a1",
 				Name:        "Alpha",
 				Description: "Main area",
-				FloorPlan:   "floor_plans/alpha.svg",
+				FloorPlan:   "alpha.svg",
 			},
 		},
 	}
@@ -69,5 +68,5 @@ func TestListHandlerReturnsAreas(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Alpha", attrs["name"])
 	assert.Equal(t, "Main area", attrs["description"])
-	assert.Equal(t, "floor_plans/alpha.svg", attrs["floor_plan"])
+	assert.Equal(t, "alpha.svg", attrs["floor_plan"])
 }

@@ -1,0 +1,43 @@
+get:
+  summary: Get floor plan image
+  description: >
+    Serves a floor plan image from the configured floor plans directory.
+    Requires authentication. Returns the image with the appropriate content type.
+  operationId: getFloorPlan
+  tags:
+    - Floor Plans
+  parameters:
+    - name: filename
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Floor plan image filename (e.g., "office_2nd_floor.png")
+  responses:
+    '200':
+      description: Floor plan image
+      content:
+        image/png:
+          schema:
+            type: string
+            format: binary
+        image/jpeg:
+          schema:
+            type: string
+            format: binary
+        image/svg+xml:
+          schema:
+            type: string
+            format: binary
+    '401':
+      description: Not authenticated
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
+    '404':
+      description: Floor plan not found or floor plans not configured
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'

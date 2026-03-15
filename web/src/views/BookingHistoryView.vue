@@ -41,7 +41,7 @@
 
     <!-- Error State -->
     <v-alert v-else-if="historyError" type="error" class="mb-4" data-cy="history-error">
-      Unable to load booking history. Please try again later.
+      {{ historyError }}
     </v-alert>
 
     <!-- Empty State -->
@@ -90,6 +90,7 @@
 import { onMounted, ref } from 'vue';
 import { fetchBookingHistory, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
+import { isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
@@ -148,6 +149,10 @@ onMounted(async () => {
     authStore.isAdmin = resp.data.attributes.is_admin;
   } catch (err) {
     if (await handleAuthError(err)) {
+      return;
+    }
+    if (isConnectionError(err)) {
+      historyError.value = CONNECTION_LOST_MESSAGE;
       return;
     }
     throw err;

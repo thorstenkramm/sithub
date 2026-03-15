@@ -11,18 +11,18 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
-	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
 
 // ListHandler returns a JSON:API list of items for an item group.
 // Occupied items include booker_name for all users; booking_id is admin-only.
-func ListHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
-	return ListHandlerDynamic(func() *spaces.Config { return cfg }, store)
+func ListHandler(cfg *areas.Config, store *sql.DB) echo.HandlerFunc {
+	return ListHandlerDynamic(func() *areas.Config { return cfg }, store)
 }
 
 // ListHandlerDynamic returns a JSON:API list of items for an item group using dynamic config.
-func ListHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
+func ListHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cfg := getConfig()
 		itemGroupID := c.Param("item_group_id")
@@ -96,10 +96,10 @@ func resolveBookerNames(
 }
 
 func buildItemResources(
-	items []spaces.Item, itemBookings map[string]bookings.ItemBookingInfo, isAdmin bool,
+	items []areas.Item, itemBookings map[string]bookings.ItemBookingInfo, isAdmin bool,
 ) []api.Resource {
-	return api.MapResources(items, func(item spaces.Item) api.Resource {
-		attrs := spaces.ItemAttributes(item.Name, item.Equipment, item.Warning, "")
+	return api.MapResources(items, func(item areas.Item) api.Resource {
+		attrs := areas.ItemAttributes(item.Name, item.Equipment, item.Warning, "")
 		if info, booked := itemBookings[item.ID]; booked {
 			attrs["availability"] = "occupied"
 			attrs["booker_name"] = info.BookerName

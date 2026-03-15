@@ -40,6 +40,8 @@ paths:
     $ref: ./endpoints/users.yaml
   /users/{user_id}:
     $ref: ./endpoints/user.yaml
+  /floor-plans/{filename}:
+    $ref: ./endpoints/floor-plans.yaml
 
 components:
   securitySchemes:

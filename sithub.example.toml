@@ -42,13 +42,21 @@
   ## Default: "text"
   #format = "json"
 
-[spaces]
-  ## Spaces config file, string, mandatory
-  ## Can be overridden with --spaces-config-file flag or SITHUB_SPACES_CONFIG_FILE environment variable
+[areas]
+  ## Areas config file, string, mandatory
+  ## Can be overridden with --areas-config-file flag or SITHUB_AREAS_CONFIG_FILE environment variable
   ## Path to the YAML file that defines areas, rooms, and desks
   ## Example: "./sithub_areas.yaml"
   ## Default: none
   #config_file = "./sithub_areas.yaml"
+
+  ## Floor plans directory, string, optional
+  ## Can be overridden with --areas-floor-plans flag or SITHUB_AREAS_FLOOR_PLANS environment variable
+  ## Directory containing floor plan images (jpg, png, svg). Must be inside data_dir.
+  ## If not set, floor plan features are disabled.
+  ## Example: "floor_plans"
+  ## Default: none
+  #floor_plans = "floor_plans"
 
 [entraid]
   ## All fields in this section are optional. If omitted entirely, only local
@@ -115,4 +123,3 @@
   ## Example: "650d8548-bdec-4f1e-b411-7d30025d70b6"
   ## Default: none
   #admins_group_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-

@@ -86,6 +86,18 @@
           </div>
         </v-expand-transition>
 
+        <v-btn
+          v-if="itemGroupFloorPlan"
+          variant="outlined"
+          size="small"
+          prepend-icon="$map"
+          class="mt-4 mb-2"
+          data-cy="item-group-floor-plan-btn"
+          @click="showItemGroupFloorPlanDialog = true"
+        >
+          Floor plan
+        </v-btn>
+
         <!-- Equipment Filter -->
         <div class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
           <v-text-field
@@ -685,6 +697,26 @@
       </v-card>
     </v-bottom-sheet>
 
+    <!-- Item Group Floor Plan Dialog -->
+    <v-dialog v-model="showItemGroupFloorPlanDialog" max-width="900" data-cy="item-group-floor-plan-dialog">
+      <v-card>
+        <v-card-title>{{ itemGroupName || 'Floor Plan' }}</v-card-title>
+        <v-card-text class="text-center">
+          <v-img
+            v-if="itemGroupFloorPlan"
+            :src="itemGroupFloorPlanUrl"
+            max-height="600"
+            contain
+            data-cy="item-group-floor-plan-image"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showItemGroupFloorPlanDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Equipment Filter Help Dialog -->
     <v-dialog v-model="showFilterHelp" max-width="500">
       <v-card>
@@ -712,7 +744,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
-import { ApiError } from '../api/client';
+import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import {
   createBooking,
   cancelBooking,
@@ -772,6 +804,13 @@ const showItemNoteDialog = computed({
 });
 
 // Equipment filter
+const itemGroupFloorPlan = ref<string | null>(null);
+const showItemGroupFloorPlanDialog = ref(false);
+const itemGroupFloorPlanUrl = computed(() => {
+  if (!itemGroupFloorPlan.value) return '';
+  return `/api/v1/floor-plans/${encodeURIComponent(itemGroupFloorPlan.value)}`;
+});
+
 const equipmentFilter = ref('');
 const showFilterHelp = ref(false);
 const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
@@ -959,10 +998,10 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
       }
     }
     myWeekBookings.value = bookedSet;
-  } catch {
+  } catch (err) {
     weekData.value = {};
     myWeekBookings.value = new Set();
-    itemsErrorMessage.value = 'Unable to load weekly items.';
+    itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : 'Unable to load weekly items.';
   } finally {
     weekDataLoading.value = false;
   }
@@ -1089,6 +1128,10 @@ const loadItems = async (itemGroupId: string, date: string) => {
     updateNoteTruncation();
   } catch (err) {
     if (await handleAuthError(err)) {
+      return;
+    }
+    if (isConnectionError(err)) {
+      itemsErrorMessage.value = CONNECTION_LOST_MESSAGE;
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
@@ -1267,6 +1310,10 @@ onMounted(async () => {
     if (await handleAuthError(err)) {
       return;
     }
+    if (isConnectionError(err)) {
+      itemsErrorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
     throw err;
   }
 
@@ -1290,12 +1337,17 @@ onMounted(async () => {
       if (ig) {
         areaName.value = area.attributes.name;
         itemGroupName.value = ig.attributes.name;
+        itemGroupFloorPlan.value = ig.attributes.floor_plan || null;
         resolvedAreaId.value = area.id;
         break;
       }
     }
-  } catch {
-    // Ignore - breadcrumbs will just show generic names
+  } catch (err) {
+    if (isConnectionError(err)) {
+      itemsErrorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
+    // Ignore other errors - breadcrumbs will just show generic names
   }
 
   if (bookingMode.value === 'week') {

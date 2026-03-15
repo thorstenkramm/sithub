@@ -8,17 +8,29 @@
     <!-- Week Selector -->
     <v-card class="mb-6" data-cy="week-selector-card">
       <v-card-text>
-        <v-select
-          v-model="selectedWeek"
-          :items="weekOptions"
-          item-title="label"
-          item-value="value"
-          label="Calendar Week"
-          density="compact"
-          hide-details
-          data-cy="week-selector"
-          style="max-width: 320px;"
-        />
+        <div class="d-flex flex-wrap align-end ga-4">
+          <v-select
+            v-model="selectedWeek"
+            :items="weekOptions"
+            item-title="label"
+            item-value="value"
+            label="Calendar Week"
+            density="compact"
+            hide-details
+            data-cy="week-selector"
+            style="max-width: 320px;"
+          />
+          <v-btn
+            v-if="areaFloorPlan"
+            variant="outlined"
+            size="small"
+            prepend-icon="$map"
+            data-cy="area-floor-plan-btn"
+            @click="showFloorPlanDialog = true"
+          >
+            Floor plan
+          </v-btn>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -110,13 +122,32 @@
         </v-card-actions>
       </v-card>
     </div>
+
+    <v-dialog v-model="showFloorPlanDialog" max-width="900" data-cy="floor-plan-dialog">
+      <v-card>
+        <v-card-title>{{ areaName || 'Floor Plan' }}</v-card-title>
+        <v-card-text class="text-center">
+          <v-img
+            v-if="areaFloorPlan"
+            :src="floorPlanUrl"
+            max-height="600"
+            contain
+            data-cy="floor-plan-image"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showFloorPlanDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ApiError } from '../api/client';
+import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
@@ -132,6 +163,8 @@ import { PageHeader, LoadingState, EmptyState } from '../components';
 
 const authStore = useAuthStore();
 const areaName = ref('');
+const areaFloorPlan = ref<string | null>(null);
+const showFloorPlanDialog = ref(false);
 const itemGroups = ref<JsonApiResource<ItemGroupAttributes>[]>([]);
 const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
@@ -141,6 +174,10 @@ const availabilityMap = ref<Record<string, DayAvailability[]>>({});
 
 const { showWeekends } = useWeekendPreference();
 const { weekOptions, selectedWeek } = useWeekSelector(showWeekends);
+const floorPlanUrl = computed(() => {
+  if (!areaFloorPlan.value) return '';
+  return `/api/v1/floor-plans/${encodeURIComponent(areaFloorPlan.value)}`;
+});
 
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
@@ -188,6 +225,10 @@ onMounted(async () => {
     if (await handleAuthError(err)) {
       return;
     }
+    if (isConnectionError(err)) {
+      itemGroupsErrorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
     throw err;
   }
 
@@ -203,9 +244,14 @@ onMounted(async () => {
     const area = areasResp.data.find(a => a.id === areaId);
     if (area) {
       areaName.value = area.attributes.name;
+      areaFloorPlan.value = area.attributes.floor_plan || null;
     }
-  } catch {
-    // Ignore - breadcrumb will just show "Area"
+  } catch (err) {
+    if (isConnectionError(err)) {
+      itemGroupsErrorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
+    // Ignore other errors - breadcrumb will just show "Area"
   }
 
   try {
@@ -213,6 +259,10 @@ onMounted(async () => {
     itemGroups.value = resp.data;
   } catch (err) {
     if (await handleAuthError(err)) {
+      return;
+    }
+    if (isConnectionError(err)) {
+      itemGroupsErrorMessage.value = CONNECTION_LOST_MESSAGE;
       return;
     }
     if (err instanceof ApiError && err.status === 404) {

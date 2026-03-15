@@ -24,7 +24,6 @@ import (
 	"github.com/thorstenkramm/sithub/internal/items"
 	"github.com/thorstenkramm/sithub/internal/middleware"
 	"github.com/thorstenkramm/sithub/internal/notifications"
-	"github.com/thorstenkramm/sithub/internal/spaces"
 	"github.com/thorstenkramm/sithub/internal/system"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
@@ -53,10 +52,17 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 
-	// Load spaces configuration from YAML (single source of truth)
-	spacesConfig, err := spaces.Load(cfg.Spaces.ConfigFile)
+	// Load areas configuration from YAML (single source of truth)
+	areasConfig, err := areas.Load(cfg.Areas.ConfigFile)
 	if err != nil {
-		return fmt.Errorf("load spaces config: %w", err)
+		return fmt.Errorf("load areas config: %w", err)
+	}
+
+	// Validate floor plan references if floor plans directory is configured
+	if cfg.Areas.FloorPlansDir != "" {
+		if err := areas.ValidateFloorPlans(areasConfig, cfg.Areas.FloorPlansDir); err != nil {
+			return fmt.Errorf("validate floor plans: %w", err)
+		}
 	}
 
 	authService, err := auth.NewService(cfg, store)
@@ -73,7 +79,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	indexPath := filepath.Join(staticDir, "index.html")
 
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, spacesConfig, store, notifier)
+	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, store, notifier)
 	registerSPAHandlers(e, staticDir, indexPath)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -99,11 +105,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 }
 
 func registerRoutes(
-	e *echo.Echo, authService *auth.Service, spacesConfig *spaces.Config,
-	store *sql.DB, notifier notifications.Notifier,
+	e *echo.Echo, authService *auth.Service, areasConfig *areas.Config,
+	floorPlansDir string, store *sql.DB, notifier notifications.Notifier,
 ) {
 	// Helper to get current config (returns the same config, loaded at startup)
-	getConfig := func() *spaces.Config { return spacesConfig }
+	getConfig := func() *areas.Config { return areasConfig }
 
 	// OAuth routes
 	e.GET("/oauth/login", auth.LoginHandler(authService))
@@ -140,6 +146,10 @@ func registerRoutes(
 		bookings.CreateHandlerDynamic(getConfig, store, notifier), requireAuth)
 	e.PATCH("/api/v1/bookings/:id", bookings.PatchHandler(store), requireAuth)
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), requireAuth)
+
+	// Floor plan images (authenticated)
+	e.GET("/api/v1/floor-plans/:filename",
+		areas.FloorPlanHandler(floorPlansDir), requireAuth)
 
 	// Colleagues endpoint (all authenticated users)
 	e.GET("/api/v1/colleagues", users.ColleaguesHandler(store), requireAuth)

@@ -33,6 +33,12 @@ export async function parseErrorDetail(response: Response): Promise<string | nul
   return null;
 }
 
+export const CONNECTION_LOST_MESSAGE = 'Connection to server lost';
+
+export function isConnectionError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 0;
+}
+
 export async function apiRequest<T>(input: RequestInfo, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Accept', JSON_API);
@@ -40,10 +46,15 @@ export async function apiRequest<T>(input: RequestInfo, init: RequestInit = {}):
     headers.set('Content-Type', JSON_API);
   }
 
-  const response = await fetch(input, {
-    ...init,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      headers
+    });
+  } catch {
+    throw new ApiError(CONNECTION_LOST_MESSAGE, 0);
+  }
 
   if (!response.ok) {
     const detail = await parseErrorDetail(response);

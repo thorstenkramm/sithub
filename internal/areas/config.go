@@ -1,19 +1,21 @@
-// Package spaces loads area configuration from YAML files.
-package spaces
+// Package areas provides area configuration, handlers, and domain types.
+package areas
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds the space configuration.
+// Config holds the areas configuration.
 type Config struct {
 	Areas []Area `yaml:"areas"`
 }
 
-// ConfigGetter is a function that returns the current spaces config.
+// ConfigGetter is a function that returns the current areas config.
 // This allows handlers to use dynamically reloaded configuration.
 type ConfigGetter func() *Config
 
@@ -78,7 +80,7 @@ func (c *Config) FindItemLocation(itemID string) (*ItemLocation, bool) {
 	return nil, false
 }
 
-// BaseAttributes returns common attributes for named space resources.
+// BaseAttributes returns common attributes for named area resources.
 func BaseAttributes(name, description, floorPlan string) map[string]interface{} {
 	attrs := map[string]interface{}{
 		"name": name,
@@ -133,24 +135,72 @@ type Item struct {
 	Warning   string   `yaml:"warning,omitempty"`
 }
 
-// Load reads and parses a space configuration file.
+// Load reads and parses an areas configuration file.
 func Load(path string) (*Config, error) {
 	// #nosec G304 -- path comes from explicit configuration.
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read spaces config: %w", err)
+		return nil, fmt.Errorf("read areas config: %w", err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parse spaces config: %w", err)
+		return nil, fmt.Errorf("parse areas config: %w", err)
 	}
 
 	if err := validateConfig(&cfg); err != nil {
-		return nil, fmt.Errorf("validate spaces config: %w", err)
+		return nil, fmt.Errorf("validate areas config: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+// supportedFloorPlanExts lists allowed floor plan image extensions.
+var supportedFloorPlanExts = map[string]bool{
+	".jpg":  true,
+	".jpeg": true,
+	".png":  true,
+	".svg":  true,
+}
+
+// ValidateFloorPlans checks that all floor_plan references in the config
+// point to existing files with supported formats inside floorPlansDir.
+func ValidateFloorPlans(cfg *Config, floorPlansDir string) error {
+	for _, area := range cfg.Areas {
+		if area.FloorPlan != "" {
+			if err := validateFloorPlanFile(area.FloorPlan, floorPlansDir); err != nil {
+				return fmt.Errorf("area %q: %w", area.ID, err)
+			}
+		}
+		for _, ig := range area.ItemGroups {
+			if ig.FloorPlan != "" {
+				if err := validateFloorPlanFile(ig.FloorPlan, floorPlansDir); err != nil {
+					return fmt.Errorf("item group %q: %w", ig.ID, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// validateFloorPlanFile checks that a floor plan filename exists in the
+// directory and has a supported extension.
+func validateFloorPlanFile(filename, floorPlansDir string) error {
+	if strings.ContainsAny(filename, `/\`) || filepath.Base(filename) != filename {
+		return fmt.Errorf("floor plan must be a filename only: %q", filename)
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	if !supportedFloorPlanExts[ext] {
+		return fmt.Errorf("unsupported floor plan format %q (allowed: jpg, png, svg)", filename)
+	}
+
+	fullPath := filepath.Join(floorPlansDir, filename)
+
+	if _, err := os.Stat(fullPath); err != nil {
+		return fmt.Errorf("floor plan not found: %s", fullPath)
+	}
+	return nil
 }
 
 func validateConfig(cfg *Config) error {

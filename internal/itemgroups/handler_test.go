@@ -11,20 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
-	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/areas"
 )
 
-func testConfig() *spaces.Config {
-	return &spaces.Config{
-		Areas: []spaces.Area{
+func testConfig() *areas.Config {
+	return &areas.Config{
+		Areas: []areas.Area{
 			{
 				ID:   "area-1",
 				Name: "Area One",
-				ItemGroups: []spaces.ItemGroup{
+				ItemGroups: []areas.ItemGroup{
 					{
 						ID:   "ig-1",
 						Name: "Room 101",
-						Items: []spaces.Item{
+						Items: []areas.Item{
 							{ID: "item-1", Name: "Desk 1"},
 							{ID: "item-2", Name: "Desk 2"},
 						},
@@ -33,7 +33,7 @@ func testConfig() *spaces.Config {
 						ID:          "ig-2",
 						Name:        "Room 102",
 						Description: "Corner office",
-						Items: []spaces.Item{
+						Items: []areas.Item{
 							{ID: "item-3", Name: "Desk 3"},
 						},
 					},
@@ -42,11 +42,11 @@ func testConfig() *spaces.Config {
 			{
 				ID:   "area-2",
 				Name: "Area Two",
-				ItemGroups: []spaces.ItemGroup{
+				ItemGroups: []areas.ItemGroup{
 					{
 						ID:   "ig-3",
 						Name: "Parking Level 1",
-						Items: []spaces.Item{
+						Items: []areas.Item{
 							{ID: "item-4", Name: "Lot A"},
 						},
 					},
@@ -112,8 +112,8 @@ func TestListHandlerAreaNotFound(t *testing.T) {
 func TestListHandlerEmptyItemGroups(t *testing.T) {
 	t.Parallel()
 
-	cfg := &spaces.Config{
-		Areas: []spaces.Area{
+	cfg := &areas.Config{
+		Areas: []areas.Area{
 			{ID: "area-empty", Name: "Empty Area", ItemGroups: nil},
 		},
 	}
@@ -147,7 +147,7 @@ func TestListHandlerDynamic(t *testing.T) {
 	c.SetParamNames("area_id")
 	c.SetParamValues("area-2")
 
-	h := ListHandlerDynamic(func() *spaces.Config { return cfg })
+	h := ListHandlerDynamic(func() *areas.Config { return cfg })
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusOK, rec.Code)

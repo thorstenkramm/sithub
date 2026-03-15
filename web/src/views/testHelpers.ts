@@ -31,6 +31,9 @@ export function buildViewStubs(extra: string[] = []) {
     'v-list': slotStub,
     'v-list-item': slotStub,
     'v-list-item-title': slotStub,
+    'v-img': {
+      template: '<img v-bind="$attrs" />'
+    },
     'v-progress-linear': slotStub,
     'v-skeleton-loader': slotStub,
     'v-alert': slotStub,

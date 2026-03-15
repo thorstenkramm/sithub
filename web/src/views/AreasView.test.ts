@@ -4,6 +4,7 @@ import AreasView from './AreasView.vue';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
 import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
+import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const pushMock = vi.fn();
 
@@ -33,7 +34,7 @@ describe('AreasView', () => {
         attributes: {
           name: `Area ${index + 1}`,
           description: index === 0 ? 'Main area' : undefined,
-          floor_plan: index === 0 ? 'floor_plans/area.svg' : undefined
+          floor_plan: index === 0 ? 'area.svg' : undefined
         }
       }))
     });
@@ -101,6 +102,15 @@ describe('AreasView', () => {
 
     expect(wrapper.text()).toContain('Area 1');
     expect(wrapper.text()).toContain('Area 2');
+  });
+
+  it('shows a connection lost error when user loading fails', async () => {
+    fetchMeMock.mockRejectedValue(new ApiError(CONNECTION_LOST_MESSAGE, 0));
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
 
   it('shows select button label on area tiles', async () => {

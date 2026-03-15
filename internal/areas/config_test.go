@@ -1,4 +1,4 @@
-package spaces
+package areas
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "spaces.yaml")
+	path := filepath.Join(dir, "areas.yaml")
 	content := `areas:
   - id: area-1
     name: Office
@@ -22,12 +22,12 @@ func TestLoadConfig(t *testing.T) {
               - Monitor
 `
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("write spaces config: %v", err)
+		t.Fatalf("write areas config: %v", err)
 	}
 
 	cfg, err := Load(path)
 	if err != nil {
-		t.Fatalf("load spaces config: %v", err)
+		t.Fatalf("load areas config: %v", err)
 	}
 	if len(cfg.Areas) != 1 {
 		t.Fatalf("expected 1 area, got %d", len(cfg.Areas))
@@ -77,13 +77,13 @@ func TestFindItemGroup(t *testing.T) {
 
 func TestLoadConfigMissingAreaID(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "spaces.yaml")
+	path := filepath.Join(dir, "areas.yaml")
 	content := `areas:
   - name: Office
     items: []
 `
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("write spaces config: %v", err)
+		t.Fatalf("write areas config: %v", err)
 	}
 
 	if _, err := Load(path); err == nil {
@@ -187,5 +187,91 @@ func TestFindItemLocation(t *testing.T) {
 	// Test missing desk
 	if _, ok := cfg.FindItemLocation("missing"); ok {
 		t.Fatalf("expected missing desk location to be false")
+	}
+}
+
+func TestValidateFloorPlansValid(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "plan.png"), []byte("fake"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "room.svg"), []byte("fake"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID: "a1", Name: "Area",
+				FloorPlan: "plan.png",
+				ItemGroups: []ItemGroup{
+					{ID: "ig1", Name: "Room", FloorPlan: "room.svg", Items: []Item{{ID: "d1", Name: "Desk"}}},
+				},
+			},
+		},
+	}
+
+	if err := ValidateFloorPlans(cfg, dir); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestValidateFloorPlansUnsupportedFormat(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "plan.gif"), []byte("fake"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	cfg := &Config{
+		Areas: []Area{
+			{ID: "a1", Name: "Area", FloorPlan: "plan.gif"},
+		},
+	}
+
+	if err := ValidateFloorPlans(cfg, dir); err == nil {
+		t.Fatalf("expected error for unsupported format")
+	}
+}
+
+func TestValidateFloorPlansMissingFile(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg := &Config{
+		Areas: []Area{
+			{ID: "a1", Name: "Area", FloorPlan: "missing.png"},
+		},
+	}
+
+	if err := ValidateFloorPlans(cfg, dir); err == nil {
+		t.Fatalf("expected error for missing file")
+	}
+}
+
+func TestValidateFloorPlansRejectsNestedPaths(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "plan.svg"), []byte("fake"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	cfg := &Config{
+		Areas: []Area{
+			{ID: "a1", Name: "Area", FloorPlan: "floor_plans/plan.svg"},
+		},
+	}
+
+	if err := ValidateFloorPlans(cfg, dir); err == nil {
+		t.Fatalf("expected error for nested floor plan path")
+	}
+}
+
+func TestValidateFloorPlansNoReferencesSkips(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{ID: "a1", Name: "Area"},
+		},
+	}
+
+	if err := ValidateFloorPlans(cfg, t.TempDir()); err != nil {
+		t.Fatalf("expected no error when no floor plans referenced, got %v", err)
 	}
 }

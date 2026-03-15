@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
-	"github.com/thorstenkramm/sithub/internal/spaces"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
 
@@ -24,12 +23,12 @@ type PresenceAttributes struct {
 }
 
 // PresenceHandler returns a JSON:API list of users present in an area on a given date.
-func PresenceHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
-	return PresenceHandlerDynamic(func() *spaces.Config { return cfg }, store)
+func PresenceHandler(cfg *Config, store *sql.DB) echo.HandlerFunc {
+	return PresenceHandlerDynamic(func() *Config { return cfg }, store)
 }
 
 // PresenceHandlerDynamic returns a JSON:API list of users present in an area on a given date.
-func PresenceHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
+func PresenceHandlerDynamic(getConfig ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cfg := getConfig()
 		areaID := c.Param("area_id")
@@ -60,7 +59,7 @@ type itemDetails struct {
 }
 
 // buildItemIndex creates a map of item IDs to their details for an area.
-func buildItemIndex(area *spaces.Area) (itemIDs []string, itemInfo map[string]itemDetails) {
+func buildItemIndex(area *Area) (itemIDs []string, itemInfo map[string]itemDetails) {
 	var totalItems int
 	for _, ig := range area.ItemGroups {
 		totalItems += len(ig.Items)
@@ -84,7 +83,7 @@ func buildItemIndex(area *spaces.Area) (itemIDs []string, itemInfo map[string]it
 }
 
 func findAreaPresence(
-	ctx context.Context, store *sql.DB, area *spaces.Area, bookingDate string,
+	ctx context.Context, store *sql.DB, area *Area, bookingDate string,
 ) ([]api.Resource, error) {
 	itemIDs, itemInfo := buildItemIndex(area)
 	if len(itemIDs) == 0 {

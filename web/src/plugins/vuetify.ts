@@ -41,7 +41,8 @@ import {
   mdiLockReset,
   mdiTextBoxOutline,
   mdiArrowExpand,
-  mdiFilterOutline
+  mdiFilterOutline,
+  mdiMap
 } from '@mdi/js';
 
 // Custom icon aliases for the app
@@ -85,7 +86,8 @@ const customAliases = {
   lockReset: mdiLockReset,
   textBoxOutline: mdiTextBoxOutline,
   arrowExpand: mdiArrowExpand,
-  filterOutline: mdiFilterOutline
+  filterOutline: mdiFilterOutline,
+  map: mdiMap
 };
 
 // Light theme colors

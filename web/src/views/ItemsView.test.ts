@@ -9,6 +9,7 @@ import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
 import { fetchColleagues } from '../api/users';
 import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
+import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 /* jscpd:ignore-start */
 
@@ -606,6 +607,29 @@ describe('ItemsView', () => {
 
       localStorage.removeItem('sithub_booking_mode');
     });
+  });
+
+  it('shows floor plan button and dialog when the item group has a floor plan', async () => {
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group', floor_plan: 'group.svg' } }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="item-group-floor-plan-btn"]').exists()).toBe(true);
+    await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
+    expect(wrapper.get('[data-cy="item-group-floor-plan-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-cy="item-group-floor-plan-image"]').attributes('src')).toBe('/api/v1/floor-plans/group.svg');
+  });
+
+  it('shows a connection lost error when initial user loading fails', async () => {
+    fetchMeMock.mockRejectedValue(new ApiError(CONNECTION_LOST_MESSAGE, 0));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);

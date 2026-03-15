@@ -1,27 +1,26 @@
-// Package areas provides area handlers.
+// Package areas provides area configuration, handlers, and domain types.
 package areas
 
 import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
-	"github.com/thorstenkramm/sithub/internal/spaces"
 )
 
 // ListHandler returns a JSON:API list of areas.
-func ListHandler(cfg *spaces.Config) echo.HandlerFunc {
-	return ListHandlerDynamic(func() *spaces.Config { return cfg })
+func ListHandler(cfg *Config) echo.HandlerFunc {
+	return ListHandlerDynamic(func() *Config { return cfg })
 }
 
 // ListHandlerDynamic returns a JSON:API list of areas using a dynamic config getter.
-func ListHandlerDynamic(getConfig spaces.ConfigGetter) echo.HandlerFunc {
+func ListHandlerDynamic(getConfig ConfigGetter) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cfg := getConfig()
-		resources := api.MapResources(cfg.Areas, func(area spaces.Area) api.Resource {
+		resources := api.MapResources(cfg.Areas, func(area Area) api.Resource {
 			return api.Resource{
 				Type:       "areas",
 				ID:         area.ID,
-				Attributes: spaces.BaseAttributes(area.Name, area.Description, area.FloorPlan),
+				Attributes: BaseAttributes(area.Name, area.Description, area.FloorPlan),
 			}
 		})
 

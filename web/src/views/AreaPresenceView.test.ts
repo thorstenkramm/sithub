@@ -8,7 +8,7 @@ import {
   expectLoginRedirect,
   expectAccessDeniedRedirect
 } from './testHelpers';
-import { ApiError } from '../api/client';
+import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const pushMock = vi.fn();
 vi.mock('../api/areaPresence');
@@ -108,6 +108,15 @@ describe('AreaPresenceView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Area not found.');
+  });
+
+  it('shows a connection lost error when presence loading fails', async () => {
+    fetchAreaPresenceMock.mockRejectedValue(new ApiError(CONNECTION_LOST_MESSAGE, 0));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
 
   it('redirects to login on 401', async () => {

@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { ApiError } from '../api/client';
+import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchItemGroupBookings } from '../api/itemGroupBookings';
 import { fetchAreas } from '../api/areas';
 import { fetchItemGroups } from '../api/itemGroups';
@@ -137,6 +137,10 @@ const loadBookings = async (itemGroupId: string, date: string) => {
     if (await handleAuthError(err)) {
       return;
     }
+    if (isConnectionError(err)) {
+      errorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
     if (err instanceof ApiError && err.status === 404) {
       errorMessage.value = 'Item group not found.';
       return;
@@ -167,8 +171,12 @@ onMounted(async () => {
         break;
       }
     }
-  } catch {
-    // Ignore - breadcrumbs will just show generic names
+  } catch (err) {
+    if (isConnectionError(err)) {
+      errorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
+    // Ignore other errors - breadcrumbs will just show generic names
   }
 
   await loadBookings(itemGroupId, selectedDate.value);

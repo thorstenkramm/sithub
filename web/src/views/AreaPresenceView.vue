@@ -112,6 +112,7 @@
         </v-card-actions>
       </v-card>
     </v-bottom-sheet>
+
   </div>
 </template>
 
@@ -119,7 +120,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
-import { ApiError } from '../api/client';
+import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchAreaPresence } from '../api/areaPresence';
 import { fetchAreas } from '../api/areas';
 import type { PresenceAttributes } from '../api/areaPresence';
@@ -182,6 +183,10 @@ const loadPresence = async (areaId: string, date: string) => {
     if (await handleAuthError(err)) {
       return;
     }
+    if (isConnectionError(err)) {
+      errorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
     if (err instanceof ApiError && err.status === 404) {
       errorMessage.value = 'Area not found.';
       return;
@@ -206,8 +211,12 @@ onMounted(async () => {
     if (area) {
       areaName.value = area.attributes.name;
     }
-  } catch {
-    // Ignore - breadcrumb will just show "Area"
+  } catch (err) {
+    if (isConnectionError(err)) {
+      errorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
+    // Ignore other errors - breadcrumb will just show "Area"
   }
 
   await loadPresence(areaId, selectedDate.value);

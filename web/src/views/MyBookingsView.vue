@@ -33,7 +33,7 @@
 
     <!-- Error State -->
     <v-alert v-else-if="bookingsError" type="error" class="mb-4" data-cy="bookings-error">
-      Unable to load bookings. Please try again later.
+      {{ bookingsError }}
     </v-alert>
 
     <!-- Empty State -->
@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { ApiError } from '../api/client';
+import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
@@ -151,6 +151,10 @@ onMounted(async () => {
     authStore.isAdmin = resp.data.attributes.is_admin;
   } catch (err) {
     if (await handleAuthError(err)) {
+      return;
+    }
+    if (isConnectionError(err)) {
+      bookingsError.value = CONNECTION_LOST_MESSAGE;
       return;
     }
     throw err;

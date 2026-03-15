@@ -10,7 +10,7 @@ import {
   expectLoginRedirect,
   expectAccessDeniedRedirect
 } from './testHelpers';
-import { ApiError } from '../api/client';
+import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 /* jscpd:ignore-start */
 
@@ -113,6 +113,15 @@ describe('ItemGroupBookingsView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Item group not found.');
+  });
+
+  it('shows a connection lost error when bookings loading fails', async () => {
+    fetchItemGroupBookingsMock.mockRejectedValue(new ApiError(CONNECTION_LOST_MESSAGE, 0));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
 
   describe('breadcrumbs', () => {

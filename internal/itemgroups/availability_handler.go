@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
-	"github.com/thorstenkramm/sithub/internal/spaces"
+	"github.com/thorstenkramm/sithub/internal/areas"
 )
 
 // DayAvailability holds availability data for a single day within an item group.
@@ -30,12 +30,12 @@ type ItemGroupAvailabilityAttributes struct {
 }
 
 // AvailabilityHandler returns weekly availability for item groups in an area.
-func AvailabilityHandler(cfg *spaces.Config, store *sql.DB) echo.HandlerFunc {
-	return AvailabilityHandlerDynamic(func() *spaces.Config { return cfg }, store)
+func AvailabilityHandler(cfg *areas.Config, store *sql.DB) echo.HandlerFunc {
+	return AvailabilityHandlerDynamic(func() *areas.Config { return cfg }, store)
 }
 
 // AvailabilityHandlerDynamic returns weekly availability using dynamic config.
-func AvailabilityHandlerDynamic(getConfig spaces.ConfigGetter, store *sql.DB) echo.HandlerFunc {
+func AvailabilityHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cfg := getConfig()
 		areaID := c.Param("area_id")
@@ -157,7 +157,7 @@ func isoWeeksInYear(year int) int {
 }
 
 func buildAvailabilityResources(
-	ctx context.Context, store *sql.DB, area *spaces.Area, weekdays []time.Time,
+	ctx context.Context, store *sql.DB, area *areas.Area, weekdays []time.Time,
 ) ([]api.Resource, error) {
 	// Collect all item IDs for this area to query bookings.
 	var totalItems int
