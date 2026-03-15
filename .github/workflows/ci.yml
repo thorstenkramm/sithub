@@ -53,7 +53,8 @@ jobs:
 
       - name: Go tests (race + coverage)
         run: |
-          go test -race -covermode=atomic -coverprofile=coverage.out ./...
+          packages=$(go list ./... | grep -v /web/node_modules/)
+          go test -race -covermode=atomic -coverprofile=coverage.out $packages
           total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')
           pct=${total%\%}
           echo "Go coverage: ${pct}%"
@@ -66,7 +67,7 @@ jobs:
         run: npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
 
       - name: Code duplication (Go)
-        run: npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 3
+        run: npx jscpd --pattern "**/*.go" --ignore "**/*_test.go,**/node_modules/**" --threshold 3
 
       - name: Code duplication (frontend)
         working-directory: web
