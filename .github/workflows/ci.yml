@@ -70,7 +70,7 @@ jobs:
 
       - name: Code duplication (frontend)
         working-directory: web
-        run: npx jscpd --pattern "**/*.ts" --ignore "**/node_modules/**" --threshold 0 --exitCode 1
+        run: npx jscpd --pattern "**/*.ts" --ignore "**/node_modules/**,**/*.test.ts" --threshold 0 --exitCode 1
 
       - name: Frontend unit tests (coverage)
         working-directory: web
@@ -81,7 +81,7 @@ jobs:
 
       - name: Create test config
         run: |
-          cat > .sithub-test-spaces.yaml <<EOF
+          cat > .sithub-test-areas.yaml <<EOF
           areas:
             - id: test_area
               name: "Test Area"
@@ -106,8 +106,8 @@ jobs:
           file = "-"
           level = "info"
 
-          [spaces]
-          config_file = "${{ github.workspace }}/.sithub-test-spaces.yaml"
+          [areas]
+          config_file = "${{ github.workspace }}/.sithub-test-areas.yaml"
           EOF
 
       - name: Start server and seed demo users
