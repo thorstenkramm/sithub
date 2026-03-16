@@ -2,8 +2,6 @@ package bookings
 
 import (
 	"database/sql"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -22,20 +20,9 @@ func setupTestStore(t *testing.T) *sql.DB {
 		require.NoError(t, store.Close())
 	})
 
-	migrationsPath := resolveTestMigrationsPath(t)
-	require.NoError(t, db.RunMigrations(store, migrationsPath))
+	require.NoError(t, db.RunMigrations(store))
 
 	return store
-}
-
-func resolveTestMigrationsPath(t *testing.T) string {
-	t.Helper()
-
-	_, filename, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-
-	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
-	return filepath.Join(root, "migrations")
 }
 
 func seedTestBooking(t *testing.T, store *sql.DB, bookingID, itemID, userID, bookingDate string) {

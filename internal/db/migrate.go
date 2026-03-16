@@ -3,27 +3,31 @@ package db
 
 import (
 	"database/sql"
+	"embed"
 	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	// Register file source for migrations.
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-// RunMigrations applies database migrations from disk.
-func RunMigrations(db *sql.DB, migrationsPath string) error {
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+
+// RunMigrations applies embedded database migrations.
+func RunMigrations(db *sql.DB) error {
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
 		return fmt.Errorf("create migration driver: %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationsPath,
-		"sqlite3",
-		driver,
-	)
+	source, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("open migration source: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", source, "sqlite3", driver)
 	if err != nil {
 		return fmt.Errorf("init migrations: %w", err)
 	}

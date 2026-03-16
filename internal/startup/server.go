@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -33,11 +32,6 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	e := echo.New()
 	e.HideBanner = true
 
-	migrationsPath, err := resolveMigrationsPath()
-	if err != nil {
-		return fmt.Errorf("resolve migrations path: %w", err)
-	}
-
 	store, err := db.Open(cfg.Main.DataDir)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
@@ -48,7 +42,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		}
 	}()
 
-	if err := db.RunMigrations(store, migrationsPath); err != nil {
+	if err := db.RunMigrations(store); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 
@@ -186,11 +180,3 @@ func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
 	}
 }
 
-func resolveMigrationsPath() (string, error) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("resolve migrations path")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
-	return filepath.Join(root, "migrations"), nil
-}

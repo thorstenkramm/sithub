@@ -1,0 +1,153 @@
+# sithub.service — systemd unit for the SitHub desk booking system
+#
+# Installation
+# ============
+#
+#   1. Create a dedicated system user (no login shell, no home directory):
+#
+#        sudo useradd --system --no-create-home --shell /usr/sbin/nologin sithub
+#
+#   2. Prepare the directories:
+#
+#        sudo install -d -o sithub -g sithub -m 0750 /var/lib/sithub
+#        sudo install -d -o root   -g sithub -m 0750 /etc/sithub
+#
+#   3. Place the binary:
+#
+#        sudo install -o root -g root -m 0755 sithub /usr/local/bin/sithub
+#
+#   4. Place and protect the configuration:
+#
+#        sudo install -o root -g sithub -m 0640 sithub.toml /etc/sithub/sithub.toml
+#
+#      Make sure the config contains at least:
+#
+#        [main]
+#        data_dir = "/var/lib/sithub"
+#
+#   5. Install and start the service:
+#
+#        sudo cp sithub.service /etc/systemd/system/
+#        sudo systemctl daemon-reload
+#        sudo systemctl enable --now sithub
+#
+#   6. Check the logs:
+#
+#        journalctl -u sithub -f
+
+[Unit]
+Description=SitHub Desk Booking System
+Documentation=https://github.com/thorstenkramm/sithub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sithub
+Group=sithub
+WorkingDirectory=/var/lib/sithub
+
+ExecStart=/usr/local/bin/sithub run --config /etc/sithub/sithub.toml
+
+# ── Restart behaviour ────────────────────────────────────────────────
+Restart=on-failure
+RestartSec=5s
+
+# ── Graceful shutdown ────────────────────────────────────────────────
+# The server drains in-flight requests within 5 s; give it a bit more.
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+
+# ── Logging ──────────────────────────────────────────────────────────
+# Logs are captured by the journal.  Set log.file = "-" in sithub.toml.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sithub
+
+# ── Filesystem isolation ─────────────────────────────────────────────
+# Mount the entire root filesystem read-only, then punch a writable
+# hole for the data directory only.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/sithub
+
+# Private /tmp that is invisible to other services.
+PrivateTmp=true
+
+# Deny access to /home, /root, and /run/user.
+ProtectHome=true
+
+# The config directory is readable through the default mounts; the
+# service never needs to write there.
+ReadOnlyPaths=/etc/sithub
+
+# ── Device and kernel isolation ──────────────────────────────────────
+# No access to physical devices (/dev/sda, /dev/tty, etc.).
+PrivateDevices=true
+
+# Prevent modification of kernel variables, module loading, and
+# control groups.
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+
+# Hide the host clock from the service (read-only access is retained).
+ProtectClock=true
+ProtectHostname=true
+
+# ── Network isolation ────────────────────────────────────────────────
+# Allow only IPv4 and IPv6 TCP sockets.  Outbound HTTPS is needed for
+# optional Entra ID OAuth and webhook notifications.
+RestrictAddressFamilies=AF_INET AF_INET6
+
+# ── Capability and privilege restrictions ────────────────────────────
+# Drop every Linux capability.  The default listen port (9900) does not
+# require CAP_NET_BIND_SERVICE.
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Prevent the process (or any child) from gaining new privileges.
+NoNewPrivileges=true
+
+# ── System call filtering ────────────────────────────────────────────
+# Only allow native-architecture syscalls.
+SystemCallArchitectures=native
+
+# Permit only the syscall groups a Go network service reasonably needs.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @swap @reboot @obsolete @raw-io @clock @cpu-emulation @debug @module
+
+# ── Memory and execution hardening ───────────────────────────────────
+# Note: MemoryDenyWriteExecute is intentionally omitted.  The CGO-based
+# SQLite driver (mattn/go-sqlite3) may require W|X memory mappings.
+
+# Remove access to kernel keyrings.
+KeyringMode=private
+
+# Prevent acquiring realtime scheduling.
+RestrictRealtime=true
+
+# Deny creation of user or network namespaces inside the service.
+RestrictNamespaces=true
+
+# Deny SUID/SGID bits on files created by the service.
+RestrictSUIDSGID=true
+
+# Hide /proc entries of other processes.
+ProcSubset=pid
+ProtectProc=invisible
+
+# Make all files created by the service private (0600/0700).
+UMask=0077
+
+# Lock down the personality syscall to the native execution domain.
+LockPersonality=true
+
+# ── Resource limits ──────────────────────────────────────────────────
+# Prevent runaway file descriptor or process creation.
+LimitNOFILE=65536
+LimitNPROC=64
+
+[Install]
+WantedBy=multi-user.target
