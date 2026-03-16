@@ -6,14 +6,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/thorstenkramm/sithub/assets"
 	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
@@ -69,12 +70,14 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	e.Use(middleware.LoadUser(authService))
 	e.Use(middleware.RedirectForbidden(authService))
 
-	staticDir := "assets/web"
-	indexPath := filepath.Join(staticDir, "index.html")
+	webFS, err := fs.Sub(assets.Web, "web")
+	if err != nil {
+		return fmt.Errorf("open embedded frontend: %w", err)
+	}
 
 	//nolint:contextcheck // Echo handlers use request context.
 	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, store, notifier)
-	registerSPAHandlers(e, staticDir, indexPath)
+	registerSPAHandlers(e, webFS)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
 	server := &http.Server{
@@ -157,12 +160,17 @@ func registerRoutes(
 	e.DELETE("/api/v1/users/:id", users.DeleteHandler(store), requireAuth, requireAdmin)
 }
 
-func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
-	e.Static("/", staticDir)
+func registerSPAHandlers(e *echo.Echo, webFS fs.FS) {
+	e.StaticFS("/", webFS)
+
+	indexHTML, err := fs.ReadFile(webFS, "index.html")
+	if err != nil {
+		slog.Warn("embedded frontend missing index.html; SPA fallback disabled")
+	}
 
 	defaultErrorHandler := e.HTTPErrorHandler
 	e.HTTPErrorHandler = func(err error, c echo.Context) {
-		if req := c.Request(); req != nil && req.Method == http.MethodGet {
+		if req := c.Request(); req != nil && req.Method == http.MethodGet && indexHTML != nil {
 			var httpErr *echo.HTTPError
 			if errors.As(err, &httpErr) && httpErr.Code == http.StatusNotFound {
 				path := req.URL.Path
@@ -170,7 +178,8 @@ func registerSPAHandlers(e *echo.Echo, staticDir, indexPath string) {
 				oauthPath := strings.HasPrefix(path, "/oauth/")
 				authPath := strings.HasPrefix(path, "/auth/")
 				if !apiPath && !oauthPath && !authPath {
-					if fileErr := c.File(indexPath); fileErr == nil {
+					c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
+					if writeErr := c.HTMLBlob(http.StatusOK, indexHTML); writeErr == nil {
 						return
 					}
 				}

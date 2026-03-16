@@ -1,5 +1,9 @@
 version: 2
 
+before:
+  hooks:
+    - test -f assets/web/index.html
+
 builds:
   - main: ./cmd/sithub
     binary: sithub
@@ -16,6 +20,7 @@ archives:
     files:
       - LICENSE
       - sithub.example.toml
+      - sithub.service
 
 changelog:
   sort: asc
