@@ -27,7 +27,7 @@ describe('items', () => {
     cy.wait('@listItemGroups').its('response.statusCode').should('eq', 200);
     cy.get('[data-cy="item-group-item"]').first().click();
 
-    cy.wait('@listItems').then((interception) => {
+    cy.wait('@listItemsWithDate').then((interception) => {
       expect(interception.response?.statusCode).to.eq(200);
       expect(interception.request.url).to.include('date=');
     });

@@ -38,6 +38,7 @@ export function setupItemsPageIntercepts() {
   cy.intercept('GET', /\/api\/v1\/areas\/[^/]+\/item-groups\/availability/).as('availability');
   cy.intercept('GET', /\/api\/v1\/areas\/[^/]+\/item-groups$/).as('listItemGroups');
   cy.intercept('GET', '/api/v1/item-groups/*/items*').as('listItems');
+  cy.intercept('GET', /\/api\/v1\/item-groups\/[^/]+\/items\?date=/).as('listItemsWithDate');
 }
 
 /** Creates a mock item object for testing */
