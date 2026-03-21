@@ -137,6 +137,26 @@ func TestFindByEmail_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUserNotFound)
 }
 
+func TestFindDisplayNames_DoesNotInjectViaIDs(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	ctx := context.Background()
+
+	hash, err := HashPassword("TestPassword14!")
+	require.NoError(t, err)
+
+	first, err := CreateLocalUser(ctx, db, "alice@example.com", "Alice", hash, false)
+	require.NoError(t, err)
+	_, err = CreateLocalUser(ctx, db, "bob@example.com", "Bob", hash, false)
+	require.NoError(t, err)
+
+	names, err := FindDisplayNames(ctx, db, []string{first.ID, `x') OR 1=1 --`})
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	assert.Equal(t, "Alice", names[first.ID])
+	assert.NotContains(t, names, `x') OR 1=1 --`)
+}
+
 func TestUpsertEntraIDUser_Insert(t *testing.T) {
 	t.Parallel()
 	db := setupTestDB(t)
@@ -265,6 +285,52 @@ func TestUpdateUser_NotFound(t *testing.T) {
 	newName := "Nobody"
 	_, err := UpdateUser(ctx, db, "nonexistent", UpdateFields{DisplayName: &newName})
 	assert.ErrorIs(t, err, ErrUserNotFound)
+}
+
+func TestUpdateUser_TreatsFieldValuesAsData(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	ctx := context.Background()
+
+	hash, err := HashPassword("TestPassword14!")
+	require.NoError(t, err)
+
+	target, err := CreateLocalUser(ctx, db, "ivy@example.com", "Ivy", hash, false)
+	require.NoError(t, err)
+	other, err := CreateLocalUser(ctx, db, "jules@example.com", "Jules", hash, false)
+	require.NoError(t, err)
+
+	maliciousEmail := `ivy@example.com', is_admin = 1 WHERE id = '` + other.ID
+	updated, err := UpdateUser(ctx, db, target.ID, UpdateFields{Email: &maliciousEmail})
+	require.NoError(t, err)
+
+	assert.Equal(t, maliciousEmail, updated.Email)
+	assert.False(t, updated.IsAdmin)
+
+	otherFound, err := FindByID(ctx, db, other.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "jules@example.com", otherFound.Email)
+	assert.False(t, otherFound.IsAdmin)
+}
+
+func TestUpdateUser_TreatsIDAsData(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	ctx := context.Background()
+
+	hash, err := HashPassword("TestPassword14!")
+	require.NoError(t, err)
+
+	created, err := CreateLocalUser(ctx, db, "karl@example.com", "Karl", hash, false)
+	require.NoError(t, err)
+
+	newName := "Injected"
+	_, err = UpdateUser(ctx, db, created.ID+`' OR 1=1 --`, UpdateFields{DisplayName: &newName})
+	assert.ErrorIs(t, err, ErrUserNotFound)
+
+	found, err := FindByID(ctx, db, created.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Karl", found.DisplayName)
 }
 
 func TestDeleteUser(t *testing.T) {

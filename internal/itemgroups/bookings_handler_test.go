@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/db"
 )
 
@@ -211,4 +212,61 @@ func TestBookingsHandlerExcludesOtherItemGroups(t *testing.T) {
 	var resp api.CollectionResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Empty(t, resp.Data)
+}
+
+func TestBookingsHandlerTreatsMaliciousLookingItemIDsAsData(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestDB(t)
+	cfg := &areas.Config{
+		Areas: []areas.Area{
+			{
+				ID:   "area-1",
+				Name: "Area One",
+				ItemGroups: []areas.ItemGroup{
+					{
+						ID:   "ig-1",
+						Name: "Room 101",
+						Items: []areas.Item{
+							{ID: `item-1') OR 1=1 --`, Name: "Desk Exploit"},
+						},
+					},
+					{
+						ID:   "ig-2",
+						Name: "Room 102",
+						Items: []areas.Item{
+							{ID: "item-2", Name: "Desk Safe"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	seedUser(t, store, "user-1", "Alice Smith")
+	seedUser(t, store, "user-2", "Bob Jones")
+	seedBooking(t, store, "b1", `item-1') OR 1=1 --`, "user-1", "2025-01-20")
+	seedBooking(t, store, "b2", "item-2", "user-2", "2025-01-20")
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/bookings?date=2025-01-20", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
+
+	h := BookingsHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 1)
+
+	attrs, ok := resp.Data[0].Attributes.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, `item-1') OR 1=1 --`, attrs["item_id"])
+	assert.Equal(t, "Desk Exploit", attrs["item_name"])
+	assert.Equal(t, "Alice Smith", attrs["user_name"])
 }

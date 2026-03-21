@@ -1,7 +1,11 @@
 //revive:disable-next-line var-naming
 package api
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestNewError(t *testing.T) {
 	err := NewError(401, "Unauthorized", "Login required", "auth_required")
@@ -86,37 +90,31 @@ func TestParseItemGroupRequest(t *testing.T) {
 	})
 }
 
-func TestBuildINClause(t *testing.T) {
-	t.Run("multiple ids", func(t *testing.T) {
-		placeholders, args := BuildINClause([]string{"a", "b", "c"})
-		if placeholders != "?,?,?" {
-			t.Fatalf("expected ?,?,?, got %s", placeholders)
-		}
-		if len(args) != 3 {
-			t.Fatalf("expected 3 args, got %d", len(args))
-		}
-		if args[0] != "a" || args[1] != "b" || args[2] != "c" {
-			t.Fatalf("unexpected args: %v", args)
-		}
-	})
+func TestBuildINClauseMultiple(t *testing.T) {
+	t.Parallel()
+	placeholders, args := BuildINClause([]string{"a", "b", "c"})
+	require.Equal(t, "?,?,?", placeholders)
+	require.Equal(t, []interface{}{"a", "b", "c"}, args)
+}
 
-	t.Run("single id", func(t *testing.T) {
-		placeholders, args := BuildINClause([]string{"x"})
-		if placeholders != "?" {
-			t.Fatalf("expected ?, got %s", placeholders)
-		}
-		if len(args) != 1 || args[0] != "x" {
-			t.Fatalf("unexpected args: %v", args)
-		}
-	})
+func TestBuildINClauseSingle(t *testing.T) {
+	t.Parallel()
+	placeholders, args := BuildINClause([]string{"x"})
+	require.Equal(t, "?", placeholders)
+	require.Equal(t, []interface{}{"x"}, args)
+}
 
-	t.Run("empty ids", func(t *testing.T) {
-		placeholders, args := BuildINClause([]string{})
-		if placeholders != "" {
-			t.Fatalf("expected empty, got %s", placeholders)
-		}
-		if len(args) != 0 {
-			t.Fatalf("expected 0 args, got %d", len(args))
-		}
-	})
+func TestBuildINClauseEmpty(t *testing.T) {
+	t.Parallel()
+	placeholders, args := BuildINClause([]string{})
+	require.Equal(t, "", placeholders)
+	require.Empty(t, args)
+}
+
+func TestBuildINClauseMaliciousInput(t *testing.T) {
+	t.Parallel()
+	ids := []string{"x') OR 1=1 --", "normal"}
+	placeholders, args := BuildINClause(ids)
+	require.Equal(t, "?,?", placeholders)
+	require.Equal(t, []interface{}{ids[0], ids[1]}, args)
 }
