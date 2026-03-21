@@ -93,9 +93,11 @@ func TestListHandlerReturnsIcon(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	require.Len(t, resp.Data, 2)
 
-	attrs0, _ := resp.Data[0].Attributes.(map[string]interface{})
+	attrs0, ok := resp.Data[0].Attributes.(map[string]interface{})
+	require.True(t, ok)
 	assert.Equal(t, "mdi-garage", attrs0["icon"])
 
-	attrs1, _ := resp.Data[1].Attributes.(map[string]interface{})
+	attrs1, ok := resp.Data[1].Attributes.(map[string]interface{})
+	require.True(t, ok)
 	assert.Nil(t, attrs1["icon"], "icon should be absent when not set")
 }
