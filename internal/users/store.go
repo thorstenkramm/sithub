@@ -198,14 +198,9 @@ func UpdateUser(ctx context.Context, db *sql.DB, id string, fields UpdateFields)
 
 	args = append(args, id)
 
-	query := "UPDATE users SET "
-	for i, clause := range setClauses {
-		if i > 0 {
-			query += ", "
-		}
-		query += clause
-	}
-	query += " WHERE id = ?"
+	// setClauses contains only hardcoded column names, not user input.
+	query := "UPDATE users SET " + //nolint:gosec // G202 false positive
+		strings.Join(setClauses, ", ") + " WHERE id = ?"
 
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
