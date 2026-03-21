@@ -2,6 +2,7 @@ import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
+import { mdi as mdiFont } from 'vuetify/iconsets/mdi';
 import {
   mdiOfficeBuilding,
   mdiDoorOpen,
@@ -42,7 +43,10 @@ import {
   mdiTextBoxOutline,
   mdiArrowExpand,
   mdiFilterOutline,
-  mdiMap
+  mdiMap,
+  mdiCloseCircle,
+  mdiHeart,
+  mdiHeartOutline
 } from '@mdi/js';
 
 // Custom icon aliases for the app
@@ -87,7 +91,10 @@ const customAliases = {
   textBoxOutline: mdiTextBoxOutline,
   arrowExpand: mdiArrowExpand,
   filterOutline: mdiFilterOutline,
-  map: mdiMap
+  map: mdiMap,
+  cancelCircle: mdiCloseCircle,
+  heart: mdiHeart,
+  heartOutline: mdiHeartOutline
 };
 
 // Light theme colors
@@ -205,7 +212,8 @@ export const vuetify = createVuetify({
     defaultSet: 'mdi',
     aliases: customAliases,
     sets: {
-      mdi
+      mdi,
+      mdiFont
     }
   },
   theme: {
@@ -241,6 +249,9 @@ export const vuetify = createVuetify({
     VAlert: {
       variant: 'tonal',
       rounded: 'lg'
+    },
+    VDatePicker: {
+      firstDayOfWeek: 1
     },
     VDialog: {
       rounded: 'lg'

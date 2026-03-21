@@ -60,13 +60,22 @@ export function getWeekdayLabel(index: number, short = false): string {
  * Generates next 8 weeks, defaults to current week.
  * @param showWeekends - optional reactive ref; when true, selectedWeekDates returns 7 days
  */
-export function useWeekSelector(showWeekends?: Ref<boolean>) {
-  const dateFormatter = new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+/** Formats a date as DD.MM. (without year). */
+function formatDayMonth(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}.${month}.`;
+}
 
+/** Formats a date as DD.MM.YYYY. */
+function formatDayMonthYear(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+}
+
+export function useWeekSelector(showWeekends?: Ref<boolean>) {
   const weekOptions = computed<WeekOption[]>(() => {
     const options: WeekOption[] = [];
     const now = new Date();
@@ -75,13 +84,12 @@ export function useWeekSelector(showWeekends?: Ref<boolean>) {
     for (let i = 0; i < 8; i++) {
       const weekMonday = new Date(monday);
       weekMonday.setDate(monday.getDate() + i * 7);
+      const weekSunday = new Date(weekMonday);
+      weekSunday.setDate(weekMonday.getDate() + 6);
       const isoWeek = getISOWeekString(weekMonday);
       const weekNum = getISOWeekNumber(weekMonday);
-      const dateStr = dateFormatter.format(weekMonday);
-      options.push({
-        label: `${dateStr} - Week ${weekNum}`,
-        value: isoWeek
-      });
+      const label = `${formatDayMonth(weekMonday)}-${formatDayMonthYear(weekSunday)} - Week ${weekNum}`;
+      options.push({ label, value: isoWeek });
     }
     return options;
   });

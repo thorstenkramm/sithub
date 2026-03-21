@@ -27,7 +27,7 @@ func ListHandlerDynamic(getConfig areas.ConfigGetter) echo.HandlerFunc {
 			return api.Resource{
 				Type:       "item-groups",
 				ID:         ig.ID,
-				Attributes: areas.BaseAttributes(ig.Name, ig.Description, ig.FloorPlan),
+				Attributes: areas.BaseAttributes(ig.Name, ig.Description, ig.FloorPlan, ig.Icon),
 			}
 		})
 

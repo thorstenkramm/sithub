@@ -70,3 +70,32 @@ func TestListHandlerReturnsAreas(t *testing.T) {
 	assert.Equal(t, "Main area", attrs["description"])
 	assert.Equal(t, "alpha.svg", attrs["floor_plan"])
 }
+
+func TestListHandlerReturnsIcon(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Areas: []Area{
+			{ID: "a1", Name: "Alpha", Icon: "mdi-garage"},
+			{ID: "a2", Name: "Beta"},
+		},
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/areas", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	h := ListHandler(cfg)
+	require.NoError(t, h(c))
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 2)
+
+	attrs0, _ := resp.Data[0].Attributes.(map[string]interface{})
+	assert.Equal(t, "mdi-garage", attrs0["icon"])
+
+	attrs1, _ := resp.Data[1].Attributes.(map[string]interface{})
+	assert.Nil(t, attrs1["icon"], "icon should be absent when not set")
+}

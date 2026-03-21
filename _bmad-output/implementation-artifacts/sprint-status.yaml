@@ -162,3 +162,14 @@ development_status:
   18-6-item-group-floor-plan-display: done
   18-7-connection-lost-error-messaging: done
   epic-18-retrospective: optional
+
+  epic-19: done
+  19-1-fix-cancel-booking-dialog-not-closing: done
+  19-2-week-selector-date-range-display: done
+  19-3-calendar-widget-starts-on-monday: done
+  19-4-cancel-booking-from-week-view: done
+  19-5-equipment-filter-on-item-groups-view: done
+  19-6-equipment-filter-saving: done
+  19-7-custom-icons-in-areas-yaml: done
+  19-8-favorites: done
+  epic-19-retrospective: optional

@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+var mdiIconNamePattern = regexp.MustCompile(`^mdi-[a-z0-9-]+$`)
 
 // Config holds the areas configuration.
 type Config struct {
@@ -81,7 +84,7 @@ func (c *Config) FindItemLocation(itemID string) (*ItemLocation, bool) {
 }
 
 // BaseAttributes returns common attributes for named area resources.
-func BaseAttributes(name, description, floorPlan string) map[string]interface{} {
+func BaseAttributes(name, description, floorPlan, icon string) map[string]interface{} {
 	attrs := map[string]interface{}{
 		"name": name,
 	}
@@ -91,11 +94,14 @@ func BaseAttributes(name, description, floorPlan string) map[string]interface{} 
 	if floorPlan != "" {
 		attrs["floor_plan"] = floorPlan
 	}
+	if icon != "" {
+		attrs["icon"] = icon
+	}
 	return attrs
 }
 
 // ItemAttributes returns attributes for item resources.
-func ItemAttributes(name string, equipment []string, warning, availability string) map[string]interface{} {
+func ItemAttributes(name string, equipment []string, warning, availability, icon string) map[string]interface{} {
 	attrs := map[string]interface{}{
 		"name":      name,
 		"equipment": equipment,
@@ -106,6 +112,9 @@ func ItemAttributes(name string, equipment []string, warning, availability strin
 	if availability != "" {
 		attrs["availability"] = availability
 	}
+	if icon != "" {
+		attrs["icon"] = icon
+	}
 	return attrs
 }
 
@@ -115,6 +124,7 @@ type Area struct {
 	Name        string      `yaml:"name"`
 	Description string      `yaml:"description,omitempty"`
 	FloorPlan   string      `yaml:"floor_plan,omitempty"`
+	Icon        string      `yaml:"icon,omitempty"`
 	ItemGroups  []ItemGroup `yaml:"items"`
 }
 
@@ -124,6 +134,7 @@ type ItemGroup struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description,omitempty"`
 	FloorPlan   string `yaml:"floor_plan,omitempty"`
+	Icon        string `yaml:"icon,omitempty"`
 	Items       []Item `yaml:"items"`
 }
 
@@ -133,6 +144,13 @@ type Item struct {
 	Name      string   `yaml:"name"`
 	Equipment []string `yaml:"equipment"`
 	Warning   string   `yaml:"warning,omitempty"`
+	Icon      string   `yaml:"icon,omitempty"`
+}
+
+// IconWarning describes an invalid configured icon reference.
+type IconWarning struct {
+	Location string
+	Icon     string
 }
 
 // Load reads and parses an areas configuration file.
@@ -183,6 +201,41 @@ func ValidateFloorPlans(cfg *Config, floorPlansDir string) error {
 	return nil
 }
 
+// FindInvalidConfiguredIcons returns non-fatal warnings for icon values that cannot
+// be rendered safely by the frontend's configured icon resolver.
+func FindInvalidConfiguredIcons(cfg *Config) []IconWarning {
+	warnings := make([]IconWarning, 0)
+
+	for _, area := range cfg.Areas {
+		if area.Icon != "" && !isValidConfiguredIcon(area.Icon) {
+			warnings = append(warnings, IconWarning{
+				Location: fmt.Sprintf("area %q", area.ID),
+				Icon:     area.Icon,
+			})
+		}
+
+		for _, ig := range area.ItemGroups {
+			if ig.Icon != "" && !isValidConfiguredIcon(ig.Icon) {
+				warnings = append(warnings, IconWarning{
+					Location: fmt.Sprintf("item group %q", ig.ID),
+					Icon:     ig.Icon,
+				})
+			}
+
+			for _, item := range ig.Items {
+				if item.Icon != "" && !isValidConfiguredIcon(item.Icon) {
+					warnings = append(warnings, IconWarning{
+						Location: fmt.Sprintf("item %q", item.ID),
+						Icon:     item.Icon,
+					})
+				}
+			}
+		}
+	}
+
+	return warnings
+}
+
 // validateFloorPlanFile checks that a floor plan filename exists in the
 // directory and has a supported extension.
 func validateFloorPlanFile(filename, floorPlansDir string) error {
@@ -220,4 +273,8 @@ func validateConfig(cfg *Config) error {
 		}
 	}
 	return nil
+}
+
+func isValidConfiguredIcon(icon string) bool {
+	return mdiIconNamePattern.MatchString(strings.TrimSpace(icon))
 }

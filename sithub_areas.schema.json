@@ -32,6 +32,11 @@
             "type": "string",
             "minLength": 1
           },
+          "icon": {
+            "type": "string",
+            "pattern": "^mdi-[a-z0-9-]+$",
+            "description": "MDI icon name from https://pictogrammers.com (e.g. mdi-office-building)"
+          },
           "items": {
             "type": "array",
             "minItems": 1,
@@ -59,6 +64,11 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "icon": {
+                  "type": "string",
+                  "pattern": "^mdi-[a-z0-9-]+$",
+                  "description": "MDI icon name from https://pictogrammers.com (e.g. mdi-door)"
+                },
                 "items": {
                   "type": "array",
                   "minItems": 1,
@@ -67,8 +77,7 @@
                     "additionalProperties": false,
                     "required": [
                       "id",
-                      "name",
-                      "equipment"
+                      "name"
                     ],
                     "properties": {
                       "id": {
@@ -88,6 +97,11 @@
                       },
                       "warning": {
                         "type": "string"
+                      },
+                      "icon": {
+                        "type": "string",
+                        "pattern": "^mdi-[a-z0-9-]+$",
+                        "description": "MDI icon name from https://pictogrammers.com (e.g. mdi-desk)"
                       }
                     }
                   }

@@ -129,6 +129,13 @@ describe('useWeekSelector', () => {
     }
   });
 
+  it('week option labels show DD.MM.-DD.MM.YYYY format', () => {
+    const { weekOptions } = useWeekSelector();
+    for (const option of weekOptions.value) {
+      expect(option.label).toMatch(/^\d{2}\.\d{2}\.-\d{2}\.\d{2}\.\d{4} - Week \d+$/);
+    }
+  });
+
   it('selectedWeekDates returns 7 dates when showWeekends is true', () => {
     const showWeekends = ref(true);
     const { selectedWeekDates } = useWeekSelector(showWeekends);

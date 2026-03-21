@@ -56,6 +56,8 @@ This is only for local testing and must not be used in production.
 - Areas, rooms, desks, and desk equipment can be managed through a comprehensive
   [YAML configuration file](./sithub_areas.example.yaml).
 - Point SitHub at the YAML file using `spaces.config_file` in `sithub.toml` or `--spaces-config-file`.
+- Custom icons in the areas YAML file refer to [pictogrammers.com](https://pictogrammers.com/).
+  If an item has no icon assigned, it inherits the icon from the higher-level area.
 
 ### Installation
 

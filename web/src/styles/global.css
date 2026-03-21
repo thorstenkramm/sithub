@@ -209,11 +209,29 @@ a:hover {
   }
 }
 
-/* Grid for cards */
+/* Grid for cards — equal-height rows */
 .card-grid {
   display: grid;
   gap: var(--space-4);
   grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.card-grid > * {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-grid > * > .v-card,
+.card-grid > .v-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-grid > * > .v-card > .v-card-actions,
+.card-grid > .v-card > .v-card-actions {
+  margin-top: auto;
 }
 
 @media (min-width: 600px) {

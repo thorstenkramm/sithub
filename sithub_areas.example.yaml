@@ -3,17 +3,31 @@
 #
 # Areas contain item groups, which contain bookable items.
 # Items can represent anything: desks, parking lots, lab benches, etc.
+#
+# Custom icons
+# ------------
+# Use the optional "icon" field at any level (area, item group, item) to
+# display a custom icon in the UI. Values must be valid Material Design
+# Icon names with the "mdi-" prefix, e.g. "mdi-office-building".
+# Browse all available icons at: https://pictogrammers.com/library/mdi/
+#
+# Icons inherit downward: if an item group has no icon, it inherits its
+# area's icon. If an item has no icon, it inherits its item group's icon,
+# then the area's icon. The built-in defaults are used when no icon is
+# set at any level.
 
 areas:
   - id: office_1st_floor # Unique ID, string, mandatory
     name: Office 1st Floor # Name, string, mandatory
     description: Main office area on the first floor # Description, string, optional
     floor_plan: "office_1st_floor.svg" # Floor plan filename inside areas.floor_plans, optional
+    icon: mdi-office-building # MDI icon name, string, optional
     items:
       - id: open_space_101 # Unique ID per area, string, mandatory
         name: Open Space 101 # Name, string, mandatory
         description: General office space # Description, string, optional
         floor_plan: "open_space_101.svg" # Floor plan filename inside areas.floor_plans, optional
+        icon: mdi-door-open # Inherits area icon when omitted, string, optional
         items:
           - id: ws_101_1 # Unique ID per item group, string, mandatory
             name: Workspace 1 # Name, string, mandatory
@@ -23,17 +37,20 @@ areas:
               - "Height-adjustable desk"
             warning: | # Warnings, string, optional
               Only for Apple users. USB-C Hub does not connect to Windows and Linux PCs.
+            # icon omitted — inherits mdi-door-open from item group
           - id: ws_101_2
             name: Workspace 2
             equipment:
               - "2x 27 inch displays, Full HD each"
               - "USB-C Hub"
               - "Full HD USB Webcam"
+            icon: mdi-desk # Override with a different icon, string, optional
             warning: |
               Desk not height-adjustable.
       - id: open_space_102 # Unique ID per area, string, mandatory
         name: Open Space 102 # Name, string, mandatory
         description: Quiet zone for focused work # Description, string, optional
+        # icon omitted — inherits mdi-office-building from area
         items:
           - id: ws_102_1 # Unique ID per item group, string, mandatory
             name: Workspace 1 # Name, string, mandatory
@@ -51,20 +68,25 @@ areas:
   - id: parking_garage
     name: Parking Garage
     description: Underground parking for employees
+    icon: mdi-garage # Custom icon for the parking area
     items:
       - id: parking_level_b1
         name: Level B1
         description: Reserved parking spots on basement level 1
+        icon: mdi-car # Custom icon for the parking level
         items:
           - id: lot_b1_01
             name: Parking Lot 1
             equipment:
               - "EV charging station"
+            icon: mdi-ev-station # Override for EV-equipped lots
           - id: lot_b1_02
             name: Parking Lot 2
             equipment: []
+            # icon omitted — inherits mdi-car from item group
           - id: lot_b1_03
             name: Parking Lot 3
             equipment:
               - "EV charging station"
               - "Covered"
+            icon: mdi-ev-station

@@ -5,6 +5,7 @@ export interface ItemGroupAttributes {
   name: string;
   description?: string;
   floor_plan?: string;
+  icon?: string;
 }
 
 export function fetchItemGroups(areaId: string) {

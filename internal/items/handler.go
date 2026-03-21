@@ -99,7 +99,7 @@ func buildItemResources(
 	items []areas.Item, itemBookings map[string]bookings.ItemBookingInfo, isAdmin bool,
 ) []api.Resource {
 	return api.MapResources(items, func(item areas.Item) api.Resource {
-		attrs := areas.ItemAttributes(item.Name, item.Equipment, item.Warning, "")
+		attrs := areas.ItemAttributes(item.Name, item.Equipment, item.Warning, "", item.Icon)
 		if info, booked := itemBookings[item.ID]; booked {
 			attrs["availability"] = "occupied"
 			attrs["booker_name"] = info.BookerName

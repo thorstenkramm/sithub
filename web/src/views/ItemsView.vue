@@ -100,8 +100,9 @@
 
         <!-- Equipment Filter -->
         <div class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
-          <v-text-field
+          <v-combobox
             v-model="equipmentFilter"
+            :items="savedFilterItems"
             label="Filter equipment"
             density="compact"
             hide-details
@@ -109,6 +110,21 @@
             prepend-inner-icon="$filterOutline"
             data-cy="equipment-filter-input"
           />
+          <v-tooltip :text="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'" location="top">
+            <template #activator="{ props: tooltipProps }">
+              <v-btn
+                v-bind="tooltipProps"
+                icon
+                variant="text"
+                size="small"
+                :data-cy="isCurrentFilterSaved ? 'equipment-filter-delete' : 'equipment-filter-save'"
+                :aria-label="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'"
+                @click="toggleSaveFilter"
+              >
+                <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$plus' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
           <v-btn
             icon
             variant="text"
@@ -227,7 +243,7 @@
               variant="tonal"
               size="48"
             >
-              <v-icon size="24">$desk</v-icon>
+              <v-icon size="24">{{ resolveItemIcon(entry.attributes.icon) }}</v-icon>
             </v-avatar>
           </template>
           <v-card-title class="d-flex align-center flex-wrap">
@@ -237,6 +253,18 @@
               size="x-small"
               data-cy="item-status"
             />
+            <v-btn
+              icon
+              variant="text"
+              size="x-small"
+              class="ml-1"
+              data-cy="item-favorite-heart"
+              @click.stop="handleToggleItemFav(entry.id, entry.attributes.name)"
+            >
+              <v-icon size="18" :color="isItemFav(entry.id) ? 'error' : undefined">
+                {{ isItemFav(entry.id) ? '$heart' : '$heartOutline' }}
+              </v-icon>
+            </v-btn>
           </v-card-title>
           <template #append>
             <div v-if="entry.attributes.availability === 'occupied'" class="d-flex align-center">
@@ -397,10 +425,24 @@
         <v-card-item>
           <template #prepend>
             <v-avatar color="primary" variant="tonal" size="48">
-              <v-icon size="24">$desk</v-icon>
+              <v-icon size="24">{{ resolveItemIcon(item.icon) }}</v-icon>
             </v-avatar>
           </template>
-          <v-card-title>{{ item.name }}</v-card-title>
+          <v-card-title class="d-flex align-center">
+            {{ item.name }}
+            <v-btn
+              icon
+              variant="text"
+              size="x-small"
+              class="ml-1"
+              data-cy="week-item-favorite-heart"
+              @click.stop="handleToggleItemFav(item.id, item.name)"
+            >
+              <v-icon size="18" :color="isItemFav(item.id) ? 'error' : undefined">
+                {{ isItemFav(item.id) ? '$heart' : '$heartOutline' }}
+              </v-icon>
+            </v-btn>
+          </v-card-title>
           <template #append>
             <div class="d-flex align-center">
               <v-tooltip
@@ -496,7 +538,17 @@
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
                 :class="['week-day-status', 'text-caption', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >{{ authStore.userName || 'Me' }}</span>
+              >
+                {{ authStore.userName || 'Me' }}
+                <v-icon
+                  v-if="!isDateInPast(date)"
+                  size="14"
+                  color="error"
+                  class="ml-1 week-cancel-icon"
+                  data-cy="week-cancel-btn"
+                  @click.stop="cancelWeekBooking(item.id, date)"
+                >$cancelCircle</v-icon>
+              </span>
               <template v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'">
                 <v-tooltip location="top" :disabled="!shouldShowWeekNameTooltip(getWeekDayBooker(item.id, date))">
                   <template #activator="{ props: tooltipProps }">
@@ -563,7 +615,17 @@
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >{{ authStore.userName || 'Me' }}</span>
+              >
+                {{ authStore.userName || 'Me' }}
+                <v-icon
+                  v-if="!isDateInPast(date)"
+                  size="14"
+                  color="error"
+                  class="ml-1 week-cancel-icon"
+                  data-cy="week-cancel-btn"
+                  @click.stop="cancelWeekBooking(item.id, date)"
+                >$cancelCircle</v-icon>
+              </span>
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-error']"
@@ -737,6 +799,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar v-model="showItemFavoriteSnackbar" :timeout="3000" color="success" data-cy="item-favorite-message">
+      {{ itemFavoriteMessage }}
+    </v-snackbar>
+    <v-snackbar v-model="showFilterSnackbar" :timeout="3000" color="success" data-cy="filter-message">
+      {{ filterMessage }}
+    </v-snackbar>
   </div>
 </template>
 
@@ -764,8 +833,11 @@ import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useWeekSelector, getWeekdayLabel } from '../composables/useWeekSelector';
 import { useWeekendPreference } from '../composables/useWeekendPreference';
 import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
+import { useSavedFilters } from '../composables/useSavedFilters';
+import { useFavorites } from '../composables/useFavorites';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
+import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
 
 const authStore = useAuthStore();
@@ -805,6 +877,11 @@ const showItemNoteDialog = computed({
 
 // Equipment filter
 const itemGroupFloorPlan = ref<string | null>(null);
+const inheritedIcon = ref<string | null>(null);
+
+const resolveItemIcon = (itemIcon: string | undefined) => {
+  return resolveConfiguredIcon(itemIcon || inheritedIcon.value, '$desk');
+};
 const showItemGroupFloorPlanDialog = ref(false);
 const itemGroupFloorPlanUrl = computed(() => {
   if (!itemGroupFloorPlan.value) return '';
@@ -813,6 +890,56 @@ const itemGroupFloorPlanUrl = computed(() => {
 
 const equipmentFilter = ref('');
 const showFilterHelp = ref(false);
+const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
+const { isItemFavorite, toggleItemFavorite } = useFavorites();
+const itemFavoriteMessage = ref<string | null>(null);
+const filterMessage = ref<string | null>(null);
+const showItemFavoriteSnackbar = computed({
+  get: () => itemFavoriteMessage.value !== null,
+  set: (v: boolean) => { if (!v) itemFavoriteMessage.value = null; }
+});
+const showFilterSnackbar = computed({
+  get: () => filterMessage.value !== null,
+  set: (v: boolean) => { if (!v) filterMessage.value = null; }
+});
+const isItemFav = (itemId: string) =>
+  !!activeItemGroupId.value
+  && !!getCurrentAreaId()
+  && isItemFavorite(getCurrentAreaId(), activeItemGroupId.value, itemId);
+const handleToggleItemFav = (itemId: string, itemName: string) => {
+  const areaId = getCurrentAreaId();
+  const igName = itemGroupName.value || '';
+  if (!activeItemGroupId.value || !areaId) {
+    return;
+  }
+  const { added } = toggleItemFavorite({
+    areaId,
+    itemId,
+    itemName,
+    itemGroupId: activeItemGroupId.value,
+    itemGroupName: igName
+  });
+  const label = `${igName} ${itemName}`;
+  itemFavoriteMessage.value = added ? `${label} saved as favorite.` : `${label} removed from favorites.`;
+  setTimeout(() => { itemFavoriteMessage.value = null; }, 3000);
+};
+const isCurrentFilterSaved = computed(() => !!equipmentFilter.value && isSavedFilter(equipmentFilter.value));
+const showFilterFeedback = (message: string) => {
+  filterMessage.value = message;
+  setTimeout(() => { filterMessage.value = null; }, 3000);
+};
+const toggleSaveFilter = () => {
+  if (!equipmentFilter.value) return;
+  if (isCurrentFilterSaved.value) {
+    deleteFilter(equipmentFilter.value);
+    equipmentFilter.value = '';
+    showFilterFeedback('Saved filter deleted.');
+  } else {
+    if (saveFilter(equipmentFilter.value)) {
+      showFilterFeedback('Filter saved.');
+    }
+  }
+};
 const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
 
 const isItemFilteredOut = (equipment: string[]): boolean => {
@@ -838,7 +965,7 @@ const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWee
 // Per-day data for week mode: map of date -> items array
 const weekData = ref<Record<string, JsonApiResource<ItemAttributes>[]>>({});
 const weekDataLoading = ref(false);
-const myWeekBookings = ref<Set<string>>(new Set());
+const myWeekBookings = ref<Map<string, string>>(new Map());
 
 // Week day selections: Set of "itemId::date" keys
 const weekSelections = ref<Set<string>>(new Set());
@@ -918,14 +1045,16 @@ const isDateInPast = (date: string): boolean => date < todayDate;
 
 // Unique items across all days in week mode
 const weekItems = computed(() => {
-  const itemsMap = new Map<string, string>();
+  const itemsMap = new Map<string, { name: string; icon?: string }>();
   for (const dayItems of Object.values(weekData.value)) {
     for (const item of dayItems) {
-      itemsMap.set(item.id, item.attributes.name);
+      if (!itemsMap.has(item.id)) {
+        itemsMap.set(item.id, { name: item.attributes.name, icon: item.attributes.icon });
+      }
     }
   }
   return Array.from(itemsMap.entries())
-    .map(([id, name]) => ({ id, name }))
+    .map(([id, attrs]) => ({ id, name: attrs.name, icon: attrs.icon }))
     .sort((a, b) => a.name.localeCompare(b.name));
 });
 
@@ -959,6 +1088,27 @@ const isWeekDaySelected = (itemId: string, date: string) =>
 const isBookedByMe = (itemId: string, date: string) =>
   myWeekBookings.value.has(getWeekSelectionKey(itemId, date));
 
+const weekCancellingKey = ref<string | null>(null);
+
+const cancelWeekBooking = async (itemId: string, date: string) => {
+  const key = getWeekSelectionKey(itemId, date);
+  const bookingId = myWeekBookings.value.get(key);
+  if (!bookingId) return;
+
+  weekCancellingKey.value = key;
+  try {
+    await cancelBooking(bookingId);
+    if (activeItemGroupId.value) {
+      await loadWeekData(activeItemGroupId.value);
+    }
+  } catch (err) {
+    if (await handleAuthError(err)) return;
+    bookingErrorMessage.value = 'Unable to cancel booking.';
+  } finally {
+    weekCancellingKey.value = null;
+  }
+};
+
 const toggleWeekDay = (itemId: string, date: string) => {
   if (getWeekDayStatus(itemId, date) !== 'free') return;
   if (isDateInPast(date)) return;
@@ -990,17 +1140,17 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
     weekData.value = data;
 
     const bookingsResp = await fetchMyBookings().catch(() => ({ data: [] }));
-    const bookedSet = new Set<string>();
+    const bookedMap = new Map<string, string>();
     for (const booking of bookingsResp.data) {
       const bookingDate = booking.attributes.booking_date;
       if (dates.includes(bookingDate)) {
-        bookedSet.add(getWeekSelectionKey(booking.attributes.item_id, bookingDate));
+        bookedMap.set(getWeekSelectionKey(booking.attributes.item_id, bookingDate), booking.id);
       }
     }
-    myWeekBookings.value = bookedSet;
+    myWeekBookings.value = bookedMap;
   } catch (err) {
     weekData.value = {};
-    myWeekBookings.value = new Set();
+    myWeekBookings.value = new Map();
     itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : 'Unable to load weekly items.';
   } finally {
     weekDataLoading.value = false;
@@ -1090,6 +1240,9 @@ const queryAreaId = computed(() => {
   return typeof value === 'string' ? value : undefined;
 });
 const resolvedAreaId = ref<string | null>(null);
+function getCurrentAreaId(): string {
+  return resolvedAreaId.value || queryAreaId.value || '';
+}
 const breadcrumbAreaId = computed(() =>
   resolvedAreaId.value ? resolvedAreaId.value : areaName.value ? undefined : queryAreaId.value
 );
@@ -1338,6 +1491,7 @@ onMounted(async () => {
         areaName.value = area.attributes.name;
         itemGroupName.value = ig.attributes.name;
         itemGroupFloorPlan.value = ig.attributes.floor_plan || null;
+        inheritedIcon.value = ig.attributes.icon || area.attributes.icon || null;
         resolvedAreaId.value = area.id;
         break;
       }
@@ -1476,6 +1630,11 @@ function formatDisplayDate(dateStr: string) {
 
 .week-day-status-truncated {
   display: inline-block;
+}
+
+.week-cancel-icon {
+  cursor: pointer;
+  vertical-align: middle;
 }
 
 .week-day-past {

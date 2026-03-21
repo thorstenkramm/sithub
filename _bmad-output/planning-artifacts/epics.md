@@ -13,6 +13,8 @@ editHistory:
     changes: "Added FR43-FR58 and Epics 14-17: UI Cleanup & Booking Simplification, Collapsible Item Tiles, User Preferences & Settings, Equipment Filter."
   - date: '2026-03-13'
     changes: "Added FR59-FR66 and Epic 18: Floor Plan Display & Config Consistency. Covers terminology rename, file location enforcement, floor plan serving/display, and connection error handling."
+  - date: '2026-03-21'
+    changes: "Added FR67-FR74 and Epic 19: User Feedback — Bug Fixes & Feature Requests. Covers cancel dialog bug, week selector/calendar fixes, equipment filter enhancements, week view cancellation, custom icons, and favorites."
 ---
 
 # sithub - Epic Breakdown
@@ -196,6 +198,30 @@ plan exists.
 FR66: Connection lost error messaging. Acceptance: when the backend is unavailable, the
 frontend shows a clear "Connection to server lost" error instead of misleading content like
 "no areas available".
+FR67: Cancel booking dialog not closing. Acceptance: after confirming a booking cancellation,
+the confirmation dialog closes automatically.
+FR68: Equipment filter on area/item-groups view. Acceptance: a text input on the item-groups
+page filters item groups by equipment; non-matching groups are blurred and disabled; same
+parsing rules as the existing equipment filter apply.
+FR69: Equipment filter saving. Acceptance: saved filters are stored in browser local storage;
+a save icon next to the input persists the current filter; a combobox allows selecting saved
+filters; loading a saved filter turns the save icon into a delete icon; editing saved filters
+is not supported.
+FR70: Cancel bookings from week view. Acceptance: when a booking in the week view belongs to
+the current user, a small red cancel icon appears next to the checkmark; clicking it cancels
+the booking; other users' bookings show no cancel icon.
+FR71: Week selector date range display. Acceptance: each option in the week selector shows
+"DD.MM.-DD.MM.YYYY - Week N" (e.g. "23.03.-29.03.2026 - Week 13").
+FR72: Calendar widget starts on Monday. Acceptance: the calendar date picker shows Monday as
+the first column and Sunday as the last column.
+FR73: Custom icons in areas YAML. Acceptance: an optional `icon` field at area, item group,
+and item levels in the areas YAML specifies an MDI icon code; the frontend renders the
+specified icon; missing or invalid icons fall back to the current defaults.
+FR74: Favorites. Acceptance: heart outline icons on item group and item tiles allow marking
+favorites; favorites are stored in browser local storage; clicking toggles the favorite state
+with confirmation messages; item-groups view sorts: (1) third-level favorites A-Z,
+(2) second-level favorites A-Z, (3) remaining items in YAML order; third-level favorites
+appear as bookable tiles on the item-groups view.
 
 ### NonFunctional Requirements
 
@@ -310,6 +336,14 @@ FR63: Epic 18 - Authenticated floor plan image serving
 FR64: Epic 18 - Area floor plan display
 FR65: Epic 18 - Item group floor plan display
 FR66: Epic 18 - Connection lost error messaging
+FR67: Epic 19 - Cancel dialog bug fix
+FR68: Epic 19 - Equipment filter on item-groups view
+FR69: Epic 19 - Equipment filter saving
+FR70: Epic 19 - Cancel from week view
+FR71: Epic 19 - Week selector date range
+FR72: Epic 19 - Calendar Monday start
+FR73: Epic 19 - Custom icons in areas YAML
+FR74: Epic 19 - Favorites
 
 ## Epic List
 
@@ -407,6 +441,13 @@ using an advanced search syntax.
 Users can view floor plan images for areas and item groups while booking, and operators
 benefit from consistent configuration terminology and stricter file location validation.
 **FRs covered:** FR59, FR60, FR61, FR62, FR63, FR64, FR65, FR66
+
+### Epic 19: User Feedback — Bug Fixes & Feature Requests
+
+Users benefit from a smoother booking experience through bug fixes and new capabilities
+including equipment filter enhancements, quick cancellation from week view, customizable
+icons, an improved calendar/week selector, and a favorites system.
+**FRs covered:** FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -2036,3 +2077,208 @@ So that I understand the real problem instead of seeing misleading messages like
 **Given** the backend was available and then goes down
 **When** subsequent API calls fail
 **Then** the error message is shown instead of empty or misleading content
+
+## Epic 19 Stories: User Feedback — Bug Fixes & Feature Requests
+
+Users benefit from a smoother booking experience through bug fixes and new capabilities
+including equipment filter enhancements, quick cancellation from week view, customizable
+icons, an improved calendar/week selector, and a favorites system.
+**FRs covered:** FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74
+
+### Story 19.1: Fix Cancel Booking Dialog Not Closing
+
+**FRs covered:** FR67
+
+As a user,
+I want the cancel booking confirmation dialog to close after I confirm the cancellation,
+So that I am not left with a stale dialog on screen.
+
+**Acceptance Criteria:**
+
+**Given** I am on the My Bookings page and click cancel on a booking
+**When** the confirmation dialog appears and I click "Cancel Booking"
+**Then** the booking is removed from the list
+**And** the confirmation dialog closes automatically
+
+### Story 19.2: Week Selector Date Range Display
+
+**FRs covered:** FR71
+
+As a user,
+I want the calendar week selector to show both the first and last day of each week,
+So that I can immediately see which date range a calendar week covers.
+
+**Acceptance Criteria:**
+
+**Given** I am on a view with the week selector
+**When** I open the week selector dropdown
+**Then** each option shows the format "DD.MM.-DD.MM.YYYY - Week N"
+(e.g. "23.03.-29.03.2026 - Week 13")
+
+**Given** the show weekends toggle is off
+**When** I view the week selector
+**Then** the date range still shows Monday through Sunday (full week),
+regardless of the weekends setting
+
+### Story 19.3: Calendar Widget Starts on Monday
+
+**FRs covered:** FR72
+
+As a user,
+I want the calendar date picker to show Monday as the first day of the week,
+So that it matches the European convention I am used to.
+
+**Acceptance Criteria:**
+
+**Given** I am on any view with a date picker
+**When** the calendar widget opens
+**Then** Monday is displayed as the first (leftmost) column
+**And** Sunday is displayed as the last (rightmost) column
+
+### Story 19.4: Cancel Booking from Week View
+
+**FRs covered:** FR70
+
+As a user,
+I want to cancel my bookings directly from the week view,
+So that I don't have to navigate to My Bookings to undo a booking.
+
+**Acceptance Criteria:**
+
+**Given** I am on the week view and a day/item has my booking (shown with a checkmark)
+**When** the page renders
+**Then** a small red cancel icon appears next to the checkmark
+
+**Given** I click the red cancel icon
+**When** the cancellation is processed
+**Then** the booking is cancelled and the checkmark and cancel icon are removed
+**And** the item becomes bookable again for that day
+
+**Given** the booking belongs to another user
+**When** the page renders
+**Then** no cancel icon is shown for that booking
+
+### Story 19.5: Equipment Filter on Item Groups View
+
+**FRs covered:** FR68
+
+As a user,
+I want to filter item groups by equipment on the area view,
+So that I can quickly find rooms or areas that have the equipment I need.
+
+**Acceptance Criteria:**
+
+**Given** I am on the item-groups view (e.g. `/areas/{areaId}/item-groups`)
+**When** I enter an equipment filter keyword
+**Then** item groups whose items do not match the filter are blurred and disabled
+**And** item groups with at least one matching item are shown normally
+
+**Given** I clear the filter
+**When** the filter is removed
+**Then** all item groups are shown normally without blur
+
+**Given** I use the advanced filter syntax (AND with `+`, exact match with quotes)
+**When** the filter is applied
+**Then** the same parsing rules from the existing equipment filter apply
+
+### Story 19.6: Equipment Filter Saving
+
+**FRs covered:** FR69
+
+As a user,
+I want to save my equipment filters for reuse,
+So that I don't have to retype the same filter keywords every time I book.
+
+**Acceptance Criteria:**
+
+**Given** I have typed a filter into the equipment filter input
+**When** I click the save icon next to the input
+**Then** the filter is saved to browser local storage
+**And** a confirmation is shown
+
+**Given** I have saved filters
+**When** I focus the equipment filter input
+**Then** a combobox dropdown shows my saved filters alongside free-text input
+
+**Given** I select a saved filter from the combobox
+**When** the filter loads
+**Then** the save icon becomes a delete icon
+
+**Given** I click the delete icon on a loaded saved filter
+**When** the deletion is confirmed
+**Then** the filter is removed from local storage
+**And** the input is cleared
+
+**Given** I have no saved filters
+**When** the page loads
+**Then** the input behaves as a regular text field with no dropdown entries
+
+### Story 19.7: Custom Icons in Areas YAML
+
+**FRs covered:** FR73
+
+As an operator,
+I want to specify custom MDI icons for areas, item groups, and items in the areas YAML,
+So that the UI reflects the actual purpose of each space with meaningful icons.
+
+**Acceptance Criteria:**
+
+**Given** an area, item group, or item in the areas YAML has an `icon` field
+(e.g. `icon: mdi-office-building`)
+**When** the frontend renders that entity
+**Then** the specified MDI icon is displayed instead of the default icon
+
+**Given** an entity does not have an `icon` field
+**When** the frontend renders that entity
+**Then** the current default icon is used
+
+**Given** the `icon` field contains an invalid or unknown MDI icon name
+**When** the server starts
+**Then** a warning is logged but the server does not fail to start
+**And** the frontend falls back to the default icon
+
+**Given** the areas API returns the `icon` attribute
+**When** the frontend receives the response
+**Then** the icon value is available for rendering at all three levels
+(area, item group, item)
+
+### Story 19.8: Favorites
+
+**FRs covered:** FR74
+
+As a user,
+I want to mark item groups and items as favorites,
+So that my most-used spaces appear first and are quick to find.
+
+**Acceptance Criteria:**
+
+**Given** I am on the item-groups view (second level)
+**When** I see an item group tile
+**Then** a heart outline icon is visible on the tile
+
+**Given** I click the heart outline on an item group
+**When** the favorite is saved
+**Then** a confirmation "{item group name} saved as favorite." is shown
+**And** the icon becomes a red-filled heart
+**And** the favorite is persisted in browser local storage
+
+**Given** I click a red-filled heart on an item group
+**When** the favorite is removed
+**Then** a confirmation "{item group name} removed from favorites." is shown
+**And** the icon reverts to a heart outline
+
+**Given** I am on the items view (third level)
+**When** I see an item tile
+**Then** a heart outline icon is visible on the tile
+**And** clicking it saves/removes the favorite with confirmation
+"{item group name} {item name} saved/removed as favorite."
+
+**Given** I have third-level favorites
+**When** I view the item-groups page (second level)
+**Then** my third-level favorites appear as bookable tiles on that page
+
+**Given** I am on the item-groups view with favorites
+**When** the page renders
+**Then** items are ordered: (1) third-level favorites A-Z,
+(2) second-level favorites A-Z, (3) remaining item groups in YAML order
+with second-level favorites subtracted

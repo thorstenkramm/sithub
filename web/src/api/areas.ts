@@ -5,6 +5,7 @@ export interface AreaAttributes {
   name: string;
   description?: string;
   floor_plan?: string;
+  icon?: string;
 }
 
 export function fetchAreas() {

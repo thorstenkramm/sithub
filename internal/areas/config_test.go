@@ -275,3 +275,37 @@ func TestValidateFloorPlansNoReferencesSkips(t *testing.T) {
 		t.Fatalf("expected no error when no floor plans referenced, got %v", err)
 	}
 }
+
+func TestFindInvalidConfiguredIcons(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Area",
+				Icon: "bad icon",
+				ItemGroups: []ItemGroup{
+					{
+						ID:   "ig1",
+						Name: "Room",
+						Icon: "mdi-door-open",
+						Items: []Item{
+							{ID: "d1", Name: "Desk 1", Icon: "mdi desk"},
+							{ID: "d2", Name: "Desk 2", Icon: "mdi-desk"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	warnings := FindInvalidConfiguredIcons(cfg)
+	if len(warnings) != 2 {
+		t.Fatalf("expected 2 warnings, got %d", len(warnings))
+	}
+	if warnings[0].Location != `area "a1"` || warnings[0].Icon != "bad icon" {
+		t.Fatalf("unexpected first warning: %#v", warnings[0])
+	}
+	if warnings[1].Location != `item "d1"` || warnings[1].Icon != "mdi desk" {
+		t.Fatalf("unexpected second warning: %#v", warnings[1])
+	}
+}

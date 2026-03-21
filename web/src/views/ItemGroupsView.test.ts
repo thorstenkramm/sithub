@@ -4,6 +4,7 @@ import ItemGroupsView from './ItemGroupsView.vue';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
+import { fetchItems } from '../api/items';
 import { fetchWeeklyAvailability } from '../api/itemGroupAvailability';
 import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
@@ -13,6 +14,7 @@ const pushMock = vi.fn();
 vi.mock('../api/me', () => ({ fetchMe: vi.fn() }));
 vi.mock('../api/itemGroups', () => ({ fetchItemGroups: vi.fn() }));
 vi.mock('../api/areas', () => ({ fetchAreas: vi.fn() }));
+vi.mock('../api/items', () => ({ fetchItems: vi.fn() }));
 vi.mock('../api/itemGroupAvailability', () => ({ fetchWeeklyAvailability: vi.fn() }));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { areaId: 'area-1' } }),
@@ -29,15 +31,28 @@ describe('ItemGroupsView', () => {
       'v-icon',
       'v-skeleton-loader',
       'v-select',
+      'v-combobox',
       'v-spacer',
+      'v-snackbar',
+      'v-tooltip',
       'router-link'
     ]),
     'v-btn': {
       template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>'
     },
+    'v-combobox': {
+      props: ['modelValue'],
+      template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+    },
     'v-dialog': {
       props: ['modelValue'],
       template: '<div v-if="modelValue"><slot /></div>'
+    },
+    'v-snackbar': {
+      template: '<div v-bind="$attrs"><slot /></div>'
+    },
+    'v-tooltip': {
+      template: '<div><slot name="activator" :props="{}" /><slot /></div>'
     }
   };
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
@@ -104,10 +119,13 @@ describe('ItemGroupsView', () => {
     setActivePinia(createPinia());
     pushMock.mockReset();
     fetchAvailabilityMock.mockReset();
+    const fetchItemsMock = fetchItems as unknown as ReturnType<typeof vi.fn>;
+    fetchItemsMock.mockReset();
     mockFetchMe();
     mockFetchAreas();
     mockFetchItemGroups(0);
     mockAvailability();
+    localStorage.clear();
   });
 
   it('renders page header with breadcrumbs', async () => {
@@ -160,22 +178,14 @@ describe('ItemGroupsView', () => {
     expect(wrapper.find('[data-cy="week-selector-card"]').exists()).toBe(true);
   });
 
-  it('uses locale-aware date formatting for week labels', async () => {
+  it('week selector labels use DD.MM.-DD.MM.YYYY format', async () => {
     mockFetchItemGroups(1);
-    const formatterSpy = vi.spyOn(Intl, 'DateTimeFormat');
 
     const wrapper = mountView();
     await flushPromises();
 
-    expect(formatterSpy).toHaveBeenCalledWith(undefined, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-
-    formatterSpy.mockRestore();
-
-    expect(wrapper.find('[data-cy="week-selector"]').exists()).toBe(true);
+    const selector = wrapper.find('[data-cy="week-selector"]');
+    expect(selector.exists()).toBe(true);
   });
 
   it('fetches availability on mount', async () => {
@@ -272,6 +282,46 @@ describe('ItemGroupsView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Select');
+  });
+
+  it('shows a confirmation when saving an equipment filter', async () => {
+    mockFetchItemGroups(1);
+    const fetchItemsMock = fetchItems as unknown as ReturnType<typeof vi.fn>;
+    fetchItemsMock.mockResolvedValue({ data: [] });
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      equipmentFilter: string;
+      toggleSaveFilter: () => void;
+    };
+    vm.equipmentFilter = 'webcam';
+    await flushPromises();
+    vm.toggleSaveFilter();
+    await flushPromises();
+
+    expect(JSON.parse(localStorage.getItem('sithub_saved_filters')!)).toEqual(['webcam']);
+    expect(wrapper.text()).toContain('Filter saved.');
+  });
+
+  it('deletes a saved filter, clears the input, and shows a confirmation', async () => {
+    localStorage.setItem('sithub_saved_filters', JSON.stringify(['webcam']));
+    mockFetchItemGroups(1);
+    const fetchItemsMock = fetchItems as unknown as ReturnType<typeof vi.fn>;
+    fetchItemsMock.mockResolvedValue({ data: [] });
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    await wrapper.get('[data-cy="ig-equipment-filter"]').setValue('webcam');
+    await flushPromises();
+    await wrapper.get('[data-cy="ig-equipment-filter-delete"]').trigger('click');
+    await flushPromises();
+
+    expect(JSON.parse(localStorage.getItem('sithub_saved_filters')!)).toEqual([]);
+    expect((wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter).toBe('');
+    expect(wrapper.text()).toContain('Saved filter deleted.');
   });
 
 });

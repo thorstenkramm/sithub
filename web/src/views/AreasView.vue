@@ -39,7 +39,7 @@
         <v-card-item>
           <template #prepend>
             <v-avatar color="primary" variant="tonal" size="48">
-              <v-icon size="24">$area</v-icon>
+              <v-icon size="24">{{ resolveConfiguredIcon(area.attributes.icon, '$area') }}</v-icon>
             </v-avatar>
           </template>
           <v-card-title class="text-h6">{{ area.attributes.name }}</v-card-title>
@@ -87,6 +87,7 @@ import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
+import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 
 const authStore = useAuthStore();

@@ -16,6 +16,7 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "pinia": "*",
     "vue": "*",
@@ -23,6 +24,7 @@
     "vuetify": "*"
   },
   "overrides": {
+    "flatted": "^3.4.2",
     "yauzl": "^3.2.1"
   },
   "devDependencies": {

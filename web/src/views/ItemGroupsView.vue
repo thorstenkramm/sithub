@@ -34,6 +34,39 @@
       </v-card-text>
     </v-card>
 
+    <!-- Equipment Filter -->
+    <v-card v-if="itemGroups.length > 0" class="mb-6">
+      <v-card-text>
+        <div class="d-flex align-center ga-2" style="max-width: 420px;">
+          <v-combobox
+            v-model="equipmentFilter"
+            :items="savedFilterItems"
+            label="Filter equipment"
+            density="compact"
+            hide-details
+            clearable
+            prepend-inner-icon="$filterOutline"
+            data-cy="ig-equipment-filter"
+          />
+          <v-tooltip :text="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'" location="top">
+            <template #activator="{ props: tooltipProps }">
+              <v-btn
+                v-bind="tooltipProps"
+                icon
+                variant="text"
+                size="small"
+                :data-cy="isCurrentFilterSaved ? 'ig-equipment-filter-delete' : 'ig-equipment-filter-save'"
+                :aria-label="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'"
+                @click="toggleSaveFilter"
+              >
+                <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$plus' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
+        </div>
+      </v-card-text>
+    </v-card>
+
     <!-- Loading State -->
     <LoadingState v-if="itemGroupsLoading" type="cards" :count="4" data-cy="item-groups-loading" />
 
@@ -55,21 +88,87 @@
 
     <!-- Item Groups Grid -->
     <div v-else class="card-grid" data-cy="item-groups-list">
-      <v-card
-        v-for="ig in itemGroups"
-        :key="ig.id"
-        class="card-hover"
-        role="button"
-        tabindex="0"
-        :aria-label="`Select items in ${ig.attributes.name}`"
-        data-cy="item-group-item"
-        @click="goToItems(ig.id)"
-        @keydown.enter="goToItems(ig.id)"
+      <!-- Third-level favorites promoted to this view -->
+      <div
+        v-for="fav in sortedItemGroups.thirdLevelFavs"
+        :key="`fav-item-${fav.itemId}`"
+        class="item-filter-wrapper"
       >
+        <v-card
+          :class="['card-hover', { 'item-filtered-out': isItemGroupFilteredOut(fav.itemGroupId) }]"
+          role="button"
+          tabindex="0"
+          data-cy="favorite-item-tile"
+          @click="!isItemGroupFilteredOut(fav.itemGroupId) && goToItems(fav.itemGroupId)"
+        >
+          <div v-if="isItemGroupFilteredOut(fav.itemGroupId)" class="item-filtered-overlay">
+            <span class="text-body-2 text-medium-emphasis">equipment not available</span>
+          </div>
+          <v-card-item>
+            <template #prepend>
+              <v-avatar color="primary" variant="tonal" size="48">
+                <v-icon size="24">$desk</v-icon>
+              </v-avatar>
+            </template>
+            <v-card-title class="text-h6">{{ fav.itemGroupName }} {{ fav.itemName }}</v-card-title>
+          </v-card-item>
+          <v-card-actions class="px-4 pb-4">
+            <v-btn
+              color="primary"
+              variant="tonal"
+              size="small"
+              @click.stop="goToItems(fav.itemGroupId)"
+            >
+              Select
+            </v-btn>
+            <v-btn
+              variant="text"
+              size="small"
+              :to="{
+                name: 'item-group-bookings',
+                params: { itemGroupId: fav.itemGroupId },
+                query: { areaId: route.params.areaId as string }
+              }"
+              @click.stop
+            >
+              View Bookings
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              data-cy="favorite-item-heart"
+              @click.stop="handleToggleItemFavorite(fav)"
+            >
+              <v-icon color="error">$heart</v-icon>
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </div>
+
+      <!-- Second-level favorites (sorted A-Z) then rest (YAML order) -->
+      <div
+        v-for="ig in [...sortedItemGroups.igFavs, ...sortedItemGroups.rest]"
+        :key="ig.id"
+        class="item-filter-wrapper"
+      >
+        <v-card
+          :class="['card-hover', { 'item-filtered-out': isItemGroupFilteredOut(ig.id) }]"
+          role="button"
+          tabindex="0"
+          :aria-label="`Select items in ${ig.attributes.name}`"
+          data-cy="item-group-item"
+          @click="!isItemGroupFilteredOut(ig.id) && goToItems(ig.id)"
+          @keydown.enter="!isItemGroupFilteredOut(ig.id) && goToItems(ig.id)"
+        >
+        <div v-if="isItemGroupFilteredOut(ig.id)" class="item-filtered-overlay">
+          <span class="text-body-2 text-medium-emphasis">equipment not available</span>
+        </div>
         <v-card-item>
           <template #prepend>
             <v-avatar color="secondary" variant="tonal" size="48">
-              <v-icon size="24">$room</v-icon>
+              <v-icon size="24">{{ resolveIcon(ig.attributes.icon, '$room') }}</v-icon>
             </v-avatar>
           </template>
           <v-card-title class="text-h6">{{ ig.attributes.name }}</v-card-title>
@@ -119,8 +218,21 @@
           >
             View Bookings
           </v-btn>
+          <v-spacer />
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            data-cy="ig-favorite-heart"
+            @click.stop="handleToggleItemGroupFavorite(ig.id, ig.attributes.name)"
+          >
+            <v-icon :color="isItemGroupFavorite(route.params.areaId as string, ig.id) ? 'error' : undefined">
+              {{ isItemGroupFavorite(route.params.areaId as string, ig.id) ? '$heart' : '$heartOutline' }}
+            </v-icon>
+          </v-btn>
         </v-card-actions>
       </v-card>
+      </div>
     </div>
 
     <v-dialog v-model="showFloorPlanDialog" max-width="900" data-cy="floor-plan-dialog">
@@ -141,6 +253,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar v-model="showFavoriteSnackbar" :timeout="3000" color="success" data-cy="favorite-message">
+      {{ favoriteMessage }}
+    </v-snackbar>
+    <v-snackbar v-model="showFilterSnackbar" :timeout="3000" color="success" data-cy="ig-filter-message">
+      {{ filterMessage }}
+    </v-snackbar>
   </div>
 </template>
 
@@ -158,19 +277,67 @@ import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useWeekSelector } from '../composables/useWeekSelector';
 import { useWeekendPreference } from '../composables/useWeekendPreference';
+import { fetchItems } from '../api/items';
+import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
+import { useSavedFilters } from '../composables/useSavedFilters';
+import { useFavorites } from '../composables/useFavorites';
 import { useAuthStore } from '../stores/useAuthStore';
+import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 
 const authStore = useAuthStore();
 const areaName = ref('');
 const areaFloorPlan = ref<string | null>(null);
+const areaIcon = ref<string | null>(null);
 const showFloorPlanDialog = ref(false);
 const itemGroups = ref<JsonApiResource<ItemGroupAttributes>[]>([]);
 const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
 const router = useRouter();
 const { loading: itemGroupsLoading, run: runItemGroups } = useApi();
+const {
+  isItemGroupFavorite, toggleItemGroupFavorite,
+  favoriteItems, toggleItemFavorite
+} = useFavorites();
+const favoriteMessage = ref<string | null>(null);
+const filterMessage = ref<string | null>(null);
+const showFavoriteSnackbar = computed({
+  get: () => favoriteMessage.value !== null,
+  set: (v: boolean) => { if (!v) favoriteMessage.value = null; }
+});
+const showFilterSnackbar = computed({
+  get: () => filterMessage.value !== null,
+  set: (v: boolean) => { if (!v) filterMessage.value = null; }
+});
 const availabilityMap = ref<Record<string, DayAvailability[]>>({});
+
+const equipmentFilter = ref('');
+const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
+const isCurrentFilterSaved = computed(() => !!equipmentFilter.value && isSavedFilter(equipmentFilter.value));
+const showFilterFeedback = (message: string) => {
+  filterMessage.value = message;
+  setTimeout(() => { filterMessage.value = null; }, 3000);
+};
+const toggleSaveFilter = () => {
+  if (!equipmentFilter.value) return;
+  if (isCurrentFilterSaved.value) {
+    deleteFilter(equipmentFilter.value);
+    equipmentFilter.value = '';
+    showFilterFeedback('Saved filter deleted.');
+  } else {
+    if (saveFilter(equipmentFilter.value)) {
+      showFilterFeedback('Filter saved.');
+    }
+  }
+};
+const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
+const itemGroupEquipment = ref<Record<string, string[]>>({});
+
+const isItemGroupFilteredOut = (igId: string): boolean => {
+  if (!equipmentFilter.value) return false;
+  const equipment = itemGroupEquipment.value[igId] ?? [];
+  return !matchesParsedFilter(equipment, parsedEquipmentFilter.value);
+};
 
 const { showWeekends } = useWeekendPreference();
 const { weekOptions, selectedWeek } = useWeekSelector(showWeekends);
@@ -183,6 +350,44 @@ const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
   { text: areaName.value || 'Area' }
 ]);
+
+const sortedItemGroups = computed(() => {
+  const areaId = route.params.areaId as string;
+  // Third-level favorites for this area's item groups
+  const thirdLevelFavs = favoriteItems.value
+    .filter(f => f.areaId === areaId && itemGroups.value.some(ig => ig.id === f.itemGroupId))
+    .sort((a, b) => `${a.itemGroupName} ${a.itemName}`.localeCompare(`${b.itemGroupName} ${b.itemName}`));
+
+  // Second-level favorites sorted A-Z
+  const igFavs = itemGroups.value
+    .filter(ig => isItemGroupFavorite(areaId, ig.id))
+    .sort((a, b) => a.attributes.name.localeCompare(b.attributes.name));
+  const igFavIds = new Set(igFavs.map(ig => ig.id));
+
+  // Rest in YAML order, minus second-level favorites
+  const rest = itemGroups.value.filter(ig => !igFavIds.has(ig.id));
+
+  return { thirdLevelFavs, igFavs, rest, areaId };
+});
+
+const handleToggleItemGroupFavorite = (igId: string, igName: string) => {
+  const areaId = route.params.areaId as string;
+  const { added } = toggleItemGroupFavorite(areaId, igId);
+  favoriteMessage.value = added ? `${igName} saved as favorite.` : `${igName} removed from favorites.`;
+  setTimeout(() => { favoriteMessage.value = null; }, 3000);
+};
+
+const handleToggleItemFavorite = (fav: { itemId: string; itemName: string; itemGroupId: string; itemGroupName: string }) => {
+  const areaId = route.params.areaId as string;
+  const { added } = toggleItemFavorite({ ...fav, areaId });
+  const label = `${fav.itemGroupName} ${fav.itemName}`;
+  favoriteMessage.value = added ? `${label} saved as favorite.` : `${label} removed from favorites.`;
+  setTimeout(() => { favoriteMessage.value = null; }, 3000);
+};
+
+const resolveIcon = (icon: string | undefined, fallback: string) => {
+  return resolveConfiguredIcon(icon || areaIcon.value, fallback);
+};
 
 const goToItems = async (igId: string) => {
   const areaId = route.params.areaId as string;
@@ -245,6 +450,7 @@ onMounted(async () => {
     if (area) {
       areaName.value = area.attributes.name;
       areaFloorPlan.value = area.attributes.floor_plan || null;
+      areaIcon.value = area.attributes.icon || null;
     }
   } catch (err) {
     if (isConnectionError(err)) {
@@ -273,6 +479,28 @@ onMounted(async () => {
   }
 
   await loadAvailability(areaId, selectedWeek.value);
+
+  // Load equipment per item group for filtering (non-blocking)
+  if (itemGroups.value.length > 0) {
+    try {
+      const results = await Promise.all(
+        itemGroups.value.map(ig => fetchItems(ig.id).then(r => ({ igId: ig.id, items: r.data })))
+      );
+      const map: Record<string, string[]> = {};
+      for (const { igId, items } of results) {
+        const allEquipment = new Set<string>();
+        for (const item of items) {
+          for (const eq of item.attributes.equipment ?? []) {
+            allEquipment.add(eq);
+          }
+        }
+        map[igId] = [...allEquipment];
+      }
+      itemGroupEquipment.value = map;
+    } catch {
+      // Non-critical: filter just won't work
+    }
+  }
 });
 
 watch([selectedWeek, showWeekends], async ([week]) => {
@@ -313,5 +541,24 @@ watch([selectedWeek, showWeekends], async ([week]) => {
 .indicator-label {
   font-size: 0.65rem;
   line-height: 1;
+}
+
+.item-filter-wrapper {
+  position: relative;
+}
+
+.item-filtered-out {
+  filter: blur(3px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.item-filtered-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
 </style>

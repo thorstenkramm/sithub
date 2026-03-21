@@ -139,6 +139,7 @@ const confirmCancelBooking = async () => {
       cancelErrorMessage.value = 'Unable to cancel booking. Please try again.';
     }
   } finally {
+    showCancelDialog.value = false;
     cancellingBookingId.value = null;
     pendingCancelId.value = null;
   }

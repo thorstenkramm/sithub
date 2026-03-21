@@ -41,9 +41,11 @@ describe('ItemsView', () => {
       'v-checkbox',
       'v-expand-transition',
       'v-autocomplete',
+      'v-combobox',
       'v-menu',
       'v-date-picker',
       'v-skeleton-loader',
+      'v-snackbar',
       'v-textarea',
       'v-spacer',
       'v-btn-toggle',
@@ -52,6 +54,10 @@ describe('ItemsView', () => {
     ]),
     'v-btn': {
       template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>'
+    },
+    'v-combobox': {
+      props: ['modelValue'],
+      template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
     },
     'v-dialog': {
       props: ['modelValue'],
@@ -66,6 +72,9 @@ describe('ItemsView', () => {
     },
     'v-tooltip': {
       template: '<div><slot name="activator" :props="{}" /><slot /></div>'
+    },
+    'v-snackbar': {
+      template: '<div v-bind="$attrs"><slot /></div>'
     },
     'v-icon': slotStub
   };
@@ -606,6 +615,38 @@ describe('ItemsView', () => {
       expect(wrapper.findAll('[data-cy="equipment-not-available"]').length).toBeGreaterThanOrEqual(1);
 
       localStorage.removeItem('sithub_booking_mode');
+    });
+
+    it('saves a filter and shows a confirmation', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      const vm = wrapper.vm as unknown as {
+        equipmentFilter: string;
+        toggleSaveFilter: () => void;
+      };
+      vm.equipmentFilter = 'webcam';
+      await nextTick();
+      vm.toggleSaveFilter();
+      await flushPromises();
+
+      expect(JSON.parse(localStorage.getItem('sithub_saved_filters')!)).toEqual(['webcam']);
+      expect(wrapper.text()).toContain('Filter saved.');
+    });
+
+    it('deletes a saved filter, clears the input, and shows a confirmation', async () => {
+      localStorage.setItem('sithub_saved_filters', JSON.stringify(['webcam']));
+      const wrapper = mountView();
+      await flushPromises();
+
+      await wrapper.get('[data-cy="equipment-filter-input"]').setValue('webcam');
+      await nextTick();
+      await wrapper.get('[data-cy="equipment-filter-delete"]').trigger('click');
+      await flushPromises();
+
+      expect(JSON.parse(localStorage.getItem('sithub_saved_filters')!)).toEqual([]);
+      expect((wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter).toBe('');
+      expect(wrapper.text()).toContain('Saved filter deleted.');
     });
   });
 

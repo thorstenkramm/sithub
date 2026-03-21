@@ -52,6 +52,13 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("load areas config: %w", err)
 	}
+	for _, warning := range areas.FindInvalidConfiguredIcons(areasConfig) {
+		slog.Warn(
+			"invalid configured icon; frontend will fall back to the default icon",
+			"location", warning.Location,
+			"icon", warning.Icon,
+		)
+	}
 
 	// Validate floor plan references if floor plans directory is configured
 	if cfg.Areas.FloorPlansDir != "" {
@@ -188,4 +195,3 @@ func registerSPAHandlers(e *echo.Echo, webFS fs.FS) {
 		defaultErrorHandler(err, c)
 	}
 }
-

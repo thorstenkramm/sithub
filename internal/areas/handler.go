@@ -20,7 +20,7 @@ func ListHandlerDynamic(getConfig ConfigGetter) echo.HandlerFunc {
 			return api.Resource{
 				Type:       "areas",
 				ID:         area.ID,
-				Attributes: BaseAttributes(area.Name, area.Description, area.FloorPlan),
+				Attributes: BaseAttributes(area.Name, area.Description, area.FloorPlan, area.Icon),
 			}
 		})
 

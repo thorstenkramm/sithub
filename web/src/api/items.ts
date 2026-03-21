@@ -6,6 +6,7 @@ export interface ItemAttributes {
   equipment: string[];
   availability: 'available' | 'occupied';
   warning?: string;
+  icon?: string;
   booker_name?: string; // present when item is occupied
   booking_id?: string; // admin-only, present when item is occupied
   note?: string; // present when item is occupied and has a note
