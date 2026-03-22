@@ -538,17 +538,15 @@
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
                 :class="['week-day-status', 'text-caption', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >
-                {{ authStore.userName || 'Me' }}
-                <v-icon
-                  v-if="!isDateInPast(date)"
-                  size="14"
-                  color="error"
-                  class="ml-1 week-cancel-icon"
-                  data-cy="week-cancel-btn"
-                  @click.stop="cancelWeekBooking(item.id, date)"
-                >$cancelCircle</v-icon>
-              </span>
+              >{{ authStore.userName || 'Me' }}</span>
+              <v-icon
+                v-if="getWeekDayStatus(item.id, date) === 'booked-by-me' && !isDateInPast(date)"
+                size="14"
+                color="error"
+                class="week-cancel-icon"
+                data-cy="week-cancel-btn"
+                @click.stop="requestWeekCancel(item.id, date)"
+              >$cancelCircle</v-icon>
               <template v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'">
                 <v-tooltip location="top" :disabled="!shouldShowWeekNameTooltip(getWeekDayBooker(item.id, date))">
                   <template #activator="{ props: tooltipProps }">
@@ -615,17 +613,15 @@
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >
-                {{ authStore.userName || 'Me' }}
-                <v-icon
-                  v-if="!isDateInPast(date)"
-                  size="14"
-                  color="error"
-                  class="ml-1 week-cancel-icon"
-                  data-cy="week-cancel-btn"
-                  @click.stop="cancelWeekBooking(item.id, date)"
-                >$cancelCircle</v-icon>
-              </span>
+              >{{ authStore.userName || 'Me' }}</span>
+              <v-icon
+                v-if="getWeekDayStatus(item.id, date) === 'booked-by-me' && !isDateInPast(date)"
+                size="14"
+                color="error"
+                class="ml-1 week-cancel-icon"
+                data-cy="week-cancel-btn"
+                @click.stop="requestWeekCancel(item.id, date)"
+              >$cancelCircle</v-icon>
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-error']"
@@ -800,6 +796,19 @@
       </v-card>
     </v-dialog>
 
+    <!-- Confirm Cancel Dialog (week view) -->
+    <ConfirmDialog
+      v-model="showWeekCancelDialog"
+      title="Cancel Booking"
+      message="Are you sure you want to cancel this booking? This action cannot be undone."
+      confirm-text="Cancel Booking"
+      confirm-color="error"
+      @confirm="confirmWeekCancel"
+    />
+
+    <v-snackbar v-model="showWeekCancelSuccess" :timeout="3000" color="success" data-cy="week-cancel-success">
+      {{ weekCancelSuccessMessage }}
+    </v-snackbar>
     <v-snackbar v-model="showItemFavoriteSnackbar" :timeout="3000" color="success" data-cy="item-favorite-message">
       {{ itemFavoriteMessage }}
     </v-snackbar>
@@ -838,7 +847,7 @@ import { useFavorites } from '../composables/useFavorites';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
-import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField } from '../components';
+import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
 
 const authStore = useAuthStore();
 const items = ref<JsonApiResource<ItemAttributes>[]>([]);
@@ -1089,15 +1098,32 @@ const isBookedByMe = (itemId: string, date: string) =>
   myWeekBookings.value.has(getWeekSelectionKey(itemId, date));
 
 const weekCancellingKey = ref<string | null>(null);
+const showWeekCancelDialog = ref(false);
+const pendingWeekCancelKey = ref<string | null>(null);
+const weekCancelSuccessMessage = ref<string | null>(null);
+const showWeekCancelSuccess = computed({
+  get: () => weekCancelSuccessMessage.value !== null,
+  set: (v: boolean) => { if (!v) weekCancelSuccessMessage.value = null; }
+});
 
-const cancelWeekBooking = async (itemId: string, date: string) => {
+const requestWeekCancel = (itemId: string, date: string) => {
   const key = getWeekSelectionKey(itemId, date);
-  const bookingId = myWeekBookings.value.get(key);
+  if (!myWeekBookings.value.has(key)) return;
+  pendingWeekCancelKey.value = key;
+  showWeekCancelDialog.value = true;
+};
+
+const confirmWeekCancel = async () => {
+  if (!pendingWeekCancelKey.value) return;
+
+  const bookingId = myWeekBookings.value.get(pendingWeekCancelKey.value);
   if (!bookingId) return;
 
-  weekCancellingKey.value = key;
+  weekCancellingKey.value = pendingWeekCancelKey.value;
+  showWeekCancelDialog.value = false;
   try {
     await cancelBooking(bookingId);
+    weekCancelSuccessMessage.value = 'Booking cancelled successfully.';
     if (activeItemGroupId.value) {
       await loadWeekData(activeItemGroupId.value);
     }
@@ -1106,6 +1132,7 @@ const cancelWeekBooking = async (itemId: string, date: string) => {
     bookingErrorMessage.value = 'Unable to cancel booking.';
   } finally {
     weekCancellingKey.value = null;
+    pendingWeekCancelKey.value = null;
   }
 };
 
