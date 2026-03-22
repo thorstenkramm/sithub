@@ -60,50 +60,56 @@ describe('password change', () => {
     cy.intercept('PATCH', '/api/v1/me').as('changePassword');
 
     openPasswordDialog();
-    fillPasswordForm(Cypress.env('testUserPassword'), 'short');
-    cy.get('[data-cy="password-submit"]').click();
+    cy.env<{ testUserPassword: string }>(['testUserPassword']).then(({ testUserPassword }) => {
+      fillPasswordForm(testUserPassword, 'short');
+      cy.get('[data-cy="password-submit"]').click();
 
-    cy.wait('@changePassword').its('response.statusCode').should('eq', 400);
-    cy.get('[data-cy="password-error"]').should('exist');
+      cy.wait('@changePassword').its('response.statusCode').should('eq', 400);
+      cy.get('[data-cy="password-error"]').should('exist');
+    });
   });
 
   it('should change password successfully', () => {
-    const originalPassword = Cypress.env('testUserPassword');
     const newPassword = 'NewTestPass2026!!';
 
     cy.intercept('PATCH', '/api/v1/me').as('changePassword');
 
-    openPasswordDialog();
-    fillPasswordForm(originalPassword, newPassword);
-    cy.get('[data-cy="password-submit"]').click();
+    cy.env<{ testUserEmail: string; testUserPassword: string }>([
+      'testUserEmail',
+      'testUserPassword'
+    ]).then(({ testUserEmail, testUserPassword }) => {
+      openPasswordDialog();
+      fillPasswordForm(testUserPassword, newPassword);
+      cy.get('[data-cy="password-submit"]').click();
 
-    cy.wait('@changePassword').its('response.statusCode').should('eq', 200);
-    cy.get('[data-cy="password-success"]').should('exist');
+      cy.wait('@changePassword').its('response.statusCode').should('eq', 200);
+      cy.get('[data-cy="password-success"]').should('exist');
 
-    // Close dialog, log out, log in with new password
-    cy.get('[data-cy="password-cancel"]').click();
-    cy.get('[data-cy="user-menu-trigger"]').click();
-    cy.get('[data-cy="logout-btn"]').click();
-    cy.location('pathname').should('eq', '/login');
+      // Close dialog, log out, log in with new password
+      cy.get('[data-cy="password-cancel"]').click();
+      cy.get('[data-cy="user-menu-trigger"]').click();
+      cy.get('[data-cy="logout-btn"]').click();
+      cy.location('pathname').should('eq', '/login');
 
-    cy.login(Cypress.env('testUserEmail'), newPassword);
-    cy.visit('/');
-    cy.get('[data-cy="user-menu-trigger"]').should('exist');
+      cy.login(testUserEmail, newPassword);
+      cy.visit('/');
+      cy.get('[data-cy="user-menu-trigger"]').should('exist');
 
-    // Revert password to original so other tests aren't affected
-    cy.request({
-      method: 'PATCH',
-      url: '/api/v1/me',
-      body: {
-        data: {
-          attributes: {
-            current_password: newPassword,
-            new_password: originalPassword
+      // Revert password to original so other tests aren't affected
+      cy.request({
+        method: 'PATCH',
+        url: '/api/v1/me',
+        body: {
+          data: {
+            attributes: {
+              current_password: newPassword,
+              new_password: testUserPassword
+            }
           }
         }
-      }
-    }).then((response) => {
-      expect(response.status).to.eq(200);
+      }).then((response) => {
+        expect(response.status).to.eq(200);
+      });
     });
   });
 });

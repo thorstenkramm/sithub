@@ -36,15 +36,20 @@ declare global {
  * Faster and more stable than going through the login UI.
  */
 Cypress.Commands.add('login', (email?: string, password?: string) => {
-  const loginEmail = email ?? Cypress.env('testUserEmail');
-  const loginPassword = password ?? Cypress.env('testUserPassword');
+  return cy.env<{ testUserEmail: string; testUserPassword: string }>([
+    'testUserEmail',
+    'testUserPassword'
+  ]).then(({ testUserEmail, testUserPassword }) => {
+    const loginEmail = email ?? testUserEmail;
+    const loginPassword = password ?? testUserPassword;
 
-  cy.request({
-    method: 'POST',
-    url: '/api/v1/auth/login',
-    body: { email: loginEmail, password: loginPassword }
-  }).then((response) => {
-    expect(response.status).to.eq(200);
+    return cy.request({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      body: { email: loginEmail, password: loginPassword }
+    }).then((response) => {
+      expect(response.status).to.eq(200);
+    });
   });
 });
 

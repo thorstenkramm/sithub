@@ -8,6 +8,8 @@ import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
 import { fetchColleagues } from '../api/users';
+import { createBooking, cancelBooking, updateBookingNote, fetchMyBookings } from '../api/bookings';
+import { useDateState } from '../composables/useDateState';
 import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
@@ -19,6 +21,7 @@ vi.mock('../api/items');
 vi.mock('../api/itemGroups');
 vi.mock('../api/areas');
 vi.mock('../api/users');
+vi.mock('../api/bookings');
 const routeMock = { params: { itemGroupId: 'ig-1' }, query: { areaId: 'area-1' } };
 vi.mock('vue-router', () => ({
   useRoute: () => routeMock,
@@ -84,6 +87,23 @@ describe('ItemsView', () => {
   const fetchItemGroupsMock = vi.mocked(fetchItemGroups);
   const fetchAreasMock = vi.mocked(fetchAreas);
   const fetchColleaguesMock = vi.mocked(fetchColleagues);
+  const createBookingMock = vi.mocked(createBooking);
+  const cancelBookingMock = vi.mocked(cancelBooking);
+  const updateBookingNoteMock = vi.mocked(updateBookingNote);
+  const fetchMyBookingsMock = vi.mocked(fetchMyBookings);
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const futureDay = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return formatDate(d);
+  };
 
   const mountView = () =>
     mount(ItemsView, {
@@ -118,6 +138,13 @@ describe('ItemsView', () => {
         { id: 'u-2', type: 'colleagues', attributes: { display_name: 'Bob Smith' } }
       ]
     });
+    createBookingMock.mockResolvedValue({ data: { id: 'booking-1' } } as never);
+    cancelBookingMock.mockResolvedValue(undefined as never);
+    updateBookingNoteMock.mockResolvedValue(undefined as never);
+    fetchMyBookingsMock.mockResolvedValue({ data: [] } as never);
+    localStorage.removeItem('sithub_booking_mode');
+    sessionStorage.clear();
+    useDateState().resetDayToToday();
   });
 
   it('renders item equipment, warning, and status on available items', async () => {
@@ -262,6 +289,11 @@ describe('ItemsView', () => {
       // Simulate mode change by finding the component and triggering update
       const toggle = wrapper.find('[data-cy="booking-mode-toggle"]');
       expect(toggle.exists()).toBe(true);
+
+      (wrapper.vm as unknown as { bookingMode: 'day' | 'week' }).bookingMode = 'week';
+      await flushPromises();
+
+      expect(localStorage.getItem('sithub_booking_mode')).toBe('week');
     });
 
     it('restores week mode from localStorage on mount', async () => {
@@ -400,6 +432,63 @@ describe('ItemsView', () => {
     expect(wrapper.find('[data-cy="colleague-id-input"]').exists()).toBe(false);
     expect(wrapper.find('[data-cy="colleague-name-input"]').exists()).toBe(false);
     expect(wrapper.find('[data-cy="guest-name-input"]').exists()).toBe(false);
+  });
+
+  it('restores the memorized day from session storage on mount', async () => {
+    const storedDay = futureDay();
+    useDateState().setDay(storedDay);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect((wrapper.vm as unknown as { selectedDate: string }).selectedDate).toBe(storedDay);
+    expect(fetchItemsMock).toHaveBeenCalledWith('ig-1', storedDay);
+  });
+
+  it('keeps the selected day when toggling between day and week mode', async () => {
+    const storedDay = futureDay();
+    useDateState().setDay(storedDay);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { selectedDate: string; bookingMode: 'day' | 'week' };
+    vm.bookingMode = 'week';
+    await flushPromises();
+    vm.bookingMode = 'day';
+    await flushPromises();
+
+    expect(vm.selectedDate).toBe(storedDay);
+    expect(sessionStorage.getItem('sithub_selected_day')).toBe(storedDay);
+  });
+
+  it('resets the live selected day to today after a successful booking', async () => {
+    const storedDay = futureDay();
+    useDateState().setDay(storedDay);
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: 'Desk A',
+          equipment: [],
+          availability: 'available' as const
+        }
+      }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+    await flushPromises();
+
+    const today = formatDate(new Date());
+    expect(createBookingMock).toHaveBeenCalledWith('item-1', storedDay, undefined);
+    expect(sessionStorage.getItem('sithub_selected_day')).toBe(today);
+    expect((wrapper.vm as unknown as { selectedDate: string }).selectedDate).toBe(today);
+    expect(wrapper.find('[data-cy="booking-success"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Desk A');
   });
 
   it('does not render guest radio option', async () => {

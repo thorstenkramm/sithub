@@ -15,6 +15,8 @@ editHistory:
     changes: "Added FR59-FR66 and Epic 18: Floor Plan Display & Config Consistency. Covers terminology rename, file location enforcement, floor plan serving/display, and connection error handling."
   - date: '2026-03-21'
     changes: "Added FR67-FR74 and Epic 19: User Feedback — Bug Fixes & Feature Requests. Covers cancel dialog bug, week selector/calendar fixes, equipment filter enhancements, week view cancellation, custom icons, and favorites."
+  - date: '2026-03-22'
+    changes: "Added FR75-FR82 and Epic 20: Interactive Floor Plans & UX Consistency. Covers favorite free-busy indicators, week/day memorization, consistent snackbar confirmations, floor plan positions in SQLite, admin floor plan editor, interactive floor plan overlay with free/busy, and first-level drill-down."
 ---
 
 # sithub - Epic Breakdown
@@ -222,6 +224,25 @@ favorites; favorites are stored in browser local storage; clicking toggles the f
 with confirmation messages; item-groups view sorts: (1) third-level favorites A-Z,
 (2) second-level favorites A-Z, (3) remaining items in YAML order; third-level favorites
 appear as bookable tiles on the item-groups view.
+FR75: Free-busy indicators on favorite tiles. Acceptance: promoted third-level favorite tiles
+on the item-groups view show weekly availability dots matching regular item group tiles.
+FR76: Memorize selected week. Acceptance: the selected calendar week persists across
+navigation between areas and item groups; resets to the current week when the memorized
+week is in the past.
+FR77: Memorize selected day. Acceptance: the selected booking day persists across navigation;
+resets to today after a successful booking.
+FR78: Consistent snackbar confirmations. Acceptance: all success confirmations across the app
+use the bottom snackbar style; no inline alerts for success feedback.
+FR79: Interactive floor plan overlay. Acceptance: floor plan overlay shows item positions with
+free/busy state per weekday; free items have green outlines, busy items have red
+semi-transparent overlays; clicking a free item creates a booking.
+FR80: First-level floor plan drill-down. Acceptance: clicking a sub-area on the first-level
+floor plan opens its detail floor plan; fully booked sub-areas show a red overlay.
+FR81: Floor plan editor. Acceptance: admin tool accessible from settings; displays floor plan
+image with item list; admin draws rectangles to position items; positions are saved via API.
+FR82: Floor plan positions in SQLite. Acceptance: item positions on floor plans are stored in
+a `floor_plan_positions` table with floor plan filename, item ID, and rectangle coordinates;
+CRUD API endpoints exist for reading, creating, updating, and deleting positions.
 
 ### NonFunctional Requirements
 
@@ -344,6 +365,14 @@ FR71: Epic 19 - Week selector date range
 FR72: Epic 19 - Calendar Monday start
 FR73: Epic 19 - Custom icons in areas YAML
 FR74: Epic 19 - Favorites
+FR75: Epic 20 - Free-busy indicators on favorite tiles
+FR76: Epic 20 - Memorize selected week
+FR77: Epic 20 - Memorize selected day
+FR78: Epic 20 - Consistent snackbar confirmations
+FR79: Epic 20 - Interactive floor plan with free/busy
+FR80: Epic 20 - First-level floor plan drill-down
+FR81: Epic 20 - Floor plan editor (admin)
+FR82: Epic 20 - Floor plan positions in SQLite
 
 ## Epic List
 
@@ -448,6 +477,13 @@ Users benefit from a smoother booking experience through bug fixes and new capab
 including equipment filter enhancements, quick cancellation from week view, customizable
 icons, an improved calendar/week selector, and a favorites system.
 **FRs covered:** FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74
+
+### Epic 20: Interactive Floor Plans & UX Consistency
+
+Users can view live free/busy status on floor plan overlays, book items directly from
+floor plans, and admins can position items on floor plan images. Navigation state is
+preserved across the app and confirmations use a consistent style.
+**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -2282,3 +2318,189 @@ So that my most-used spaces appear first and are quick to find.
 **Then** items are ordered: (1) third-level favorites A-Z,
 (2) second-level favorites A-Z, (3) remaining item groups in YAML order
 with second-level favorites subtracted
+
+## Epic 20 Stories: Interactive Floor Plans & UX Consistency
+
+Users can view live free/busy status on floor plan overlays, book items directly from
+floor plans, and admins can position items on floor plan images. Navigation state is
+preserved across the app and confirmations use a consistent style.
+**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82
+
+### Story 20.1: Free-Busy Indicators on Favorite Tiles
+
+**FRs covered:** FR75
+
+As a user,
+I want to see weekly availability indicators on my promoted third-level favorite tiles,
+So that I can quickly see which days have availability without navigating into the
+item group.
+
+**Acceptance Criteria:**
+
+**Given** I have third-level favorites promoted to the item-groups view
+**When** the page loads and availability data is fetched
+**Then** the favorite tiles show the same MO-TU-WE-TH-FR availability dots as regular
+item group tiles
+
+**Given** an item within a favorite's item group is fully booked on a day
+**When** the availability dot renders
+**Then** the dot shows the booked (red outline) indicator for that day
+
+### Story 20.2: Memorize Selected Week and Day
+
+**FRs covered:** FR76, FR77
+
+As a user,
+I want the selected week and day to persist as I navigate between areas and item groups,
+So that I don't have to re-select the same date on every page.
+
+**Acceptance Criteria:**
+
+**Given** I select week 16 on the item-groups view
+**When** I navigate to an item group and back to the item-groups view
+**Then** week 16 is still selected
+
+**Given** I select a specific day on the items view
+**When** I navigate to a different item group
+**Then** the same day is pre-selected
+
+**Given** the memorized week is in the past
+**When** I return to the view
+**Then** the week resets to the current week
+
+**Given** I successfully book an item
+**When** the booking succeeds
+**Then** the memorized day resets to today
+
+### Story 20.3: Consistent Snackbar Confirmations
+
+**FRs covered:** FR78
+
+As a user,
+I want all confirmations to use the same bottom snackbar style,
+So that the feedback is consistent and predictable across the app.
+
+**Acceptance Criteria:**
+
+**Given** I cancel a booking from My Bookings
+**When** the cancellation succeeds
+**Then** a bottom snackbar shows "Booking cancelled successfully."
+(not an inline alert)
+
+**Given** I perform any action that shows a success confirmation
+**When** the confirmation appears
+**Then** it uses a bottom snackbar, matching the style used for favorites and filter
+confirmations
+
+### Story 20.4: Floor Plan Positions Database Schema and API
+
+**FRs covered:** FR82
+
+As a developer,
+I want floor plan item positions stored in SQLite with a CRUD API,
+So that the floor plan editor and viewer have a backend to read and write positions.
+
+**Acceptance Criteria:**
+
+**Given** an admin saves item positions for a floor plan
+**When** the positions are persisted
+**Then** they are stored in a `floor_plan_positions` table with floor plan filename,
+item ID, and rectangle coordinates (x, y, width, height)
+
+**Given** a user requests positions for a floor plan
+**When** the API responds
+**Then** it returns all positions for that floor plan as a JSON:API collection
+
+**Given** an admin updates a position
+**When** the PUT request is processed
+**Then** the position is updated in the database
+
+**Given** an admin deletes a position
+**When** the DELETE request is processed
+**Then** the position is removed from the database
+
+### Story 20.5: Floor Plan Editor (Admin)
+
+**FRs covered:** FR81
+
+As an admin,
+I want to draw rectangles on floor plan images to mark where items are located,
+So that users can see and click items on the interactive floor plan.
+
+**Acceptance Criteria:**
+
+**Given** I am an admin and open the floor plan editor from settings
+**When** I select a floor plan
+**Then** the floor plan image is displayed with a list of unpositioned items on the left
+
+**Given** I select an item from the list
+**When** I draw a rectangle on the floor plan image
+**Then** the rectangle is created with a label showing the item name
+
+**Given** I have positioned items on the floor plan
+**When** I save
+**Then** all positions are persisted via the API
+
+**Given** I want to reposition an item
+**When** I drag or resize its rectangle
+**Then** the position updates visually and can be saved
+
+**Given** I want to remove a positioned item
+**When** I delete it
+**Then** the rectangle is removed from the floor plan
+
+### Story 20.6: Interactive Floor Plan Overlay with Free/Busy
+
+**FRs covered:** FR79
+
+As a user,
+I want to see free/busy status on the floor plan and book items by clicking them,
+So that I can visually find and book available items.
+
+**Acceptance Criteria:**
+
+**Given** I open the floor plan overlay for an item group
+**When** the overlay renders
+**Then** the floor plan image is shown with positioned items overlaid as rectangles
+
+**Given** a weekday selector appears at the top of the overlay
+**When** I select a day
+**Then** free items show a green outline and busy items show a red semi-transparent overlay
+
+**Given** the floor plan opens for the current week
+**When** today is within the week
+**Then** today is pre-selected and past days are disabled
+
+**Given** the floor plan opens for a future week
+**When** the overlay renders
+**Then** Monday is pre-selected
+
+**Given** I click on a free item
+**When** the click is processed
+**Then** a booking is created for the selected day and the item status updates to busy
+
+**Given** weekend visibility is off in settings
+**When** the weekday selector renders
+**Then** Saturday and Sunday are not shown
+
+### Story 20.7: First-Level Floor Plan Drill-Down
+
+**FRs covered:** FR80
+
+As a user,
+I want to click on an area in the first-level floor plan to open its detail floor plan,
+So that I can drill down from the building overview to individual items.
+
+**Acceptance Criteria:**
+
+**Given** I open the floor plan for an area that has sub-areas with their own floor plans
+**When** the overlay renders
+**Then** each sub-area is shown with its positioned rectangle and free/busy state
+
+**Given** all items within a sub-area are booked for the selected day
+**When** the sub-area renders
+**Then** it shows a red semi-transparent overlay
+
+**Given** I click on a sub-area rectangle
+**When** the click is processed
+**Then** the detail floor plan for that sub-area opens with item-level free/busy state

@@ -86,15 +86,6 @@ components:
           $ref: '#/components/schemas/Resource'
       required:
         - data
-    CollectionResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Resource'
-      required:
-        - data
     AreaAttributes:
       type: object
       properties:

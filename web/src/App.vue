@@ -222,16 +222,6 @@
             >
               {{ passwordError }}
             </v-alert>
-            <v-alert
-              v-if="passwordSuccess"
-              type="success"
-              variant="tonal"
-              density="compact"
-              class="mb-2"
-              data-cy="password-success"
-            >
-              Password changed successfully.
-            </v-alert>
           </v-card-text>
           <v-card-actions>
             <v-spacer />
@@ -248,6 +238,10 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <v-snackbar v-model="passwordSuccess" :timeout="3000" location="bottom" color="success" data-cy="password-success">
+        Password changed successfully.
+      </v-snackbar>
     </template>
 
     <v-main>

@@ -1,7 +1,7 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import MyBookingsView from './MyBookingsView.vue';
-import { fetchMyBookings } from '../api/bookings';
+import { fetchMyBookings, cancelBooking } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
@@ -26,6 +26,7 @@ describe('MyBookingsView', () => {
     'v-skeleton-loader',
     'v-dialog',
     'v-bottom-sheet',
+    'v-snackbar',
     'v-textarea',
     'router-link'
   ]);
@@ -67,7 +68,29 @@ describe('MyBookingsView', () => {
   const mountView = () =>
     mount(MyBookingsView, {
       global: {
-        stubs,
+        stubs: {
+          ...stubs,
+          BookingCard: {
+            props: ['booking'],
+            template: `
+              <div>
+                <div>{{ booking.attributes.item_name }}</div>
+                <div>{{ booking.attributes.item_group_name }}</div>
+                <div>{{ booking.attributes.area_name }}</div>
+                <div>{{ booking.attributes.booking_date }}</div>
+                <div v-if="booking.attributes.booked_for_me">Booked by {{ booking.attributes.booked_by_user_name }}</div>
+                <button type="button" @click="$emit('cancel', booking.id)">Cancel</button>
+              </div>
+            `
+          },
+          ConfirmDialog: {
+            props: ['modelValue'],
+            template: '<div v-if="modelValue"><button type="button" data-cy="confirm-cancel" @click="$emit(\'confirm\')">Confirm</button></div>'
+          },
+          'v-snackbar': {
+            template: '<div v-bind="$attrs"><slot /></div>'
+          }
+        },
         plugins: [createPinia()]
       }
     });
@@ -76,6 +99,8 @@ describe('MyBookingsView', () => {
     setActivePinia(createPinia());
     pushMock.mockReset();
     mockFetchBookings([]);
+    const cancelBookingMock = cancelBooking as unknown as ReturnType<typeof vi.fn>;
+    cancelBookingMock.mockResolvedValue(undefined);
   });
 
   it('shows page header with title', async () => {
@@ -158,5 +183,25 @@ describe('MyBookingsView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Booked by Jane Doe');
+  });
+
+  it('shows a snackbar when cancellation succeeds', async () => {
+    mockFetchMe();
+    mockFetchBookings([
+      { id: '1', itemName: 'Corner Desk', itemGroupName: 'Room 101', areaName: 'Main Office', bookingDate: '2026-01-20' }
+    ]);
+    const cancelBookingMock = cancelBooking as unknown as ReturnType<typeof vi.fn>;
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    await wrapper.get('[data-cy="booking-item"] button').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-cy="confirm-cancel"]').trigger('click');
+    await flushPromises();
+
+    expect(cancelBookingMock).toHaveBeenCalledWith('1');
+    expect(wrapper.find('[data-cy="cancel-success"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Booking cancelled successfully.');
   });
 });

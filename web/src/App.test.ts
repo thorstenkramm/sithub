@@ -40,6 +40,7 @@ describe('App', () => {
           'v-card-actions': slotStub,
           'v-text-field': slotStub,
           'v-alert': slotStub,
+          'v-snackbar': slotStub,
           'v-dialog': slotStub,
           'router-view': true,
           'router-link': true

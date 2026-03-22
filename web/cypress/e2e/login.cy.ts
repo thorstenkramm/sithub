@@ -21,14 +21,19 @@ describe('login', () => {
 
     cy.visit('/login');
 
-    cy.get('[data-cy="login-email"]').find('input').type(Cypress.env('testUserEmail'));
-    cy.get('[data-cy="login-password"]').find('input').type(Cypress.env('testUserPassword'));
-    cy.get('[data-cy="login-submit"]').click();
+    cy.env<{ testUserEmail: string; testUserPassword: string }>([
+      'testUserEmail',
+      'testUserPassword'
+    ]).then(({ testUserEmail, testUserPassword }) => {
+      cy.get('[data-cy="login-email"]').find('input').type(testUserEmail);
+      cy.get('[data-cy="login-password"]').find('input').type(testUserPassword);
+      cy.get('[data-cy="login-submit"]').click();
 
-    cy.wait('@loginRequest').its('response.statusCode').should('eq', 200);
-    cy.location('pathname').should('eq', '/');
-    cy.wait('@me').its('response.statusCode').should('eq', 200);
-    cy.get('[data-cy="user-menu-trigger"]').should('exist');
+      cy.wait('@loginRequest').its('response.statusCode').should('eq', 200);
+      cy.location('pathname').should('eq', '/');
+      cy.wait('@me').its('response.statusCode').should('eq', 200);
+      cy.get('[data-cy="user-menu-trigger"]').should('exist');
+    });
   });
 
   it('should show error for invalid credentials', () => {

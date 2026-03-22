@@ -91,7 +91,7 @@
       <!-- Third-level favorites promoted to this view -->
       <div
         v-for="fav in sortedItemGroups.thirdLevelFavs"
-        :key="`fav-item-${fav.itemId}`"
+        :key="`fav-item-${fav.areaId}-${fav.itemGroupId}-${fav.itemId}`"
         class="item-filter-wrapper"
       >
         <v-card
@@ -110,8 +110,30 @@
                 <v-icon size="24">$desk</v-icon>
               </v-avatar>
             </template>
-            <v-card-title class="text-h6">{{ fav.itemGroupName }} {{ fav.itemName }}</v-card-title>
+            <v-card-title class="text-h6">{{ fav.itemName }}</v-card-title>
+            <v-card-subtitle>{{ fav.itemGroupName }}</v-card-subtitle>
           </v-card-item>
+
+          <!-- Weekly Availability Indicators (from parent item group) -->
+          <v-card-text v-if="availabilityMap[fav.itemGroupId]" class="pt-0" data-cy="availability-indicators">
+            <div class="d-flex ga-2">
+              <span
+                v-for="day in availabilityMap[fav.itemGroupId]"
+                :key="day.date"
+                class="availability-indicator"
+                :class="day.available > 0 ? 'available' : 'fully-booked'"
+                :aria-label="`${day.weekday}: ${day.available > 0 ? day.available + ' available' : 'fully booked'}`"
+                :data-cy-weekday="day.weekday"
+              >
+                <span
+                  class="indicator-dot"
+                  :class="day.available > 0 ? 'dot-available' : 'dot-booked'"
+                />
+                <span class="indicator-label text-caption">{{ day.weekday }}</span>
+              </span>
+            </div>
+          </v-card-text>
+
           <v-card-actions class="px-4 pb-4">
             <v-btn
               color="primary"
@@ -254,11 +276,15 @@
       </v-card>
     </v-dialog>
 
-    <v-snackbar v-model="showFavoriteSnackbar" :timeout="3000" color="success" data-cy="favorite-message">
-      {{ favoriteMessage }}
-    </v-snackbar>
-    <v-snackbar v-model="showFilterSnackbar" :timeout="3000" color="success" data-cy="ig-filter-message">
-      {{ filterMessage }}
+    <v-snackbar
+      :key="successSnackbarKey"
+      v-model="showSuccessSnackbar"
+      :timeout="successSnackbarTimeout"
+      location="bottom"
+      color="success"
+      :data-cy="successSnackbarCy"
+    >
+      {{ successSnackbarMessage }}
     </v-snackbar>
   </div>
 </template>
@@ -281,6 +307,7 @@ import { fetchItems } from '../api/items';
 import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
 import { useSavedFilters } from '../composables/useSavedFilters';
 import { useFavorites } from '../composables/useFavorites';
+import { useDateState } from '../composables/useDateState';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState } from '../components';
@@ -299,24 +326,33 @@ const {
   isItemGroupFavorite, toggleItemGroupFavorite,
   favoriteItems, toggleItemFavorite
 } = useFavorites();
-const favoriteMessage = ref<string | null>(null);
-const filterMessage = ref<string | null>(null);
-const showFavoriteSnackbar = computed({
-  get: () => favoriteMessage.value !== null,
-  set: (v: boolean) => { if (!v) favoriteMessage.value = null; }
-});
-const showFilterSnackbar = computed({
-  get: () => filterMessage.value !== null,
-  set: (v: boolean) => { if (!v) filterMessage.value = null; }
+const successSnackbarMessage = ref<string | null>(null);
+const successSnackbarCy = ref('item-groups-success');
+const successSnackbarTimeout = ref(3000);
+const successSnackbarKey = ref(0);
+const showSuccessSnackbar = computed({
+  get: () => successSnackbarMessage.value !== null,
+  set: (v: boolean) => {
+    if (!v) {
+      successSnackbarMessage.value = null;
+      successSnackbarCy.value = 'item-groups-success';
+      successSnackbarTimeout.value = 3000;
+    }
+  }
 });
 const availabilityMap = ref<Record<string, DayAvailability[]>>({});
 
 const equipmentFilter = ref('');
 const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
 const isCurrentFilterSaved = computed(() => !!equipmentFilter.value && isSavedFilter(equipmentFilter.value));
+const showSuccessFeedback = (message: string, cy: string) => {
+  successSnackbarKey.value += 1;
+  successSnackbarMessage.value = message;
+  successSnackbarCy.value = cy;
+  successSnackbarTimeout.value = 3000;
+};
 const showFilterFeedback = (message: string) => {
-  filterMessage.value = message;
-  setTimeout(() => { filterMessage.value = null; }, 3000);
+  showSuccessFeedback(message, 'ig-filter-message');
 };
 const toggleSaveFilter = () => {
   if (!equipmentFilter.value) return;
@@ -341,6 +377,13 @@ const isItemGroupFilteredOut = (igId: string): boolean => {
 
 const { showWeekends } = useWeekendPreference();
 const { weekOptions, selectedWeek } = useWeekSelector(showWeekends);
+const { getWeek, setWeek } = useDateState();
+
+// Restore memorized week on mount
+const storedWeek = getWeek();
+if (weekOptions.value.some(o => o.value === storedWeek)) {
+  selectedWeek.value = storedWeek;
+}
 const floorPlanUrl = computed(() => {
   if (!areaFloorPlan.value) return '';
   return `/api/v1/floor-plans/${encodeURIComponent(areaFloorPlan.value)}`;
@@ -373,16 +416,20 @@ const sortedItemGroups = computed(() => {
 const handleToggleItemGroupFavorite = (igId: string, igName: string) => {
   const areaId = route.params.areaId as string;
   const { added } = toggleItemGroupFavorite(areaId, igId);
-  favoriteMessage.value = added ? `${igName} saved as favorite.` : `${igName} removed from favorites.`;
-  setTimeout(() => { favoriteMessage.value = null; }, 3000);
+  showSuccessFeedback(
+    added ? `${igName} saved as favorite.` : `${igName} removed from favorites.`,
+    'favorite-message'
+  );
 };
 
 const handleToggleItemFavorite = (fav: { itemId: string; itemName: string; itemGroupId: string; itemGroupName: string }) => {
   const areaId = route.params.areaId as string;
   const { added } = toggleItemFavorite({ ...fav, areaId });
   const label = `${fav.itemGroupName} ${fav.itemName}`;
-  favoriteMessage.value = added ? `${label} saved as favorite.` : `${label} removed from favorites.`;
-  setTimeout(() => { favoriteMessage.value = null; }, 3000);
+  showSuccessFeedback(
+    added ? `${label} saved as favorite.` : `${label} removed from favorites.`,
+    'favorite-message'
+  );
 };
 
 const resolveIcon = (icon: string | undefined, fallback: string) => {
@@ -504,6 +551,7 @@ onMounted(async () => {
 });
 
 watch([selectedWeek, showWeekends], async ([week]) => {
+  setWeek(week);
   const areaId = route.params.areaId;
   if (typeof areaId === 'string' && areaId.trim() !== '') {
     await loadAvailability(areaId, week);

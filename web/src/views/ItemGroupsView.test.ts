@@ -6,6 +6,8 @@ import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
 import { fetchItems } from '../api/items';
 import { fetchWeeklyAvailability } from '../api/itemGroupAvailability';
+import { useDateState } from '../composables/useDateState';
+import { getISOWeekString, getMondayOfWeek } from '../composables/useWeekSelector';
 import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
@@ -58,6 +60,12 @@ describe('ItemGroupsView', () => {
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
   const fetchAvailabilityMock = fetchWeeklyAvailability as unknown as ReturnType<typeof vi.fn>;
   const mockFetchMe = () => createFetchMeMocker(fetchMeMock)('Ada Lovelace');
+  const currentWeek = () => getISOWeekString(getMondayOfWeek(new Date()));
+  const futureWeek = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    return getISOWeekString(getMondayOfWeek(d));
+  };
 
   const mockFetchAreas = (floorPlan: string | undefined = undefined) => {
     const fetchAreasMock = fetchAreas as unknown as ReturnType<typeof vi.fn>;
@@ -126,6 +134,8 @@ describe('ItemGroupsView', () => {
     mockFetchItemGroups(0);
     mockAvailability();
     localStorage.clear();
+    sessionStorage.clear();
+    useDateState().setWeek(currentWeek());
   });
 
   it('renders page header with breadcrumbs', async () => {
@@ -198,6 +208,18 @@ describe('ItemGroupsView', () => {
     expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', expect.any(String), undefined);
   });
 
+  it('restores the memorized week when loading availability', async () => {
+    const storedWeek = futureWeek();
+    useDateState().setWeek(storedWeek);
+    mockFetchItemGroups(1);
+    mockAvailability();
+    mountView();
+
+    await flushPromises();
+
+    expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', storedWeek, undefined);
+  });
+
   it('shows availability indicators when data is returned', async () => {
     mockFetchItemGroups(1);
     mockAvailabilityForIG1([1, 0, 2, 2, 2]);
@@ -226,6 +248,31 @@ describe('ItemGroupsView', () => {
     expect(dots[2].classes()).toContain('dot-available');
     expect(dots[3].classes()).toContain('dot-booked');
     expect(dots[4].classes()).toContain('dot-available');
+  });
+
+  it('renders promoted favorite tiles with subtitle and availability dots', async () => {
+    localStorage.setItem('sithub_favorite_items', JSON.stringify([{
+      areaId: 'area-1',
+      itemId: 'item-1',
+      itemName: 'Desk 1',
+      itemGroupId: 'ig-1',
+      itemGroupName: 'Item Group 1'
+    }]));
+    mockFetchItemGroups(1);
+    mockAvailabilityForIG1([2, 0, 1, 2, 2]);
+    const fetchItemsMock = fetchItems as unknown as ReturnType<typeof vi.fn>;
+    fetchItemsMock.mockResolvedValue({ data: [] });
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    const favoriteTile = wrapper.get('[data-cy="favorite-item-tile"]');
+    expect(favoriteTile.text()).toContain('Desk 1');
+    expect(favoriteTile.text()).toContain('Item Group 1');
+
+    const dots = favoriteTile.findAll('.indicator-dot');
+    expect(dots).toHaveLength(5);
+    expect(dots[1]?.classes()).toContain('dot-booked');
   });
 
   it('handles availability fetch failure gracefully', async () => {

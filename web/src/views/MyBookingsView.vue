@@ -6,17 +6,7 @@
       :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'My Bookings' }]"
     />
 
-    <!-- Success/Error Messages -->
-    <v-alert
-      v-if="cancelSuccessMessage"
-      type="success"
-      class="mb-4"
-      closable
-      data-cy="cancel-success"
-      @click:close="cancelSuccessMessage = null"
-    >
-      {{ cancelSuccessMessage }}
-    </v-alert>
+    <!-- Error Messages -->
     <v-alert
       v-if="cancelErrorMessage"
       type="error"
@@ -70,11 +60,15 @@
       confirm-color="error"
       @confirm="confirmCancelBooking"
     />
+
+    <v-snackbar v-model="showCancelSuccess" :timeout="3000" location="bottom" color="success" data-cy="cancel-success">
+      {{ cancelSuccessMessage }}
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
@@ -87,6 +81,10 @@ import { PageHeader, LoadingState, EmptyState, BookingCard, ConfirmDialog } from
 const authStore = useAuthStore();
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
 const cancelSuccessMessage = ref<string | null>(null);
+const showCancelSuccess = computed({
+  get: () => cancelSuccessMessage.value !== null,
+  set: (v: boolean) => { if (!v) cancelSuccessMessage.value = null; }
+});
 const cancelErrorMessage = ref<string | null>(null);
 const cancellingBookingId = ref<string | null>(null);
 const showCancelDialog = ref(false);

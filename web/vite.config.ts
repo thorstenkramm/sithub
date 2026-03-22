@@ -5,7 +5,46 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     outDir: '../assets/web',
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+
+          if (id.includes('vuetify/components')) {
+            return 'vuetify-components';
+          }
+
+          if (id.includes('vuetify/directives')) {
+            return 'vuetify-directives';
+          }
+
+          if (id.includes('vuetify/iconsets')) {
+            return 'vuetify-icons';
+          }
+
+          if (id.includes('vuetify')) {
+            return 'vuetify-core';
+          }
+
+          if (id.includes('@mdi') || id.includes('materialdesignicons')) {
+            return 'mdi';
+          }
+
+          if (
+            id.includes('/vue/') ||
+            id.includes('/vue-router/') ||
+            id.includes('/pinia/')
+          ) {
+            return 'vue-core';
+          }
+
+          return 'vendor';
+        }
+      }
+    }
   },
   server: {
     proxy: {

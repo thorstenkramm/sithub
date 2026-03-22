@@ -140,35 +140,7 @@
       </v-card-text>
     </v-card>
 
-    <!-- Success/Error Messages -->
-    <v-alert
-      v-if="bookingSuccessMessage || bookingSuccessDetails"
-      type="success"
-      class="mb-4"
-      closable
-      data-cy="booking-success"
-      @click:close="closeSuccessMessage"
-    >
-      <div class="d-flex align-center ga-2">
-        <span class="text-body-2" data-cy="booking-success-text">
-          {{ bookingSuccessDetails
-            ? `${bookingSuccessDetails.itemName} - ${formatDisplayDate(bookingSuccessDetails.date)}`
-            : bookingSuccessMessage
-          }}
-        </span>
-        <v-btn
-          v-if="lastBookingId"
-          color="primary"
-          variant="tonal"
-          size="small"
-          data-cy="add-note-after-booking"
-          @click="openPostBookingNoteDialog"
-        >
-          <v-icon size="16" start>$textBoxOutline</v-icon>
-          Add note
-        </v-btn>
-      </div>
-    </v-alert>
+    <!-- Error Messages -->
     <v-alert
       v-if="bookingErrorMessage || bookingErrorDetails"
       type="error"
@@ -806,14 +778,27 @@
       @confirm="confirmWeekCancel"
     />
 
-    <v-snackbar v-model="showWeekCancelSuccess" :timeout="3000" color="success" data-cy="week-cancel-success">
-      {{ weekCancelSuccessMessage }}
-    </v-snackbar>
-    <v-snackbar v-model="showItemFavoriteSnackbar" :timeout="3000" color="success" data-cy="item-favorite-message">
-      {{ itemFavoriteMessage }}
-    </v-snackbar>
-    <v-snackbar v-model="showFilterSnackbar" :timeout="3000" color="success" data-cy="filter-message">
-      {{ filterMessage }}
+    <v-snackbar
+      :key="successSnackbarKey"
+      v-model="showSuccessSnackbar"
+      :timeout="successSnackbarTimeout"
+      location="bottom"
+      color="success"
+      :data-cy="successSnackbarCy"
+    >
+      <span :data-cy="successSnackbarCy === 'booking-success' ? 'booking-success-text' : undefined">
+        {{ successSnackbarMessage }}
+      </span>
+      <template v-if="successSnackbarActionLabel" #actions>
+        <v-btn
+          variant="text"
+          size="small"
+          data-cy="add-note-after-booking"
+          @click="handleSuccessSnackbarAction"
+        >
+          {{ successSnackbarActionLabel }}
+        </v-btn>
+      </template>
     </v-snackbar>
   </div>
 </template>
@@ -843,6 +828,7 @@ import { useWeekSelector, getWeekdayLabel } from '../composables/useWeekSelector
 import { useWeekendPreference } from '../composables/useWeekendPreference';
 import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
 import { useSavedFilters } from '../composables/useSavedFilters';
+import { useDateState } from '../composables/useDateState';
 import { useFavorites } from '../composables/useFavorites';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -852,14 +838,13 @@ import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, Conf
 const authStore = useAuthStore();
 const items = ref<JsonApiResource<ItemAttributes>[]>([]);
 const itemsErrorMessage = ref<string | null>(null);
-const bookingSuccessMessage = ref<string | null>(null);
 const bookingErrorMessage = ref<string | null>(null);
-const bookingSuccessDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingErrorDetails = ref<{ itemName: string; date: string; error: string } | null>(null);
 const lastBookingDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
-const selectedDate = ref(formatDate(new Date()));
+const { getDay, setDay, resetDayToToday, getWeek, setWeek } = useDateState();
+const selectedDate = ref(getDay());
 const todayDate = formatDate(new Date());
 const route = useRoute();
 const { loading: itemsLoading, run: runItems } = useApi();
@@ -901,16 +886,39 @@ const equipmentFilter = ref('');
 const showFilterHelp = ref(false);
 const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
 const { isItemFavorite, toggleItemFavorite } = useFavorites();
-const itemFavoriteMessage = ref<string | null>(null);
-const filterMessage = ref<string | null>(null);
-const showItemFavoriteSnackbar = computed({
-  get: () => itemFavoriteMessage.value !== null,
-  set: (v: boolean) => { if (!v) itemFavoriteMessage.value = null; }
+const successSnackbarMessage = ref<string | null>(null);
+const successSnackbarCy = ref('items-success');
+const successSnackbarTimeout = ref(3000);
+const successSnackbarKey = ref(0);
+const successSnackbarActionLabel = ref<string | null>(null);
+const successSnackbarActionHandler = ref<(() => void) | null>(null);
+const showSuccessSnackbar = computed({
+  get: () => successSnackbarMessage.value !== null,
+  set: (v: boolean) => {
+    if (!v) {
+      successSnackbarMessage.value = null;
+      successSnackbarCy.value = 'items-success';
+      successSnackbarTimeout.value = 3000;
+      successSnackbarActionLabel.value = null;
+      successSnackbarActionHandler.value = null;
+    }
+  }
 });
-const showFilterSnackbar = computed({
-  get: () => filterMessage.value !== null,
-  set: (v: boolean) => { if (!v) filterMessage.value = null; }
-});
+const showSuccessFeedback = (
+  message: string,
+  cy: string,
+  options?: { timeout?: number; actionLabel?: string; actionHandler?: () => void }
+) => {
+  successSnackbarKey.value += 1;
+  successSnackbarMessage.value = message;
+  successSnackbarCy.value = cy;
+  successSnackbarTimeout.value = options?.timeout ?? 3000;
+  successSnackbarActionLabel.value = options?.actionLabel ?? null;
+  successSnackbarActionHandler.value = options?.actionHandler ?? null;
+};
+const handleSuccessSnackbarAction = () => {
+  successSnackbarActionHandler.value?.();
+};
 const isItemFav = (itemId: string) =>
   !!activeItemGroupId.value
   && !!getCurrentAreaId()
@@ -929,13 +937,14 @@ const handleToggleItemFav = (itemId: string, itemName: string) => {
     itemGroupName: igName
   });
   const label = `${igName} ${itemName}`;
-  itemFavoriteMessage.value = added ? `${label} saved as favorite.` : `${label} removed from favorites.`;
-  setTimeout(() => { itemFavoriteMessage.value = null; }, 3000);
+  showSuccessFeedback(
+    added ? `${label} saved as favorite.` : `${label} removed from favorites.`,
+    'item-favorite-message'
+  );
 };
 const isCurrentFilterSaved = computed(() => !!equipmentFilter.value && isSavedFilter(equipmentFilter.value));
 const showFilterFeedback = (message: string) => {
-  filterMessage.value = message;
-  setTimeout(() => { filterMessage.value = null; }, 3000);
+  showSuccessFeedback(message, 'filter-message');
 };
 const toggleSaveFilter = () => {
   if (!equipmentFilter.value) return;
@@ -970,6 +979,12 @@ const bookingMode = ref<'day' | 'week'>(
 );
 const { showWeekends } = useWeekendPreference();
 const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends);
+
+// Restore memorized week
+const storedWeek = getWeek();
+if (weekOptions.value.some(o => o.value === storedWeek)) {
+  selectedWeek.value = storedWeek;
+}
 
 // Per-day data for week mode: map of date -> items array
 const weekData = ref<Record<string, JsonApiResource<ItemAttributes>[]>>({});
@@ -1100,11 +1115,6 @@ const isBookedByMe = (itemId: string, date: string) =>
 const weekCancellingKey = ref<string | null>(null);
 const showWeekCancelDialog = ref(false);
 const pendingWeekCancelKey = ref<string | null>(null);
-const weekCancelSuccessMessage = ref<string | null>(null);
-const showWeekCancelSuccess = computed({
-  get: () => weekCancelSuccessMessage.value !== null,
-  set: (v: boolean) => { if (!v) weekCancelSuccessMessage.value = null; }
-});
 
 const requestWeekCancel = (itemId: string, date: string) => {
   const key = getWeekSelectionKey(itemId, date);
@@ -1123,7 +1133,7 @@ const confirmWeekCancel = async () => {
   showWeekCancelDialog.value = false;
   try {
     await cancelBooking(bookingId);
-    weekCancelSuccessMessage.value = 'Booking cancelled successfully.';
+    showSuccessFeedback('Booking cancelled successfully.', 'week-cancel-success');
     if (activeItemGroupId.value) {
       await loadWeekData(activeItemGroupId.value);
     }
@@ -1323,8 +1333,7 @@ const loadItems = async (itemGroupId: string, date: string) => {
 };
 
 const bookItem = async (itemId: string) => {
-  bookingSuccessMessage.value = null;
-  bookingSuccessDetails.value = null;
+  showSuccessSnackbar.value = false;
   bookingErrorMessage.value = null;
   bookingErrorDetails.value = null;
   lastBookingDetails.value = null;
@@ -1338,6 +1347,7 @@ const bookItem = async (itemId: string) => {
   }
 
   bookingItemId.value = itemId;
+  const bookingDate = selectedDate.value;
 
   try {
     const onBehalf: BookOnBehalfOptions | undefined =
@@ -1345,13 +1355,26 @@ const bookItem = async (itemId: string) => {
         ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
         : undefined;
 
-    const result = await createBooking(itemId, selectedDate.value, onBehalf);
+    const result = await createBooking(itemId, bookingDate, onBehalf);
     lastBookingId.value = result.data.id;
 
     const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || 'Item';
-    const details = { itemName, date: selectedDate.value };
-    bookingSuccessDetails.value = details;
+    const details = { itemName, date: bookingDate };
     lastBookingDetails.value = details;
+    showSuccessFeedback(
+      formatBookingSuccessMessage(details),
+      'booking-success',
+      {
+        actionLabel: lastBookingId.value ? 'Add note' : undefined,
+        actionHandler: lastBookingId.value ? openPostBookingNoteDialog : undefined
+      }
+    );
+
+    // Reset memorized day to today after successful booking
+    resetDayToToday();
+    const resetDate = getDay();
+    const dayChanged = selectedDate.value !== resetDate;
+    selectedDate.value = resetDate;
 
     // Reset booking type fields
     if (bookingType.value === 'colleague') {
@@ -1360,8 +1383,8 @@ const bookItem = async (itemId: string) => {
     }
 
     // Reload items to reflect updated availability
-    if (activeItemGroupId.value) {
-      await loadItems(activeItemGroupId.value, selectedDate.value);
+    if (activeItemGroupId.value && !dayChanged) {
+      await loadItems(activeItemGroupId.value, resetDate);
     }
   } catch (err) {
     if (await handleAuthError(err)) {
@@ -1389,15 +1412,14 @@ const bookItem = async (itemId: string) => {
 };
 
 const adminCancelBooking = async (bookingId: string) => {
-  bookingSuccessMessage.value = null;
-  bookingSuccessDetails.value = null;
+  showSuccessSnackbar.value = false;
   bookingErrorMessage.value = null;
   bookingErrorDetails.value = null;
   cancelingBookingId.value = bookingId;
 
   try {
     await cancelBooking(bookingId);
-    bookingSuccessMessage.value = 'Booking cancelled successfully.';
+    showSuccessFeedback('Booking cancelled successfully.', 'booking-success');
 
     // Reload items to reflect updated availability
     if (activeItemGroupId.value) {
@@ -1417,12 +1439,6 @@ const adminCancelBooking = async (bookingId: string) => {
   }
 };
 
-const closeSuccessMessage = () => {
-  bookingSuccessMessage.value = null;
-  bookingSuccessDetails.value = null;
-  lastBookingId.value = null;
-  lastBookingDetails.value = null;
-};
 
 const clearErrorMessage = () => {
   bookingErrorMessage.value = null;
@@ -1440,8 +1456,7 @@ const saveNoteAfterBooking = async () => {
   try {
     await updateBookingNote(lastBookingId.value, noteText.value);
     showPostBookingNoteDialog.value = false;
-    bookingSuccessMessage.value = null;
-    bookingSuccessDetails.value = lastBookingDetails.value;
+    showSuccessFeedback(formatBookingSuccessMessage(lastBookingDetails.value), 'booking-success');
     lastBookingId.value = null;
     lastBookingDetails.value = null;
     if (activeItemGroupId.value) {
@@ -1541,6 +1556,7 @@ onMounted(async () => {
 watch(
   selectedDate,
   async (value) => {
+    setDay(value);
     if (!activeItemGroupId.value || bookingMode.value !== 'day') {
       return;
     }
@@ -1564,7 +1580,8 @@ watch(bookingMode, async (mode) => {
   }
 });
 
-watch([selectedWeek, showWeekends], async () => {
+watch([selectedWeek, showWeekends], async ([week]) => {
+  setWeek(week);
   if (!activeItemGroupId.value || bookingMode.value !== 'week') return;
   await loadWeekData(activeItemGroupId.value);
 });
@@ -1606,6 +1623,10 @@ function formatDisplayDate(dateStr: string) {
     month: 'short',
     day: 'numeric'
   }).format(date);
+}
+
+function formatBookingSuccessMessage(details: { itemName: string; date: string } | null) {
+  return details ? `${details.itemName} - ${formatDisplayDate(details.date)}` : 'Booking confirmed.';
 }
 </script>
 
