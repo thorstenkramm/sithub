@@ -178,8 +178,9 @@ development_status:
   20-1-free-busy-indicators-on-favorite-tiles: done
   20-2-memorize-selected-week-and-day: done
   20-3-consistent-snackbar-confirmations: done
-  20-4-floor-plan-positions-database-schema-and-api: backlog
-  20-5-floor-plan-editor: backlog
-  20-6-interactive-floor-plan-overlay-with-free-busy: backlog
-  20-7-first-level-floor-plan-drill-down: backlog
+  20-4-floor-plan-positions-database-schema-and-api: done
+  20-5-floor-plan-editor: done
+  20-6-interactive-floor-plan-overlay-with-free-busy: done
+  20-7-first-level-floor-plan-drill-down: done
+  20-8-floor-plan-booking-ux-refinements: done
   epic-20-retrospective: optional

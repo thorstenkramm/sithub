@@ -8,7 +8,7 @@
             <div class="text-h6">Sign in to SitHub</div>
           </v-card-title>
           <v-card-text>
-            <v-form @submit.prevent="handleLogin" data-cy="login-form">
+            <v-form action="/api/v1/auth/login" method="post" @submit.prevent="handleLogin" data-cy="login-form">
               <v-text-field
                 v-model="email"
                 label="Email"

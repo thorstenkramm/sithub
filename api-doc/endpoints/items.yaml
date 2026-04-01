@@ -2,7 +2,8 @@ get:
   summary: List items for an item group
   description: |
     Returns items for an item group with availability status.
-    For admin users, occupied items include booking_id and booker_name fields.
+    Occupied items include booker_name and booked_by_me fields.
+    For admin users, occupied items also include booking_id.
   operationId: listItems
   parameters:
     - name: item_group_id

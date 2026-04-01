@@ -45,6 +45,19 @@ import {
   VTextarea,
   VTooltip
 } from 'vuetify/components';
+
+/* jscpd:ignore-start */
+const appComponents = {
+  VAlert, VApp, VAppBar, VAppBarNavIcon, VAutocomplete, VAvatar, VBottomSheet,
+  VBtn, VBtnToggle, VCard, VCardActions, VCardItem, VCardSubtitle, VCardText,
+  VCardTitle, VCheckbox, VChip, VCol, VCombobox, VContainer, VDatePicker,
+  VDialog, VDivider, VExpandTransition, VForm, VIcon, VImg, VList, VListItem,
+  VListItemSubtitle, VListItemTitle, VMain, VMenu, VNavigationDrawer, VRadio,
+  VRadioGroup, VRow, VSelect, VSkeletonLoader, VSnackbar, VSpacer, VTextField,
+  VTextarea, VTooltip,
+};
+/* jscpd:ignore-end */
+
 import * as directives from 'vuetify/directives';
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
 import { mdi as mdiFont } from 'vuetify/iconsets/mdi';
@@ -251,52 +264,7 @@ const darkTheme = {
 };
 
 export const vuetify = createVuetify({
-  components: {
-    VAlert,
-    VApp,
-    VAppBar,
-    VAppBarNavIcon,
-    VAutocomplete,
-    VAvatar,
-    VBottomSheet,
-    VBtn,
-    VBtnToggle,
-    VCard,
-    VCardActions,
-    VCardItem,
-    VCardSubtitle,
-    VCardText,
-    VCardTitle,
-    VCheckbox,
-    VChip,
-    VCol,
-    VCombobox,
-    VContainer,
-    VDatePicker,
-    VDialog,
-    VDivider,
-    VExpandTransition,
-    VForm,
-    VIcon,
-    VImg,
-    VList,
-    VListItem,
-    VListItemSubtitle,
-    VListItemTitle,
-    VMain,
-    VMenu,
-    VNavigationDrawer,
-    VRadio,
-    VRadioGroup,
-    VRow,
-    VSelect,
-    VSkeletonLoader,
-    VSnackbar,
-    VSpacer,
-    VTextField,
-    VTextarea,
-    VTooltip
-  },
+  components: appComponents,
   directives,
   icons: {
     defaultSet: 'mdi',

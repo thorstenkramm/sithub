@@ -257,22 +257,26 @@
       </div>
     </div>
 
-    <v-dialog v-model="showFloorPlanDialog" max-width="900" data-cy="floor-plan-dialog">
-      <v-card>
-        <v-card-title>{{ areaName || 'Floor Plan' }}</v-card-title>
-        <v-card-text class="text-center">
-          <v-img
+    <v-dialog
+      v-model="showFloorPlanDialog"
+      max-width="1100"
+      persistent
+      :fullscreen="isCompactFloorPlanViewport"
+      data-cy="floor-plan-dialog"
+    >
+      <v-card class="floor-plan-dialog-card">
+        <v-card-text class="floor-plan-dialog-body">
+          <InteractiveFloorPlan
             v-if="areaFloorPlan"
-            :src="floorPlanUrl"
-            max-height="600"
-            contain
-            data-cy="floor-plan-image"
+            :floor-plan="areaFloorPlan"
+            :title="areaName || 'Floor Plan'"
+            :week-label="weekOptions.find(o => o.value === selectedWeek)?.label || ''"
+            :week-dates="selectedWeekDates"
+            item-group-id=""
+            :area-level="true"
+            @close="showFloorPlanDialog = false"
           />
         </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showFloorPlanDialog = false">Close</v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -290,7 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchMe } from '../api/me';
@@ -311,12 +315,14 @@ import { useDateState } from '../composables/useDateState';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState } from '../components';
+import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const authStore = useAuthStore();
 const areaName = ref('');
 const areaFloorPlan = ref<string | null>(null);
 const areaIcon = ref<string | null>(null);
 const showFloorPlanDialog = ref(false);
+const isCompactFloorPlanViewport = ref(false);
 const itemGroups = ref<JsonApiResource<ItemGroupAttributes>[]>([]);
 const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
@@ -376,7 +382,7 @@ const isItemGroupFilteredOut = (igId: string): boolean => {
 };
 
 const { showWeekends } = useWeekendPreference();
-const { weekOptions, selectedWeek } = useWeekSelector(showWeekends);
+const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends);
 const { getWeek, setWeek } = useDateState();
 
 // Restore memorized week on mount
@@ -384,11 +390,6 @@ const storedWeek = getWeek();
 if (weekOptions.value.some(o => o.value === storedWeek)) {
   selectedWeek.value = storedWeek;
 }
-const floorPlanUrl = computed(() => {
-  if (!areaFloorPlan.value) return '';
-  return `/api/v1/floor-plans/${encodeURIComponent(areaFloorPlan.value)}`;
-});
-
 const breadcrumbs = computed(() => [
   { text: 'Home', to: '/' },
   { text: areaName.value || 'Area' }
@@ -468,7 +469,24 @@ const loadAvailability = async (areaId: string, week: string) => {
   }
 };
 
+const updateViewport = () => {
+  if (typeof window.matchMedia !== 'function') {
+    isCompactFloorPlanViewport.value = false;
+    return;
+  }
+
+  const narrow = window.matchMedia('(max-width: 768px)').matches;
+  const short = window.matchMedia('(max-height: 500px)').matches;
+  isCompactFloorPlanViewport.value = narrow || short;
+};
+
+const handleResize = () => {
+  updateViewport();
+};
+
 onMounted(async () => {
+  updateViewport();
+  window.addEventListener('resize', handleResize);
   try {
     const resp = await fetchMe();
     authStore.userName = resp.data.attributes.display_name;
@@ -550,6 +568,10 @@ onMounted(async () => {
   }
 });
 
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+});
+
 watch([selectedWeek, showWeekends], async ([week]) => {
   setWeek(week);
   const areaId = route.params.areaId;
@@ -608,5 +630,13 @@ watch([selectedWeek, showWeekends], async ([week]) => {
   align-items: center;
   justify-content: center;
   z-index: 1;
+}
+
+.floor-plan-dialog-card {
+  height: 100%;
+}
+
+.floor-plan-dialog-body {
+  height: 100%;
 }
 </style>

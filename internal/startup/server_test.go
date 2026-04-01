@@ -14,6 +14,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/config"
+	"github.com/thorstenkramm/sithub/internal/middleware"
 	"github.com/thorstenkramm/sithub/internal/notifications"
 )
 
@@ -71,6 +72,7 @@ func writeAreasConfigIn(t *testing.T, dir string) string {
 func TestFloorPlanRouteRequiresAuthentication(t *testing.T) {
 	e := echo.New()
 	authService := newTestAuthService(t)
+	e.Use(middleware.LoadUser(authService))
 
 	registerRoutes(
 		e,
@@ -91,6 +93,61 @@ func TestFloorPlanRouteRequiresAuthentication(t *testing.T) {
 	}
 }
 
+func TestFloorPlanPositionsWriteRouteRequiresAuthentication(t *testing.T) {
+	e := echo.New()
+	authService := newTestAuthService(t)
+	e.Use(middleware.LoadUser(authService))
+
+	registerRoutes(
+		e,
+		authService,
+		&areas.Config{},
+		t.TempDir(),
+		nil,
+		notifications.NewNotifier(""),
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestFloorPlanPositionsWriteRouteRequiresAdmin(t *testing.T) {
+	e := echo.New()
+	authService := newTestAuthService(t)
+	e.Use(middleware.LoadUser(authService))
+
+	registerRoutes(
+		e,
+		authService,
+		&areas.Config{},
+		t.TempDir(),
+		nil,
+		notifications.NewNotifier(""),
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)
+	req.AddCookie(testUserCookie(t, authService, &auth.User{
+		ID:          "user-1",
+		Name:        "Regular User",
+		AuthSource:  "internal",
+		IsPermitted: true,
+		IsAdmin:     false,
+	}))
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+}
+
 func newTestAuthService(t *testing.T) *auth.Service {
 	t.Helper()
 
@@ -105,4 +162,15 @@ func newTestAuthService(t *testing.T) *auth.Service {
 		t.Fatalf("new service: %v", err)
 	}
 	return svc
+}
+
+func testUserCookie(t *testing.T, svc *auth.Service, user *auth.User) *http.Cookie {
+	t.Helper()
+
+	encodedUser, err := svc.EncodeUser(user)
+	if err != nil {
+		t.Fatalf("encode user: %v", err)
+	}
+
+	return &http.Cookie{Name: "sithub_user", Value: encodedUser}
 }

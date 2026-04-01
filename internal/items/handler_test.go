@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/db"
-	"github.com/thorstenkramm/sithub/internal/areas"
 )
 
 func testConfig() *areas.Config {
@@ -87,23 +87,23 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return store
 }
 
-func seedBooking(t *testing.T, store *sql.DB, id, itemID, userID, date string) {
+func seedTestBooking(t *testing.T, store *sql.DB) {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	_, err := store.ExecContext(context.Background(),
 		`INSERT INTO bookings (id, item_id, user_id, booking_date, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		id, itemID, userID, date, now, now)
+		"b1", "item-1", "user-1", "2025-01-20", now, now)
 	require.NoError(t, err)
 }
 
-func seedUser(t *testing.T, store *sql.DB, id, displayName string) {
+func seedTestUser(t *testing.T, store *sql.DB) {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	_, err := store.ExecContext(context.Background(),
 		`INSERT INTO users (id, email, display_name, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?)`,
-		id, id+"@test.local", displayName, now, now)
+		"user-1", "user-1@test.local", "Alice Smith", now, now)
 	require.NoError(t, err)
 }
 
@@ -151,8 +151,8 @@ func TestListHandlerReturnsItemsWithAvailability(t *testing.T) {
 	store := setupTestDB(t)
 	cfg := testConfig()
 
-	seedUser(t, store, "user-1", "Alice Smith")
-	seedBooking(t, store, "b1", "item-1", "user-1", "2025-01-20")
+	seedTestUser(t, store)
+	seedTestBooking(t, store)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
@@ -225,8 +225,8 @@ func TestListHandlerAdminSeesBookerInfo(t *testing.T) {
 	store := setupTestDB(t)
 	cfg := testConfig()
 
-	seedUser(t, store, "user-1", "Alice Smith")
-	seedBooking(t, store, "b1", "item-1", "user-1", "2025-01-20")
+	seedTestUser(t, store)
+	seedTestBooking(t, store)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
@@ -258,8 +258,8 @@ func TestListHandlerNonAdminSeesBookerNameButNotBookingID(t *testing.T) {
 	store := setupTestDB(t)
 	cfg := testConfig()
 
-	seedUser(t, store, "user-1", "Alice Smith")
-	seedBooking(t, store, "b1", "item-1", "user-1", "2025-01-20")
+	seedTestUser(t, store)
+	seedTestBooking(t, store)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
@@ -267,7 +267,7 @@ func TestListHandlerNonAdminSeesBookerNameButNotBookingID(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.SetParamNames("item_group_id")
 	c.SetParamValues("ig-1")
-	c.Set("user", &auth.User{IsAdmin: false})
+	c.Set("user", &auth.User{ID: "user-1", IsAdmin: false})
 
 	h := ListHandler(cfg, store)
 	require.NoError(t, h(c))
@@ -281,8 +281,39 @@ func TestListHandlerNonAdminSeesBookerNameButNotBookingID(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "occupied", attrs0["availability"])
 	assert.Equal(t, "Alice Smith", attrs0["booker_name"])
+	assert.Equal(t, true, attrs0["booked_by_me"])
 	// Non-admin should not see booking_id
 	assert.Nil(t, attrs0["booking_id"])
+}
+
+func TestListHandlerMarksBookingsMadeByOtherUsers(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestDB(t)
+	cfg := testConfig()
+
+	seedTestUser(t, store)
+	seedTestBooking(t, store)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
+	c.Set("user", &auth.User{ID: "user-2", IsAdmin: false})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+
+	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, false, attrs0["booked_by_me"])
 }
 
 func TestListHandlerGuestBookingShowsGuestName(t *testing.T) {

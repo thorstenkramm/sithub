@@ -24,6 +24,7 @@ vi.mock('vue-router', () => ({
 }));
 
 describe('ItemGroupsView', () => {
+  const originalMatchMedia = window.matchMedia;
   const stubs = {
     ...buildViewStubs([
       'v-card-item',
@@ -31,12 +32,16 @@ describe('ItemGroupsView', () => {
       'v-card-actions',
       'v-avatar',
       'v-icon',
+      'v-progress-circular',
       'v-skeleton-loader',
       'v-select',
       'v-combobox',
       'v-spacer',
       'v-snackbar',
       'v-tooltip',
+      'v-btn-toggle',
+      'v-checkbox',
+      'v-bottom-sheet',
       'router-link'
     ]),
     'v-btn': {
@@ -47,8 +52,8 @@ describe('ItemGroupsView', () => {
       template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
     },
     'v-dialog': {
-      props: ['modelValue'],
-      template: '<div v-if="modelValue"><slot /></div>'
+      props: ['modelValue', 'fullscreen', 'persistent'],
+      template: '<div v-if="modelValue" v-bind="$attrs" :data-fullscreen="fullscreen" :data-persistent="persistent"><slot /></div>'
     },
     'v-snackbar': {
       template: '<div v-bind="$attrs"><slot /></div>'
@@ -124,6 +129,16 @@ describe('ItemGroupsView', () => {
     });
 
   beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    })) as typeof window.matchMedia;
     setActivePinia(createPinia());
     pushMock.mockReset();
     fetchAvailabilityMock.mockReset();
@@ -136,6 +151,10 @@ describe('ItemGroupsView', () => {
     localStorage.clear();
     sessionStorage.clear();
     useDateState().setWeek(currentWeek());
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
   });
 
   it('renders page header with breadcrumbs', async () => {
@@ -296,8 +315,30 @@ describe('ItemGroupsView', () => {
 
     expect(wrapper.find('[data-cy="area-floor-plan-btn"]').exists()).toBe(true);
     await wrapper.get('[data-cy="area-floor-plan-btn"]').trigger('click');
-    expect(wrapper.get('[data-cy="floor-plan-dialog"]').exists()).toBe(true);
-    expect(wrapper.get('[data-cy="floor-plan-image"]').attributes('src')).toBe('/api/v1/floor-plans/area.svg');
+    const dialog = wrapper.get('[data-cy="floor-plan-dialog"]');
+    expect(dialog.exists()).toBe(true);
+    expect(dialog.attributes('data-persistent')).toBe('');
+  });
+
+  it('opens the floor plan fullscreen on compact viewports', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 768px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    })) as typeof window.matchMedia;
+    mockFetchItemGroups(1);
+    mockFetchAreas('area.svg');
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    await wrapper.get('[data-cy="area-floor-plan-btn"]').trigger('click');
+    expect(wrapper.get('[data-cy="floor-plan-dialog"]').attributes('data-fullscreen')).toBe('true');
   });
 
   it('hides the floor plan button when the area has no floor plan', async () => {

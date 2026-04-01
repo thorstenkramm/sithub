@@ -728,22 +728,25 @@
     </v-bottom-sheet>
 
     <!-- Item Group Floor Plan Dialog -->
-    <v-dialog v-model="showItemGroupFloorPlanDialog" max-width="900" data-cy="item-group-floor-plan-dialog">
-      <v-card>
-        <v-card-title>{{ itemGroupName || 'Floor Plan' }}</v-card-title>
-        <v-card-text class="text-center">
-          <v-img
+    <v-dialog
+      v-model="showItemGroupFloorPlanDialog"
+      max-width="1100"
+      persistent
+      :fullscreen="isCompactFloorPlanViewport"
+      data-cy="item-group-floor-plan-dialog"
+    >
+      <v-card class="floor-plan-dialog-card">
+        <v-card-text class="floor-plan-dialog-body">
+          <InteractiveFloorPlan
             v-if="itemGroupFloorPlan"
-            :src="itemGroupFloorPlanUrl"
-            max-height="600"
-            contain
-            data-cy="item-group-floor-plan-image"
+            :floor-plan="itemGroupFloorPlan"
+            :title="itemGroupName || 'Floor Plan'"
+            :week-label="weekOptions.find(o => o.value === selectedWeek)?.label || ''"
+            :week-dates="selectedWeekDates"
+            :item-group-id="activeItemGroupId || ''"
+            @close="showItemGroupFloorPlanDialog = false"
           />
         </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showItemGroupFloorPlanDialog = false">Close</v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -834,6 +837,7 @@ import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
+import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const authStore = useAuthStore();
 const items = ref<JsonApiResource<ItemAttributes>[]>([]);
@@ -863,6 +867,7 @@ const expandedNote = ref('');
 const noteTruncatedMap = ref<Record<string, boolean>>({});
 const noteElements = new Map<string, HTMLElement>();
 const isMobile = ref(false);
+const isCompactFloorPlanViewport = ref(false);
 const useBottomSheet = computed(() => isMobile.value);
 const showItemNoteDialog = computed({
   get: () => expandedNote.value !== '',
@@ -877,10 +882,6 @@ const resolveItemIcon = (itemIcon: string | undefined) => {
   return resolveConfiguredIcon(itemIcon || inheritedIcon.value, '$desk');
 };
 const showItemGroupFloorPlanDialog = ref(false);
-const itemGroupFloorPlanUrl = computed(() => {
-  if (!itemGroupFloorPlan.value) return '';
-  return `/api/v1/floor-plans/${encodeURIComponent(itemGroupFloorPlan.value)}`;
-});
 
 const equipmentFilter = ref('');
 const showFilterHelp = ref(false);
@@ -1597,9 +1598,13 @@ onBeforeUnmount(() => {
 function updateViewport() {
   if (typeof window.matchMedia === 'function') {
     isMobile.value = window.matchMedia('(max-width: 600px)').matches;
+    isCompactFloorPlanViewport.value =
+      window.matchMedia('(max-width: 768px)').matches
+      || window.matchMedia('(max-height: 500px)').matches;
     return;
   }
   isMobile.value = false;
+  isCompactFloorPlanViewport.value = false;
 }
 
 function handleResize() {
@@ -1728,6 +1733,14 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   justify-content: center;
   z-index: 1;
   pointer-events: none;
+}
+
+.floor-plan-dialog-card {
+  height: 100%;
+}
+
+.floor-plan-dialog-body {
+  height: 100%;
 }
 </style>
 

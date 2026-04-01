@@ -42,6 +42,10 @@ paths:
     $ref: ./endpoints/user.yaml
   /floor-plans/{filename}:
     $ref: ./endpoints/floor-plans.yaml
+  /floor-plan-positions:
+    $ref: ./endpoints/floor-plan-positions.yaml
+  /floor-plan-positions/{id}:
+    $ref: ./endpoints/floor-plan-position.yaml
 
 components:
   securitySchemes:
@@ -172,6 +176,9 @@ components:
         booker_name:
           type: string
           description: Name of user who booked (present when occupied)
+        booked_by_me:
+          type: boolean
+          description: True when the current authenticated user owns the booking for this item
         note:
           type: string
           description: Booking note (present when occupied and note is not empty)
@@ -303,6 +310,142 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/BookingResource'
+      required:
+        - data
+    FloorPlanPositionAttributes:
+      type: object
+      properties:
+        floor_plan:
+          type: string
+        item_id:
+          type: string
+        label:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        border_width:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - floor_plan
+        - item_id
+        - x
+        - y
+        - width
+        - height
+        - border_width
+        - created_at
+        - updated_at
+    FloorPlanPositionResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: floor-plan-positions
+            attributes:
+              $ref: '#/components/schemas/FloorPlanPositionAttributes'
+          required:
+            - type
+            - attributes
+    FloorPlanPositionCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FloorPlanPositionResource'
+      required:
+        - data
+    FloorPlanPositionSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/FloorPlanPositionResource'
+      required:
+        - data
+    FloorPlanPositionCreateAttributes:
+      type: object
+      properties:
+        floor_plan:
+          type: string
+        item_id:
+          type: string
+        label:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        border_width:
+          type: integer
+      required:
+        - floor_plan
+        - item_id
+        - x
+        - y
+        - width
+        - height
+    FloorPlanPositionCreateRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              const: floor-plan-positions
+            attributes:
+              $ref: '#/components/schemas/FloorPlanPositionCreateAttributes'
+          required:
+            - type
+            - attributes
+      required:
+        - data
+    FloorPlanPositionUpdateAttributes:
+      type: object
+      properties:
+        label:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        border_width:
+          type: integer
+    FloorPlanPositionUpdateRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              const: floor-plan-positions
+            attributes:
+              $ref: '#/components/schemas/FloorPlanPositionUpdateAttributes'
+          required:
+            - type
+            - attributes
       required:
         - data
     MyBookingAttributes:

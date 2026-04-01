@@ -16,6 +16,7 @@ import (
 
 	"github.com/thorstenkramm/sithub/assets"
 	"github.com/thorstenkramm/sithub/internal/areas"
+	"github.com/thorstenkramm/sithub/internal/floorplanpos"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
 	"github.com/thorstenkramm/sithub/internal/config"
@@ -165,6 +166,16 @@ func registerRoutes(
 	e.POST("/api/v1/users", users.CreateHandler(store), requireAuth, requireAdmin)
 	e.PATCH("/api/v1/users/:id", users.UpdateHandler(store), requireAuth, requireAdmin)
 	e.DELETE("/api/v1/users/:id", users.DeleteHandler(store), requireAuth, requireAdmin)
+
+	// Floor plan positions (read: any authenticated user, write: admin only)
+	e.GET("/api/v1/floor-plan-positions",
+		floorplanpos.ListHandler(store), requireAuth)
+	e.POST("/api/v1/floor-plan-positions",
+		floorplanpos.CreateHandler(store), requireAuth, requireAdmin)
+	e.PUT("/api/v1/floor-plan-positions/:id",
+		floorplanpos.UpdateHandler(store), requireAuth, requireAdmin)
+	e.DELETE("/api/v1/floor-plan-positions/:id",
+		floorplanpos.DeleteHandler(store), requireAuth, requireAdmin)
 }
 
 func registerSPAHandlers(e *echo.Echo, webFS fs.FS) {

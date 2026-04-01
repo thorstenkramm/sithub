@@ -1,0 +1,70 @@
+get:
+  summary: List floor plan positions
+  description: Returns all positioned rectangles for a floor plan as a JSON:API collection.
+  operationId: listFloorPlanPositions
+  tags:
+    - Floor Plans
+  parameters:
+    - name: floor_plan
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Floor plan filename to load positions for.
+  responses:
+    '200':
+      description: Floor plan positions
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/FloorPlanPositionCollectionResponse
+    '400':
+      description: Missing floor plan query parameter
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+
+post:
+  summary: Create floor plan position
+  description: Creates a new positioned rectangle for an item on a floor plan. Admin only.
+  operationId: createFloorPlanPosition
+  tags:
+    - Floor Plans
+  requestBody:
+    required: true
+    content:
+      application/vnd.api+json:
+        schema:
+          $ref: ../openapi.yaml#/components/schemas/FloorPlanPositionCreateRequest
+  responses:
+    '201':
+      description: Position created
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/FloorPlanPositionSingleResponse
+    '400':
+      description: Invalid request
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Admin role required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

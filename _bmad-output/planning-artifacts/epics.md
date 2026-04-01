@@ -17,6 +17,8 @@ editHistory:
     changes: "Added FR67-FR74 and Epic 19: User Feedback — Bug Fixes & Feature Requests. Covers cancel dialog bug, week selector/calendar fixes, equipment filter enhancements, week view cancellation, custom icons, and favorites."
   - date: '2026-03-22'
     changes: "Added FR75-FR82 and Epic 20: Interactive Floor Plans & UX Consistency. Covers favorite free-busy indicators, week/day memorization, consistent snackbar confirmations, floor plan positions in SQLite, admin floor plan editor, interactive floor plan overlay with free/busy, and first-level drill-down."
+  - date: '2026-03-29'
+    changes: "Added FR83-FR84 and Story 20.8: Floor Plan Booking UX Refinements. Covers multi-day booking dialog with weekday checkboxes, persistent overlay, mobile fullscreen layout, close/back navigation stack, drill-down safety enforcement, and precise booking error messages. Based on user testing feedback."
 ---
 
 # sithub - Epic Breakdown
@@ -243,6 +245,14 @@ image with item list; admin draws rectangles to position items; positions are sa
 FR82: Floor plan positions in SQLite. Acceptance: item positions on floor plans are stored in
 a `floor_plan_positions` table with floor plan filename, item ID, and rectangle coordinates;
 CRUD API endpoints exist for reading, creating, updating, and deleting positions.
+FR83: Multi-day floor plan booking with weekday checkboxes. Acceptance: clicking a free item
+on the floor plan opens a dialog with weekday checkboxes; the current day is pre-checked;
+past days and already-booked days are disabled; a summary and "Book now" button allow
+multi-day booking in one action; error messages name the specific conflicting day.
+FR84: Floor plan overlay UX polish. Acceptance: overlay is persistent (close button only);
+mobile opens fullscreen with controls at the bottom; close/back navigates to previous screen
+(higher-level floor plan or area page); drill-down is enforced when a detail floor plan
+exists, preventing direct booking on first-level sub-areas.
 
 ### NonFunctional Requirements
 
@@ -373,6 +383,8 @@ FR79: Epic 20 - Interactive floor plan with free/busy
 FR80: Epic 20 - First-level floor plan drill-down
 FR81: Epic 20 - Floor plan editor (admin)
 FR82: Epic 20 - Floor plan positions in SQLite
+FR83: Epic 20 - Multi-day floor plan booking with weekday checkboxes
+FR84: Epic 20 - Floor plan overlay UX polish
 
 ## Epic List
 
@@ -483,7 +495,7 @@ icons, an improved calendar/week selector, and a favorites system.
 Users can view live free/busy status on floor plan overlays, book items directly from
 floor plans, and admins can position items on floor plan images. Navigation state is
 preserved across the app and confirmations use a consistent style.
-**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82
+**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82, FR83, FR84
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -2324,7 +2336,7 @@ with second-level favorites subtracted
 Users can view live free/busy status on floor plan overlays, book items directly from
 floor plans, and admins can position items on floor plan images. Navigation state is
 preserved across the app and confirmations use a consistent style.
-**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82
+**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82, FR83, FR84
 
 ### Story 20.1: Free-Busy Indicators on Favorite Tiles
 
@@ -2504,3 +2516,46 @@ So that I can drill down from the building overview to individual items.
 **Given** I click on a sub-area rectangle
 **When** the click is processed
 **Then** the detail floor plan for that sub-area opens with item-level free/busy state
+
+### Story 20.8: Floor Plan Booking UX Refinements
+
+**FRs covered:** FR83, FR84
+
+As a user,
+I want the floor plan booking experience to support multi-day selection, provide precise
+feedback, and work reliably on mobile,
+So that I can efficiently book items for multiple days and trust the floor plan interaction
+on any device.
+
+**Acceptance Criteria:**
+
+**Given** I click on a free item on a detail-level floor plan
+**When** the booking dialog opens
+**Then** it shows weekday checkboxes (abbreviations only: Mo, Tu, We, Th, Fr) with the
+currently selected day pre-checked; past days and already-booked days are disabled
+
+**Given** I select days and click "Book now"
+**When** the booking is submitted
+**Then** a summary shows "Book [Item] in [Area] for N days starting [date]" and all
+selected days are booked; the "Book now" and "Cancel" buttons are always visible
+
+**Given** a booking fails because the item was booked by someone else
+**When** the error is displayed
+**Then** the message names the specific day: "The selected item is already booked on
+[day]."
+
+**Given** the floor plan overlay is open
+**When** I click outside the overlay
+**Then** the overlay does NOT close; only the close button dismisses it
+
+**Given** I view the floor plan on a small screen
+**When** the overlay renders
+**Then** it opens fullscreen with "Show labels" and "Close" at the bottom
+
+**Given** I am in a detail floor plan opened via drill-down
+**When** I click close/back
+**Then** I return to the higher-level floor plan, not the underlying page
+
+**Given** a sub-area on a first-level floor plan has its own detail floor plan
+**When** I click anywhere on it
+**Then** the detail floor plan opens; direct booking is prevented

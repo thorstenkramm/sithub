@@ -1,18 +1,21 @@
-import { apiRequest } from './client';
-import type { CollectionResponse } from './types';
+import { apiRequest } from "./client";
+import type { CollectionResponse } from "./types";
 
 export interface ItemAttributes {
   name: string;
   equipment: string[];
-  availability: 'available' | 'occupied';
+  availability: "available" | "occupied";
   warning?: string;
   icon?: string;
   booker_name?: string; // present when item is occupied
+  booked_by_me?: boolean; // present when item is occupied
   booking_id?: string; // admin-only, present when item is occupied
   note?: string; // present when item is occupied and has a note
 }
 
 export function fetchItems(itemGroupId: string, date?: string) {
-  const params = date ? `?date=${encodeURIComponent(date)}` : '';
-  return apiRequest<CollectionResponse<ItemAttributes>>(`/api/v1/item-groups/${itemGroupId}/items${params}`);
+  const params = date ? `?date=${encodeURIComponent(date)}` : "";
+  return apiRequest<CollectionResponse<ItemAttributes>>(
+    `/api/v1/item-groups/${itemGroupId}/items${params}`,
+  );
 }

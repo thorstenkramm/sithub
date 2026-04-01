@@ -48,6 +48,12 @@ const router = createRouter({
       component: () => import('../views/BookingHistoryView.vue')
     },
     {
+      path: '/admin/floor-plan-editor',
+      name: 'floor-plan-editor',
+      component: () => import('../views/FloorPlanEditorView.vue'),
+      meta: { requiresAdmin: true }
+    },
+    {
       path: '/access-denied',
       name: 'access-denied',
       component: () => import('../views/AccessDeniedView.vue'),
@@ -74,6 +80,10 @@ router.beforeEach(async (to) => {
     } catch {
       return { name: 'login' };
     }
+  }
+
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    return { name: 'access-denied' };
   }
 
   return true;

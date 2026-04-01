@@ -9,9 +9,9 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
-	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
 
@@ -47,7 +47,12 @@ func ListHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.Handle
 
 		resolveBookerNames(ctx, store, itemBookings)
 
-		resources := buildItemResources(ig.Items, itemBookings, isAdmin)
+		currentUserID := ""
+		if user != nil {
+			currentUserID = user.ID
+		}
+
+		resources := buildItemResources(ig.Items, itemBookings, isAdmin, currentUserID)
 		return api.WriteCollection(c, resources, "write items response")
 	}
 }
@@ -96,13 +101,14 @@ func resolveBookerNames(
 }
 
 func buildItemResources(
-	items []areas.Item, itemBookings map[string]bookings.ItemBookingInfo, isAdmin bool,
+	items []areas.Item, itemBookings map[string]bookings.ItemBookingInfo, isAdmin bool, currentUserID string,
 ) []api.Resource {
 	return api.MapResources(items, func(item areas.Item) api.Resource {
 		attrs := areas.ItemAttributes(item.Name, item.Equipment, item.Warning, "", item.Icon)
 		if info, booked := itemBookings[item.ID]; booked {
 			attrs["availability"] = "occupied"
 			attrs["booker_name"] = info.BookerName
+			attrs["booked_by_me"] = currentUserID != "" && info.UserID == currentUserID
 			if info.Note != "" {
 				attrs["note"] = info.Note
 			}

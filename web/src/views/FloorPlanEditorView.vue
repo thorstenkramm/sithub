@@ -1,0 +1,1118 @@
+<template>
+  <div class="page-container">
+    <PageHeader
+      title="Floor Plan Editor"
+      :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'Floor Plan Editor' }]"
+    />
+
+    <v-row>
+      <v-col cols="12" md="3" order="2" order-md="1">
+        <v-card class="mb-4" data-cy="editor-sidebar">
+          <v-card-title>
+            {{ isAreaLevel && activeTab === "areas" ? "Sub-areas" : "Items" }}
+          </v-card-title>
+          <v-card-text>
+            <v-alert
+              v-if="!selectedFloorPlan"
+              type="info"
+              variant="tonal"
+              density="compact"
+            >
+              Select a floor plan to position items.
+            </v-alert>
+
+            <v-list v-else density="compact" nav>
+              <v-list-item
+                v-for="item in scopedItems"
+                :key="item.id"
+                :active="
+                  drawModeItemId === item.id || selectedRectId === item.id
+                "
+                :class="{ 'editor-item--positioned': item.positioned }"
+                :data-cy="`sidebar-item-${item.id}`"
+                @click="selectSidebarItem(item)"
+              >
+                <template #prepend>
+                  <v-icon size="small">
+                    {{ item.positioned ? "$success" : "$location" }}
+                  </v-icon>
+                </template>
+                <v-list-item-title>{{ item.name }}</v-list-item-title>
+                <v-list-item-subtitle>
+                  {{
+                    item.positioned
+                      ? "Positioned"
+                      : drawModeItemId === item.id
+                        ? "Draw on plan"
+                        : "Unpositioned"
+                  }}
+                </v-list-item-subtitle>
+                <template #append>
+                  <v-btn
+                    v-if="item.positioned"
+                    icon="$delete"
+                    size="x-small"
+                    variant="text"
+                    color="error"
+                    :data-cy="`sidebar-delete-${item.id}`"
+                    @click.stop="deleteByItemId(item.id)"
+                  />
+                </template>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="9" order="1" order-md="2">
+        <v-card class="mb-4">
+          <v-card-text>
+            <div class="d-flex flex-wrap align-center ga-3">
+              <v-select
+                v-model="selectedFloorPlan"
+                :items="floorPlanOptions"
+                item-title="label"
+                item-value="value"
+                label="Floor Plan"
+                density="compact"
+                hide-details
+                data-cy="floor-plan-selector"
+                style="min-width: 220px; max-width: 320px"
+              />
+
+              <v-btn-toggle
+                v-if="isAreaLevel"
+                v-model="activeTab"
+                mandatory
+                density="compact"
+                data-cy="editor-tabs"
+              >
+                <v-btn value="areas" size="small" data-cy="tab-areas"
+                  >Areas</v-btn
+                >
+                <v-btn value="items" size="small" data-cy="tab-items"
+                  >Items</v-btn
+                >
+              </v-btn-toggle>
+
+              <v-select
+                v-if="isAreaLevel && activeTab === 'items'"
+                v-model="selectedSubAreaId"
+                :items="subAreas"
+                item-title="name"
+                item-value="id"
+                label="Sub-area"
+                density="compact"
+                hide-details
+                data-cy="subarea-selector"
+                style="min-width: 180px; max-width: 240px"
+              />
+
+              <v-select
+                v-model="borderWidth"
+                :items="[1, 2, 3, 4, 5]"
+                label="Line"
+                density="compact"
+                hide-details
+                data-cy="border-width-selector"
+                style="min-width: 90px; max-width: 100px"
+              />
+
+              <div class="d-flex align-center ga-2 editor-zoom-controls">
+                <v-btn size="x-small" variant="text" @click="adjustZoom(-0.1)"
+                  >-</v-btn
+                >
+                <v-slider
+                  v-model="zoomScale"
+                  min="0.75"
+                  max="2"
+                  step="0.05"
+                  hide-details
+                  density="compact"
+                  data-cy="editor-zoom-slider"
+                  style="width: 140px"
+                />
+                <v-btn size="x-small" variant="text" @click="adjustZoom(0.1)"
+                  >+</v-btn
+                >
+                <span class="text-caption text-medium-emphasis"
+                  >{{ Math.round(zoomScale * 100) }}%</span
+                >
+              </div>
+
+              <v-chip
+                v-if="hasUnsavedChanges"
+                color="warning"
+                size="small"
+                variant="tonal"
+                data-cy="editor-unsaved-chip"
+              >
+                Unsaved changes
+              </v-chip>
+
+              <v-spacer />
+
+              <v-btn
+                variant="text"
+                :disabled="!undoSnapshot"
+                data-cy="editor-undo-btn"
+                @click="undoLastChange"
+              >
+                Undo
+              </v-btn>
+
+              <v-btn
+                v-if="selectedRectId"
+                color="error"
+                variant="text"
+                data-cy="delete-rect-btn"
+                @click="deleteSelected"
+              >
+                Delete {{ selectedRectName }}
+              </v-btn>
+
+              <v-btn
+                color="primary"
+                variant="flat"
+                :loading="saving"
+                :disabled="!selectedFloorPlan || !hasUnsavedChanges"
+                data-cy="save-floor-plan-btn"
+                @click="saveChanges"
+              >
+                Save
+              </v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <v-card v-if="selectedFloorPlan" data-cy="floor-plan-canvas-card">
+          <v-card-text class="pa-2">
+            <div ref="canvasShellRef" class="editor-shell" @wheel="onWheelZoom">
+              <div class="editor-zoom-layer" :style="zoomLayerStyle">
+                <div
+                  ref="containerRef"
+                  class="floor-plan-editor-container"
+                  :class="{ 'draw-mode': drawModeItemId !== null }"
+                  @pointerdown="onCanvasPointerDown"
+                  @pointermove="onCanvasPointerMove"
+                  @pointerup="onCanvasPointerUp"
+                >
+                  <img
+                    :src="`/api/v1/floor-plans/${encodeURIComponent(selectedFloorPlan)}`"
+                    draggable="false"
+                    class="floor-plan-editor-image"
+                  />
+
+                  <div
+                    v-for="pos in contextPositions"
+                    :key="`ctx-${pos.itemId}`"
+                    class="floor-plan-rect rect-context"
+                    :style="rectStyle(pos)"
+                  >
+                    <span class="rect-label">{{ pos.itemName }}</span>
+                  </div>
+
+                  <div
+                    v-for="pos in activePositions"
+                    :key="pos.itemId"
+                    class="floor-plan-rect"
+                    :class="{
+                      'rect-selected': selectedRectId === pos.itemId,
+                      'rect-saved': recentlySaved.has(pos.itemId),
+                    }"
+                    :style="rectStyle(pos)"
+                    :data-cy="`rect-${pos.itemId}`"
+                    @pointerdown.stop="startMoveRect($event, pos.itemId)"
+                    @click.stop="selectedRectId = pos.itemId"
+                  >
+                    <span class="rect-label">{{
+                      pos.label || pos.itemName
+                    }}</span>
+
+                    <template v-if="selectedRectId === pos.itemId">
+                      <div
+                        class="resize-handle resize-handle--nw"
+                        @pointerdown.stop="
+                          startResizeRect($event, pos.itemId, 'nw')
+                        "
+                      />
+                      <div
+                        class="resize-handle resize-handle--ne"
+                        @pointerdown.stop="
+                          startResizeRect($event, pos.itemId, 'ne')
+                        "
+                      />
+                      <div
+                        class="resize-handle resize-handle--sw"
+                        @pointerdown.stop="
+                          startResizeRect($event, pos.itemId, 'sw')
+                        "
+                      />
+                      <div
+                        class="resize-handle resize-handle--se"
+                        @pointerdown.stop="
+                          startResizeRect($event, pos.itemId, 'se')
+                        "
+                      />
+                    </template>
+                  </div>
+
+                  <div
+                    v-if="drawPreview"
+                    class="floor-plan-rect rect-preview"
+                    :style="rectStyle(drawPreview)"
+                  />
+                </div>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-snackbar
+      v-model="showSnackbar"
+      :timeout="3000"
+      location="bottom"
+      :color="snackbarColor"
+      data-cy="editor-snackbar"
+    >
+      {{ snackbarMessage }}
+    </v-snackbar>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { fetchAreas } from "../api/areas";
+import {
+  createFloorPlanPosition,
+  deleteFloorPlanPosition,
+  fetchFloorPlanPositions,
+  updateFloorPlanPosition,
+} from "../api/floorPlanPositions";
+import { fetchItemGroups } from "../api/itemGroups";
+import { fetchItems } from "../api/items";
+import type { FloorPlanPositionAttributes } from "../api/floorPlanPositions";
+import type { JsonApiResource } from "../api/types";
+import { PageHeader } from "../components";
+
+interface FloorPlanOption {
+  label: string;
+  value: string;
+  areaId: string;
+  itemGroupId?: string;
+}
+
+interface LocalPosition {
+  id?: string;
+  itemId: string;
+  itemName: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  borderWidth: number;
+}
+
+interface EditableItem {
+  id: string;
+  name: string;
+  positioned: boolean;
+  scope: string;
+}
+
+interface SubArea {
+  id: string;
+  name: string;
+}
+
+interface EditorSnapshot {
+  positions: LocalPosition[];
+  deletedPositionIDs: string[];
+  dirtyItemIDs: string[];
+}
+
+type ResizeHandle = "nw" | "ne" | "sw" | "se";
+
+const floorPlanOptions = ref<FloorPlanOption[]>([]);
+const selectedFloorPlan = ref<string | null>(null);
+const allPositions = ref<LocalPosition[]>([]);
+const allEditableItems = ref<EditableItem[]>([]);
+const deletedPositionIDs = ref<string[]>([]);
+const dirtyItemIDs = ref<Set<string>>(new Set());
+const subAreas = ref<SubArea[]>([]);
+const activeTab = ref<"areas" | "items">("areas");
+const selectedSubAreaId = ref<string | null>(null);
+const drawModeItemId = ref<string | null>(null);
+const selectedRectId = ref<string | null>(null);
+const borderWidth = ref(2);
+const zoomScale = ref(1);
+const saving = ref(false);
+
+const drawPreview = ref<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} | null>(null);
+const drawStart = ref<{ x: number; y: number } | null>(null);
+const movingItemId = ref<string | null>(null);
+const moveOffset = ref<{ x: number; y: number }>({ x: 0, y: 0 });
+const resizeState = ref<{
+  itemId: string;
+  handle: ResizeHandle;
+  start: { x: number; y: number };
+  original: LocalPosition;
+} | null>(null);
+
+const undoSnapshot = ref<EditorSnapshot | null>(null);
+const recentlySaved = ref<Set<string>>(new Set());
+const snackbarMessage = ref("");
+const snackbarColor = ref<"success" | "error">("success");
+const showSnackbar = computed({
+  get: () => snackbarMessage.value.length > 0,
+  set: (value: boolean) => {
+    if (!value) {
+      snackbarMessage.value = "";
+    }
+  },
+});
+
+const containerRef = ref<HTMLElement | null>(null);
+
+const currentOption = computed(
+  () =>
+    floorPlanOptions.value.find(
+      (option) => option.value === selectedFloorPlan.value,
+    ) || null,
+);
+
+const isAreaLevel = computed(
+  () => !!currentOption.value && !currentOption.value.itemGroupId,
+);
+
+const activeScope = computed(() => {
+  if (!isAreaLevel.value) {
+    return "items";
+  }
+  return activeTab.value === "areas" ? "area" : selectedSubAreaId.value || "";
+});
+
+const scopedItems = computed(() =>
+  allEditableItems.value.filter((item) => item.scope === activeScope.value),
+);
+
+const activePositions = computed(() => {
+  if (!isAreaLevel.value) {
+    return allPositions.value;
+  }
+
+  const ids = new Set(scopedItems.value.map((item) => item.id));
+  return allPositions.value.filter((pos) => ids.has(pos.itemId));
+});
+
+const contextPositions = computed(() => {
+  if (!isAreaLevel.value) {
+    return [];
+  }
+
+  const areaIDs = new Set(
+    allEditableItems.value
+      .filter((item) => item.scope === "area")
+      .map((item) => item.id),
+  );
+  if (activeTab.value === "areas") {
+    return allPositions.value.filter((pos) => !areaIDs.has(pos.itemId));
+  }
+  return allPositions.value.filter((pos) => areaIDs.has(pos.itemId));
+});
+
+const hasUnsavedChanges = computed(
+  () => dirtyItemIDs.value.size > 0 || deletedPositionIDs.value.length > 0,
+);
+
+const selectedRectName = computed(() => {
+  if (!selectedRectId.value) {
+    return "";
+  }
+  return (
+    allPositions.value.find((pos) => pos.itemId === selectedRectId.value)
+      ?.itemName || ""
+  );
+});
+
+const zoomLayerStyle = computed(() => ({
+  transform: `scale(${zoomScale.value})`,
+  transformOrigin: "top left",
+}));
+
+function clonePositions(positions: LocalPosition[]): LocalPosition[] {
+  return positions.map((pos) => ({ ...pos }));
+}
+
+function captureUndoState() {
+  undoSnapshot.value = {
+    positions: clonePositions(allPositions.value),
+    deletedPositionIDs: [...deletedPositionIDs.value],
+    dirtyItemIDs: [...dirtyItemIDs.value],
+  };
+}
+
+function restoreUndoState(snapshot: EditorSnapshot) {
+  allPositions.value = clonePositions(snapshot.positions);
+  deletedPositionIDs.value = [...snapshot.deletedPositionIDs];
+  dirtyItemIDs.value = new Set(snapshot.dirtyItemIDs);
+  updatePositionedState();
+}
+
+function markDirty(itemId: string) {
+  const next = new Set(dirtyItemIDs.value);
+  next.add(itemId);
+  dirtyItemIDs.value = next;
+}
+
+function clearDirty() {
+  dirtyItemIDs.value = new Set();
+  deletedPositionIDs.value = [];
+}
+
+function rectStyle(pos: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  borderWidth?: number;
+}) {
+  return {
+    left: `${pos.x}%`,
+    top: `${pos.y}%`,
+    width: `${pos.width}%`,
+    height: `${pos.height}%`,
+    borderWidth: `${pos.borderWidth || 2}px`,
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function toPercent(event: PointerEvent) {
+  const element = containerRef.value;
+  if (!element) {
+    return { x: 0, y: 0 };
+  }
+
+  const rect = element.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * 100,
+    y: ((event.clientY - rect.top) / rect.height) * 100,
+  };
+}
+
+function selectSidebarItem(item: EditableItem) {
+  if (item.positioned) {
+    selectedRectId.value = item.id;
+    drawModeItemId.value = null;
+    return;
+  }
+
+  drawModeItemId.value = item.id;
+  selectedRectId.value = null;
+}
+
+function onCanvasPointerDown(event: PointerEvent) {
+  if (!drawModeItemId.value) {
+    selectedRectId.value = null;
+    return;
+  }
+
+  const position = toPercent(event);
+  drawStart.value = position;
+  drawPreview.value = {
+    x: position.x,
+    y: position.y,
+    width: 0,
+    height: 0,
+  };
+  (event.target as HTMLElement).setPointerCapture(event.pointerId);
+}
+
+function onCanvasPointerMove(event: PointerEvent) {
+  if (drawStart.value && drawPreview.value) {
+    const position = toPercent(event);
+    drawPreview.value = {
+      x: clamp(Math.min(drawStart.value.x, position.x), 0, 99.5),
+      y: clamp(Math.min(drawStart.value.y, position.y), 0, 99.5),
+      width: clamp(Math.abs(position.x - drawStart.value.x), 0, 100),
+      height: clamp(Math.abs(position.y - drawStart.value.y), 0, 100),
+    };
+    return;
+  }
+
+  if (resizeState.value) {
+    const position = toPercent(event);
+    const target = allPositions.value.find(
+      (pos) => pos.itemId === resizeState.value?.itemId,
+    );
+    if (!target) {
+      return;
+    }
+
+    const updated = resizeFromHandle(
+      resizeState.value.original,
+      resizeState.value.handle,
+      position,
+    );
+    Object.assign(target, updated);
+    markDirty(target.itemId);
+    return;
+  }
+
+  if (movingItemId.value) {
+    const position = toPercent(event);
+    const target = allPositions.value.find(
+      (pos) => pos.itemId === movingItemId.value,
+    );
+    if (!target) {
+      return;
+    }
+
+    target.x = clamp(position.x - moveOffset.value.x, 0, 100 - target.width);
+    target.y = clamp(position.y - moveOffset.value.y, 0, 100 - target.height);
+    markDirty(target.itemId);
+  }
+}
+
+function onCanvasPointerUp() {
+  if (drawStart.value && drawPreview.value && drawModeItemId.value) {
+    if (drawPreview.value.width > 0.5 && drawPreview.value.height > 0.5) {
+      captureUndoState();
+
+      const itemId = drawModeItemId.value;
+      const item = allEditableItems.value.find((entry) => entry.id === itemId);
+      allPositions.value.push({
+        itemId,
+        itemName: item?.name || itemId,
+        label: "",
+        x: clamp(drawPreview.value.x, 0, 100 - drawPreview.value.width),
+        y: clamp(drawPreview.value.y, 0, 100 - drawPreview.value.height),
+        width: clamp(drawPreview.value.width, 0.5, 100),
+        height: clamp(drawPreview.value.height, 0.5, 100),
+        borderWidth: borderWidth.value,
+      });
+      markDirty(itemId);
+      updatePositionedState();
+      selectedRectId.value = itemId;
+      drawModeItemId.value = null;
+    }
+
+    drawPreview.value = null;
+    drawStart.value = null;
+  }
+
+  movingItemId.value = null;
+  resizeState.value = null;
+}
+
+function startMoveRect(event: PointerEvent, itemId: string) {
+  if (drawModeItemId.value) {
+    return;
+  }
+
+  captureUndoState();
+  selectedRectId.value = itemId;
+  const rect = allPositions.value.find((pos) => pos.itemId === itemId);
+  if (!rect) {
+    return;
+  }
+
+  const position = toPercent(event);
+  movingItemId.value = itemId;
+  moveOffset.value = {
+    x: position.x - rect.x,
+    y: position.y - rect.y,
+  };
+  (event.target as HTMLElement).setPointerCapture(event.pointerId);
+}
+
+function startResizeRect(
+  event: PointerEvent,
+  itemId: string,
+  handle: ResizeHandle,
+) {
+  captureUndoState();
+  selectedRectId.value = itemId;
+  const rect = allPositions.value.find((pos) => pos.itemId === itemId);
+  if (!rect) {
+    return;
+  }
+
+  resizeState.value = {
+    itemId,
+    handle,
+    start: toPercent(event),
+    original: { ...rect },
+  };
+  (event.target as HTMLElement).setPointerCapture(event.pointerId);
+}
+
+function resizeFromHandle(
+  rect: LocalPosition,
+  handle: ResizeHandle,
+  cursor: { x: number; y: number },
+) {
+  const minSize = 0.5;
+  const left = rect.x;
+  const right = rect.x + rect.width;
+  const top = rect.y;
+  const bottom = rect.y + rect.height;
+
+  let nextLeft = left;
+  let nextRight = right;
+  let nextTop = top;
+  let nextBottom = bottom;
+
+  if (handle.includes("w")) {
+    nextLeft = clamp(cursor.x, 0, right - minSize);
+  } else {
+    nextRight = clamp(cursor.x, left + minSize, 100);
+  }
+
+  if (handle.includes("n")) {
+    nextTop = clamp(cursor.y, 0, bottom - minSize);
+  } else {
+    nextBottom = clamp(cursor.y, top + minSize, 100);
+  }
+
+  return {
+    x: nextLeft,
+    y: nextTop,
+    width: nextRight - nextLeft,
+    height: nextBottom - nextTop,
+  };
+}
+
+function updatePositionedState() {
+  const positionedIDs = new Set(allPositions.value.map((pos) => pos.itemId));
+  allEditableItems.value = allEditableItems.value.map((item) => ({
+    ...item,
+    positioned: positionedIDs.has(item.id),
+  }));
+}
+
+function deleteByItemId(itemId: string) {
+  captureUndoState();
+  const target = allPositions.value.find((pos) => pos.itemId === itemId);
+  if (!target) {
+    return;
+  }
+
+  if (target.id) {
+    deletedPositionIDs.value = [...deletedPositionIDs.value, target.id];
+  }
+
+  allPositions.value = allPositions.value.filter(
+    (pos) => pos.itemId !== itemId,
+  );
+  markDirty(itemId);
+  updatePositionedState();
+  if (selectedRectId.value === itemId) {
+    selectedRectId.value = null;
+  }
+  if (drawModeItemId.value === itemId) {
+    drawModeItemId.value = null;
+  }
+}
+
+function deleteSelected() {
+  if (!selectedRectId.value) {
+    return;
+  }
+  deleteByItemId(selectedRectId.value);
+}
+
+function undoLastChange() {
+  if (!undoSnapshot.value) {
+    return;
+  }
+
+  restoreUndoState(undoSnapshot.value);
+  undoSnapshot.value = null;
+}
+
+function onKeyDown(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+    event.preventDefault();
+    undoLastChange();
+    return;
+  }
+
+  if (event.key === "Escape") {
+    drawModeItemId.value = null;
+    drawPreview.value = null;
+    drawStart.value = null;
+    resizeState.value = null;
+    movingItemId.value = null;
+    return;
+  }
+
+  if (event.key === "Delete" && selectedRectId.value) {
+    deleteSelected();
+  }
+}
+
+function adjustZoom(delta: number) {
+  zoomScale.value = clamp(zoomScale.value + delta, 0.75, 2);
+}
+
+function onWheelZoom(event: WheelEvent) {
+  if (!event.ctrlKey) {
+    return;
+  }
+
+  event.preventDefault();
+  adjustZoom(event.deltaY < 0 ? 0.1 : -0.1);
+}
+
+async function saveChanges() {
+  if (!selectedFloorPlan.value || !hasUnsavedChanges.value) {
+    return;
+  }
+
+  saving.value = true;
+  try {
+    for (const id of deletedPositionIDs.value) {
+      await deleteFloorPlanPosition(id);
+    }
+
+    const savedItemIDs: string[] = [];
+    for (const pos of allPositions.value) {
+      if (pos.id && dirtyItemIDs.value.has(pos.itemId)) {
+        await updateFloorPlanPosition(pos.id, {
+          label: pos.label,
+          x: pos.x,
+          y: pos.y,
+          width: pos.width,
+          height: pos.height,
+          border_width: pos.borderWidth,
+        });
+        savedItemIDs.push(pos.itemId);
+      } else if (!pos.id) {
+        const response = await createFloorPlanPosition({
+          floor_plan: selectedFloorPlan.value,
+          item_id: pos.itemId,
+          label: pos.label,
+          x: pos.x,
+          y: pos.y,
+          width: pos.width,
+          height: pos.height,
+          border_width: pos.borderWidth,
+        });
+        pos.id = response.data.id;
+        savedItemIDs.push(pos.itemId);
+      }
+    }
+
+    clearDirty();
+    recentlySaved.value = new Set(savedItemIDs);
+    window.setTimeout(() => {
+      recentlySaved.value = new Set();
+    }, 600);
+    snackbarColor.value = "success";
+    snackbarMessage.value = "Floor plan positions saved.";
+  } catch {
+    snackbarColor.value = "error";
+    snackbarMessage.value = "Failed to save floor plan positions.";
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function loadFloorPlanOptions() {
+  try {
+    const areasResponse = await fetchAreas();
+    const options: FloorPlanOption[] = [];
+
+    const areaResults = await Promise.all(
+      areasResponse.data.map(async (area) => {
+        const areaOptions: FloorPlanOption[] = [];
+        if (area.attributes.floor_plan) {
+          areaOptions.push({
+            label: area.attributes.name,
+            value: area.attributes.floor_plan,
+            areaId: area.id,
+          });
+        }
+
+        try {
+          const itemGroupsResponse = await fetchItemGroups(area.id);
+          for (const itemGroup of itemGroupsResponse.data) {
+            if (itemGroup.attributes.floor_plan) {
+              areaOptions.push({
+                label: `${area.attributes.name} > ${itemGroup.attributes.name}`,
+                value: itemGroup.attributes.floor_plan,
+                areaId: area.id,
+                itemGroupId: itemGroup.id,
+              });
+            }
+          }
+        } catch {
+          // Item groups unavailable for this area; skip.
+        }
+        return areaOptions;
+      }),
+    );
+
+    for (const areaOptions of areaResults) {
+      options.push(...areaOptions);
+    }
+
+    floorPlanOptions.value = options;
+    if (!selectedFloorPlan.value && options[0]) {
+      selectedFloorPlan.value = options[0].value;
+    }
+  } catch {
+    floorPlanOptions.value = [];
+  }
+}
+
+watch(selectedFloorPlan, async (floorPlan) => {
+  if (!floorPlan) {
+    allPositions.value = [];
+    allEditableItems.value = [];
+    subAreas.value = [];
+    clearDirty();
+    return;
+  }
+
+  drawModeItemId.value = null;
+  selectedRectId.value = null;
+  activeTab.value = "areas";
+  selectedSubAreaId.value = null;
+  zoomScale.value = 1;
+  undoSnapshot.value = null;
+
+  const option = currentOption.value;
+  if (!option) {
+    return;
+  }
+
+  try {
+    const response = await fetchFloorPlanPositions(floorPlan);
+    allPositions.value = response.data.map(
+      (resource: JsonApiResource<FloorPlanPositionAttributes>) => ({
+        id: resource.id,
+        itemId: resource.attributes.item_id,
+        itemName: resource.attributes.item_id,
+        label: resource.attributes.label || "",
+        x: resource.attributes.x,
+        y: resource.attributes.y,
+        width: resource.attributes.width,
+        height: resource.attributes.height,
+        borderWidth: resource.attributes.border_width || 2,
+      }),
+    );
+  } catch {
+    allPositions.value = [];
+  }
+
+  const items: EditableItem[] = [];
+  const nextSubAreas: SubArea[] = [];
+
+  try {
+    if (option.itemGroupId) {
+      const response = await fetchItems(option.itemGroupId);
+      for (const item of response.data) {
+        items.push({
+          id: item.id,
+          name: item.attributes.name,
+          positioned: false,
+          scope: "items",
+        });
+      }
+    } else {
+      const itemGroupsResponse = await fetchItemGroups(option.areaId);
+      for (const itemGroup of itemGroupsResponse.data) {
+        nextSubAreas.push({
+          id: itemGroup.id,
+          name: itemGroup.attributes.name,
+        });
+        items.push({
+          id: itemGroup.id,
+          name: itemGroup.attributes.name,
+          positioned: false,
+          scope: "area",
+        });
+      }
+
+      const igItemResults = await Promise.all(
+        itemGroupsResponse.data.map(async (itemGroup) => {
+          const itemsResponse = await fetchItems(itemGroup.id);
+          return { itemGroupId: itemGroup.id, items: itemsResponse.data };
+        }),
+      );
+      for (const { itemGroupId, items: igItems } of igItemResults) {
+        for (const item of igItems) {
+          items.push({
+            id: item.id,
+            name: item.attributes.name,
+            positioned: false,
+            scope: itemGroupId,
+          });
+        }
+      }
+    }
+  } catch {
+    // Leave items empty; saving is not possible without loaded data.
+  }
+
+  subAreas.value = nextSubAreas;
+  allEditableItems.value = items;
+  if (nextSubAreas[0]) {
+    selectedSubAreaId.value = nextSubAreas[0].id;
+  }
+
+  for (const position of allPositions.value) {
+    const match = items.find((item) => item.id === position.itemId);
+    if (match) {
+      position.itemName = match.name;
+    }
+  }
+
+  clearDirty();
+  updatePositionedState();
+});
+
+watch([activeTab, selectedSubAreaId], () => {
+  drawModeItemId.value = null;
+  selectedRectId.value = null;
+});
+
+onMounted(async () => {
+  window.addEventListener("keydown", onKeyDown);
+  await loadFloorPlanOptions();
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeyDown);
+});
+</script>
+
+<style scoped>
+.editor-shell {
+  overflow: auto;
+  max-height: calc(100vh - 230px);
+}
+
+.editor-zoom-layer {
+  display: inline-block;
+}
+
+.floor-plan-editor-container {
+  position: relative;
+  display: inline-block;
+  cursor: default;
+}
+
+.floor-plan-editor-container.draw-mode {
+  cursor: crosshair;
+}
+
+.floor-plan-editor-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.floor-plan-rect {
+  position: absolute;
+  border: 2px solid rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.1);
+  cursor: move;
+  user-select: none;
+}
+
+.floor-plan-rect.rect-context {
+  border: 1px dashed rgb(var(--v-theme-outline));
+  background-color: rgba(var(--v-theme-outline), 0.08);
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.floor-plan-rect.rect-selected {
+  border-color: rgb(var(--v-theme-info));
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-info), 0.2);
+}
+
+.floor-plan-rect.rect-saved {
+  border-color: rgb(var(--v-theme-success));
+  background-color: rgba(var(--v-theme-success), 0.2);
+  transition:
+    border-color 0.25s,
+    background-color 0.25s;
+}
+
+.floor-plan-rect.rect-preview {
+  border-style: dashed;
+  border-color: rgb(var(--v-theme-secondary));
+  background-color: rgba(var(--v-theme-secondary), 0.1);
+  pointer-events: none;
+}
+
+.rect-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface));
+  border: 2px solid rgb(var(--v-theme-info));
+}
+
+.resize-handle--nw {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.resize-handle--ne {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+.resize-handle--sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+.resize-handle--se {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+
+.editor-item--positioned {
+  opacity: 0.78;
+}
+
+.editor-zoom-controls {
+  min-width: 220px;
+}
+</style>

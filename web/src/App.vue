@@ -88,6 +88,16 @@
             </v-list-item>
             <v-divider class="my-1" />
             <v-list-item
+              v-if="authStore.isAdmin"
+              :to="{ name: 'floor-plan-editor' }"
+              data-cy="floor-plan-editor-btn"
+            >
+              <template #prepend>
+                <v-icon size="small">$map</v-icon>
+              </template>
+              <v-list-item-title>Edit Floor Plans</v-list-item-title>
+            </v-list-item>
+            <v-list-item
               v-if="authStore.authSource === 'internal'"
               data-cy="change-password-btn"
               @click="showPasswordDialog = true"
@@ -171,6 +181,17 @@
             />
           </v-list-item>
           <v-divider class="my-2" />
+          <v-list-item
+            v-if="authStore.isAdmin"
+            :to="{ name: 'floor-plan-editor' }"
+            data-cy="mobile-floor-plan-editor-btn"
+            @click="mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon>$map</v-icon>
+            </template>
+            <v-list-item-title>Edit Floor Plans</v-list-item-title>
+          </v-list-item>
           <v-list-item
             v-if="authStore.authSource === 'internal'"
             data-cy="mobile-change-password-btn"

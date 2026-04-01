@@ -29,6 +29,7 @@ vi.mock('vue-router', () => ({
 }));
 
 describe('ItemsView', () => {
+  const originalMatchMedia = window.matchMedia;
   const slotStub = {
     template: '<div><slot /></div>'
   };
@@ -47,6 +48,7 @@ describe('ItemsView', () => {
       'v-combobox',
       'v-menu',
       'v-date-picker',
+      'v-progress-circular',
       'v-skeleton-loader',
       'v-snackbar',
       'v-textarea',
@@ -63,8 +65,8 @@ describe('ItemsView', () => {
       template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
     },
     'v-dialog': {
-      props: ['modelValue'],
-      template: '<div v-if="modelValue"><slot /></div>'
+      props: ['modelValue', 'fullscreen', 'persistent'],
+      template: '<div v-if="modelValue" v-bind="$attrs" :data-fullscreen="fullscreen" :data-persistent="persistent"><slot /></div>'
     },
     'v-bottom-sheet': {
       props: ['modelValue'],
@@ -114,6 +116,16 @@ describe('ItemsView', () => {
     });
 
   beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    })) as typeof window.matchMedia;
     setActivePinia(createPinia());
     pushMock.mockReset();
     routeMock.query = { areaId: 'area-1' };
@@ -145,6 +157,10 @@ describe('ItemsView', () => {
     localStorage.removeItem('sithub_booking_mode');
     sessionStorage.clear();
     useDateState().resetDayToToday();
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
   });
 
   it('renders item equipment, warning, and status on available items', async () => {
@@ -749,8 +765,31 @@ describe('ItemsView', () => {
 
     expect(wrapper.find('[data-cy="item-group-floor-plan-btn"]').exists()).toBe(true);
     await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
-    expect(wrapper.get('[data-cy="item-group-floor-plan-dialog"]').exists()).toBe(true);
-    expect(wrapper.get('[data-cy="item-group-floor-plan-image"]').attributes('src')).toBe('/api/v1/floor-plans/group.svg');
+    const dialog = wrapper.get('[data-cy="item-group-floor-plan-dialog"]');
+    expect(dialog.exists()).toBe(true);
+    expect(dialog.attributes('data-persistent')).toBe('');
+  });
+
+  it('opens the item-group floor plan fullscreen on compact viewports', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 768px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    })) as typeof window.matchMedia;
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group', floor_plan: 'group.svg' } }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
+    expect(wrapper.get('[data-cy="item-group-floor-plan-dialog"]').attributes('data-fullscreen')).toBe('true');
   });
 
   it('shows a connection lost error when initial user loading fails', async () => {
