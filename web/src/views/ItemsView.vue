@@ -16,7 +16,7 @@
           }"
           data-cy="view-item-group-bookings"
         >
-          View Item Group Bookings
+          {{ $t('items.viewItemGroupBookings') }}
         </v-btn>
       </template>
     </PageHeader>
@@ -32,8 +32,8 @@
           class="mb-4"
           data-cy="booking-mode-toggle"
         >
-          <v-btn value="day" data-cy="mode-day-btn">Day</v-btn>
-          <v-btn value="week" data-cy="mode-week-btn">Week</v-btn>
+          <v-btn value="day" data-cy="mode-day-btn">{{ $t('items.day') }}</v-btn>
+          <v-btn value="week" data-cy="mode-week-btn">{{ $t('items.week') }}</v-btn>
         </v-btn-toggle>
 
         <div class="d-flex flex-wrap align-end ga-4 mb-4">
@@ -41,7 +41,7 @@
           <DatePickerField
             v-if="bookingMode === 'day'"
             v-model="selectedDate"
-            label="Booking Date"
+            :label="$t('items.bookingDate')"
             :min="todayDate"
             data-cy="items-date"
             style="max-width: 280px;"
@@ -54,7 +54,7 @@
             :items="weekOptions"
             item-title="label"
             item-value="value"
-            label="Calendar Week"
+            :label="$t('items.calendarWeek')"
             density="compact"
             hide-details
             data-cy="week-selector"
@@ -64,8 +64,8 @@
 
         <!-- Booking Type Selection -->
         <v-radio-group v-model="bookingType" inline density="compact" class="mb-2" hide-details>
-          <v-radio label="Book for myself" value="self" data-cy="book-self-radio" />
-          <v-radio label="Book for colleague" value="colleague" data-cy="book-colleague-radio" />
+          <v-radio :label="$t('items.bookForMyself')" value="self" data-cy="book-self-radio" />
+          <v-radio :label="$t('items.bookForColleague')" value="colleague" data-cy="book-colleague-radio" />
         </v-radio-group>
 
         <!-- Colleague Fields -->
@@ -76,7 +76,7 @@
               :items="usersList"
               item-title="displayName"
               item-value="id"
-              label="Select colleague"
+              :label="$t('items.selectColleague')"
               density="compact"
               :loading="usersLoading"
               clearable
@@ -95,7 +95,7 @@
           data-cy="item-group-floor-plan-btn"
           @click="showItemGroupFloorPlanDialog = true"
         >
-          Floor plan
+          {{ $t('items.floorPlan') }}
         </v-btn>
 
         <!-- Equipment Filter -->
@@ -103,14 +103,14 @@
           <v-combobox
             v-model="equipmentFilter"
             :items="savedFilterItems"
-            label="Filter equipment"
+            :label="$t('items.filterEquipment')"
             density="compact"
             hide-details
             clearable
             prepend-inner-icon="$filterOutline"
             data-cy="equipment-filter-input"
           />
-          <v-tooltip :text="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'" location="top">
+          <v-tooltip :text="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')" location="top">
             <template #activator="{ props: tooltipProps }">
               <v-btn
                 v-bind="tooltipProps"
@@ -118,7 +118,7 @@
                 variant="text"
                 size="small"
                 :data-cy="isCurrentFilterSaved ? 'equipment-filter-delete' : 'equipment-filter-save'"
-                :aria-label="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'"
+                :aria-label="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')"
                 @click="toggleSaveFilter"
               >
                 <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$plus' }}</v-icon>
@@ -130,7 +130,7 @@
             variant="text"
             size="small"
             data-cy="equipment-filter-info"
-            aria-label="Equipment filter help"
+            :aria-label="$t('items.equipmentFilterHelp')"
             @click="showFilterHelp = true"
           >
             <v-icon>$info</v-icon>
@@ -170,15 +170,15 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="bookingMode === 'day' && !items.length"
-      title="No items available"
-      message="This item group doesn't have any items configured yet."
+      :title="$t('items.emptyTitle')"
+      :message="$t('items.emptyMessage')"
       icon="$desk"
       data-cy="items-empty"
     />
     <EmptyState
       v-else-if="bookingMode === 'week' && !weekItems.length"
-      title="No items available"
-      message="This item group doesn't have any items configured yet."
+      :title="$t('items.emptyTitle')"
+      :message="$t('items.emptyMessage')"
       icon="$desk"
       data-cy="items-empty"
     />
@@ -195,7 +195,7 @@
           class="item-filtered-overlay"
           data-cy="equipment-not-available"
         >
-          <span class="text-body-2 font-weight-medium">equipment not available</span>
+          <span class="text-body-2 font-weight-medium">{{ $t('items.equipmentNotAvailable') }}</span>
         </div>
         <v-card
           :class="[
@@ -286,7 +286,7 @@
             class="mb-2"
             data-cy="item-equipment"
           >
-            <div class="text-caption text-medium-emphasis mb-1">Equipment</div>
+            <div class="text-caption text-medium-emphasis mb-1">{{ $t('items.equipment') }}</div>
             <div class="d-flex flex-wrap ga-1">
               <v-chip
                 v-for="equip in entry.attributes.equipment"
@@ -354,7 +354,7 @@
             data-cy="book-item-btn"
             @click="bookItem(entry.id)"
           >
-            Book
+            {{ $t('items.book') }}
           </v-btn>
           <v-btn
             v-else-if="authStore.isAdmin && entry.attributes.booking_id"
@@ -366,7 +366,7 @@
             data-cy="admin-cancel-btn"
             @click="adminCancelBooking(entry.attributes.booking_id!)"
           >
-            Cancel Booking
+            {{ $t('items.cancelBooking') }}
           </v-btn>
           <div v-else class="py-2" />
         </v-card-actions>
@@ -386,7 +386,7 @@
           class="item-filtered-overlay"
           data-cy="equipment-not-available"
         >
-          <span class="text-body-2 font-weight-medium">equipment not available</span>
+          <span class="text-body-2 font-weight-medium">{{ $t('items.equipmentNotAvailable') }}</span>
         </div>
         <v-card
           :class="['item-card', { 'item-filtered-out': isItemFilteredOut(getWeekItemEquipment(item.id)) }]"
@@ -506,11 +506,11 @@
               <span
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
                 :class="['week-day-status', 'text-caption', isDateInPast(date) ? 'text-medium-emphasis' : 'text-success']"
-              >free</span>
+              >{{ $t('items.free') }}</span>
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
                 :class="['week-day-status', 'text-caption', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >{{ authStore.userName || 'Me' }}</span>
+              >{{ authStore.userName || $t('items.me') }}</span>
               <v-icon
                 v-if="getWeekDayStatus(item.id, date) === 'booked-by-me' && !isDateInPast(date)"
                 size="14"
@@ -533,7 +533,7 @@
               <span
                 v-else
                 :class="['week-day-status', 'text-caption', 'text-medium-emphasis']"
-              >n/a</span>
+              >{{ $t('items.notAvailable') }}</span>
             </div>
           </div>
           <!-- Expanded view: one line per day -->
@@ -581,11 +581,11 @@
               <span
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-success']"
-              >free</span>
+              >{{ $t('items.free') }}</span>
               <span
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >{{ authStore.userName || 'Me' }}</span>
+              >{{ authStore.userName || $t('items.me') }}</span>
               <v-icon
                 v-if="getWeekDayStatus(item.id, date) === 'booked-by-me' && !isDateInPast(date)"
                 size="14"
@@ -601,7 +601,7 @@
               <span
                 v-else
                 :class="['text-body-2', 'text-medium-emphasis']"
-              >n/a</span>
+              >{{ $t('items.notAvailable') }}</span>
             </div>
             <!-- Equipment -->
             <div
@@ -609,7 +609,7 @@
               class="mt-3"
               data-cy="week-item-equipment"
             >
-              <div class="text-caption text-medium-emphasis mb-1">Equipment</div>
+              <div class="text-caption text-medium-emphasis mb-1">{{ $t('items.equipment') }}</div>
               <div class="d-flex flex-wrap ga-1">
                 <v-chip
                   v-for="equip in getWeekItemAttributes(item.id).equipment"
@@ -649,13 +649,13 @@
         data-cy="week-confirm-btn"
         @click="submitWeekBookings"
       >
-        Confirm My Booking ({{ weekSelectionCount }} {{ weekSelectionCount === 1 ? 'day' : 'days' }})
+        {{ $t('items.confirmMyBooking', { count: weekSelectionCount }, weekSelectionCount) }}
       </v-btn>
     </div>
 
     <!-- Week Booking Results -->
     <v-card v-if="weekBookingResults.length" class="mt-4" data-cy="week-booking-results">
-      <v-card-title>Booking Results</v-card-title>
+      <v-card-title>{{ $t('items.bookingResults') }}</v-card-title>
       <v-card-text>
         <div v-for="result in weekBookingResults" :key="result.date + result.itemName" class="d-flex align-center ga-2 mb-1">
           <v-icon :color="result.success ? 'success' : 'error'" size="18">
@@ -668,18 +668,18 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" data-cy="week-results-close" @click="weekBookingResults = []">Close</v-btn>
+        <v-btn variant="text" data-cy="week-results-close" @click="weekBookingResults = []">{{ $t('common.close') }}</v-btn>
       </v-card-actions>
     </v-card>
 
     <!-- Add Note Dialog (after booking) -->
     <v-dialog v-model="showPostBookingNoteDialog" max-width="500">
       <v-card>
-        <v-card-title>Add Note</v-card-title>
+        <v-card-title>{{ $t('items.addNoteTitle') }}</v-card-title>
         <v-card-text>
           <v-textarea
             v-model="noteText"
-            label="Note"
+            :label="$t('items.noteLabel')"
             :counter="500"
             :maxlength="500"
             rows="3"
@@ -689,7 +689,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showPostBookingNoteDialog = false">Cancel</v-btn>
+          <v-btn variant="text" @click="showPostBookingNoteDialog = false">{{ $t('common.cancel') }}</v-btn>
           <v-btn
             color="primary"
             variant="flat"
@@ -697,7 +697,7 @@
             data-cy="post-booking-note-save"
             @click="saveNoteAfterBooking"
           >
-            Save
+            {{ $t('common.save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -706,11 +706,11 @@
     <!-- Note view dialog (desktop) -->
     <v-dialog v-if="!useBottomSheet" v-model="showItemNoteDialog" max-width="500">
       <v-card>
-        <v-card-title>Booking Note</v-card-title>
+        <v-card-title>{{ $t('items.bookingNote') }}</v-card-title>
         <v-card-text data-cy="item-note-dialog-text">{{ expandedNote }}</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showItemNoteDialog = false">Close</v-btn>
+          <v-btn variant="text" @click="showItemNoteDialog = false">{{ $t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -718,11 +718,11 @@
     <!-- Note view bottom sheet (mobile) -->
     <v-bottom-sheet v-else v-model="showItemNoteDialog">
       <v-card>
-        <v-card-title>Booking Note</v-card-title>
+        <v-card-title>{{ $t('items.bookingNote') }}</v-card-title>
         <v-card-text data-cy="item-note-dialog-text">{{ expandedNote }}</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showItemNoteDialog = false">Close</v-btn>
+          <v-btn variant="text" @click="showItemNoteDialog = false">{{ $t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-bottom-sheet>
@@ -753,20 +753,20 @@
     <!-- Equipment Filter Help Dialog -->
     <v-dialog v-model="showFilterHelp" max-width="500">
       <v-card>
-        <v-card-title>Equipment Filter Syntax</v-card-title>
+        <v-card-title>{{ $t('items.filterSyntaxTitle') }}</v-card-title>
         <v-card-text data-cy="equipment-filter-help">
-          <p class="mb-3">show only items having the filter keyword(s) in any of the equipment items;</p>
+          <p class="mb-3">{{ $t('items.filterSyntaxDescription') }}</p>
           <ul class="mb-3">
-            <li>multiple keywords are combined with OR;</li>
-            <li>use plus sign to combine with AND;</li>
-            <li>use single or double quotation marks for exact matching;</li>
-            <li>filters are case-insensitive;</li>
+            <li>{{ $t('items.filterSyntaxOr') }}</li>
+            <li>{{ $t('items.filterSyntaxAnd') }}</li>
+            <li>{{ $t('items.filterSyntaxExact') }}</li>
+            <li>{{ $t('items.filterSyntaxCase') }}</li>
           </ul>
-          <p class="text-caption text-medium-emphasis">example: <code>"27 inch display" + webcam</code></p>
+          <p class="text-caption text-medium-emphasis">{{ $t('items.filterSyntaxExample') }} <code>"27 inch display" + webcam</code></p>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showFilterHelp = false">Close</v-btn>
+          <v-btn variant="text" @click="showFilterHelp = false">{{ $t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -774,9 +774,9 @@
     <!-- Confirm Cancel Dialog (week view) -->
     <ConfirmDialog
       v-model="showWeekCancelDialog"
-      title="Cancel Booking"
-      message="Are you sure you want to cancel this booking? This action cannot be undone."
-      confirm-text="Cancel Booking"
+      :title="$t('items.cancelBooking')"
+      :message="$t('bookings.cancelMessage')"
+      :confirm-text="$t('items.cancelBooking')"
       confirm-color="error"
       @confirm="confirmWeekCancel"
     />
@@ -808,6 +808,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
 import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
@@ -839,6 +840,7 @@ import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
+const { t, locale } = useI18n();
 const authStore = useAuthStore();
 const items = ref<JsonApiResource<ItemAttributes>[]>([]);
 const itemsErrorMessage = ref<string | null>(null);
@@ -939,7 +941,7 @@ const handleToggleItemFav = (itemId: string, itemName: string) => {
   });
   const label = `${igName} ${itemName}`;
   showSuccessFeedback(
-    added ? `${label} saved as favorite.` : `${label} removed from favorites.`,
+    added ? t('items.savedAsFavorite', { name: label }) : t('items.removedFromFavorites', { name: label }),
     'item-favorite-message'
   );
 };
@@ -952,10 +954,10 @@ const toggleSaveFilter = () => {
   if (isCurrentFilterSaved.value) {
     deleteFilter(equipmentFilter.value);
     equipmentFilter.value = '';
-    showFilterFeedback('Saved filter deleted.');
+    showFilterFeedback(t('items.savedFilterDeleted'));
   } else {
     if (saveFilter(equipmentFilter.value)) {
-      showFilterFeedback('Filter saved.');
+      showFilterFeedback(t('items.filterSaved'));
     }
   }
 };
@@ -1007,16 +1009,16 @@ const weekBookingResults = ref<WeekBookingResult[]>([]);
 
 // Story 15-1: Week tile expansion
 const expandedWeekTiles = ref<Set<string>>(new Set());
-const WEEKDAY_LONG_FORMATTER = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
 const WEEK_NAME_TRUNCATE_LIMIT = 12;
 
 const getFullDayLabel = (date: string, fallbackIndex: number): string => {
   const parsed = new Date(`${date}T00:00:00`);
   if (!Number.isNaN(parsed.getTime())) {
-    const weekday = WEEKDAY_LONG_FORMATTER.format(parsed);
-    const dd = String(parsed.getDate()).padStart(2, '0');
-    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-    return `${weekday}, ${dd}.${mm}.`;
+    return new Intl.DateTimeFormat(locale.value || undefined, {
+      weekday: 'long',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(parsed);
   }
   const fallback = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   return fallback[fallbackIndex] ?? date;
@@ -1102,9 +1104,9 @@ const getWeekDayStatus = (
 
 const getWeekDayBooker = (itemId: string, date: string): string => {
   const dayItems = weekData.value[date];
-  if (!dayItems) return 'Booked';
+  if (!dayItems) return t('common.booked');
   const item = dayItems.find(i => i.id === itemId);
-  return item?.attributes.booker_name || 'Booked';
+  return item?.attributes.booker_name || t('common.booked');
 };
 
 const isWeekDaySelected = (itemId: string, date: string) =>
@@ -1134,13 +1136,13 @@ const confirmWeekCancel = async () => {
   showWeekCancelDialog.value = false;
   try {
     await cancelBooking(bookingId);
-    showSuccessFeedback('Booking cancelled successfully.', 'week-cancel-success');
+    showSuccessFeedback(t('items.bookingCancelledSuccessfully'), 'week-cancel-success');
     if (activeItemGroupId.value) {
       await loadWeekData(activeItemGroupId.value);
     }
   } catch (err) {
     if (await handleAuthError(err)) return;
-    bookingErrorMessage.value = 'Unable to cancel booking.';
+    bookingErrorMessage.value = t('items.unableToCancel');
   } finally {
     weekCancellingKey.value = null;
     pendingWeekCancelKey.value = null;
@@ -1189,7 +1191,7 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
   } catch (err) {
     weekData.value = {};
     myWeekBookings.value = new Map();
-    itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : 'Unable to load weekly items.';
+    itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : t('items.unableToLoadWeekly');
   } finally {
     weekDataLoading.value = false;
   }
@@ -1215,6 +1217,27 @@ const resolveColleagueName = (userId: string): string | undefined => {
   return user?.displayName;
 };
 
+const localizeItemsBookingConflict = (err: ApiError): string => {
+  const detail = err.detail?.toLowerCase() ?? '';
+  if (detail.includes('already have this item booked')) {
+    return t('items.alreadyBookedByYouForDate');
+  }
+  return t('items.itemAlreadyBookedForDate');
+};
+
+const localizeItemsBookingError = (err: unknown, fallback: string): string => {
+  if (!(err instanceof ApiError)) {
+    return fallback;
+  }
+  if (err.status === 409) {
+    return localizeItemsBookingConflict(err);
+  }
+  if (err.status === 404) {
+    return t('items.itemNotFound');
+  }
+  return fallback;
+};
+
 const submitWeekBookings = async () => {
   if (!activeItemGroupId.value || weekSelections.value.size === 0) return;
 
@@ -1222,7 +1245,7 @@ const submitWeekBookings = async () => {
   bookingErrorDetails.value = null;
   if (bookingType.value === 'colleague') {
     if (!selectedColleagueId.value) {
-      bookingErrorMessage.value = 'Please select a colleague.';
+      bookingErrorMessage.value = t('items.selectColleagueError');
       return;
     }
   }
@@ -1233,7 +1256,7 @@ const submitWeekBookings = async () => {
     const sep = key.indexOf('::');
     const itemId = key.substring(0, sep);
     const date = key.substring(sep + 2);
-    const itemName = weekItems.value.find(item => item.id === itemId)?.name || 'Item';
+    const itemName = weekItems.value.find(item => item.id === itemId)?.name || t('common.item');
     return { itemId, itemName, date };
   });
 
@@ -1247,7 +1270,7 @@ const submitWeekBookings = async () => {
       await createBooking(itemId, date, onBehalf);
       return { itemName, date, success: true };
     } catch (err) {
-      const msg = err instanceof ApiError && err.detail ? err.detail : 'Booking failed';
+      const msg = localizeItemsBookingError(err, t('items.bookingFailed'));
       return { itemName, date, success: false, error: msg };
     }
   });
@@ -1257,7 +1280,7 @@ const submitWeekBookings = async () => {
   weekBookingResults.value = results.map(r => {
     const val = r.status === 'fulfilled'
       ? r.value
-      : { itemName: '', date: '', success: false as const, error: 'Unexpected error' };
+      : { itemName: '', date: '', success: false as const, error: t('items.unexpectedError') };
     const dayIdx = selectedWeekDates.value.indexOf(val.date);
     const dayLabel = dayIdx >= 0 ? getFullDayLabel(val.date, dayIdx) : val.date;
     return { itemName: val.itemName, date: val.date, dayLabel, success: val.success, error: val.error };
@@ -1286,12 +1309,12 @@ const breadcrumbAreaId = computed(() =>
 );
 
 const breadcrumbs = computed(() => [
-  { text: 'Home', to: '/' },
+  { text: t('common.home'), to: '/' },
   {
-    text: areaName.value || 'Area',
+    text: areaName.value || t('common.area'),
     to: breadcrumbAreaId.value ? `/areas/${breadcrumbAreaId.value}/item-groups` : undefined
   },
-  { text: itemGroupName.value || 'Item Group' }
+  { text: itemGroupName.value || t('common.itemGroup') }
 ]);
 
 const { handleAuthError } = useAuthErrorHandler();
@@ -1326,10 +1349,10 @@ const loadItems = async (itemGroupId: string, date: string) => {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      itemsErrorMessage.value = 'Item group not found.';
+      itemsErrorMessage.value = t('items.notFound');
       return;
     }
-    itemsErrorMessage.value = 'Unable to load items.';
+    itemsErrorMessage.value = t('items.unableToLoad');
   }
 };
 
@@ -1342,7 +1365,7 @@ const bookItem = async (itemId: string) => {
   // Validate colleague selection
   if (bookingType.value === 'colleague') {
     if (!selectedColleagueId.value) {
-      bookingErrorMessage.value = 'Please select a colleague.';
+      bookingErrorMessage.value = t('items.selectColleagueError');
       return;
     }
   }
@@ -1359,14 +1382,14 @@ const bookItem = async (itemId: string) => {
     const result = await createBooking(itemId, bookingDate, onBehalf);
     lastBookingId.value = result.data.id;
 
-    const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || 'Item';
+    const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || t('common.item');
     const details = { itemName, date: bookingDate };
     lastBookingDetails.value = details;
     showSuccessFeedback(
       formatBookingSuccessMessage(details),
       'booking-success',
       {
-        actionLabel: lastBookingId.value ? 'Add note' : undefined,
+        actionLabel: lastBookingId.value ? t('items.addNote') : undefined,
         actionHandler: lastBookingId.value ? openPostBookingNoteDialog : undefined
       }
     );
@@ -1392,18 +1415,18 @@ const bookItem = async (itemId: string) => {
       return;
     }
 
-    const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || 'Item';
-    let detail = 'Unable to book item. Please try again.';
+    const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || t('common.item');
+    let detail = t('items.unableToBook');
 
     if (err instanceof ApiError && err.status === 409) {
-      detail = err.detail || 'This item is no longer available for the selected date.';
+      detail = localizeItemsBookingConflict(err);
 
       // Refresh item list so user sees updated availability
       if (activeItemGroupId.value) {
         await loadItems(activeItemGroupId.value, selectedDate.value);
       }
     } else if (err instanceof ApiError && err.status === 404) {
-      detail = 'Item not found.';
+      detail = t('items.itemNotFound');
     }
 
     bookingErrorDetails.value = { itemName, date: selectedDate.value, error: detail };
@@ -1420,7 +1443,7 @@ const adminCancelBooking = async (bookingId: string) => {
 
   try {
     await cancelBooking(bookingId);
-    showSuccessFeedback('Booking cancelled successfully.', 'booking-success');
+    showSuccessFeedback(t('items.bookingCancelledSuccessfully'), 'booking-success');
 
     // Reload items to reflect updated availability
     if (activeItemGroupId.value) {
@@ -1431,9 +1454,9 @@ const adminCancelBooking = async (bookingId: string) => {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      bookingErrorMessage.value = 'Booking not found or already cancelled.';
+      bookingErrorMessage.value = t('items.bookingNotFound');
     } else {
-      bookingErrorMessage.value = 'Unable to cancel booking. Please try again.';
+      bookingErrorMessage.value = t('items.unableToCancelBooking');
     }
   } finally {
     cancelingBookingId.value = null;
@@ -1467,7 +1490,7 @@ const saveNoteAfterBooking = async () => {
     if (await handleAuthError(err)) {
       return;
     }
-    bookingErrorMessage.value = 'Unable to save note. Please try again.';
+    bookingErrorMessage.value = t('items.unableToSaveNote');
   } finally {
     savingNote.value = false;
   }
@@ -1518,7 +1541,7 @@ onMounted(async () => {
 
   const itemGroupId = route.params.itemGroupId;
   if (typeof itemGroupId !== 'string' || itemGroupId.trim() === '') {
-    itemsErrorMessage.value = 'Item group not found.';
+    itemsErrorMessage.value = t('items.notFound');
     return;
   }
 
@@ -1623,7 +1646,7 @@ function formatDisplayDate(dateStr: string) {
   if (!dateStr) return '';
   const date = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(date.getTime())) return dateStr;
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale.value || undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric'
@@ -1631,7 +1654,7 @@ function formatDisplayDate(dateStr: string) {
 }
 
 function formatBookingSuccessMessage(details: { itemName: string; date: string } | null) {
-  return details ? `${details.itemName} - ${formatDisplayDate(details.date)}` : 'Booking confirmed.';
+  return details ? `${details.itemName} - ${formatDisplayDate(details.date)}` : t('items.bookingConfirmed');
 }
 </script>
 

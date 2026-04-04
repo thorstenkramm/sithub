@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import BookingHistoryView from './BookingHistoryView.vue';
 import { fetchBookingHistory } from '../api/bookings';
 import { fetchMe } from '../api/me';
-import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const pushMock = vi.fn();
@@ -36,7 +36,7 @@ describe('BookingHistoryView', () => {
     mount(BookingHistoryView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

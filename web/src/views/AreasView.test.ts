@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import AreasView from './AreasView.vue';
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
-import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createFetchMeMocker, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const pushMock = vi.fn();
@@ -44,7 +44,7 @@ describe('AreasView', () => {
     mount(AreasView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

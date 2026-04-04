@@ -7,6 +7,7 @@ import { fetchAreas } from '../api/areas';
 import { fetchItemGroups } from '../api/itemGroups';
 import {
   buildViewStubs,
+  createTestI18n,
   expectLoginRedirect,
   expectAccessDeniedRedirect
 } from './testHelpers';
@@ -47,7 +48,7 @@ describe('ItemGroupBookingsView', () => {
     mount(ItemGroupBookingsView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

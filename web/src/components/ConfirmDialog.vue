@@ -19,7 +19,7 @@
           @click="handleCancel"
           data-cy="confirm-dialog-cancel"
         >
-          {{ cancelText }}
+          {{ resolvedCancelText }}
         </v-btn>
         <v-btn
           :color="confirmColor"
@@ -28,7 +28,7 @@
           @click="handleConfirm"
           data-cy="confirm-dialog-confirm"
         >
-          {{ confirmText }}
+          {{ resolvedConfirmText }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -36,7 +36,12 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+
+const props = withDefaults(defineProps<{
   modelValue: boolean;
   title: string;
   message: string;
@@ -45,11 +50,14 @@ withDefaults(defineProps<{
   confirmColor?: string;
   loading?: boolean;
 }>(), {
-  confirmText: 'Confirm',
-  cancelText: 'Cancel',
+  confirmText: '',
+  cancelText: '',
   confirmColor: 'primary',
   loading: false
 });
+
+const resolvedConfirmText = computed(() => props.confirmText || t('common.confirm'));
+const resolvedCancelText = computed(() => props.cancelText || t('common.cancel'));
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];

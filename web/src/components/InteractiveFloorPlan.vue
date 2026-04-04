@@ -61,7 +61,7 @@
         :color="idx === selectedDayIndex ? 'error' : undefined"
         :disabled="day.past"
         size="small"
-        :data-cy="`fp-day-${day.label}`"
+        :data-cy="`fp-day-${day.dataCyLabel}`"
         @click="selectedDayIndex = idx"
       >
         {{ day.label }}
@@ -83,8 +83,7 @@
       variant="tonal"
       data-cy="fp-no-positions"
     >
-      No items have been positioned on this floor plan yet. An administrator can
-      set them up in the Floor Plan Editor.
+      {{ $t('floorPlan.noPositions') }}
     </v-alert>
 
     <div
@@ -208,7 +207,7 @@
       <v-checkbox
         v-if="positions.length > 0"
         v-model="showLabels"
-        label="Show labels"
+        :label="$t('floorPlan.showLabels')"
         hide-details
         density="compact"
         data-cy="fp-show-labels"
@@ -220,7 +219,7 @@
         class="fp-close-btn"
         @click="handleClose"
       >
-        Close
+        {{ $t('common.close') }}
       </v-btn>
     </div>
 
@@ -245,7 +244,7 @@
             class="text-body-2 text-medium-emphasis mb-3"
             data-cy="fp-booking-days-loading"
           >
-            Checking availability for the selected week...
+            {{ $t('floorPlan.checkingAvailability') }}
           </div>
 
           <div data-cy="fp-booking-days">
@@ -256,7 +255,7 @@
                 'fp-booking-day-row',
                 { 'fp-booking-day-row--past': day.past },
               ]"
-              :data-cy="`fp-booking-day-${day.label}`"
+              :data-cy="`fp-booking-day-${day.dataCyLabel}`"
             >
               <v-checkbox
                 v-if="getBookingDayStatus(day.date).status === 'free'"
@@ -307,7 +306,7 @@
             class="mt-3"
             data-cy="fp-booking-equipment"
           >
-            <div class="text-caption text-medium-emphasis mb-1">Equipment</div>
+            <div class="text-caption text-medium-emphasis mb-1">{{ $t('items.equipment') }}</div>
             <div class="d-flex flex-wrap ga-1">
               <v-chip
                 v-for="equip in bookingItemEquipment"
@@ -336,7 +335,7 @@
             class="text-body-2 text-error mt-3"
             data-cy="fp-booking-no-days"
           >
-            Select at least one day to continue.
+            {{ $t('floorPlan.selectAtLeastOneDay') }}
           </div>
         </v-card-text>
         <v-card-actions
@@ -349,7 +348,7 @@
             data-cy="fp-booking-cancel"
             @click="showBookingDialog = false"
           >
-            Cancel
+            {{ $t('common.cancel') }}
           </v-btn>
           <v-btn
             color="primary"
@@ -361,7 +360,7 @@
             data-cy="fp-booking-confirm"
             @click="confirmPendingBooking"
           >
-            Book now
+            {{ $t('floorPlan.bookNow') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -382,7 +381,7 @@
           :loading="undoInProgress"
           @click="undoLastBooking"
         >
-          Undo
+          {{ $t('floorPlan.undo') }}
         </v-btn>
       </template>
     </v-snackbar>
@@ -401,6 +400,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { ApiError } from "../api/client";
 import {
   cancelBooking,
@@ -426,6 +426,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
 }>();
+const { t, locale } = useI18n();
 
 const initialLoading = ref(true);
 const availabilityLoading = ref(false);
@@ -466,6 +467,8 @@ interface BookingDayInfo {
   bookerName?: string;
 }
 
+const DAY_DATA_CY_LABELS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+
 interface DrillTarget {
   itemGroupId: string;
   name: string;
@@ -500,6 +503,7 @@ const weekdays = computed(() => {
     return {
       date,
       label: formatDayLabel(day),
+      dataCyLabel: DAY_DATA_CY_LABELS[day.getDay()] || "",
       past: day < today,
     };
   });
@@ -523,7 +527,7 @@ const bookingItemWarning = ref<string | undefined>();
 const bookingDayAvailabilityLoading = ref(false);
 
 const showBookingSnackbar = ref(false);
-const bookingSnackbarText = ref("Booking confirmed.");
+const bookingSnackbarText = ref(t("floorPlan.bookingConfirmed"));
 const undoInProgress = ref(false);
 const lastBooking = ref<{
   bookingIds: string[];
@@ -548,8 +552,8 @@ const selectedBookingDates = computed(() =>
 
 const bookingDialogTitle = computed(() =>
   pendingBooking.value
-    ? `Confirm your booking for ${pendingBooking.value.label}`
-    : "Confirm booking",
+    ? t("floorPlan.confirmBookingFor", { label: pendingBooking.value.label })
+    : t("floorPlan.confirmBooking"),
 );
 
 const bookingSummary = computed(() => {
@@ -562,9 +566,14 @@ const bookingSummary = computed(() => {
     ? formatReadableDate(selectedBookingDates.value[0])
     : formatReadableDate(selectedDate.value);
   const location = drilledInto.value?.name || props.title;
-  const dayLabel = count === 1 ? "1 day" : `${count} days`;
+  const dayLabel = t("floorPlan.dayCount", { count }, count);
 
-  return `Book ${pendingBooking.value.label} in ${location} for ${dayLabel} starting ${startDate}.`;
+  return t("floorPlan.bookingSummary", {
+    label: pendingBooking.value.label,
+    location,
+    dayLabel,
+    startDate,
+  });
 });
 
 watch(showBookingSnackbar, (open) => {
@@ -585,8 +594,9 @@ watch(showBookingDialog, (open) => {
 });
 
 function formatDayLabel(day: Date): string {
-  const labels = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-  return labels[day.getDay()] || "";
+  return new Intl.DateTimeFormat(locale.value || undefined, {
+    weekday: "short",
+  }).format(day);
 }
 
 function formatReadableDate(dateStr: string): string {
@@ -599,24 +609,21 @@ function formatReadableDate(dateStr: string): string {
     return dateStr;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale.value || undefined, {
     weekday: "long",
     month: "short",
     day: "numeric",
   }).format(date);
 }
 
-const WEEKDAY_LONG_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  weekday: "long",
-});
-
 function getFullDayLabel(dateStr: string): string {
   const parsed = new Date(`${dateStr}T00:00:00`);
   if (!Number.isNaN(parsed.getTime())) {
-    const weekday = WEEKDAY_LONG_FORMATTER.format(parsed);
-    const dd = String(parsed.getDate()).padStart(2, "0");
-    const mm = String(parsed.getMonth() + 1).padStart(2, "0");
-    return `${weekday}, ${dd}.${mm}.`;
+    return new Intl.DateTimeFormat(locale.value || undefined, {
+      weekday: "long",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(parsed);
   }
   return dateStr;
 }
@@ -644,13 +651,13 @@ function getBookingDayStatusText(date: string): string {
   const info = getBookingDayStatus(date);
   switch (info.status) {
     case "free":
-      return "free";
+      return t("items.free");
     case "booked-by-me":
-      return info.bookerName || "Me";
+      return info.bookerName || t("items.me");
     case "booked-by-other":
-      return info.bookerName || "Booked";
+      return info.bookerName || t("common.booked");
     case "unavailable":
-      return "n/a";
+      return t("items.notAvailable");
   }
 }
 
@@ -948,7 +955,7 @@ function areaFractionLabel(itemGroupID: string) {
   if (total === 0) {
     return "";
   }
-  return `${free}/${total} free`;
+  return t("floorPlan.freeFraction", { free, total });
 }
 
 function areaAvailColor(itemGroupID: string) {
@@ -1119,7 +1126,7 @@ async function loadBookingDayAvailability() {
       );
     }
     bookingDayInfoMap.value = fallbackMap;
-    errorSnackbarText.value = "Unable to check availability for the selected week.";
+    errorSnackbarText.value = t("floorPlan.unableToCheckAvailability");
     showErrorSnackbar.value = true;
   } finally {
     bookingDayAvailabilityLoading.value = false;
@@ -1135,13 +1142,15 @@ function isBookingDayDisabled(date: string, past: boolean) {
 function bookingDayTitle(date: string) {
   const info = bookingDayInfoMap.value.get(date);
   if (info?.status === "booked-by-other") {
-    return `Booked by ${info.bookerName || "someone else"}`;
+    return t("floorPlan.bookedBy", {
+      name: info.bookerName || t("floorPlan.someoneElse"),
+    });
   }
   if (info?.status === "booked-by-me") {
-    return "Already booked by you";
+    return t("floorPlan.alreadyBookedByYou");
   }
   if (info?.status === "unavailable") {
-    return "Not available";
+    return t("floorPlan.notAvailable");
   }
   return getFullDayLabel(date);
 }
@@ -1182,30 +1191,26 @@ function parseConflictDates(conflicts: string[]) {
 function formatConflictMessage(conflicts: string[], allFailed: boolean) {
   const dates = parseConflictDates(conflicts);
   if (dates.length === 1) {
-    return `The selected item is already booked on ${formatReadableDate(
-      dates[0]!,
-    )}.`;
+    return t("floorPlan.itemAlreadyBookedOn", {
+      date: formatReadableDate(dates[0]!),
+    });
   }
 
   if (allFailed) {
-    return "The selected item is already booked on the selected days.";
+    return t("floorPlan.itemAlreadyBookedSelectedDays");
   }
 
-  return "Some selected days were already booked and were skipped.";
+  return t("floorPlan.selectedDaysAlreadyBookedSkipped");
 }
 
 function formatBookingError(err: unknown, multiDay: boolean) {
   if (err instanceof ApiError && err.status === 409) {
     return multiDay
-      ? "Some selected days are already booked."
-      : "The selected item is already booked.";
+      ? t("floorPlan.selectedDaysAlreadyBooked")
+      : t("floorPlan.itemAlreadyBooked");
   }
 
-  if (err instanceof ApiError && err.detail) {
-    return err.detail;
-  }
-
-  return "The booking could not be completed.";
+  return t("floorPlan.bookingCouldNotBeCompleted");
 }
 
 async function confirmPendingBooking() {
@@ -1215,7 +1220,7 @@ async function confirmPendingBooking() {
 
   const bookingDates = selectedBookingDates.value;
   if (bookingDates.length === 0) {
-    errorSnackbarText.value = "Select at least one day to continue.";
+    errorSnackbarText.value = t("floorPlan.selectAtLeastOneDay");
     showErrorSnackbar.value = true;
     return;
   }
@@ -1245,7 +1250,7 @@ async function confirmPendingBooking() {
       errorSnackbarText.value =
         conflicts.length > 0
           ? formatConflictMessage(conflicts, true)
-          : "The booking could not be completed.";
+          : t("floorPlan.bookingCouldNotBeCompleted");
       showErrorSnackbar.value = true;
       return;
     }
@@ -1257,8 +1262,11 @@ async function confirmPendingBooking() {
     };
     bookingSnackbarText.value =
       createdBookingIds.length === 1
-        ? `${pendingBooking.value.label} booked successfully.`
-        : `${pendingBooking.value.label} booked for ${createdBookingIds.length} days.`;
+        ? t("floorPlan.bookedSuccessfully", { label: pendingBooking.value.label })
+        : t("floorPlan.bookedForDays", {
+          label: pendingBooking.value.label,
+          count: createdBookingIds.length,
+        });
     showBookingSnackbar.value = true;
     showBookingDialog.value = false;
     pendingBooking.value = null;
@@ -1292,7 +1300,7 @@ async function undoLastBooking() {
     lastBooking.value = null;
     await refreshAvailability();
   } catch {
-    errorSnackbarText.value = "Undo failed. The booking is still active.";
+    errorSnackbarText.value = t("floorPlan.undoFailedStillActive");
     showErrorSnackbar.value = true;
   } finally {
     undoInProgress.value = false;

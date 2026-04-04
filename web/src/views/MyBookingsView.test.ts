@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import MyBookingsView from './MyBookingsView.vue';
 import { fetchMyBookings, cancelBooking } from '../api/bookings';
 import { fetchMe } from '../api/me';
-import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createFetchMeMocker, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 /* jscpd:ignore-start */
@@ -91,7 +91,7 @@ describe('MyBookingsView', () => {
             template: '<div v-bind="$attrs"><slot /></div>'
           }
         },
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import InteractiveFloorPlan from "../InteractiveFloorPlan.vue";
 import { ApiError } from "../../api/client";
+import { createTestI18n } from "../../__tests__/helpers/i18n";
 import { fetchFloorPlanPositions } from "../../api/floorPlanPositions";
 import { fetchItems } from "../../api/items";
 import {
@@ -142,6 +143,7 @@ describe("InteractiveFloorPlan", () => {
         ...props,
       },
       global: {
+        plugins: [createTestI18n()],
         stubs,
       },
     });

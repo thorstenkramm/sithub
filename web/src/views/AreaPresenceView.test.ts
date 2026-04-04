@@ -5,6 +5,7 @@ import { fetchAreaPresence } from '../api/areaPresence';
 import { fetchAreas } from '../api/areas';
 import {
   buildViewStubs,
+  createTestI18n,
   expectLoginRedirect,
   expectAccessDeniedRedirect
 } from './testHelpers';
@@ -44,7 +45,7 @@ describe('AreaPresenceView', () => {
     mount(AreaPresenceView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

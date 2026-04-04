@@ -1,4 +1,7 @@
 import { createVuetify } from 'vuetify';
+import { createVueI18nAdapter } from 'vuetify/locale/adapters/vue-i18n';
+import { useI18n } from 'vue-i18n';
+import { i18n } from './i18n';
 import {
   VAlert,
   VApp,
@@ -266,6 +269,9 @@ const darkTheme = {
 export const vuetify = createVuetify({
   components: appComponents,
   directives,
+  locale: {
+    adapter: createVueI18nAdapter({ i18n, useI18n } as Parameters<typeof createVueI18nAdapter>[0])
+  },
   icons: {
     defaultSet: 'mdi',
     aliases: customAliases,

@@ -8,7 +8,7 @@
       <v-text-field
         v-bind="menuProps"
         :model-value="displayValue"
-        :label="label"
+        :label="resolvedLabel"
         :disabled="disabled"
         readonly
         prepend-inner-icon="$calendar"
@@ -26,6 +26,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t, locale } = useI18n();
 
 const props = withDefaults(defineProps<{
   modelValue: string; // YYYY-MM-DD format
@@ -35,8 +38,10 @@ const props = withDefaults(defineProps<{
   disabled?: boolean;
   dataCy?: string;
 }>(), {
-  label: 'Date'
+  label: ''
 });
+
+const resolvedLabel = computed(() => props.label || t('common.date'));
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
@@ -54,7 +59,7 @@ const internalDate = computed(() => {
 const displayValue = computed(() => {
   if (!props.modelValue) return '';
   const date = new Date(props.modelValue);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale.value || undefined, {
     weekday: 'short',
     year: 'numeric',
     month: 'short',

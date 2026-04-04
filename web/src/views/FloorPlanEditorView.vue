@@ -1,15 +1,15 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Floor Plan Editor"
-      :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'Floor Plan Editor' }]"
+      :title="$t('floorPlanEditor.title')"
+      :breadcrumbs="[{ text: $t('common.home'), to: '/' }, { text: $t('floorPlanEditor.title') }]"
     />
 
     <v-row>
       <v-col cols="12" md="3" order="2" order-md="1">
         <v-card class="mb-4" data-cy="editor-sidebar">
           <v-card-title>
-            {{ isAreaLevel && activeTab === "areas" ? "Sub-areas" : "Items" }}
+            {{ isAreaLevel && activeTab === "areas" ? $t('floorPlanEditor.subAreas') : $t('floorPlanEditor.itemsLabel') }}
           </v-card-title>
           <v-card-text>
             <v-alert
@@ -18,7 +18,7 @@
               variant="tonal"
               density="compact"
             >
-              Select a floor plan to position items.
+              {{ $t('floorPlanEditor.selectFloorPlanToPosition') }}
             </v-alert>
 
             <v-list v-else density="compact" nav>
@@ -41,10 +41,10 @@
                 <v-list-item-subtitle>
                   {{
                     item.positioned
-                      ? "Positioned"
+                      ? $t('floorPlanEditor.positioned')
                       : drawModeItemId === item.id
-                        ? "Draw on plan"
-                        : "Unpositioned"
+                        ? $t('floorPlanEditor.drawOnPlan')
+                        : $t('floorPlanEditor.unpositioned')
                   }}
                 </v-list-item-subtitle>
                 <template #append>
@@ -73,7 +73,7 @@
                 :items="floorPlanOptions"
                 item-title="label"
                 item-value="value"
-                label="Floor Plan"
+                :label="$t('floorPlanEditor.floorPlanLabel')"
                 density="compact"
                 hide-details
                 data-cy="floor-plan-selector"
@@ -88,10 +88,10 @@
                 data-cy="editor-tabs"
               >
                 <v-btn value="areas" size="small" data-cy="tab-areas"
-                  >Areas</v-btn
+                  >{{ $t('floorPlanEditor.areasTab') }}</v-btn
                 >
                 <v-btn value="items" size="small" data-cy="tab-items"
-                  >Items</v-btn
+                  >{{ $t('floorPlanEditor.itemsTab') }}</v-btn
                 >
               </v-btn-toggle>
 
@@ -101,7 +101,7 @@
                 :items="subAreas"
                 item-title="name"
                 item-value="id"
-                label="Sub-area"
+                :label="$t('floorPlanEditor.subArea')"
                 density="compact"
                 hide-details
                 data-cy="subarea-selector"
@@ -111,7 +111,7 @@
               <v-select
                 v-model="borderWidth"
                 :items="[1, 2, 3, 4, 5]"
-                label="Line"
+                :label="$t('floorPlanEditor.lineLabel')"
                 density="compact"
                 hide-details
                 data-cy="border-width-selector"
@@ -147,7 +147,7 @@
                 variant="tonal"
                 data-cy="editor-unsaved-chip"
               >
-                Unsaved changes
+                {{ $t('floorPlanEditor.unsavedChanges') }}
               </v-chip>
 
               <v-spacer />
@@ -158,7 +158,7 @@
                 data-cy="editor-undo-btn"
                 @click="undoLastChange"
               >
-                Undo
+                {{ $t('floorPlanEditor.undo') }}
               </v-btn>
 
               <v-btn
@@ -168,7 +168,7 @@
                 data-cy="delete-rect-btn"
                 @click="deleteSelected"
               >
-                Delete {{ selectedRectName }}
+                {{ $t('floorPlanEditor.deleteItem', { name: selectedRectName }) }}
               </v-btn>
 
               <v-btn
@@ -179,7 +179,7 @@
                 data-cy="save-floor-plan-btn"
                 @click="saveChanges"
               >
-                Save
+                {{ $t('floorPlanEditor.save') }}
               </v-btn>
             </div>
           </v-card-text>
@@ -284,6 +284,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { fetchAreas } from "../api/areas";
 import {
   createFloorPlanPosition,
@@ -335,6 +336,8 @@ interface EditorSnapshot {
 }
 
 type ResizeHandle = "nw" | "ne" | "sw" | "se";
+
+const { t } = useI18n();
 
 const floorPlanOptions = ref<FloorPlanOption[]>([]);
 const selectedFloorPlan = ref<string | null>(null);
@@ -821,10 +824,10 @@ async function saveChanges() {
       recentlySaved.value = new Set();
     }, 600);
     snackbarColor.value = "success";
-    snackbarMessage.value = "Floor plan positions saved.";
+    snackbarMessage.value = t('floorPlanEditor.savedSuccessfully');
   } catch {
     snackbarColor.value = "error";
-    snackbarMessage.value = "Failed to save floor plan positions.";
+    snackbarMessage.value = t('floorPlanEditor.saveFailed');
   } finally {
     saving.value = false;
   }

@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Today's Presence"
-      :subtitle="`Who's in the office${areaName ? ' - ' + areaName : ''}`"
+      :title="$t('presence.title')"
+      :subtitle="areaName ? $t('presence.subtitle') + ' - ' + areaName : $t('presence.subtitle')"
       :breadcrumbs="breadcrumbs"
     />
 
@@ -12,7 +12,7 @@
         <div class="d-flex flex-wrap align-end ga-4">
           <DatePickerField
             v-model="selectedDate"
-            label="Select Date"
+            :label="$t('presence.selectDate')"
             data-cy="presence-date"
             style="max-width: 280px;"
           />
@@ -31,8 +31,8 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="!presence.length"
-      title="No one scheduled"
-      message="No one has an item booked for this date in this area."
+      :title="$t('presence.emptyTitle')"
+      :message="$t('presence.emptyMessage')"
       icon="$user"
       data-cy="presence-empty"
     />
@@ -53,7 +53,7 @@
             </v-avatar>
           </template>
           <v-list-item-title>
-            {{ entry.attributes.user_name || 'Unknown' }}
+            {{ entry.attributes.user_name || $t('presence.unknown') }}
           </v-list-item-title>
           <v-list-item-subtitle>
             <v-icon size="14" class="mr-1">$room</v-icon>
@@ -86,17 +86,17 @@
 
     <!-- Summary -->
     <div v-if="presence.length" class="mt-4 text-body-2 text-medium-emphasis">
-      {{ presence.length }} {{ presence.length === 1 ? 'person' : 'people' }} scheduled for {{ formattedDate }}
+      {{ $t('presence.personCount', { count: presence.length, date: formattedDate }, presence.length) }}
     </div>
 
     <!-- Note expand dialog (desktop) -->
     <v-dialog v-if="!useBottomSheet" v-model="showNoteDialog" max-width="500">
       <v-card>
-        <v-card-title>Booking Note</v-card-title>
+        <v-card-title>{{ $t('presence.bookingNote') }}</v-card-title>
         <v-card-text data-cy="presence-note-dialog-text">{{ expandedNote }}</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+          <v-btn variant="text" @click="showNoteDialog = false">{{ $t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -104,11 +104,11 @@
     <!-- Note expand bottom sheet (mobile) -->
     <v-bottom-sheet v-else v-model="showNoteDialog">
       <v-card>
-        <v-card-title>Booking Note</v-card-title>
+        <v-card-title>{{ $t('presence.bookingNote') }}</v-card-title>
         <v-card-text data-cy="presence-note-dialog-text">{{ expandedNote }}</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+          <v-btn variant="text" @click="showNoteDialog = false">{{ $t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-bottom-sheet>
@@ -127,8 +127,10 @@ import type { PresenceAttributes } from '../api/areaPresence';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
+import { useI18n } from 'vue-i18n';
 import { PageHeader, LoadingState, EmptyState, DatePickerField } from '../components';
 
+const { t, locale } = useI18n();
 const presence = ref<JsonApiResource<PresenceAttributes>[]>([]);
 const errorMessage = ref<string | null>(null);
 const selectedDate = ref(formatDate(new Date()));
@@ -148,14 +150,14 @@ const showNoteDialog = computed({
 });
 
 const breadcrumbs = computed(() => [
-  { text: 'Home', to: '/' },
-  { text: areaName.value || 'Area', to: '/' },
-  { text: 'Presence' }
+  { text: t('common.home'), to: '/' },
+  { text: areaName.value || t('common.area'), to: '/' },
+  { text: t('common.presence') }
 ]);
 
 const formattedDate = computed(() => {
   const date = new Date(selectedDate.value);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale.value || undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric'
@@ -188,17 +190,17 @@ const loadPresence = async (areaId: string, date: string) => {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      errorMessage.value = 'Area not found.';
+      errorMessage.value = t('presence.notFound');
       return;
     }
-    errorMessage.value = 'Unable to load presence.';
+    errorMessage.value = t('presence.unableToLoad');
   }
 };
 
 onMounted(async () => {
   const areaId = route.params.areaId;
   if (typeof areaId !== 'string' || areaId.trim() === '') {
-    errorMessage.value = 'Area not found.';
+    errorMessage.value = t('presence.notFound');
     return;
   }
 

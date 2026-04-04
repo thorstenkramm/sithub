@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import ConfirmDialog from '../ConfirmDialog.vue';
+import { createTestI18n } from '../../__tests__/helpers/i18n';
 
 /* jscpd:ignore-start */
 describe('ConfirmDialog', () => {
@@ -13,6 +14,7 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: defaultProps,
       global: {
+        plugins: [createTestI18n()],
         stubs: {
           'v-dialog': {
             template: '<div v-if="modelValue"><slot /></div>',
@@ -38,6 +40,7 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: defaultProps,
       global: {
+        plugins: [createTestI18n()],
         stubs: {
           'v-dialog': {
             template: '<div v-if="modelValue"><slot /></div>',
@@ -63,6 +66,7 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: defaultProps,
       global: {
+        plugins: [createTestI18n()],
         stubs: {
           'v-dialog': {
             template: '<div v-if="modelValue"><slot /></div>',
@@ -94,6 +98,7 @@ describe('ConfirmDialog', () => {
         cancelText: 'Keep'
       },
       global: {
+        plugins: [createTestI18n()],
         stubs: {
           'v-dialog': {
             template: '<div v-if="modelValue"><slot /></div>',

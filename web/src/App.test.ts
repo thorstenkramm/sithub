@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createVuetify } from 'vuetify';
 import App from './App.vue';
 import router from './router';
+import { createTestI18n } from './__tests__/helpers/i18n';
 
 describe('App', () => {
   beforeEach(() => {
@@ -14,7 +15,7 @@ describe('App', () => {
     const slotStub = { template: '<div><slot /></div>' };
     const wrapper = mount(App, {
       global: {
-        plugins: [router, createPinia(), vuetify],
+        plugins: [router, createPinia(), vuetify, createTestI18n()],
         stubs: {
           'v-app': slotStub,
           'v-app-bar': slotStub,

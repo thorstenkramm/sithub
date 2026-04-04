@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import AccessDeniedView from './AccessDeniedView.vue';
+import { createTestI18n } from '../__tests__/helpers/i18n';
 
 describe('AccessDeniedView', () => {
   it('renders access denied copy', () => {
@@ -9,6 +10,7 @@ describe('AccessDeniedView', () => {
 
     const wrapper = mount(AccessDeniedView, {
       global: {
+        plugins: [createTestI18n()],
         stubs: {
           'v-container': slotStub,
           'v-row': slotStub,

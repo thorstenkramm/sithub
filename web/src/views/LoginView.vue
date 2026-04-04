@@ -5,13 +5,13 @@
         <v-card elevation="2">
           <v-card-title class="text-center pt-6">
             <img src="/logo.svg" alt="SitHub" height="40" class="mb-2" />
-            <div class="text-h6">Sign in to SitHub</div>
+            <div class="text-h6">{{ $t('auth.signInTitle') }}</div>
           </v-card-title>
           <v-card-text>
             <v-form action="/api/v1/auth/login" method="post" @submit.prevent="handleLogin" data-cy="login-form">
               <v-text-field
                 v-model="email"
-                label="Email"
+                :label="$t('auth.email')"
                 type="email"
                 name="email"
                 autocomplete="username"
@@ -21,7 +21,7 @@
               />
               <v-text-field
                 v-model="password"
-                label="Password"
+                :label="$t('auth.password')"
                 type="password"
                 name="password"
                 autocomplete="current-password"
@@ -45,7 +45,7 @@
                 :loading="loading"
                 data-cy="login-submit"
               >
-                Sign in
+                {{ $t('auth.signIn') }}
               </v-btn>
             </v-form>
             <v-divider class="my-4" />
@@ -55,7 +55,7 @@
               block
               data-cy="login-entraid"
             >
-              Sign in with Entra ID
+              {{ $t('auth.signInWithEntraId') }}
             </v-btn>
           </v-card-text>
         </v-card>
@@ -66,6 +66,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { loginLocal } from '../api/auth';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -78,6 +79,17 @@ const email = ref('');
 const password = ref('');
 const loading = ref(false);
 const errorMessage = ref('');
+const { t } = useI18n();
+
+function getLoginErrorMessage(err: ApiError): string {
+  if (err.status === 401) {
+    return t('auth.invalidCredentials');
+  }
+  if (err.status === 400) {
+    return t('auth.requiredFields');
+  }
+  return t('auth.genericError');
+}
 
 async function handleLogin() {
   errorMessage.value = '';
@@ -96,9 +108,9 @@ async function handleLogin() {
     if (isConnectionError(err)) {
       errorMessage.value = CONNECTION_LOST_MESSAGE;
     } else if (err instanceof ApiError) {
-      errorMessage.value = err.detail || 'Invalid email or password';
+      errorMessage.value = getLoginErrorMessage(err);
     } else {
-      errorMessage.value = 'An error occurred. Please try again.';
+      errorMessage.value = t('auth.genericError');
     }
   } finally {
     loading.value = false;

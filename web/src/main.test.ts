@@ -18,6 +18,11 @@ vi.mock('pinia', () => ({
 // Mock vuetify styles import
 vi.mock('vuetify/styles', () => ({}));
 
+// Mock the i18n plugin module
+vi.mock('./plugins/i18n', () => ({
+  i18n: { name: 'i18n' }
+}));
+
 // Mock the vuetify plugin module
 vi.mock('./plugins/vuetify', () => ({
   vuetify: { name: 'vuetify' }
@@ -42,6 +47,7 @@ describe('main', () => {
     expect(createPinia).toHaveBeenCalled();
 
     expect(useMock).toHaveBeenCalledWith({ name: 'pinia' });
+    expect(useMock).toHaveBeenCalledWith({ name: 'i18n' });
     expect(useMock).toHaveBeenCalledWith({ name: 'router' });
     expect(useMock).toHaveBeenCalledWith({ name: 'vuetify' });
     expect(mountMock).toHaveBeenCalledWith('#app');

@@ -10,7 +10,7 @@ import { fetchAreas } from '../api/areas';
 import { fetchColleagues } from '../api/users';
 import { createBooking, cancelBooking, updateBookingNote, fetchMyBookings } from '../api/bookings';
 import { useDateState } from '../composables/useDateState';
-import { buildViewStubs, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 /* jscpd:ignore-start */
@@ -111,7 +111,7 @@ describe('ItemsView', () => {
     mount(ItemsView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Item Group Bookings"
-      :subtitle="`Reservations${itemGroupName ? ' in ' + itemGroupName : ''}`"
+      :title="$t('itemGroupBookings.title')"
+      :subtitle="itemGroupName ? $t('itemGroupBookings.reservations') + ' in ' + itemGroupName : $t('itemGroupBookings.reservations')"
       :breadcrumbs="breadcrumbs"
     />
 
@@ -12,7 +12,7 @@
         <div class="d-flex flex-wrap align-end ga-4">
           <DatePickerField
             v-model="selectedDate"
-            label="Select Date"
+            :label="$t('itemGroupBookings.selectDate')"
             data-cy="bookings-date"
             style="max-width: 280px;"
           />
@@ -31,8 +31,8 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="!bookings.length"
-      title="No bookings"
-      message="No items have been booked in this item group for the selected date."
+      :title="$t('itemGroupBookings.emptyTitle')"
+      :message="$t('itemGroupBookings.emptyMessage')"
       icon="$calendar"
       data-cy="bookings-empty"
     />
@@ -55,7 +55,7 @@
           </v-list-item-title>
           <v-list-item-subtitle>
             <v-icon size="14" class="mr-1">$user</v-icon>
-            {{ booking.attributes.user_name || 'Unknown' }}
+            {{ booking.attributes.user_name || $t('itemGroupBookings.unknown') }}
           </v-list-item-subtitle>
         </v-list-item>
       </v-list>
@@ -63,13 +63,14 @@
 
     <!-- Summary -->
     <div v-if="bookings.length" class="mt-4 text-body-2 text-medium-emphasis">
-      {{ bookings.length }} {{ bookings.length === 1 ? 'item' : 'items' }} booked for {{ formattedDate }}
+      {{ $t('itemGroupBookings.itemCount', { count: bookings.length, date: formattedDate }, bookings.length) }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchItemGroupBookings } from '../api/itemGroupBookings';
@@ -87,6 +88,7 @@ const selectedDate = ref(formatDate(new Date()));
 const areaName = ref('');
 const itemGroupName = ref('');
 const route = useRoute();
+const { t, locale } = useI18n();
 const { loading, run } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
 const activeItemGroupId = ref<string | null>(null);
@@ -101,13 +103,13 @@ const breadcrumbAreaId = computed(() =>
 );
 
 const breadcrumbs = computed(() => [
-  { text: 'Home', to: '/' },
+  { text: t('common.home'), to: '/' },
   {
-    text: areaName.value || 'Area',
+    text: areaName.value || t('common.area'),
     to: breadcrumbAreaId.value ? `/areas/${breadcrumbAreaId.value}/item-groups` : undefined
   },
   {
-    text: itemGroupName.value || 'Item Group',
+    text: itemGroupName.value || t('common.itemGroup'),
     to: activeItemGroupId.value
       ? {
         name: 'items' as const,
@@ -116,12 +118,12 @@ const breadcrumbs = computed(() => [
       }
       : undefined
   },
-  { text: 'Bookings' }
+  { text: t('common.bookings') }
 ]);
 
 const formattedDate = computed(() => {
   const date = new Date(selectedDate.value);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale.value || undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric'
@@ -142,17 +144,17 @@ const loadBookings = async (itemGroupId: string, date: string) => {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      errorMessage.value = 'Item group not found.';
+      errorMessage.value = t('itemGroupBookings.notFound');
       return;
     }
-    errorMessage.value = 'Unable to load bookings.';
+    errorMessage.value = t('itemGroupBookings.unableToLoad');
   }
 };
 
 onMounted(async () => {
   const itemGroupId = route.params.itemGroupId;
   if (typeof itemGroupId !== 'string' || itemGroupId.trim() === '') {
-    errorMessage.value = 'Item group not found.';
+    errorMessage.value = t('itemGroupBookings.notFound');
     return;
   }
 

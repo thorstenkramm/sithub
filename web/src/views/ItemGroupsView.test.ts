@@ -8,7 +8,7 @@ import { fetchItems } from '../api/items';
 import { fetchWeeklyAvailability } from '../api/itemGroupAvailability';
 import { useDateState } from '../composables/useDateState';
 import { getISOWeekString, getMondayOfWeek } from '../composables/useWeekSelector';
-import { buildViewStubs, createFetchMeMocker, defineAuthRedirectTests } from './testHelpers';
+import { buildViewStubs, createFetchMeMocker, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 
 const pushMock = vi.fn();
@@ -124,7 +124,7 @@ describe('ItemGroupsView', () => {
     mount(ItemGroupsView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

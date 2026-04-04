@@ -16,7 +16,7 @@
             :class="{ 'nav-active': isRouteActive('/') }"
             data-cy="nav-areas"
           >
-            Areas
+            {{ $t('app.navigation.areas') }}
           </v-btn>
           <v-btn
             to="/my-bookings"
@@ -24,7 +24,7 @@
             :class="{ 'nav-active': isRouteActive('/my-bookings') }"
             data-cy="nav-my-bookings"
           >
-            My Bookings
+            {{ $t('app.navigation.myBookings') }}
           </v-btn>
           <v-btn
             to="/bookings/history"
@@ -32,7 +32,7 @@
             :class="{ 'nav-active': isRouteActive('/bookings/history') }"
             data-cy="nav-booking-history"
           >
-            History
+            {{ $t('app.navigation.history') }}
           </v-btn>
         </nav>
 
@@ -55,12 +55,12 @@
             <v-list-item>
               <v-list-item-title class="font-weight-medium">{{ authStore.userName }}</v-list-item-title>
               <v-list-item-subtitle v-if="authStore.isAdmin">
-                <v-chip size="x-small" color="secondary" class="mt-1">Admin</v-chip>
+                <v-chip size="x-small" color="secondary" class="mt-1">{{ $t('app.admin') }}</v-chip>
               </v-list-item-subtitle>
             </v-list-item>
             <v-divider class="my-1" />
             <v-list-item data-cy="theme-selector">
-              <v-list-item-title class="text-caption text-medium-emphasis mb-1">Theme</v-list-item-title>
+              <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.theme') }}</v-list-item-title>
               <v-btn-toggle
                 :model-value="themePreference"
                 mandatory
@@ -78,10 +78,25 @@
                 </v-btn>
               </v-btn-toggle>
             </v-list-item>
+            <v-list-item data-cy="language-selector">
+              <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.language') }}</v-list-item-title>
+              <div class="locale-grid">
+                <v-btn
+                  v-for="opt in localeOptions"
+                  :key="opt.value"
+                  size="small"
+                  :variant="localePreference === opt.value ? 'flat' : 'outlined'"
+                  :color="localePreference === opt.value ? 'primary' : undefined"
+                  @click="setLocalePreference(opt.value)"
+                >
+                  {{ opt.label }}
+                </v-btn>
+              </div>
+            </v-list-item>
             <v-list-item data-cy="show-weekends-toggle">
               <v-checkbox
                 v-model="showWeekends"
-                label="Show weekends"
+                :label="$t('app.userMenu.showWeekends')"
                 hide-details
                 density="compact"
               />
@@ -95,7 +110,7 @@
               <template #prepend>
                 <v-icon size="small">$map</v-icon>
               </template>
-              <v-list-item-title>Edit Floor Plans</v-list-item-title>
+              <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
             </v-list-item>
             <v-list-item
               v-if="authStore.authSource === 'internal'"
@@ -105,13 +120,13 @@
               <template #prepend>
                 <v-icon size="small" data-cy="change-password-icon">$lockReset</v-icon>
               </template>
-              <v-list-item-title>Change Password</v-list-item-title>
+              <v-list-item-title>{{ $t('app.userMenu.changePassword') }}</v-list-item-title>
             </v-list-item>
             <v-list-item data-cy="logout-btn" @click="handleLogout">
               <template #prepend>
                 <v-icon size="small">$logout</v-icon>
               </template>
-              <v-list-item-title>Sign out</v-list-item-title>
+              <v-list-item-title>{{ $t('app.userMenu.signOut') }}</v-list-item-title>
             </v-list-item>
           </v-list>
         </v-menu>
@@ -130,7 +145,7 @@
           <v-list-item>
             <v-list-item-title class="font-weight-bold">{{ authStore.userName }}</v-list-item-title>
             <v-list-item-subtitle v-if="authStore.isAdmin">
-              <v-chip size="x-small" color="secondary" class="mt-1">Admin</v-chip>
+              <v-chip size="x-small" color="secondary" class="mt-1">{{ $t('app.admin') }}</v-chip>
             </v-list-item-subtitle>
           </v-list-item>
           <v-divider class="my-2" />
@@ -138,23 +153,23 @@
             <template #prepend>
               <v-icon>$area</v-icon>
             </template>
-            <v-list-item-title>Areas</v-list-item-title>
+            <v-list-item-title>{{ $t('app.navigation.areas') }}</v-list-item-title>
           </v-list-item>
           <v-list-item to="/my-bookings" @click="mobileDrawer = false" data-cy="mobile-nav-my-bookings">
             <template #prepend>
               <v-icon>$calendar</v-icon>
             </template>
-            <v-list-item-title>My Bookings</v-list-item-title>
+            <v-list-item-title>{{ $t('app.navigation.myBookings') }}</v-list-item-title>
           </v-list-item>
           <v-list-item to="/bookings/history" @click="mobileDrawer = false" data-cy="mobile-nav-history">
             <template #prepend>
               <v-icon>$history</v-icon>
             </template>
-            <v-list-item-title>History</v-list-item-title>
+            <v-list-item-title>{{ $t('app.navigation.history') }}</v-list-item-title>
           </v-list-item>
           <v-divider class="my-2" />
           <v-list-item data-cy="mobile-theme-selector">
-            <v-list-item-title class="text-caption text-medium-emphasis mb-1">Theme</v-list-item-title>
+            <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.theme') }}</v-list-item-title>
             <v-btn-toggle
               :model-value="themePreference"
               mandatory
@@ -172,10 +187,25 @@
               </v-btn>
             </v-btn-toggle>
           </v-list-item>
+          <v-list-item data-cy="mobile-language-selector">
+            <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.language') }}</v-list-item-title>
+            <div class="locale-grid">
+              <v-btn
+                v-for="opt in localeOptions"
+                :key="opt.value"
+                size="small"
+                :variant="localePreference === opt.value ? 'flat' : 'outlined'"
+                :color="localePreference === opt.value ? 'primary' : undefined"
+                @click="setLocalePreference(opt.value)"
+              >
+                {{ opt.label }}
+              </v-btn>
+            </div>
+          </v-list-item>
           <v-list-item data-cy="mobile-show-weekends-toggle">
             <v-checkbox
               v-model="showWeekends"
-              label="Show weekends"
+              :label="$t('app.userMenu.showWeekends')"
               hide-details
               density="compact"
             />
@@ -190,7 +220,7 @@
             <template #prepend>
               <v-icon>$map</v-icon>
             </template>
-            <v-list-item-title>Edit Floor Plans</v-list-item-title>
+            <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
           </v-list-item>
           <v-list-item
             v-if="authStore.authSource === 'internal'"
@@ -200,13 +230,13 @@
             <template #prepend>
               <v-icon data-cy="mobile-change-password-icon">$lockReset</v-icon>
             </template>
-            <v-list-item-title>Change Password</v-list-item-title>
+            <v-list-item-title>{{ $t('app.userMenu.changePassword') }}</v-list-item-title>
           </v-list-item>
           <v-list-item data-cy="mobile-logout-btn" @click="handleLogout">
             <template #prepend>
               <v-icon>$logout</v-icon>
             </template>
-            <v-list-item-title>Sign out</v-list-item-title>
+            <v-list-item-title>{{ $t('app.userMenu.signOut') }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-navigation-drawer>
@@ -214,11 +244,11 @@
       <!-- Password Change Dialog -->
       <v-dialog v-model="showPasswordDialog" max-width="400" persistent>
         <v-card>
-          <v-card-title>Change Password</v-card-title>
+          <v-card-title>{{ $t('app.passwordDialog.title') }}</v-card-title>
           <v-card-text>
             <v-text-field
               v-model="currentPassword"
-              label="Current Password"
+              :label="$t('app.passwordDialog.currentPassword')"
               type="password"
               autocomplete="current-password"
               data-cy="current-password"
@@ -226,10 +256,10 @@
             />
             <v-text-field
               v-model="newPassword"
-              label="New Password"
+              :label="$t('app.passwordDialog.newPassword')"
               type="password"
               autocomplete="new-password"
-              hint="Minimum 14 characters"
+              :hint="$t('app.passwordDialog.hint')"
               data-cy="new-password"
               class="mb-2"
             />
@@ -246,7 +276,7 @@
           </v-card-text>
           <v-card-actions>
             <v-spacer />
-            <v-btn variant="text" @click="closePasswordDialog" data-cy="password-cancel">Cancel</v-btn>
+            <v-btn variant="text" @click="closePasswordDialog" data-cy="password-cancel">{{ $t('common.cancel') }}</v-btn>
             <v-btn
               color="primary"
               :loading="passwordLoading"
@@ -254,14 +284,14 @@
               data-cy="password-submit"
               @click="handlePasswordChange"
             >
-              Change
+              {{ $t('app.passwordDialog.change') }}
             </v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
 
       <v-snackbar v-model="passwordSuccess" :timeout="3000" location="bottom" color="success" data-cy="password-success">
-        Password changed successfully.
+        {{ $t('app.passwordDialog.success') }}
       </v-snackbar>
     </template>
 
@@ -278,21 +308,35 @@ import { useAuthStore } from './stores/useAuthStore';
 import { logout } from './api/auth';
 import { changePassword } from './api/me';
 import { ApiError } from './api/client';
+import { useI18n } from 'vue-i18n';
 import { useThemePreference } from './composables/useThemePreference';
+import { useLocalePreference } from './composables/useLocalePreference';
 import { useWeekendPreference } from './composables/useWeekendPreference';
 
-const themeOptions = [
-  { label: 'Auto', value: 'auto' as const },
-  { label: 'Light', value: 'light' as const },
-  { label: 'Dark', value: 'dark' as const }
-];
+const { t } = useI18n();
+
+const themeOptions = computed(() => [
+  { label: t('app.userMenu.themeAuto'), value: 'auto' as const },
+  { label: t('app.userMenu.themeLight'), value: 'light' as const },
+  { label: t('app.userMenu.themeDark'), value: 'dark' as const }
+]);
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const mobileDrawer = ref(false);
 const { preference: themePreference, setPreference: setThemePreference } = useThemePreference();
+const { preference: localePreference, setPreference: setLocalePreference } = useLocalePreference();
 const { showWeekends } = useWeekendPreference();
+
+const localeOptions = computed<{ label: string; value: 'auto' | 'en' | 'de' | 'es' | 'fr' | 'uk' }[]>(() => [
+  { label: t('app.userMenu.languageAuto'), value: 'auto' },
+  { label: `\uD83C\uDDEC\uD83C\uDDE7 ${t('app.userMenu.languageEn')}`, value: 'en' },
+  { label: `\uD83C\uDDE9\uD83C\uDDEA ${t('app.userMenu.languageDe')}`, value: 'de' },
+  { label: `\uD83C\uDDEA\uD83C\uDDF8 ${t('app.userMenu.languageEs')}`, value: 'es' },
+  { label: `\uD83C\uDDEB\uD83C\uDDF7 ${t('app.userMenu.languageFr')}`, value: 'fr' },
+  { label: `\uD83C\uDDFA\uD83C\uDDE6 ${t('app.userMenu.languageUk')}`, value: 'uk' }
+]);
 
 const showPasswordDialog = ref(false);
 const currentPassword = ref('');
@@ -325,6 +369,27 @@ async function handleLogout() {
   router.push('/login');
 }
 
+function getPasswordErrorMessage(err: unknown): string {
+  if (!(err instanceof ApiError)) {
+    return t('app.passwordDialog.genericError');
+  }
+
+  const detail = err.detail?.toLowerCase() ?? '';
+  if (err.status === 401) {
+    return t('app.passwordDialog.invalidCurrentPassword');
+  }
+  if (detail.includes('at least 14 characters')) {
+    return t('app.passwordDialog.tooShort');
+  }
+  if (detail.includes('required')) {
+    return t('app.passwordDialog.requiredFields');
+  }
+  if (detail.includes('local accounts')) {
+    return t('app.passwordDialog.localAccountsOnly');
+  }
+  return t('app.passwordDialog.failed');
+}
+
 async function handlePasswordChange() {
   passwordError.value = '';
   passwordSuccess.value = false;
@@ -333,11 +398,7 @@ async function handlePasswordChange() {
     await changePassword(currentPassword.value, newPassword.value);
     passwordSuccess.value = true;
   } catch (err) {
-    if (err instanceof ApiError) {
-      passwordError.value = err.detail || 'Failed to change password';
-    } else {
-      passwordError.value = 'An error occurred. Please try again.';
-    }
+    passwordError.value = getPasswordErrorMessage(err);
   } finally {
     passwordLoading.value = false;
   }
@@ -363,5 +424,11 @@ function closePasswordDialog() {
 
 .nav-active::before {
   opacity: 0 !important;
+}
+
+.locale-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
 }
 </style>

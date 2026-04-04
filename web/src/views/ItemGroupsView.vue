@@ -14,7 +14,7 @@
             :items="weekOptions"
             item-title="label"
             item-value="value"
-            label="Calendar Week"
+            :label="$t('itemGroups.calendarWeek')"
             density="compact"
             hide-details
             data-cy="week-selector"
@@ -28,7 +28,7 @@
             data-cy="area-floor-plan-btn"
             @click="showFloorPlanDialog = true"
           >
-            Floor plan
+            {{ $t('itemGroups.floorPlan') }}
           </v-btn>
         </div>
       </v-card-text>
@@ -41,14 +41,14 @@
           <v-combobox
             v-model="equipmentFilter"
             :items="savedFilterItems"
-            label="Filter equipment"
+            :label="$t('itemGroups.filterEquipment')"
             density="compact"
             hide-details
             clearable
             prepend-inner-icon="$filterOutline"
             data-cy="ig-equipment-filter"
           />
-          <v-tooltip :text="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'" location="top">
+          <v-tooltip :text="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')" location="top">
             <template #activator="{ props: tooltipProps }">
               <v-btn
                 v-bind="tooltipProps"
@@ -56,7 +56,7 @@
                 variant="text"
                 size="small"
                 :data-cy="isCurrentFilterSaved ? 'ig-equipment-filter-delete' : 'ig-equipment-filter-save'"
-                :aria-label="isCurrentFilterSaved ? 'Delete saved filter' : 'Save filter'"
+                :aria-label="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')"
                 @click="toggleSaveFilter"
               >
                 <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$plus' }}</v-icon>
@@ -78,10 +78,10 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="!itemGroups.length"
-      title="No item groups available"
-      message="This area doesn't have any item groups configured yet."
+      :title="$t('itemGroups.emptyTitle')"
+      :message="$t('itemGroups.emptyMessage')"
       icon="$room"
-      action-text="Back to Areas"
+      :action-text="$t('itemGroups.backToAreas')"
       action-to="/"
       data-cy="item-groups-empty"
     />
@@ -102,7 +102,7 @@
           @click="!isItemGroupFilteredOut(fav.itemGroupId) && goToItems(fav.itemGroupId)"
         >
           <div v-if="isItemGroupFilteredOut(fav.itemGroupId)" class="item-filtered-overlay">
-            <span class="text-body-2 text-medium-emphasis">equipment not available</span>
+            <span class="text-body-2 text-medium-emphasis">{{ $t('itemGroups.equipmentNotAvailable') }}</span>
           </div>
           <v-card-item>
             <template #prepend>
@@ -141,7 +141,7 @@
               size="small"
               @click.stop="goToItems(fav.itemGroupId)"
             >
-              Select
+              {{ $t('itemGroups.select') }}
             </v-btn>
             <v-btn
               variant="text"
@@ -153,7 +153,7 @@
               }"
               @click.stop
             >
-              View Bookings
+              {{ $t('itemGroups.viewBookings') }}
             </v-btn>
             <v-spacer />
             <v-btn
@@ -185,7 +185,7 @@
           @keydown.enter="!isItemGroupFilteredOut(ig.id) && goToItems(ig.id)"
         >
         <div v-if="isItemGroupFilteredOut(ig.id)" class="item-filtered-overlay">
-          <span class="text-body-2 text-medium-emphasis">equipment not available</span>
+          <span class="text-body-2 text-medium-emphasis">{{ $t('itemGroups.equipmentNotAvailable') }}</span>
         </div>
         <v-card-item>
           <template #prepend>
@@ -226,7 +226,7 @@
             size="small"
             @click.stop="goToItems(ig.id)"
           >
-            Select
+            {{ $t('itemGroups.select') }}
           </v-btn>
           <v-btn
             variant="text"
@@ -238,7 +238,7 @@
             }"
             @click.stop
           >
-            View Bookings
+            {{ $t('itemGroups.viewBookings') }}
           </v-btn>
           <v-spacer />
           <v-btn
@@ -312,12 +312,14 @@ import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFil
 import { useSavedFilters } from '../composables/useSavedFilters';
 import { useFavorites } from '../composables/useFavorites';
 import { useDateState } from '../composables/useDateState';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 const areaName = ref('');
 const areaFloorPlan = ref<string | null>(null);
 const areaIcon = ref<string | null>(null);
@@ -365,10 +367,10 @@ const toggleSaveFilter = () => {
   if (isCurrentFilterSaved.value) {
     deleteFilter(equipmentFilter.value);
     equipmentFilter.value = '';
-    showFilterFeedback('Saved filter deleted.');
+    showFilterFeedback(t('itemGroups.savedFilterDeleted'));
   } else {
     if (saveFilter(equipmentFilter.value)) {
-      showFilterFeedback('Filter saved.');
+      showFilterFeedback(t('itemGroups.filterSaved'));
     }
   }
 };
@@ -391,8 +393,8 @@ if (weekOptions.value.some(o => o.value === storedWeek)) {
   selectedWeek.value = storedWeek;
 }
 const breadcrumbs = computed(() => [
-  { text: 'Home', to: '/' },
-  { text: areaName.value || 'Area' }
+  { text: t('common.home'), to: '/' },
+  { text: areaName.value || t('common.area') }
 ]);
 
 const sortedItemGroups = computed(() => {
@@ -418,7 +420,7 @@ const handleToggleItemGroupFavorite = (igId: string, igName: string) => {
   const areaId = route.params.areaId as string;
   const { added } = toggleItemGroupFavorite(areaId, igId);
   showSuccessFeedback(
-    added ? `${igName} saved as favorite.` : `${igName} removed from favorites.`,
+    added ? t('itemGroups.savedAsFavorite', { name: igName }) : t('itemGroups.removedFromFavorites', { name: igName }),
     'favorite-message'
   );
 };
@@ -428,7 +430,7 @@ const handleToggleItemFavorite = (fav: { itemId: string; itemName: string; itemG
   const { added } = toggleItemFavorite({ ...fav, areaId });
   const label = `${fav.itemGroupName} ${fav.itemName}`;
   showSuccessFeedback(
-    added ? `${label} saved as favorite.` : `${label} removed from favorites.`,
+    added ? t('itemGroups.savedAsFavorite', { name: label }) : t('itemGroups.removedFromFavorites', { name: label }),
     'favorite-message'
   );
 };
@@ -504,7 +506,7 @@ onMounted(async () => {
 
   const areaId = route.params.areaId;
   if (typeof areaId !== 'string' || areaId.trim() === '') {
-    itemGroupsErrorMessage.value = 'Area not found.';
+    itemGroupsErrorMessage.value = t('areas.notFound');
     return;
   }
 
@@ -537,10 +539,10 @@ onMounted(async () => {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      itemGroupsErrorMessage.value = 'Area not found.';
+      itemGroupsErrorMessage.value = t('areas.notFound');
       return;
     }
-    itemGroupsErrorMessage.value = 'Unable to load item groups.';
+    itemGroupsErrorMessage.value = t('itemGroups.unableToLoad');
   }
 
   await loadAvailability(areaId, selectedWeek.value);

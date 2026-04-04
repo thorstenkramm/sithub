@@ -1,5 +1,8 @@
 import { flushPromises } from '@vue/test-utils';
 import { ApiError } from '../api/client';
+import { createTestI18n } from '../__tests__/helpers/i18n';
+
+export { createTestI18n };
 
 export function mockWindowLocation() {
   const originalLocation = window.location;
@@ -37,6 +40,7 @@ export function buildViewStubs(extra: string[] = []) {
     'v-progress-linear': slotStub,
     'v-skeleton-loader': slotStub,
     'v-alert': slotStub,
+    'v-chip': slotStub,
     'v-btn': slotStub
   };
 

@@ -1,9 +1,9 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="My Bookings"
-      subtitle="View and manage your upcoming reservations"
-      :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'My Bookings' }]"
+      :title="$t('bookings.title')"
+      :subtitle="$t('bookings.subtitle')"
+      :breadcrumbs="[{ text: $t('common.home'), to: '/' }, { text: $t('bookings.title') }]"
     />
 
     <!-- Error Messages -->
@@ -29,10 +29,10 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="!bookings.length"
-      title="No upcoming bookings"
-      message="You don't have any reservations scheduled. Browse available items to make a booking."
+      :title="$t('bookings.emptyTitle')"
+      :message="$t('bookings.emptyMessage')"
       icon="$calendar"
-      action-text="Find an Item"
+      :action-text="$t('bookings.findAnItem')"
       action-to="/"
       data-cy="bookings-empty"
     />
@@ -54,9 +54,9 @@
     <!-- Confirm Cancel Dialog -->
     <ConfirmDialog
       v-model="showCancelDialog"
-      title="Cancel Booking"
-      message="Are you sure you want to cancel this booking? This action cannot be undone."
-      confirm-text="Cancel Booking"
+      :title="$t('bookings.cancelTitle')"
+      :message="$t('bookings.cancelMessage')"
+      :confirm-text="$t('bookings.cancelButton')"
       confirm-color="error"
       @confirm="confirmCancelBooking"
     />
@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
@@ -78,6 +79,7 @@ import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
 import { PageHeader, LoadingState, EmptyState, BookingCard, ConfirmDialog } from '../components';
 
+const { t } = useI18n();
 const authStore = useAuthStore();
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
 const cancelSuccessMessage = ref<string | null>(null);
@@ -125,16 +127,16 @@ const confirmCancelBooking = async () => {
 
   try {
     await cancelBooking(bookingId);
-    cancelSuccessMessage.value = 'Booking cancelled successfully.';
+    cancelSuccessMessage.value = t('bookings.cancelledSuccessfully');
     await loadBookings();
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      cancelErrorMessage.value = 'Booking not found or already cancelled.';
+      cancelErrorMessage.value = t('bookings.notFoundOrCancelled');
     } else {
-      cancelErrorMessage.value = 'Unable to cancel booking. Please try again.';
+      cancelErrorMessage.value = t('bookings.unableToCancel');
     }
   } finally {
     showCancelDialog.value = false;

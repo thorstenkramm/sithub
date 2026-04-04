@@ -1,9 +1,9 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Areas"
-      subtitle="Select an area to view available item groups and items"
-      :breadcrumbs="[{ text: 'Home' }]"
+      :title="$t('areas.title')"
+      :subtitle="$t('areas.subtitle')"
+      :breadcrumbs="[{ text: $t('common.home') }]"
     />
 
     <!-- Loading State -->
@@ -17,8 +17,8 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="!areas.length"
-      title="No areas available"
-      message="There are no office areas configured yet. Contact your administrator to set up areas."
+      :title="$t('areas.emptyTitle')"
+      :message="$t('areas.emptyMessage')"
       icon="$area"
       data-cy="areas-empty"
     />
@@ -54,7 +54,7 @@
             size="small"
             @click.stop="goToItemGroups(area.id)"
           >
-            Select
+            {{ $t('areas.select') }}
           </v-btn>
           <v-btn
             variant="text"
@@ -63,7 +63,7 @@
             data-cy="area-presence-link"
             @click.stop
           >
-            Today's Presence
+            {{ $t('areas.todaysPresence') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -79,6 +79,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+
 import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
 import { isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';

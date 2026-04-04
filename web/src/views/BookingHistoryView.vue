@@ -1,9 +1,9 @@
 <template>
   <div class="page-container">
     <PageHeader
-      title="Booking History"
-      subtitle="View your past reservations"
-      :breadcrumbs="[{ text: 'Home', to: '/' }, { text: 'Booking History' }]"
+      :title="$t('history.title')"
+      :subtitle="$t('history.subtitle')"
+      :breadcrumbs="[{ text: $t('common.home'), to: '/' }, { text: $t('history.title') }]"
     />
 
     <!-- Date Filter Card -->
@@ -12,13 +12,13 @@
         <div class="d-flex flex-wrap align-end ga-4">
           <DatePickerField
             v-model="fromDate"
-            label="From Date"
+            :label="$t('history.fromDate')"
             data-cy="from-date"
             style="max-width: 200px;"
           />
           <DatePickerField
             v-model="toDate"
-            label="To Date"
+            :label="$t('history.toDate')"
             data-cy="to-date"
             style="max-width: 200px;"
           />
@@ -30,7 +30,7 @@
             @click="loadHistory"
           >
             <v-icon start>$search</v-icon>
-            Filter
+            {{ $t('history.filter') }}
           </v-btn>
         </div>
       </v-card-text>
@@ -47,8 +47,8 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="!bookings.length"
-      title="No bookings found"
-      message="No bookings were found in the selected date range. Try adjusting your filters."
+      :title="$t('history.emptyTitle')"
+      :message="$t('history.emptyMessage')"
       icon="$calendar"
       data-cy="history-empty"
     />
@@ -88,6 +88,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { fetchBookingHistory, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import { isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
@@ -101,6 +102,7 @@ const authStore = useAuthStore();
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
 const { loading: historyLoading, error: historyError, run: runHistory } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
+const { locale } = useI18n();
 
 // Default: last 30 days
 const today = new Date();
@@ -116,7 +118,7 @@ function formatDateISO(date: Date) {
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale.value || undefined, {
     weekday: 'short',
     year: 'numeric',
     month: 'short',

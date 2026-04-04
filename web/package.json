@@ -20,6 +20,7 @@
     "@mdi/js": "^7.4.47",
     "pinia": "*",
     "vue": "*",
+    "vue-i18n": "^11.3.0",
     "vue-router": "*",
     "vuetify": "*"
   },

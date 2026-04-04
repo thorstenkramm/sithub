@@ -41,7 +41,7 @@ Before starting the dev server, stop any other dev servers that might be running
 # Base vulnerability scanning
 npm audit
 # Trivy scan, The All-in-One Security Scanner, https://trivy.dev/
-trivy repository ./ --skip-version-check
+docker run --rm -v "$(pwd):/src" aquasec/trivy:0.69.3 repository /src --skip-version-check
 ```
 
 Try to fix findings with `npm audit fix`. Never run `npm audit fix --force` as this can lead to unpredictable results.

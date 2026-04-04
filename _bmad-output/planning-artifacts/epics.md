@@ -19,6 +19,8 @@ editHistory:
     changes: "Added FR75-FR82 and Epic 20: Interactive Floor Plans & UX Consistency. Covers favorite free-busy indicators, week/day memorization, consistent snackbar confirmations, floor plan positions in SQLite, admin floor plan editor, interactive floor plan overlay with free/busy, and first-level drill-down."
   - date: '2026-03-29'
     changes: "Added FR83-FR84 and Story 20.8: Floor Plan Booking UX Refinements. Covers multi-day booking dialog with weekday checkboxes, persistent overlay, mobile fullscreen layout, close/back navigation stack, drill-down safety enforcement, and precise booking error messages. Based on user testing feedback."
+  - date: '2026-04-04'
+    changes: "Added FR85-FR90 and Epic 21: i18n, UX Improvements & Booking Limits. Covers multilanguage UI with auto-detection, My Bookings layout reorder, visual fixes (equipment filter icon, floor plan button), and configurable booking limits (advance weeks, max per person with area overrides)."
 ---
 
 # sithub - Epic Breakdown
@@ -253,6 +255,28 @@ FR84: Floor plan overlay UX polish. Acceptance: overlay is persistent (close but
 mobile opens fullscreen with controls at the bottom; close/back navigates to previous screen
 (higher-level floor plan or area page); drill-down is enforced when a detail floor plan
 exists, preventing direct booking on first-level sub-areas.
+FR85: Multilanguage UI. Acceptance: users can switch the UI language from settings; supported
+languages are auto (browser detection), English, German, Spanish, French, and Ukrainian;
+selection is stored in browser local storage and applied immediately; the language selector
+displays a colored country flag for each language (UK flag for English).
+FR86: My Bookings display reorder. Acceptance: each booking card shows the booked date on
+the first line and the booked item (with area breadcrumb) on the second line, swapping the
+current layout.
+FR87: Equipment filter save icon. Acceptance: the save icon next to the equipment filter
+input uses the `mdi-content-save` icon instead of the plus icon.
+FR88: Floor plan button consistent height and position. Acceptance: the floor plan button
+has the same height as the calendar week selector; when an area has a detail floor plan,
+the button is positioned next to the calendar week selector (not below the booking mode
+toggle).
+FR89: Booking advance limit. Acceptance: an optional `weeks_in_advanced` integer under
+`[bookings]` in sithub.toml limits how far ahead users can book; only the current plus the
+next N weeks are shown and bookable; default is 5.
+FR90: Maximum bookings per person. Acceptance: an optional `max_bookings_per_person` integer
+under `[bookings]` in sithub.toml limits total active bookings per user across all areas;
+default 0 means unlimited; the areas YAML supports the same key at area, item group, and
+item levels to override the global limit; the most specific (deepest) matching limit applies;
+exceeded limits produce a clear error naming the limit and scope (e.g., "You have exceeded
+the maximum of 2 active bookings for 'Tiefgaragenstellplätze, Stellplatz 1'").
 
 ### NonFunctional Requirements
 
@@ -385,6 +409,12 @@ FR81: Epic 20 - Floor plan editor (admin)
 FR82: Epic 20 - Floor plan positions in SQLite
 FR83: Epic 20 - Multi-day floor plan booking with weekday checkboxes
 FR84: Epic 20 - Floor plan overlay UX polish
+FR85: Epic 21 - Multilanguage UI
+FR86: Epic 21 - My Bookings display reorder
+FR87: Epic 21 - Equipment filter save icon
+FR88: Epic 21 - Floor plan button height and position
+FR89: Epic 21 - Booking advance limit
+FR90: Epic 21 - Maximum bookings per person with area overrides
 
 ## Epic List
 
@@ -491,6 +521,18 @@ icons, an improved calendar/week selector, and a favorites system.
 **FRs covered:** FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74
 
 ### Epic 20: Interactive Floor Plans & UX Consistency
+
+Users can view live free/busy status on floor plan overlays, book items directly from
+floor plans, and admins can position items on floor plan images. Navigation state is
+preserved across the app and confirmations use a consistent style.
+**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82, FR83, FR84
+
+### Epic 21: i18n, UX Improvements & Booking Limits
+
+Users can switch the UI language, benefit from visual refinements (My Bookings layout,
+equipment filter icon, floor plan button positioning), and operators can configure booking
+limits (advance booking window and maximum bookings per person with per-area overrides).
+**FRs covered:** FR85, FR86, FR87, FR88, FR89, FR90
 
 Users can view live free/busy status on floor plan overlays, book items directly from
 floor plans, and admins can position items on floor plan images. Navigation state is
@@ -2559,3 +2601,201 @@ selected days are booked; the "Book now" and "Cancel" buttons are always visible
 **Given** a sub-area on a first-level floor plan has its own detail floor plan
 **When** I click anywhere on it
 **Then** the detail floor plan opens; direct booking is prevented
+
+## Epic 21 Stories: i18n, UX Improvements & Booking Limits
+
+Users can switch the UI language with auto-detection, benefit from visual refinements
+across booking views, and operators can enforce booking limits via configuration.
+**FRs covered:** FR85, FR86, FR87, FR88, FR89, FR90
+
+### Story 21.1: i18n Infrastructure and English Baseline
+
+**FRs covered:** FR85
+
+As a developer,
+I want vue-i18n configured with all existing UI strings extracted into an English message
+file,
+So that the app is ready for translation without changing user-visible behavior.
+
+**Acceptance Criteria:**
+
+**Given** the app starts
+**When** no language preference is stored
+**Then** the UI renders in English, identical to the current behavior
+
+**Given** any component renders text
+**When** the text is user-visible (labels, buttons, messages, headings, placeholders)
+**Then** the text comes from the i18n message file, not hardcoded in the template
+
+**Given** the English message file exists
+**When** a developer inspects it
+**Then** all keys are organized by feature area (e.g., `auth.login`, `bookings.cancel`,
+`settings.theme`) and use dot-notation nesting
+
+### Story 21.2: Language Selector with Flags and Auto-Detection
+
+**FRs covered:** FR85
+
+As a user,
+I want to choose my preferred UI language from the settings page,
+So that I can use SitHub in my native language.
+
+**Acceptance Criteria:**
+
+**Given** I open the settings page
+**When** I see the language selector
+**Then** it shows options: Auto, English, Deutsch, Español, Français, Українська —
+each with a colored country flag (UK for English, DE for German, ES for Spanish,
+FR for French, UA for Ukrainian)
+
+**Given** I select "Deutsch"
+**When** the selection is applied
+**Then** the entire UI switches to German immediately without page reload
+
+**Given** I select "Auto"
+**When** my browser's preferred language is German
+**Then** the UI renders in German
+
+**Given** I select "Auto"
+**When** my browser's preferred language is not one of the supported languages
+**Then** the UI falls back to English
+
+**Given** I select a language and close the browser
+**When** I reopen SitHub
+**Then** the previously selected language is restored from local storage
+
+### Story 21.3: German, Spanish, French, and Ukrainian Translations
+
+**FRs covered:** FR85
+
+As a user,
+I want all UI text translated into German, Spanish, French, and Ukrainian,
+So that I can use SitHub fully in my preferred language.
+
+**Acceptance Criteria:**
+
+**Given** the language is set to German (or Spanish, French, Ukrainian)
+**When** I navigate through the app
+**Then** all labels, buttons, messages, headings, placeholders, and error messages
+appear in the selected language
+
+**Given** translation files exist for all four languages
+**When** a developer inspects them
+**Then** every key present in the English file has a corresponding entry in each
+translation file with no missing keys
+
+**Given** the backend returns error messages (e.g., booking conflicts)
+**When** the frontend displays them
+**Then** the messages are localized using frontend translation keys, not raw backend
+strings
+
+### Story 21.4: My Bookings Display Reorder
+
+**FRs covered:** FR86
+
+As a user,
+I want to see the booking date prominently on the first line of each booking card,
+So that I can quickly scan my bookings by date.
+
+**Acceptance Criteria:**
+
+**Given** I navigate to My Bookings
+**When** the booking cards render
+**Then** each card shows the booked date (with calendar icon) on the first line
+and the booked item name with area breadcrumb on the second line
+
+**Given** the current layout shows item first and date second
+**When** this story is implemented
+**Then** the order is swapped: date first, item second
+
+### Story 21.5: Equipment Filter Icon and Floor Plan Button Fixes
+
+**FRs covered:** FR87, FR88
+
+As a user,
+I want visual consistency in the booking toolbar,
+So that icons communicate their purpose and controls are aligned predictably.
+
+**Acceptance Criteria:**
+
+**Given** I type an equipment filter and see the save button
+**When** I look at the save icon
+**Then** it shows `mdi-content-save` (floppy disk) instead of the plus icon
+
+**Given** I am on an item group view that has a floor plan
+**When** the toolbar renders
+**Then** the floor plan button has the same height as the calendar week selector
+
+**Given** I am on an item group view with a detail floor plan
+**When** the toolbar renders
+**Then** the floor plan button is positioned next to the calendar week selector,
+not below the booking mode toggle
+
+**Given** I am on an item group view without a floor plan
+**When** the toolbar renders
+**Then** no floor plan button is shown (existing behavior preserved)
+
+### Story 21.6: Booking Advance Limit
+
+**FRs covered:** FR89
+
+As an operator,
+I want to configure how far in advance users can book,
+So that I can prevent booking too far into the future.
+
+**Acceptance Criteria:**
+
+**Given** sithub.toml contains `weeks_in_advanced = 3` under `[bookings]`
+**When** the calendar week selector renders
+**Then** only the current week plus the next 3 weeks are shown; weeks beyond that
+are not available
+
+**Given** sithub.toml does not contain `weeks_in_advanced`
+**When** the calendar week selector renders
+**Then** the default of 5 weeks ahead applies
+
+**Given** a user attempts to book a date beyond the allowed advance window via API
+**When** the request is processed
+**Then** it is rejected with a clear error: "Bookings are limited to N weeks in
+advance."
+
+**Given** the `[bookings]` section does not exist in sithub.toml
+**When** the server starts
+**Then** it uses default values without error
+
+### Story 21.7: Maximum Bookings Per Person with Area Overrides
+
+**FRs covered:** FR90
+
+As an operator,
+I want to limit how many active bookings a person can hold,
+So that shared resources are distributed fairly across users.
+
+**Acceptance Criteria:**
+
+**Given** sithub.toml contains `max_bookings_per_person = 10` under `[bookings]`
+**When** a user with 10 active bookings attempts to create another
+**Then** the booking is rejected with: "You have reached the maximum of 10 active
+bookings."
+
+**Given** the areas YAML sets `max_bookings_per_person: 3` on an item group
+**When** a user with 3 active bookings in that item group attempts to book another
+item in the same group
+**Then** the booking is rejected with: "You have exceeded the maximum of 3 active
+bookings for 'Tiefgaragenstellplätze'."
+
+**Given** `max_bookings_per_person` is set at area, item group, and item levels
+**When** the system evaluates the limit
+**Then** the most specific (deepest) matching limit applies: item overrides item
+group, item group overrides area, area overrides global
+
+**Given** `max_bookings_per_person = 0` (or not set) at any level
+**When** the system evaluates the limit
+**Then** that level imposes no limit; the next higher level's limit applies
+(or unlimited if no level sets a limit)
+
+**Given** a booking is rejected due to a limit
+**When** the error message is displayed
+**Then** it names the exact limit value and the scope where it applies (e.g.,
+"You have exceeded the maximum of 2 active bookings for the item
+'Tiefgaragenstellplätze, Stellplatz 1'")

@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import LoginView from './LoginView.vue';
 import { loginLocal } from '../api/auth';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { createTestI18n } from '../__tests__/helpers/i18n';
 
 const pushMock = vi.fn();
 
@@ -37,7 +38,7 @@ describe('LoginView', () => {
     mount(LoginView, {
       global: {
         stubs,
-        plugins: [createPinia()]
+        plugins: [createPinia(), createTestI18n()]
       }
     });
 

@@ -34,6 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
+last_updated: 2026-04-04T18:00:00Z
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -84,8 +85,8 @@ development_status:
   7-5-booking-notifications: done
   epic-7-retrospective: optional
 
-  epic-8: in-progress
-  8-1-manage-rooms-and-desks-in-admin-ui: in-progress  # Backend API complete, frontend pending
+  epic-8: done
+  8-1-manage-rooms-and-desks-in-admin-ui: done
   epic-8-retrospective: optional
 
   epic-9: backlog
@@ -174,7 +175,7 @@ development_status:
   19-8-favorites: done
   epic-19-retrospective: optional
 
-  epic-20: in-progress
+  epic-20: done
   20-1-free-busy-indicators-on-favorite-tiles: done
   20-2-memorize-selected-week-and-day: done
   20-3-consistent-snackbar-confirmations: done
@@ -184,3 +185,13 @@ development_status:
   20-7-first-level-floor-plan-drill-down: done
   20-8-floor-plan-booking-ux-refinements: done
   epic-20-retrospective: optional
+
+  epic-21: in-progress
+  21-1-i18n-infrastructure-and-english-baseline: done
+  21-2-language-selector-with-flags-and-auto-detection: done
+  21-3-translations-de-es-fr-uk: done
+  21-4-my-bookings-display-reorder: backlog
+  21-5-equipment-filter-icon-and-floor-plan-button-fixes: backlog
+  21-6-booking-advance-limit: backlog
+  21-7-max-bookings-per-person-with-area-overrides: backlog
+  epic-21-retrospective: optional

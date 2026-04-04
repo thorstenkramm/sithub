@@ -46,14 +46,14 @@
         class="text-caption text-medium-emphasis mt-1"
         data-cy="booked-by"
       >
-        Booked by {{ booking.attributes.booked_by_user_name }}
+        {{ t('bookings.bookedBy', { name: booking.attributes.booked_by_user_name }) }}
       </div>
       <div
         v-if="booking.attributes.guest_name"
         class="text-caption text-medium-emphasis mt-1"
         data-cy="guest-name"
       >
-        Guest: {{ booking.attributes.guest_name }}
+        {{ t('bookings.guest', { name: booking.attributes.guest_name }) }}
       </div>
 
       <!-- Note display -->
@@ -87,7 +87,7 @@
           @click="openEditDialog"
         >
           <v-icon size="14" start>$plus</v-icon>
-          Add note
+          {{ t('bookings.addNote') }}
         </v-btn>
       </div>
     </v-card-text>
@@ -102,7 +102,7 @@
         @click="openEditDialog"
       >
         <v-icon size="14" start>$edit</v-icon>
-        Edit note
+        {{ t('bookings.editNote') }}
       </v-btn>
       <v-spacer />
       <v-btn
@@ -114,18 +114,18 @@
         data-cy="cancel-btn"
         @click="$emit('cancel', booking.id)"
       >
-        Cancel Booking
+        {{ t('bookings.cancelBooking') }}
       </v-btn>
     </v-card-actions>
 
     <!-- Note view dialog (desktop) -->
     <v-dialog v-if="!useBottomSheet" v-model="showNoteDialog" max-width="500">
       <v-card>
-        <v-card-title>Booking Note</v-card-title>
+        <v-card-title>{{ t('bookings.bookingNote') }}</v-card-title>
         <v-card-text data-cy="note-dialog-text">{{ displayNote }}</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+          <v-btn variant="text" @click="showNoteDialog = false">{{ t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -133,11 +133,11 @@
     <!-- Note view bottom sheet (mobile) -->
     <v-bottom-sheet v-else v-model="showNoteDialog">
       <v-card>
-        <v-card-title>Booking Note</v-card-title>
+        <v-card-title>{{ t('bookings.bookingNote') }}</v-card-title>
         <v-card-text data-cy="note-dialog-text">{{ displayNote }}</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showNoteDialog = false">Close</v-btn>
+          <v-btn variant="text" @click="showNoteDialog = false">{{ t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-bottom-sheet>
@@ -145,11 +145,11 @@
     <!-- Note edit dialog -->
     <v-dialog v-model="showEditDialog" max-width="500">
       <v-card>
-        <v-card-title>{{ displayNote ? 'Edit Note' : 'Add Note' }}</v-card-title>
+        <v-card-title>{{ displayNote ? t('bookings.editNoteTitle') : t('bookings.addNoteTitle') }}</v-card-title>
         <v-card-text>
           <v-textarea
             v-model="editNoteText"
-            label="Note"
+            :label="t('bookings.noteLabel')"
             :counter="500"
             :maxlength="500"
             rows="3"
@@ -159,7 +159,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showEditDialog = false">Cancel</v-btn>
+          <v-btn variant="text" @click="showEditDialog = false">{{ t('common.cancel') }}</v-btn>
           <v-btn
             color="primary"
             variant="flat"
@@ -167,7 +167,7 @@
             data-cy="note-save-btn"
             @click="saveNote"
           >
-            Save
+            {{ t('common.save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -177,7 +177,10 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { JsonApiResource } from '../api/types';
+
+const { t, locale } = useI18n();
 import type { MyBookingAttributes } from '../api/bookings';
 import { updateBookingNote } from '../api/bookings';
 import StatusChip from './StatusChip.vue';
@@ -211,7 +214,7 @@ const displayNote = computed(() => props.booking.attributes.note || '');
 
 const formattedDate = computed(() => {
   const date = new Date(props.booking.attributes.booking_date + 'T00:00:00');
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale.value || undefined, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
