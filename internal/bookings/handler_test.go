@@ -1220,3 +1220,196 @@ func testAreasConfig() *areas.Config {
 		},
 	}
 }
+
+func testAreasConfigWithLimits() *areas.Config {
+	return &areas.Config{
+		Areas: []areas.Area{
+			{
+				ID:                   "area-1",
+				Name:                 "Office",
+				MaxBookingsPerPerson: 5,
+				ItemGroups: []areas.ItemGroup{
+					{
+						ID:                   "room-1",
+						Name:                 "Room 1",
+						MaxBookingsPerPerson: 3,
+						Items: []areas.Item{
+							{
+								ID:                   "desk-1",
+								Name:                 "Desk 1",
+								MaxBookingsPerPerson: 2,
+								Equipment:            []string{"Monitor"},
+							},
+							{
+								ID:        "desk-2",
+								Name:      "Desk 2",
+								Equipment: []string{"Monitor"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestCreateHandlerItemLimitExceeded(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfigWithLimits()
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	threeDays := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
+
+	// desk-1 has limit of 2 — seed 2 existing bookings
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", tomorrow)
+	seedTestBooking(t, store, "b2", "desk-1", "user-1", dayAfter)
+
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + threeDays + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	limits := &BookingLimits{WeeksInAdvanced: 52, MaxBookingsPerPerson: 0}
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), limits)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Contains(t, resp.Errors[0].Detail, "maximum of 2")
+	assert.Contains(t, resp.Errors[0].Detail, "Desk 1")
+}
+
+func TestCreateHandlerItemGroupLimitExceeded(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfigWithLimits()
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	threeDays := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
+	fourDays := time.Now().UTC().AddDate(0, 0, 4).Format(time.DateOnly)
+
+	// room-1 has limit 3 across all items — seed 3 bookings on different items
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", tomorrow)
+	seedTestBooking(t, store, "b2", "desk-2", "user-1", dayAfter)
+	seedTestBooking(t, store, "b3", "desk-1", "user-1", threeDays)
+
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-2","booking_date":"` + fourDays + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	limits := &BookingLimits{WeeksInAdvanced: 52, MaxBookingsPerPerson: 0}
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), limits)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Contains(t, resp.Errors[0].Detail, "maximum of 3")
+	assert.Contains(t, resp.Errors[0].Detail, "Room 1")
+}
+
+func TestCreateHandlerGlobalLimitExceeded(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig() // no per-item limits
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	threeDays := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
+
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", tomorrow)
+	seedTestBooking(t, store, "b2", "desk-2", "user-1", dayAfter)
+
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + threeDays + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	limits := &BookingLimits{WeeksInAdvanced: 52, MaxBookingsPerPerson: 2}
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), limits)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Contains(t, resp.Errors[0].Detail, "maximum of 2 active bookings")
+}
+
+func TestCreateHandlerWeeksInAdvancedLimit(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	store := setupTestStore(t)
+
+	// Far future date (6 months from now)
+	farDate := time.Now().UTC().AddDate(0, 6, 0).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + farDate + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	limits := &BookingLimits{WeeksInAdvanced: 2, MaxBookingsPerPerson: 0}
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), limits)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Contains(t, resp.Errors[0].Detail, "too far in the future")
+}
+
+func TestCreateHandlerWithinLimitsSuccess(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfigWithLimits()
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + tomorrow + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	limits := &BookingLimits{WeeksInAdvanced: 52, MaxBookingsPerPerson: 10}
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), limits)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+}

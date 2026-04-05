@@ -147,4 +147,19 @@ describe('useWeekSelector', () => {
     const { selectedWeekDates } = useWeekSelector(showWeekends);
     expect(selectedWeekDates.value).toHaveLength(5);
   });
+
+  it('limits week options based on maxWeeks parameter', () => {
+    const maxWeeks = ref(3);
+    const { weekOptions } = useWeekSelector(undefined, maxWeeks);
+    expect(weekOptions.value).toHaveLength(4); // current week + 3
+  });
+
+  it('updates week options reactively when maxWeeks changes', () => {
+    const maxWeeks = ref(2);
+    const { weekOptions } = useWeekSelector(undefined, maxWeeks);
+    expect(weekOptions.value).toHaveLength(3);
+
+    maxWeeks.value = 5;
+    expect(weekOptions.value).toHaveLength(6);
+  });
 });

@@ -7,11 +7,11 @@
     <v-card-item>
       <template #prepend>
         <v-avatar :color="avatarColor" variant="tonal" size="48">
-          <v-icon size="24">$desk</v-icon>
+          <v-icon size="24">$calendar</v-icon>
         </v-avatar>
       </template>
-      <v-card-title class="d-flex align-center flex-wrap ga-2">
-        {{ booking.attributes.item_name }}
+      <v-card-title class="d-flex align-center flex-wrap ga-2" data-cy="booking-date">
+        {{ formattedDate }}
         <StatusChip
           v-if="booking.attributes.is_guest"
           status="guest"
@@ -32,15 +32,11 @@
         />
       </v-card-title>
       <v-card-subtitle>
-        {{ booking.attributes.item_group_name }} &bull; {{ booking.attributes.area_name }}
+        {{ booking.attributes.item_name }} &bull; {{ booking.attributes.item_group_name }} &bull; {{ booking.attributes.area_name }}
       </v-card-subtitle>
     </v-card-item>
 
     <v-card-text class="pt-0">
-      <div class="d-flex align-center ga-2 text-body-2">
-        <v-icon size="16" color="primary">$calendar</v-icon>
-        <span data-cy="booking-date">{{ formattedDate }}</span>
-      </div>
       <div
         v-if="booking.attributes.booked_for_me && booking.attributes.booked_by_user_name"
         class="text-caption text-medium-emphasis mt-1"

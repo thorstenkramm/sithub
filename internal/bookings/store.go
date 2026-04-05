@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -153,6 +154,45 @@ func DeleteBooking(ctx context.Context, store *sql.DB, bookingID string) error {
 		return fmt.Errorf("delete booking: %w", err)
 	}
 	return nil
+}
+
+// CountUserFutureBookings counts active (today and future) bookings for a user
+// matching the given item IDs. If itemIDs is nil, counts all future bookings.
+func CountUserFutureBookings(
+	ctx context.Context, store *sql.DB, userID string, itemIDs []string,
+) (int, error) {
+	today := time.Now().UTC().Format(time.DateOnly)
+
+	var count int
+	if len(itemIDs) == 0 {
+		err := store.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM bookings WHERE user_id = ? AND booking_date >= ?`,
+			userID, today,
+		).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("count user future bookings: %w", err)
+		}
+		return count, nil
+	}
+
+	placeholders := make([]string, len(itemIDs))
+	args := make([]any, 0, len(itemIDs)+2)
+	args = append(args, userID, today)
+	for i, id := range itemIDs {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+
+	query := fmt.Sprintf(
+		`SELECT COUNT(*) FROM bookings WHERE user_id = ? AND booking_date >= ? AND item_id IN (%s)`,
+		strings.Join(placeholders, ","),
+	)
+
+	err := store.QueryRowContext(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count user future bookings: %w", err)
+	}
+	return count, nil
 }
 
 // ItemBookingInfo contains booking details for an item.

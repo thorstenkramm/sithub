@@ -120,31 +120,34 @@ func ItemAttributes(name string, equipment []string, warning, availability, icon
 
 // Area describes a bookable area.
 type Area struct {
-	ID          string      `yaml:"id"`
-	Name        string      `yaml:"name"`
-	Description string      `yaml:"description,omitempty"`
-	FloorPlan   string      `yaml:"floor_plan,omitempty"`
-	Icon        string      `yaml:"icon,omitempty"`
-	ItemGroups  []ItemGroup `yaml:"items"`
+	ID                   string      `yaml:"id"`
+	Name                 string      `yaml:"name"`
+	Description          string      `yaml:"description,omitempty"`
+	FloorPlan            string      `yaml:"floor_plan,omitempty"`
+	Icon                 string      `yaml:"icon,omitempty"`
+	MaxBookingsPerPerson int         `yaml:"max_bookings_per_person,omitempty"`
+	ItemGroups           []ItemGroup `yaml:"items"`
 }
 
 // ItemGroup describes a group of bookable items within an area.
 type ItemGroup struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description,omitempty"`
-	FloorPlan   string `yaml:"floor_plan,omitempty"`
-	Icon        string `yaml:"icon,omitempty"`
-	Items       []Item `yaml:"items"`
+	ID                   string `yaml:"id"`
+	Name                 string `yaml:"name"`
+	Description          string `yaml:"description,omitempty"`
+	FloorPlan            string `yaml:"floor_plan,omitempty"`
+	Icon                 string `yaml:"icon,omitempty"`
+	MaxBookingsPerPerson int    `yaml:"max_bookings_per_person,omitempty"`
+	Items                []Item `yaml:"items"`
 }
 
 // Item describes a bookable item within an item group.
 type Item struct {
-	ID        string   `yaml:"id"`
-	Name      string   `yaml:"name"`
-	Equipment []string `yaml:"equipment"`
-	Warning   string   `yaml:"warning,omitempty"`
-	Icon      string   `yaml:"icon,omitempty"`
+	ID                   string   `yaml:"id"`
+	Name                 string   `yaml:"name"`
+	Equipment            []string `yaml:"equipment"`
+	Warning              string   `yaml:"warning,omitempty"`
+	Icon                 string   `yaml:"icon,omitempty"`
+	MaxBookingsPerPerson int      `yaml:"max_bookings_per_person,omitempty"`
 }
 
 // IconWarning describes an invalid configured icon reference.

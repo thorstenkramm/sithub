@@ -23,7 +23,7 @@
           <v-btn
             v-if="areaFloorPlan"
             variant="outlined"
-            size="small"
+            density="compact"
             prepend-icon="$map"
             data-cy="area-floor-plan-btn"
             @click="showFloorPlanDialog = true"
@@ -59,7 +59,7 @@
                 :aria-label="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')"
                 @click="toggleSaveFilter"
               >
-                <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$plus' }}</v-icon>
+                <v-icon>{{ isCurrentFilterSaved ? '$delete' : 'mdi-content-save' }}</v-icon>
               </v-btn>
             </template>
           </v-tooltip>
@@ -315,6 +315,7 @@ import { useDateState } from '../composables/useDateState';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
+import { fetchSettings } from '../api/settings';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
@@ -384,7 +385,8 @@ const isItemGroupFilteredOut = (igId: string): boolean => {
 };
 
 const { showWeekends } = useWeekendPreference();
-const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends);
+const weeksInAdvanced = ref(7);
+const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends, weeksInAdvanced);
 const { getWeek, setWeek } = useDateState();
 
 // Restore memorized week on mount
@@ -502,6 +504,14 @@ onMounted(async () => {
       return;
     }
     throw err;
+  }
+
+  // Fetch booking settings (non-blocking, uses default on failure)
+  try {
+    const settingsResp = await fetchSettings();
+    weeksInAdvanced.value = settingsResp.data.attributes.weeks_in_advanced;
+  } catch {
+    // Non-critical: week selector uses default
   }
 
   const areaId = route.params.areaId;

@@ -2,6 +2,7 @@ package bookings
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,4 +72,38 @@ func TestFindItemBookingsReturnsErrorOnClosedDB(t *testing.T) {
 
 	_, err = FindItemBookings(t.Context(), store, "2026-01-20")
 	require.Error(t, err)
+}
+
+func TestCountUserFutureBookingsAll(t *testing.T) {
+	t.Parallel()
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format(time.DateOnly)
+
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", tomorrow)
+	seedTestBooking(t, store, "b2", "desk-2", "user-1", dayAfter)
+	seedTestBooking(t, store, "b3", "desk-3", "user-1", yesterday) // past, excluded
+	seedTestBooking(t, store, "b4", "desk-4", "user-2", tomorrow)  // other user
+
+	count, err := CountUserFutureBookings(t.Context(), store, "user-1", nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}
+
+func TestCountUserFutureBookingsFiltered(t *testing.T) {
+	t.Parallel()
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", tomorrow)
+	seedTestBooking(t, store, "b2", "desk-2", "user-1", dayAfter)
+	seedTestBooking(t, store, "b3", "desk-3", "user-1", tomorrow)
+
+	count, err := CountUserFutureBookings(t.Context(), store, "user-1", []string{"desk-1", "desk-2"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
 }

@@ -37,6 +37,11 @@
             "pattern": "^mdi-[a-z0-9-]+$",
             "description": "MDI icon name from https://pictogrammers.com (e.g. mdi-office-building)"
           },
+          "max_bookings_per_person": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Maximum active bookings per person for this area. 0 or omitted means unlimited. Overrides the global limit from sithub.toml."
+          },
           "items": {
             "type": "array",
             "minItems": 1,
@@ -68,6 +73,11 @@
                   "type": "string",
                   "pattern": "^mdi-[a-z0-9-]+$",
                   "description": "MDI icon name from https://pictogrammers.com (e.g. mdi-door)"
+                },
+                "max_bookings_per_person": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Maximum active bookings per person for this item group. 0 or omitted means unlimited. Overrides area-level limit."
                 },
                 "items": {
                   "type": "array",
@@ -102,6 +112,11 @@
                         "type": "string",
                         "pattern": "^mdi-[a-z0-9-]+$",
                         "description": "MDI icon name from https://pictogrammers.com (e.g. mdi-desk)"
+                      },
+                      "max_bookings_per_person": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Maximum active bookings per person for this item. 0 or omitted means unlimited. Overrides item-group-level limit."
                       }
                     }
                   }

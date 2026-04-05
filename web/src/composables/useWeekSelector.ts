@@ -75,13 +75,15 @@ function formatDayMonthYear(date: Date): string {
   return `${day}.${month}.${year}`;
 }
 
-export function useWeekSelector(showWeekends?: Ref<boolean>) {
+export function useWeekSelector(showWeekends?: Ref<boolean>, maxWeeks?: Ref<number>) {
   const weekOptions = computed<WeekOption[]>(() => {
     const options: WeekOption[] = [];
     const now = new Date();
     const monday = getMondayOfWeek(now);
 
-    for (let i = 0; i < 8; i++) {
+    // Current week + N additional weeks (default 7 additional = 8 total)
+    const totalWeeks = (maxWeeks?.value ?? 7) + 1;
+    for (let i = 0; i < totalWeeks; i++) {
       const weekMonday = new Date(monday);
       weekMonday.setDate(monday.getDate() + i * 7);
       const weekSunday = new Date(weekMonday);

@@ -32,7 +32,14 @@ type Config struct {
 	Log           LogConfig           `mapstructure:"log"`
 	EntraID       EntraIDConfig       `mapstructure:"entraid"`
 	Areas         AreasConfig         `mapstructure:"areas"`
+	Bookings      BookingsConfig      `mapstructure:"bookings"`
 	Notifications NotificationsConfig `mapstructure:"notifications"`
+}
+
+// BookingsConfig contains booking limit settings.
+type BookingsConfig struct {
+	WeeksInAdvanced     int `mapstructure:"weeks_in_advanced"`
+	MaxBookingsPerPerson int `mapstructure:"max_bookings_per_person"`
 }
 
 // MainConfig contains main server settings.
@@ -94,6 +101,8 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	v.SetDefault("areas.config_file", "")
 	v.SetDefault("areas.floor_plans", "")
 	v.SetDefault("areas.floor_plans_dir", "")
+	v.SetDefault("bookings.weeks_in_advanced", 5)
+	v.SetDefault("bookings.max_bookings_per_person", 0)
 	v.SetDefault("notifications.webhook_url", "")
 
 	if err := v.ReadInConfig(); err != nil {

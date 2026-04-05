@@ -58,6 +58,21 @@
   ## Default: none
   #floor_plans = "floor_plans"
 
+[bookings]
+  ## Weeks in advanced, integer, optional
+  ## How many weeks in advanced people are allowed to book.
+  ## Only the current plus the next N weeks are shown and will be bookable.
+  ## Can be overridden with SITHUB_BOOKINGS_WEEKS_IN_ADVANCED environment variable
+  ## Default: 5
+  #weeks_in_advanced = 5
+
+  ## Maximum bookings per person, integer, optional
+  ## Limit the maximum items a person can book. This is total over all areas.
+  ## This can be overwritten by the areas YAML at area, item group, and item levels.
+  ## Can be overridden with SITHUB_BOOKINGS_MAX_BOOKINGS_PER_PERSON environment variable
+  ## Default: 0 (=unlimited)
+  #max_bookings_per_person = 0
+
 [entraid]
   ## All fields in this section are optional. If omitted entirely, only local
   ## authentication is available. If any field is set, all 5 required fields

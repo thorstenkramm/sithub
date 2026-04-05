@@ -81,6 +81,7 @@ func TestFloorPlanRouteRequiresAuthentication(t *testing.T) {
 		t.TempDir(),
 		nil,
 		notifications.NewNotifier(""),
+		nil,
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/floor-plans/plan.png", http.NoBody)
@@ -105,6 +106,7 @@ func TestFloorPlanPositionsWriteRouteRequiresAuthentication(t *testing.T) {
 		t.TempDir(),
 		nil,
 		notifications.NewNotifier(""),
+		nil,
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)
@@ -129,6 +131,7 @@ func TestFloorPlanPositionsWriteRouteRequiresAdmin(t *testing.T) {
 		t.TempDir(),
 		nil,
 		notifications.NewNotifier(""),
+		nil,
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)

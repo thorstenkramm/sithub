@@ -43,6 +43,7 @@
             v-model="selectedDate"
             :label="$t('items.bookingDate')"
             :min="todayDate"
+            :max="maxBookingDate"
             data-cy="items-date"
             style="max-width: 280px;"
           />
@@ -60,6 +61,17 @@
             data-cy="week-selector"
             style="max-width: 320px;"
           />
+
+          <v-btn
+            v-if="itemGroupFloorPlan"
+            variant="outlined"
+            density="compact"
+            prepend-icon="$map"
+            data-cy="item-group-floor-plan-btn"
+            @click="showItemGroupFloorPlanDialog = true"
+          >
+            {{ $t('items.floorPlan') }}
+          </v-btn>
         </div>
 
         <!-- Booking Type Selection -->
@@ -86,18 +98,6 @@
           </div>
         </v-expand-transition>
 
-        <v-btn
-          v-if="itemGroupFloorPlan"
-          variant="outlined"
-          size="small"
-          prepend-icon="$map"
-          class="mt-4 mb-2"
-          data-cy="item-group-floor-plan-btn"
-          @click="showItemGroupFloorPlanDialog = true"
-        >
-          {{ $t('items.floorPlan') }}
-        </v-btn>
-
         <!-- Equipment Filter -->
         <div class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
           <v-combobox
@@ -121,7 +121,7 @@
                 :aria-label="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')"
                 @click="toggleSaveFilter"
               >
-                <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$plus' }}</v-icon>
+                <v-icon>{{ isCurrentFilterSaved ? '$delete' : 'mdi-content-save' }}</v-icon>
               </v-btn>
             </template>
           </v-tooltip>
@@ -139,25 +139,6 @@
 
       </v-card-text>
     </v-card>
-
-    <!-- Error Messages -->
-    <v-alert
-      v-if="bookingErrorMessage || bookingErrorDetails"
-      type="error"
-      class="mb-4"
-      closable
-      data-cy="booking-error"
-      @click:close="clearErrorMessage"
-    >
-      <div class="d-flex align-center ga-2">
-        <span class="text-body-2" data-cy="booking-error-text">
-          {{ bookingErrorDetails
-            ? `${bookingErrorDetails.itemName} - ${formatDisplayDate(bookingErrorDetails.date)}: ${bookingErrorDetails.error}`
-            : bookingErrorMessage
-          }}
-        </span>
-      </div>
-    </v-alert>
 
     <!-- Loading State -->
     <LoadingState v-if="itemsLoading || weekDataLoading" type="cards" :count="6" data-cy="items-loading" />
@@ -803,6 +784,17 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <v-snackbar
+      v-model="showErrorSnackbar"
+      :timeout="6000"
+      location="bottom"
+      color="error"
+      closable
+      data-cy="booking-error"
+    >
+      <span data-cy="booking-error-text">{{ errorSnackbarMessage }}</span>
+    </v-snackbar>
   </div>
 </template>
 
@@ -837,6 +829,7 @@ import { useFavorites } from '../composables/useFavorites';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
+import { fetchSettings } from '../api/settings';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
@@ -844,14 +837,27 @@ const { t, locale } = useI18n();
 const authStore = useAuthStore();
 const items = ref<JsonApiResource<ItemAttributes>[]>([]);
 const itemsErrorMessage = ref<string | null>(null);
-const bookingErrorMessage = ref<string | null>(null);
-const bookingErrorDetails = ref<{ itemName: string; date: string; error: string } | null>(null);
+const errorSnackbarMessage = ref<string | null>(null);
+const showErrorSnackbar = computed({
+  get: () => errorSnackbarMessage.value !== null,
+  set: (v: boolean) => { if (!v) errorSnackbarMessage.value = null; }
+});
 const lastBookingDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
 const { getDay, setDay, resetDayToToday, getWeek, setWeek } = useDateState();
 const selectedDate = ref(getDay());
 const todayDate = formatDate(new Date());
+const maxBookingDate = computed(() => {
+  const now = new Date();
+  const day = now.getDay();
+  const daysUntilMonday = (8 - day) % 7;
+  const nextMonday = new Date(now);
+  nextMonday.setDate(now.getDate() + daysUntilMonday);
+  const maxDate = new Date(nextMonday);
+  maxDate.setDate(nextMonday.getDate() + weeksInAdvanced.value * 7 - 1);
+  return formatDate(maxDate);
+});
 const route = useRoute();
 const { loading: itemsLoading, run: runItems } = useApi();
 const activeItemGroupId = ref<string | null>(null);
@@ -981,7 +987,8 @@ const bookingMode = ref<'day' | 'week'>(
   (storage?.getItem('sithub_booking_mode') as 'day' | 'week') || 'day'
 );
 const { showWeekends } = useWeekendPreference();
-const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends);
+const weeksInAdvanced = ref(7);
+const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends, weeksInAdvanced);
 
 // Restore memorized week
 const storedWeek = getWeek();
@@ -1142,7 +1149,7 @@ const confirmWeekCancel = async () => {
     }
   } catch (err) {
     if (await handleAuthError(err)) return;
-    bookingErrorMessage.value = t('items.unableToCancel');
+    errorSnackbarMessage.value =t('items.unableToCancel');
   } finally {
     weekCancellingKey.value = null;
     pendingWeekCancelKey.value = null;
@@ -1218,8 +1225,14 @@ const resolveColleagueName = (userId: string): string | undefined => {
 };
 
 const localizeItemsBookingConflict = (err: ApiError): string => {
-  const detail = err.detail?.toLowerCase() ?? '';
-  if (detail.includes('already have this item booked')) {
+  const detail = err.detail ?? '';
+  const lower = detail.toLowerCase();
+  if (lower.includes('booking limit exceeded')) {
+    // Extract the user-facing message after the sentinel prefix
+    const colonIdx = detail.indexOf(':');
+    return colonIdx >= 0 ? detail.substring(colonIdx + 2) : detail;
+  }
+  if (lower.includes('already have this item booked')) {
     return t('items.alreadyBookedByYouForDate');
   }
   return t('items.itemAlreadyBookedForDate');
@@ -1241,11 +1254,10 @@ const localizeItemsBookingError = (err: unknown, fallback: string): string => {
 const submitWeekBookings = async () => {
   if (!activeItemGroupId.value || weekSelections.value.size === 0) return;
 
-  bookingErrorMessage.value = null;
-  bookingErrorDetails.value = null;
+  errorSnackbarMessage.value = null;
   if (bookingType.value === 'colleague') {
     if (!selectedColleagueId.value) {
-      bookingErrorMessage.value = t('items.selectColleagueError');
+      errorSnackbarMessage.value =t('items.selectColleagueError');
       return;
     }
   }
@@ -1358,14 +1370,13 @@ const loadItems = async (itemGroupId: string, date: string) => {
 
 const bookItem = async (itemId: string) => {
   showSuccessSnackbar.value = false;
-  bookingErrorMessage.value = null;
-  bookingErrorDetails.value = null;
+  errorSnackbarMessage.value = null;
   lastBookingDetails.value = null;
 
   // Validate colleague selection
   if (bookingType.value === 'colleague') {
     if (!selectedColleagueId.value) {
-      bookingErrorMessage.value = t('items.selectColleagueError');
+      errorSnackbarMessage.value =t('items.selectColleagueError');
       return;
     }
   }
@@ -1429,7 +1440,7 @@ const bookItem = async (itemId: string) => {
       detail = t('items.itemNotFound');
     }
 
-    bookingErrorDetails.value = { itemName, date: selectedDate.value, error: detail };
+    errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
   } finally {
     bookingItemId.value = null;
   }
@@ -1437,8 +1448,7 @@ const bookItem = async (itemId: string) => {
 
 const adminCancelBooking = async (bookingId: string) => {
   showSuccessSnackbar.value = false;
-  bookingErrorMessage.value = null;
-  bookingErrorDetails.value = null;
+  errorSnackbarMessage.value = null;
   cancelingBookingId.value = bookingId;
 
   try {
@@ -1454,20 +1464,15 @@ const adminCancelBooking = async (bookingId: string) => {
       return;
     }
     if (err instanceof ApiError && err.status === 404) {
-      bookingErrorMessage.value = t('items.bookingNotFound');
+      errorSnackbarMessage.value =t('items.bookingNotFound');
     } else {
-      bookingErrorMessage.value = t('items.unableToCancelBooking');
+      errorSnackbarMessage.value =t('items.unableToCancelBooking');
     }
   } finally {
     cancelingBookingId.value = null;
   }
 };
 
-
-const clearErrorMessage = () => {
-  bookingErrorMessage.value = null;
-  bookingErrorDetails.value = null;
-};
 
 const openPostBookingNoteDialog = () => {
   noteText.value = '';
@@ -1490,7 +1495,7 @@ const saveNoteAfterBooking = async () => {
     if (await handleAuthError(err)) {
       return;
     }
-    bookingErrorMessage.value = t('items.unableToSaveNote');
+    errorSnackbarMessage.value =t('items.unableToSaveNote');
   } finally {
     savingNote.value = false;
   }
@@ -1534,6 +1539,14 @@ onMounted(async () => {
       return;
     }
     throw err;
+  }
+
+  // Fetch booking settings (non-blocking, uses default on failure)
+  try {
+    const settingsResp = await fetchSettings();
+    weeksInAdvanced.value = settingsResp.data.attributes.weeks_in_advanced;
+  } catch {
+    // Non-critical: week selector uses default
   }
 
   // Load users list for colleague dropdown (non-blocking)

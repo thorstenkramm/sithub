@@ -83,8 +83,13 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("open embedded frontend: %w", err)
 	}
 
+	bookingLimits := &bookings.BookingLimits{
+		WeeksInAdvanced:      cfg.Bookings.WeeksInAdvanced,
+		MaxBookingsPerPerson: cfg.Bookings.MaxBookingsPerPerson,
+	}
+
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, store, notifier)
+	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, store, notifier, bookingLimits)
 	registerSPAHandlers(e, webFS)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -112,6 +117,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 func registerRoutes(
 	e *echo.Echo, authService *auth.Service, areasConfig *areas.Config,
 	floorPlansDir string, store *sql.DB, notifier notifications.Notifier,
+	bookingLimits *bookings.BookingLimits,
 ) {
 	// Helper to get current config (returns the same config, loaded at startup)
 	getConfig := func() *areas.Config { return areasConfig }
@@ -131,6 +137,11 @@ func registerRoutes(
 
 	// Authenticated routes
 	requireAuth := middleware.RequireAuth(authService)
+	weeksInAdvanced := 5
+	if bookingLimits != nil {
+		weeksInAdvanced = bookingLimits.WeeksInAdvanced
+	}
+	e.GET("/api/v1/settings", system.SettingsHandler(weeksInAdvanced), requireAuth)
 	e.GET("/api/v1/me", auth.MeHandler(), requireAuth)
 	e.PATCH("/api/v1/me", auth.UpdateMeHandler(authService), requireAuth)
 	e.GET("/api/v1/areas", areas.ListHandlerDynamic(getConfig), requireAuth)
@@ -148,7 +159,7 @@ func registerRoutes(
 	e.GET("/api/v1/bookings/history",
 		bookings.HistoryHandlerDynamic(getConfig, store), requireAuth)
 	e.POST("/api/v1/bookings",
-		bookings.CreateHandlerDynamic(getConfig, store, notifier), requireAuth)
+		bookings.CreateHandlerDynamic(getConfig, store, notifier, bookingLimits), requireAuth)
 	e.PATCH("/api/v1/bookings/:id", bookings.PatchHandler(store), requireAuth)
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), requireAuth)
 

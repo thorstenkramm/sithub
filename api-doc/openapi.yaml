@@ -12,6 +12,8 @@ security:
 paths:
   /ping:
     $ref: ./endpoints/ping.yaml
+  /settings:
+    $ref: ./endpoints/settings.yaml
   /areas:
     $ref: ./endpoints/areas.yaml
   /areas/{area_id}/item-groups:

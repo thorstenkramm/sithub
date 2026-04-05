@@ -1,0 +1,46 @@
+get:
+  summary: Get application settings
+  description: Returns public application settings relevant to the frontend.
+  operationId: getSettings
+  tags:
+    - system
+  responses:
+    '200':
+      description: Settings returned successfully.
+      content:
+        application/vnd.api+json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: settings
+                  type:
+                    type: string
+                    const: settings
+                  attributes:
+                    type: object
+                    properties:
+                      weeks_in_advanced:
+                        type: integer
+                        description: >
+                          How many weeks in advance people are allowed to book.
+                          The current week plus this many additional weeks.
+                        example: 5
+                    required:
+                      - weeks_in_advanced
+                required:
+                  - id
+                  - type
+                  - attributes
+            required:
+              - data
+    '401':
+      description: Authentication required.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
