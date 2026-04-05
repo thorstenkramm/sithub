@@ -5,8 +5,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
+
+	"github.com/thorstenkramm/sithub/internal/api"
 )
 
 // FindBookedItemIDs returns the item IDs with bookings on the given date.
@@ -175,17 +176,15 @@ func CountUserFutureBookings(
 		return count, nil
 	}
 
-	placeholders := make([]string, len(itemIDs))
-	args := make([]any, 0, len(itemIDs)+2)
+	inClause, inArgs := api.BuildINClause(itemIDs)
+	args := make([]any, 0, len(inArgs)+2)
 	args = append(args, userID, today)
-	for i, id := range itemIDs {
-		placeholders[i] = "?"
-		args = append(args, id)
-	}
+	args = append(args, inArgs...)
 
+	// #nosec G201 -- inClause contains only "?" placeholders from BuildINClause.
 	query := fmt.Sprintf(
 		`SELECT COUNT(*) FROM bookings WHERE user_id = ? AND booking_date >= ? AND item_id IN (%s)`,
-		strings.Join(placeholders, ","),
+		inClause,
 	)
 
 	err := store.QueryRowContext(ctx, query, args...).Scan(&count)

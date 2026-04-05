@@ -470,35 +470,23 @@ func CreateHandlerDynamic(
 	getConfig areas.ConfigGetter, store *sql.DB, notifier notifications.Notifier,
 	limits *BookingLimits,
 ) echo.HandlerFunc {
+	maxWeeks := 0
+	if limits != nil {
+		maxWeeks = limits.WeeksInAdvanced
+	}
+
 	return func(c echo.Context) error {
 		user := auth.GetUserFromContext(c)
 		if user == nil {
 			return api.WriteUnauthorized(c)
 		}
 
-		if err := validateContentType(c); err != nil {
-			if errors.Is(err, errResponseWritten) {
-				return nil
-			}
+		req, itemID, dates, err := parseAndValidateBooking(c, maxWeeks)
+		if err != nil || c.Response().Committed {
 			return err
 		}
 
-		req, err := parseCreateRequest(c)
-		if err != nil {
-			return handleValidationError(c, err)
-		}
-
-		maxWeeks := 0
-		if limits != nil {
-			maxWeeks = limits.WeeksInAdvanced
-		}
-		itemID, dates, err := validateRequestFieldsMultiDay(req, maxWeeks)
-		if err != nil {
-			return handleValidationError(c, err)
-		}
-
-		cfg := getConfig()
-		loc, exists := cfg.FindItemLocation(itemID)
+		loc, exists := getConfig().FindItemLocation(itemID)
 		if !exists {
 			return api.WriteNotFound(c, "Item not found")
 		}
@@ -508,20 +496,10 @@ func CreateHandlerDynamic(
 			return handleValidationError(c, err)
 		}
 
-		// Enforce booking limits (skip for guest bookings — guests have unique IDs)
-		if !params.isGuest {
-			if err := enforceBookingLimits(
-				c.Request().Context(), store, params.targetUserID, cfg, loc, limits,
-			); err != nil {
-				if errors.Is(err, ErrBookingLimitExceeded) {
-					//nolint:wrapcheck // Terminal response
-					return api.WriteConflict(c, err.Error())
-				}
-				return fmt.Errorf("check booking limits: %w", err)
-			}
+		if err := handleBookingLimits(c, store, params, loc, limits); err != nil || c.Response().Committed {
+			return err
 		}
 
-		// Single day booking
 		if len(dates) == 1 {
 			return processBooking(
 				c, store, notifier, itemID, params.targetUserID,
@@ -530,9 +508,31 @@ func CreateHandlerDynamic(
 			)
 		}
 
-		// Multi-day booking
 		return processMultiDayBooking(c, store, notifier, itemID, params, dates)
 	}
+}
+
+// handleBookingLimits enforces booking limits and writes the error response if exceeded.
+// Returns nil when limits pass, the user is a guest, or a conflict response was written.
+func handleBookingLimits(
+	c echo.Context, store *sql.DB, params *bookingParticipants,
+	loc *areas.ItemLocation, limits *BookingLimits,
+) error {
+	if params.isGuest {
+		return nil
+	}
+	err := enforceBookingLimits(
+		c.Request().Context(), store, params.targetUserID, loc, limits,
+	)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, ErrBookingLimitExceeded) {
+		//nolint:errcheck // Error is intentionally ignored; caller checks response state
+		api.WriteConflict(c, err.Error())
+		return nil
+	}
+	return fmt.Errorf("check booking limits: %w", err)
 }
 
 // bookingParticipants holds the resolved user info for a booking.
@@ -579,6 +579,32 @@ func resolveBookingParticipants(
 	}
 
 	return params, nil
+}
+
+// parseAndValidateBooking handles content-type check, JSON parsing, and field validation.
+// Returns the parsed request, item ID, and dates. On validation failure, the error
+// response is written and c.Response().Committed is true.
+func parseAndValidateBooking(
+	c echo.Context, maxWeeks int,
+) (req *CreateRequest, itemID string, dates []string, err error) {
+	if err = validateContentType(c); err != nil {
+		if errors.Is(err, errResponseWritten) {
+			return nil, "", nil, nil
+		}
+		return nil, "", nil, err
+	}
+
+	req, err = parseCreateRequest(c)
+	if err != nil {
+		return nil, "", nil, handleValidationError(c, err)
+	}
+
+	itemID, dates, err = validateRequestFieldsMultiDay(req, maxWeeks)
+	if err != nil {
+		return nil, "", nil, handleValidationError(c, err)
+	}
+
+	return req, itemID, dates, nil
 }
 
 func handleValidationError(c echo.Context, err error) error {
@@ -688,74 +714,72 @@ func errBadRequest(detail string) error {
 // Returns ErrBookingLimitExceeded (wrapped with a descriptive message) if any limit is reached.
 func enforceBookingLimits(
 	ctx context.Context, store *sql.DB, userID string,
-	cfg *areas.Config, loc *areas.ItemLocation, limits *BookingLimits,
+	loc *areas.ItemLocation, limits *BookingLimits,
 ) error {
 	if limits == nil {
 		return nil
 	}
 
 	// Check item-level limit (most specific)
-	if loc.Item.MaxBookingsPerPerson > 0 {
-		count, err := CountUserFutureBookings(ctx, store, userID, []string{loc.Item.ID})
-		if err != nil {
-			return err
-		}
-		if count >= loc.Item.MaxBookingsPerPerson {
-			return fmt.Errorf(
-				"%w: you have reached the maximum of %d active bookings for '%s, %s'",
-				ErrBookingLimitExceeded, loc.Item.MaxBookingsPerPerson,
-				loc.ItemGroup.Name, loc.Item.Name,
-			)
-		}
+	if err := checkBookingLimit(
+		ctx, store, userID, loc.Item.MaxBookingsPerPerson,
+		[]string{loc.Item.ID},
+		fmt.Sprintf("'%s, %s'", loc.ItemGroup.Name, loc.Item.Name),
+	); err != nil {
+		return err
 	}
 
 	// Check item group level limit
-	if loc.ItemGroup.MaxBookingsPerPerson > 0 {
-		igItemIDs := collectItemIDs(loc.ItemGroup.Items)
-		count, err := CountUserFutureBookings(ctx, store, userID, igItemIDs)
-		if err != nil {
-			return err
-		}
-		if count >= loc.ItemGroup.MaxBookingsPerPerson {
-			return fmt.Errorf(
-				"%w: you have reached the maximum of %d active bookings for '%s'",
-				ErrBookingLimitExceeded, loc.ItemGroup.MaxBookingsPerPerson,
-				loc.ItemGroup.Name,
-			)
-		}
+	if err := checkBookingLimit(
+		ctx, store, userID, loc.ItemGroup.MaxBookingsPerPerson,
+		collectItemIDs(loc.ItemGroup.Items),
+		fmt.Sprintf("'%s'", loc.ItemGroup.Name),
+	); err != nil {
+		return err
 	}
 
 	// Check area-level limit
-	if loc.Area.MaxBookingsPerPerson > 0 {
-		areaItemIDs := collectAreaItemIDs(loc.Area)
-		count, err := CountUserFutureBookings(ctx, store, userID, areaItemIDs)
-		if err != nil {
-			return err
-		}
-		if count >= loc.Area.MaxBookingsPerPerson {
-			return fmt.Errorf(
-				"%w: you have reached the maximum of %d active bookings for '%s'",
-				ErrBookingLimitExceeded, loc.Area.MaxBookingsPerPerson,
-				loc.Area.Name,
-			)
-		}
+	if err := checkBookingLimit(
+		ctx, store, userID, loc.Area.MaxBookingsPerPerson,
+		collectAreaItemIDs(loc.Area),
+		fmt.Sprintf("'%s'", loc.Area.Name),
+	); err != nil {
+		return err
 	}
 
 	// Check global limit
-	if limits.MaxBookingsPerPerson > 0 {
-		count, err := CountUserFutureBookings(ctx, store, userID, nil)
-		if err != nil {
-			return err
-		}
-		if count >= limits.MaxBookingsPerPerson {
-			return fmt.Errorf(
-				"%w: you have reached the maximum of %d active bookings",
-				ErrBookingLimitExceeded, limits.MaxBookingsPerPerson,
-			)
-		}
-	}
+	return checkBookingLimit(
+		ctx, store, userID, limits.MaxBookingsPerPerson, nil, "",
+	)
+}
 
-	return nil
+// checkBookingLimit verifies that a user has not reached the given limit
+// for the specified item IDs. A limit of 0 means unlimited (no check).
+// When scopeLabel is empty, the error message omits the scope.
+func checkBookingLimit(
+	ctx context.Context, store *sql.DB, userID string,
+	limit int, itemIDs []string, scopeLabel string,
+) error {
+	if limit <= 0 {
+		return nil
+	}
+	count, err := CountUserFutureBookings(ctx, store, userID, itemIDs)
+	if err != nil {
+		return err
+	}
+	if count < limit {
+		return nil
+	}
+	if scopeLabel != "" {
+		return fmt.Errorf(
+			"%w: you have reached the maximum of %d active bookings for %s",
+			ErrBookingLimitExceeded, limit, scopeLabel,
+		)
+	}
+	return fmt.Errorf(
+		"%w: you have reached the maximum of %d active bookings",
+		ErrBookingLimitExceeded, limit,
+	)
 }
 
 // collectItemIDs returns all item IDs from an item group's items.
