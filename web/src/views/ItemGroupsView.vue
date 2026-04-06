@@ -265,7 +265,6 @@
 
     <v-dialog
       v-model="showFloorPlanDialog"
-      max-width="1100"
       persistent
       :fullscreen="isCompactFloorPlanViewport"
       data-cy="floor-plan-dialog"

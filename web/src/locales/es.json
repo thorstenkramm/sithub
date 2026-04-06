@@ -156,7 +156,8 @@
     "reservedTooltip": "Este elemento esta reservado. No tiene acceso.",
     "bookDays": "Reservar ({count} dia) | Reservar ({count} dias)",
     "bookingLimitExceeded": "Ha alcanzado el máximo de {count} reservas activas para {scope}",
-    "bookingLimitExceededGlobal": "Ha alcanzado el máximo de {count} reservas activas"
+    "bookingLimitExceededGlobal": "Ha alcanzado el máximo de {count} reservas activas",
+    "bookingLimitTitle": "Limite de reservas alcanzado"
   },
   "bookings": {
     "title": "Mis Reservas",

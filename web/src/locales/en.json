@@ -156,7 +156,8 @@
     "reservedTooltip": "This item is reserved. You do not have access.",
     "bookDays": "Book ({count} day) | Book ({count} days)",
     "bookingLimitExceeded": "You have reached the maximum of {count} active bookings for {scope}",
-    "bookingLimitExceededGlobal": "You have reached the maximum of {count} active bookings"
+    "bookingLimitExceededGlobal": "You have reached the maximum of {count} active bookings",
+    "bookingLimitTitle": "Booking Limit Reached"
   },
   "bookings": {
     "title": "My Bookings",

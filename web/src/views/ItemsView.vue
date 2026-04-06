@@ -216,13 +216,24 @@
               {{ entry.attributes.name }}
             </v-tooltip>
           </v-card-title>
-          <!-- Line 2: Status chip + warning + chevron -->
-          <div class="d-flex align-center ga-2 mt-1 px-4">
+          <!-- Line 2: Status chip + heart + warning + chevron -->
+          <div class="d-flex align-center ga-2 mt-1 px-4" data-cy="day-status-row">
             <StatusChip
               :status="entry.attributes.availability === 'available' ? 'available' : 'booked'"
               size="x-small"
               data-cy="item-status"
             />
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              data-cy="item-favorite-heart"
+              @click.stop="handleToggleItemFav(entry.id, entry.attributes.name)"
+            >
+              <v-icon size="18" :color="isItemFav(entry.id) ? 'error' : undefined">
+                {{ isItemFav(entry.id) ? '$heart' : '$heartOutline' }}
+              </v-icon>
+            </v-btn>
             <v-tooltip
               v-if="entry.attributes.warning"
               location="top"
@@ -323,7 +334,11 @@
           </div>
         </v-card-text>
 
-        <v-card-actions class="px-4 pb-4 ga-2" data-cy="day-item-actions">
+        <v-card-actions
+          v-if="entry.attributes.availability === 'available' || (authStore.isAdmin && entry.attributes.booking_id)"
+          class="px-4 pb-4 ga-2"
+          data-cy="day-item-actions"
+        >
           <v-btn
             v-if="entry.attributes.availability === 'available'"
             color="primary"
@@ -337,7 +352,7 @@
             {{ $t('items.book') }}
           </v-btn>
           <v-btn
-            v-else-if="authStore.isAdmin && entry.attributes.booking_id"
+            v-else
             color="error"
             variant="tonal"
             class="flex-grow-1"
@@ -347,19 +362,6 @@
             @click="adminCancelBooking(entry.attributes.booking_id!)"
           >
             {{ $t('items.cancelBooking') }}
-          </v-btn>
-          <div v-else class="py-2 flex-grow-1" />
-          <v-spacer />
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            data-cy="item-favorite-heart"
-            @click.stop="handleToggleItemFav(entry.id, entry.attributes.name)"
-          >
-            <v-icon size="18" :color="isItemFav(entry.id) ? 'error' : undefined">
-              {{ isItemFav(entry.id) ? '$heart' : '$heartOutline' }}
-            </v-icon>
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -405,8 +407,8 @@
               {{ item.name }}
             </v-tooltip>
           </v-card-title>
-          <!-- Line 2: Availability + warning + chevron -->
-          <div class="d-flex align-center ga-2 mt-1 px-4">
+          <!-- Line 2: Availability + heart + warning + chevron -->
+          <div class="d-flex align-center ga-2 mt-1 px-4" data-cy="week-status-row">
             <v-chip
               size="x-small"
               :color="getWeekItemStatusColor(item.id)"
@@ -416,6 +418,17 @@
               <v-icon start size="14">{{ getWeekItemStatusIcon(item.id) }}</v-icon>
               {{ getWeekItemStatusLabel(item.id) }}
             </v-chip>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              data-cy="week-item-favorite-heart"
+              @click.stop="handleToggleItemFav(item.id, item.name)"
+            >
+              <v-icon size="18" :color="isItemFav(item.id) ? 'error' : undefined">
+                {{ isItemFav(item.id) ? '$heart' : '$heartOutline' }}
+              </v-icon>
+            </v-btn>
             <v-tooltip
               v-if="getWeekItemAttributes(item.id).warning"
               location="top"
@@ -641,20 +654,6 @@
             </v-alert>
           </div>
         </v-card-text>
-        <v-card-actions class="px-4 pb-4 pt-0" data-cy="week-item-actions">
-          <v-spacer />
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            data-cy="week-item-favorite-heart"
-            @click.stop="handleToggleItemFav(item.id, item.name)"
-          >
-            <v-icon size="18" :color="isItemFav(item.id) ? 'error' : undefined">
-              {{ isItemFav(item.id) ? '$heart' : '$heartOutline' }}
-            </v-icon>
-          </v-btn>
-        </v-card-actions>
       </v-card>
       </div>
     </div>
@@ -751,7 +750,6 @@
     <!-- Item Group Floor Plan Dialog -->
     <v-dialog
       v-model="showItemGroupFloorPlanDialog"
-      max-width="1100"
       persistent
       :fullscreen="isCompactFloorPlanViewport"
       data-cy="item-group-floor-plan-dialog"
@@ -835,6 +833,24 @@
     >
       <span data-cy="booking-error-text">{{ errorSnackbarMessage }}</span>
     </v-snackbar>
+
+    <v-dialog v-model="showLimitDialog" max-width="400" persistent data-cy="booking-limit-dialog">
+      <v-card>
+        <v-card-title>{{ $t('items.bookingLimitTitle') }}</v-card-title>
+        <v-card-text data-cy="booking-limit-text" style="white-space: pre-line">{{ limitDialogMessage }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            color="primary"
+            variant="flat"
+            data-cy="booking-limit-ok"
+            @click="showLimitDialog = false"
+          >
+            {{ $t('common.confirm') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -883,6 +899,8 @@ const showErrorSnackbar = computed({
   get: () => errorSnackbarMessage.value !== null,
   set: (v: boolean) => { if (!v) errorSnackbarMessage.value = null; }
 });
+const showLimitDialog = ref(false);
+const limitDialogMessage = ref('');
 const lastBookingDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
@@ -1349,6 +1367,12 @@ const localizeItemsBookingError = (err: unknown, fallback: string): string => {
   return fallback;
 };
 
+const isLimitError = (err: unknown): boolean => {
+  return err instanceof ApiError
+    && err.status === 409
+    && (err.detail ?? '').toLowerCase().includes('booking limit exceeded');
+};
+
 const submitWeekBookings = async () => {
   if (!activeItemGroupId.value || weekSelections.value.size === 0) return;
 
@@ -1375,26 +1399,42 @@ const submitWeekBookings = async () => {
       ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
       : undefined;
 
+  const limitErrors: string[] = [];
   const promises = entries.map(async ({ itemId, itemName, date }) => {
     try {
       await createBooking(itemId, date, onBehalf);
-      return { itemName, date, success: true };
+      return { itemName, date, success: true, limitHit: false };
     } catch (err) {
+      if (isLimitError(err)) {
+        const msg = localizeItemsBookingConflict(err as ApiError);
+        const dayIdx = selectedWeekDates.value.indexOf(date);
+        const dayLabel = dayIdx >= 0 ? getFullDayLabel(date, dayIdx) : date;
+        limitErrors.push(`${itemName} — ${dayLabel}: ${msg}`);
+        return { itemName, date, success: false, error: msg, limitHit: true };
+      }
       const msg = localizeItemsBookingError(err, t('items.bookingFailed'));
-      return { itemName, date, success: false, error: msg };
+      return { itemName, date, success: false, error: msg, limitHit: false };
     }
   });
 
   const results = await Promise.allSettled(promises);
 
-  weekBookingResults.value = results.map(r => {
+  const mapped = results.map(r => {
     const val = r.status === 'fulfilled'
       ? r.value
-      : { itemName: '', date: '', success: false as const, error: t('items.unexpectedError') };
+      : { itemName: '', date: '', success: false as const, error: t('items.unexpectedError'), limitHit: false };
     const dayIdx = selectedWeekDates.value.indexOf(val.date);
     const dayLabel = dayIdx >= 0 ? getFullDayLabel(val.date, dayIdx) : val.date;
-    return { itemName: val.itemName, date: val.date, dayLabel, success: val.success, error: val.error };
+    return { itemName: val.itemName, date: val.date, dayLabel, success: val.success, error: val.error, limitHit: val.limitHit };
   });
+
+  // Show only non-limit results in the results card
+  weekBookingResults.value = mapped.filter(r => !r.limitHit);
+
+  if (limitErrors.length > 0) {
+    limitDialogMessage.value = limitErrors.join('\n');
+    showLimitDialog.value = true;
+  }
 
   weekSelections.value = new Set();
 
@@ -1528,18 +1568,28 @@ const bookItem = async (itemId: string) => {
     const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || t('common.item');
     let detail = t('items.unableToBook');
 
-    if (err instanceof ApiError && err.status === 409) {
+    if (isLimitError(err)) {
+      detail = localizeItemsBookingConflict(err as ApiError);
+      limitDialogMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
+      showLimitDialog.value = true;
+
+      if (activeItemGroupId.value) {
+        await loadItems(activeItemGroupId.value, selectedDate.value);
+      }
+    } else if (err instanceof ApiError && err.status === 409) {
       detail = localizeItemsBookingConflict(err);
 
       // Refresh item list so user sees updated availability
       if (activeItemGroupId.value) {
         await loadItems(activeItemGroupId.value, selectedDate.value);
       }
-    } else if (err instanceof ApiError && err.status === 404) {
-      detail = t('items.itemNotFound');
+      errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
+    } else {
+      if (err instanceof ApiError && err.status === 404) {
+        detail = t('items.itemNotFound');
+      }
+      errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
     }
-
-    errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
   } finally {
     bookingItemId.value = null;
   }

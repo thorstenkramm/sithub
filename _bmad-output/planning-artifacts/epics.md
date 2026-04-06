@@ -3,7 +3,8 @@ stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-c
 inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
-lastEdited: '2026-03-13'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-23.md
+lastEdited: '2026-04-06'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -23,6 +24,8 @@ editHistory:
     changes: "Added FR85-FR90 and Epic 21: i18n, UX Improvements & Booking Limits. Covers multilanguage UI with auto-detection, My Bookings layout reorder, visual fixes (equipment filter icon, floor plan button), and configurable booking limits (advance weeks, max per person with area overrides)."
   - date: '2026-04-05'
     changes: "Added FR91-FR100 and Epic 22: Bug Fixes, Avatars & Reserved Areas. Covers mobile UX audit findings (truncation, menu overflow, week mode readability, floor plan mobile), user avatar sync/upload, and reserved areas/items with YAML-based access control."
+  - date: '2026-04-06'
+    changes: "Added FR101-FR103 and Epic 23: UI Bug Fixes. Covers booking tile heart icon positioning, hidden booking limit error messages, and floor plan desktop width."
 ---
 
 # sithub - Epic Breakdown
@@ -454,6 +457,9 @@ FR97: Epic 22 - User avatar sync from Entra ID
 FR98: Epic 22 - User avatar upload for local users
 FR99: Epic 22 - Avatar display integration
 FR100: Epic 22 - Reserved areas and items
+FR101: Epic 23 - Booking tile heart icon mispositioned in day and week modes
+FR102: Epic 23 - Booking limit error hidden at page bottom instead of modal overlay
+FR103: Epic 23 - Floor plan wastes space on desktop (does not use full width)
 
 ## Epic List
 
@@ -581,10 +587,10 @@ uploaded locally and displayed across the app. Areas and items can be reserved f
 specific users via YAML configuration.
 **FRs covered:** FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR98, FR99, FR100
 
-Users can view live free/busy status on floor plan overlays, book items directly from
-floor plans, and admins can position items on floor plan images. Navigation state is
-preserved across the app and confirmations use a consistent style.
-**FRs covered:** FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82, FR83, FR84
+### Epic 23: UI Bug Fixes
+
+Fix booking tile layout, hidden error messages, and floor plan width on desktop.
+**FRs covered:** FR101, FR102, FR103
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -3061,3 +3067,72 @@ equipment filter blur pattern)
 **Given** a floor plan shows items reserved for other users
 **When** the floor plan renders
 **Then** reserved items are grayed out or marked with a lock icon
+
+## Epic 23 Stories: UI Bug Fixes
+
+Fix booking tile layout, hidden error messages, and floor plan width on desktop.
+**FRs covered:** FR101, FR102, FR103
+
+### Story 23.1: Booking Tile Heart Icon Position
+
+**FRs covered:** FR101
+
+As a user,
+I want the favorite heart icon correctly positioned on booking tiles,
+so that the tile layout is clean and consistent in both day and week modes.
+
+**Acceptance Criteria:**
+
+**Given** I view items in day booking mode
+**When** a tile renders with the heart/favorite icon
+**Then** the heart icon is aligned in its designated position on the second line
+(after availability, before info/chevron)
+
+**Given** I view items in week booking mode
+**When** a tile renders with the heart/favorite icon
+**Then** the heart icon is in the same correct position as in day mode
+
+**Given** the tile is rendered
+**When** I inspect the layout
+**Then** a test exists that detects the wrong layout before the fix and passes
+after the fix
+
+### Story 23.2: Booking Limit Error Modal
+
+**FRs covered:** FR102
+
+As a user,
+I want booking limit errors shown in a modal overlay,
+so that I cannot miss critical error messages when booking by week.
+
+**Acceptance Criteria:**
+
+**Given** I am booking items for multiple days in week mode
+**When** the booking exceeds my booking limit
+**Then** the error is displayed in a modal dialog overlaying all other content
+
+**Given** the booking limit error modal is displayed
+**When** I read the error
+**Then** I must actively press a close/dismiss button to continue using the app
+
+**Given** the booking limit error modal is displayed
+**When** I dismiss it
+**Then** I return to the booking view with my previous selections intact
+
+### Story 23.3: Floor Plan Full-Width Desktop Layout
+
+**FRs covered:** FR103
+
+As a user,
+I want the floor plan to use the full available width on desktop,
+so that I can see floor plan details without unnecessary whitespace.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing a floor plan on a desktop viewport (>= 960px)
+**When** the floor plan renders
+**Then** the floor plan container uses the full available width of the content area
+
+**Given** I am viewing a floor plan on a mobile viewport
+**When** the floor plan renders
+**Then** the existing mobile layout behavior is unchanged

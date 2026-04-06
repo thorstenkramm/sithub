@@ -362,6 +362,19 @@ describe('ItemGroupsView', () => {
     expect(wrapper.get('[data-cy="floor-plan-dialog"]').attributes('data-fullscreen')).toBe('true');
   });
 
+  it('opens the floor plan dialog without max-width on desktop', async () => {
+    mockFetchItemGroups(1);
+    mockFetchAreas('area.svg');
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    await wrapper.get('[data-cy="area-floor-plan-btn"]').trigger('click');
+    const dialog = wrapper.get('[data-cy="floor-plan-dialog"]');
+    expect(dialog.attributes('max-width')).toBeUndefined();
+    expect(dialog.attributes('maxwidth')).toBeUndefined();
+  });
+
   it('hides the floor plan button when the area has no floor plan', async () => {
     mockFetchItemGroups(1);
     mockFetchAreas();

@@ -493,7 +493,7 @@ describe('ItemsView', () => {
     expect(wrapper.get('.item-name').text()).toBe(middleTruncate(longName, 25));
   });
 
-  it('renders the day-mode favorite heart inside the action row', async () => {
+  it('renders the day-mode favorite heart inside the status row', async () => {
     fetchItemsMock.mockResolvedValue({
       data: [{
         id: 'item-1',
@@ -509,7 +509,8 @@ describe('ItemsView', () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.find('[data-cy="day-item-actions"] [data-cy="item-favorite-heart"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="day-status-row"] [data-cy="item-favorite-heart"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="day-item-actions"] [data-cy="item-favorite-heart"]').exists()).toBe(false);
   });
 
   describe('week mode rendering', () => {
@@ -537,7 +538,7 @@ describe('ItemsView', () => {
       expect(wrapper.find('[data-cy="week-item-entry"]').exists()).toBe(true);
     });
 
-    it('renders the week-mode favorite heart inside the action row', async () => {
+    it('renders the week-mode favorite heart inside the status row', async () => {
       fetchItemsMock.mockResolvedValue({
         data: [{
           id: 'item-1',
@@ -549,7 +550,8 @@ describe('ItemsView', () => {
       const wrapper = mountView();
       await flushPromises();
 
-      expect(wrapper.find('[data-cy="week-item-actions"] [data-cy="week-item-favorite-heart"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="week-status-row"] [data-cy="week-item-favorite-heart"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="week-item-actions"]').exists()).toBe(false);
     });
 
 
@@ -962,6 +964,106 @@ describe('ItemsView', () => {
 
     await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
     expect(wrapper.get('[data-cy="item-group-floor-plan-dialog"]').attributes('data-fullscreen')).toBe('true');
+  });
+
+  it('opens the item-group floor plan dialog without max-width on desktop', async () => {
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group', floor_plan: 'group.svg' } }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
+    const dialog = wrapper.get('[data-cy="item-group-floor-plan-dialog"]');
+    expect(dialog.attributes('max-width')).toBeUndefined();
+    expect(dialog.attributes('maxwidth')).toBeUndefined();
+  });
+
+  describe('booking limit error modal', () => {
+    it('shows limit dialog instead of snackbar for day-mode limit errors', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(
+        new ApiError('Conflict', 409, 'booking limit exceeded: you have reached the maximum of 3 active bookings')
+      );
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="booking-limit-text"]').text()).toContain('3');
+    });
+
+    it('shows limit dialog for week-mode limit errors', async () => {
+      localStorage.setItem('sithub_booking_mode', 'week');
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      // Select a week day checkbox to enable the confirm button
+      const checkbox = wrapper.find('[data-cy="week-day-checkbox"]');
+      if (checkbox.exists()) {
+        await checkbox.find('input').setValue(true);
+        await flushPromises();
+      }
+
+      createBookingMock.mockRejectedValue(
+        new ApiError('Conflict', 409, 'booking limit exceeded: you have reached the maximum of 3 active bookings')
+      );
+
+      const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+      if (confirmBtn.exists()) {
+        await confirmBtn.trigger('click');
+        await flushPromises();
+      }
+
+      expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
+      localStorage.removeItem('sithub_booking_mode');
+    });
+
+    it('dismisses the limit dialog when OK is clicked', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(
+        new ApiError('Conflict', 409, 'booking limit exceeded: you have reached the maximum of 3 active bookings')
+      );
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
+
+      await wrapper.find('[data-cy="booking-limit-ok"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(false);
+    });
   });
 
   it('shows a connection lost error when initial user loading fails', async () => {
