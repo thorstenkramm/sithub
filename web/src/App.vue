@@ -64,6 +64,35 @@
               </v-list-item-subtitle>
             </v-list-item>
             <v-divider class="my-1" />
+            <v-list-item
+              v-if="authStore.isAdmin"
+              :to="{ name: 'floor-plan-editor' }"
+              data-cy="floor-plan-editor-btn"
+            >
+              <template #prepend>
+                <v-icon size="small">$map</v-icon>
+              </template>
+              <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item
+              data-cy="avatar-btn"
+              @click="showAvatarDialog = true"
+            >
+              <template #prepend>
+                <v-icon size="small">$user</v-icon>
+              </template>
+              <v-list-item-title>{{ $t('app.userMenu.avatar') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item
+              v-if="authStore.authSource === 'internal'"
+              data-cy="change-password-btn"
+              @click="showPasswordDialog = true"
+            >
+              <template #prepend>
+                <v-icon size="small" data-cy="change-password-icon">$lockReset</v-icon>
+              </template>
+              <v-list-item-title>{{ $t('app.userMenu.changePassword') }}</v-list-item-title>
+            </v-list-item>
             <v-list-item data-cy="theme-selector">
               <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.theme') }}</v-list-item-title>
               <v-btn-toggle
@@ -107,35 +136,6 @@
               />
             </v-list-item>
             <v-divider class="my-1" />
-            <v-list-item
-              v-if="authStore.isAdmin"
-              :to="{ name: 'floor-plan-editor' }"
-              data-cy="floor-plan-editor-btn"
-            >
-              <template #prepend>
-                <v-icon size="small">$map</v-icon>
-              </template>
-              <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
-            </v-list-item>
-            <v-list-item
-              data-cy="avatar-btn"
-              @click="showAvatarDialog = true"
-            >
-              <template #prepend>
-                <v-icon size="small">$user</v-icon>
-              </template>
-              <v-list-item-title>{{ $t('app.userMenu.avatar') }}</v-list-item-title>
-            </v-list-item>
-            <v-list-item
-              v-if="authStore.authSource === 'internal'"
-              data-cy="change-password-btn"
-              @click="showPasswordDialog = true"
-            >
-              <template #prepend>
-                <v-icon size="small" data-cy="change-password-icon">$lockReset</v-icon>
-              </template>
-              <v-list-item-title>{{ $t('app.userMenu.changePassword') }}</v-list-item-title>
-            </v-list-item>
             <v-list-item data-cy="logout-btn" @click="handleLogout">
               <template #prepend>
                 <v-icon size="small">$logout</v-icon>
@@ -182,6 +182,36 @@
             <v-list-item-title>{{ $t('app.navigation.history') }}</v-list-item-title>
           </v-list-item>
           <v-divider class="my-2" />
+          <v-list-item
+            v-if="authStore.isAdmin"
+            :to="{ name: 'floor-plan-editor' }"
+            data-cy="mobile-floor-plan-editor-btn"
+            @click="mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon>$map</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            data-cy="mobile-avatar-btn"
+            @click="showAvatarDialog = true; mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon>$user</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('app.userMenu.avatar') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            v-if="authStore.authSource === 'internal'"
+            data-cy="mobile-change-password-btn"
+            @click="showPasswordDialog = true; mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon data-cy="mobile-change-password-icon">$lockReset</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('app.userMenu.changePassword') }}</v-list-item-title>
+          </v-list-item>
           <v-list-item data-cy="mobile-theme-selector">
             <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.theme') }}</v-list-item-title>
             <v-btn-toggle
@@ -225,36 +255,6 @@
             />
           </v-list-item>
           <v-divider class="my-2" />
-          <v-list-item
-            v-if="authStore.isAdmin"
-            :to="{ name: 'floor-plan-editor' }"
-            data-cy="mobile-floor-plan-editor-btn"
-            @click="mobileDrawer = false"
-          >
-            <template #prepend>
-              <v-icon>$map</v-icon>
-            </template>
-            <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
-          </v-list-item>
-          <v-list-item
-            data-cy="mobile-avatar-btn"
-            @click="showAvatarDialog = true; mobileDrawer = false"
-          >
-            <template #prepend>
-              <v-icon>$user</v-icon>
-            </template>
-            <v-list-item-title>{{ $t('app.userMenu.avatar') }}</v-list-item-title>
-          </v-list-item>
-          <v-list-item
-            v-if="authStore.authSource === 'internal'"
-            data-cy="mobile-change-password-btn"
-            @click="showPasswordDialog = true; mobileDrawer = false"
-          >
-            <template #prepend>
-              <v-icon data-cy="mobile-change-password-icon">$lockReset</v-icon>
-            </template>
-            <v-list-item-title>{{ $t('app.userMenu.changePassword') }}</v-list-item-title>
-          </v-list-item>
           <v-list-item data-cy="mobile-logout-btn" @click="handleLogout">
             <template #prepend>
               <v-icon>$logout</v-icon>

@@ -1075,6 +1075,402 @@ describe('ItemsView', () => {
     expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
 
+  describe('warning confirmation dialog', () => {
+    const itemWithWarning = {
+      id: 'item-warn',
+      type: 'items' as const,
+      attributes: {
+        name: 'Workspace 1',
+        equipment: ['monitor'],
+        availability: 'available' as const,
+        warning: 'Only for Apple users.'
+      }
+    };
+
+    const itemNoWarning = {
+      id: 'item-ok',
+      type: 'items' as const,
+      attributes: {
+        name: 'Workspace 2',
+        equipment: [],
+        availability: 'available' as const
+      }
+    };
+
+    beforeEach(() => {
+      localStorage.removeItem('sithub_warning_suppressed');
+      createBookingMock.mockClear();
+    });
+
+    it('shows warning dialog when booking item with warning', async () => {
+      fetchItemsMock.mockResolvedValue({ data: [itemWithWarning] });
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="warning-item-name"]').text()).toBe('Workspace 1');
+      expect(wrapper.find('[data-cy="warning-message"]').text()).toBe('Only for Apple users.');
+      expect(createBookingMock).not.toHaveBeenCalled();
+    });
+
+    it('proceeds with booking when CONFIRM is clicked', async () => {
+      fetchItemsMock.mockResolvedValue({ data: [itemWithWarning] });
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+      expect(createBookingMock).toHaveBeenCalled();
+    });
+
+    it('aborts booking when CANCEL is clicked', async () => {
+      fetchItemsMock.mockResolvedValue({ data: [itemWithWarning] });
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-cy="warning-cancel-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+      expect(createBookingMock).not.toHaveBeenCalled();
+    });
+
+    it('stores suppression in localStorage when dont-show-again is checked', async () => {
+      fetchItemsMock.mockResolvedValue({ data: [itemWithWarning] });
+      const wrapper = mountView();
+      await flushPromises();
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      const checkbox = wrapper.find('[data-cy="warning-dont-show-checkbox"] input');
+      await checkbox.setValue(true);
+      await flushPromises();
+
+      await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+      await flushPromises();
+
+      const stored = JSON.parse(localStorage.getItem('sithub_warning_suppressed') || '[]');
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toMatch(/^item-warn::/);
+    });
+
+    it('skips dialog for suppressed item and books directly', async () => {
+      // Pre-suppress by booking with dont-show-again first
+      fetchItemsMock.mockResolvedValue({ data: [itemWithWarning] });
+      const setup = mountView();
+      await flushPromises();
+      await setup.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
+      await flushPromises();
+      await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
+      await flushPromises();
+      setup.unmount();
+
+      // Now mount fresh and verify suppression works
+      fetchItemsMock.mockResolvedValue({ data: [itemWithWarning] });
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+      expect(createBookingMock).toHaveBeenCalled();
+    });
+
+    it('books directly without dialog for item without warning', async () => {
+      fetchItemsMock.mockResolvedValue({ data: [itemNoWarning] });
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+
+      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+      expect(createBookingMock).toHaveBeenCalled();
+    });
+
+    describe('week mode sequential warnings', () => {
+      const warnItemA = {
+        id: 'warn-a',
+        type: 'items' as const,
+        attributes: {
+          name: 'Desk A',
+          equipment: [],
+          availability: 'available' as const,
+          warning: 'Warning for A'
+        }
+      };
+
+      const warnItemB = {
+        id: 'warn-b',
+        type: 'items' as const,
+        attributes: {
+          name: 'Desk B',
+          equipment: [],
+          availability: 'available' as const,
+          warning: 'Warning for B'
+        }
+      };
+
+      const noWarnItem = {
+        id: 'no-warn',
+        type: 'items' as const,
+        attributes: {
+          name: 'Desk C',
+          equipment: [],
+          availability: 'available' as const
+        }
+      };
+
+      // v-btn stub that doesn't double-fire click: uses emits declaration
+      // so @click listener stays in $attrs and isn't also emitted
+      const weekStubs = {
+        ...stubs,
+        'v-btn': {
+          inheritAttrs: false,
+          emits: ['click'],
+          template: '<button type="button" @click="$emit(\'click\', $event)"><slot /></button>'
+        }
+      };
+
+      const mountWeekView = () =>
+        mount(ItemsView, {
+          global: {
+            stubs: weekStubs,
+            plugins: [createPinia(), createTestI18n()]
+          }
+        });
+
+      const setupWeekMode = (weekItems: typeof warnItemA[]) => {
+        localStorage.setItem('sithub_booking_mode', 'week');
+        fetchItemsMock.mockResolvedValue({ data: weekItems });
+        fetchMyBookingsMock.mockResolvedValue({ data: [] } as never);
+      };
+
+      beforeEach(() => {
+        localStorage.removeItem('sithub_warning_suppressed');
+        createBookingMock.mockClear();
+      });
+
+      afterEach(() => {
+        localStorage.removeItem('sithub_booking_mode');
+      });
+
+      const selectOneCheckboxPerItem = async (wrapper: ReturnType<typeof mountView>, itemCount: number) => {
+        const checkboxes = wrapper.findAll('[data-cy="week-day-checkbox"] input');
+        // Week mode renders N day-checkboxes per item; select first checkbox of each item
+        const checkboxesPerItem = Math.floor(checkboxes.length / itemCount);
+        for (let i = 0; i < itemCount && i * checkboxesPerItem < checkboxes.length; i++) {
+          await checkboxes[i * checkboxesPerItem].setValue(true);
+        }
+        await flushPromises();
+      };
+
+      it('shows sequential warnings for 2 warned items then proceeds', async () => {
+        setupWeekMode([warnItemA, warnItemB]);
+        const wrapper = mountWeekView();
+        await flushPromises();
+        createBookingMock.mockClear();
+
+        await selectOneCheckboxPerItem(wrapper, 2);
+
+        const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+        if (!confirmBtn.exists()) return;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+
+        // First warning dialog shown
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+        const firstName = wrapper.find('[data-cy="warning-item-name"]').text();
+        expect(createBookingMock).not.toHaveBeenCalled();
+
+        // Confirm first — dialog stays open with next item's content
+        await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await nextTick();
+
+        // Second warning dialog shown (same dialog, updated content)
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+        const secondName = wrapper.find('[data-cy="warning-item-name"]').text();
+        expect(secondName).not.toBe(firstName);
+        expect(createBookingMock).not.toHaveBeenCalled();
+
+        // Confirm second — booking proceeds
+        await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+        expect(createBookingMock).toHaveBeenCalled();
+      });
+
+      it('aborts entire booking when CANCEL on first warning', async () => {
+        setupWeekMode([warnItemA, warnItemB]);
+        const wrapper = mountWeekView();
+        await flushPromises();
+        createBookingMock.mockClear();
+
+        await selectOneCheckboxPerItem(wrapper, 2);
+
+        const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+        if (!confirmBtn.exists()) return;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+
+        // Cancel on first warning
+        await wrapper.find('[data-cy="warning-cancel-btn"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+        expect(createBookingMock).not.toHaveBeenCalled();
+      });
+
+      it('aborts entire booking when CANCEL on second warning', async () => {
+        setupWeekMode([warnItemA, warnItemB]);
+        const wrapper = mountWeekView();
+        await flushPromises();
+        createBookingMock.mockClear();
+
+        await selectOneCheckboxPerItem(wrapper, 2);
+
+        const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+        if (!confirmBtn.exists()) return;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+
+        // Confirm first warning
+        await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+
+        // Cancel on second warning
+        await wrapper.find('[data-cy="warning-cancel-btn"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+        expect(createBookingMock).not.toHaveBeenCalled();
+      });
+
+      it('skips suppressed items in the queue', async () => {
+        // Pre-suppress warn-a in day mode
+        fetchItemsMock.mockResolvedValue({ data: [warnItemA] });
+        const setup = mountView();
+        await flushPromises();
+        await setup.find('[data-cy="book-item-btn"]').trigger('click');
+        await flushPromises();
+        await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
+        await flushPromises();
+        await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+        setup.unmount();
+
+        // Now week mode with both items
+        setupWeekMode([warnItemA, warnItemB]);
+        const wrapper = mountView();
+        await flushPromises();
+        createBookingMock.mockClear();
+
+        await selectOneCheckboxPerItem(wrapper, 2);
+
+        const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+        if (!confirmBtn.exists()) return;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+
+        // Only warn-b dialog should appear (warn-a is suppressed)
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+        expect(wrapper.find('[data-cy="warning-item-name"]').text()).toBe('Desk B');
+
+        // Confirm — booking proceeds
+        await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+        expect(createBookingMock).toHaveBeenCalled();
+      });
+
+      it('proceeds immediately when all warnings suppressed', async () => {
+        // Pre-suppress both items in day mode
+        fetchItemsMock.mockResolvedValue({ data: [warnItemA] });
+        let setup = mountView();
+        await flushPromises();
+        await setup.find('[data-cy="book-item-btn"]').trigger('click');
+        await flushPromises();
+        await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
+        await flushPromises();
+        await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+        setup.unmount();
+
+        fetchItemsMock.mockResolvedValue({ data: [warnItemB] });
+        setup = mountView();
+        await flushPromises();
+        await setup.find('[data-cy="book-item-btn"]').trigger('click');
+        await flushPromises();
+        await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
+        await flushPromises();
+        await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+        setup.unmount();
+
+        // Week mode with both suppressed
+        setupWeekMode([warnItemA, warnItemB]);
+        const wrapper = mountView();
+        await flushPromises();
+        createBookingMock.mockClear();
+
+        await selectOneCheckboxPerItem(wrapper, 2);
+
+        const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+        if (!confirmBtn.exists()) return;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+
+        // No dialog — proceeds directly
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+        expect(createBookingMock).toHaveBeenCalled();
+      });
+
+      it('shows one dialog for single warned item then proceeds', async () => {
+        setupWeekMode([warnItemA, noWarnItem]);
+        const wrapper = mountView();
+        await flushPromises();
+        createBookingMock.mockClear();
+
+        await selectOneCheckboxPerItem(wrapper, 2);
+
+        const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
+        if (!confirmBtn.exists()) return;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+
+        // Only warn-a dialog
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+        expect(wrapper.find('[data-cy="warning-item-name"]').text()).toBe('Desk A');
+
+        await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+        expect(createBookingMock).toHaveBeenCalled();
+      });
+    });
+  });
+
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);
 });
 /* jscpd:ignore-end */

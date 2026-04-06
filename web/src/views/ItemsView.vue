@@ -347,7 +347,7 @@
             :loading="bookingItemId === entry.id"
             :disabled="bookingItemId !== null || cancelingBookingId !== null"
             data-cy="book-item-btn"
-            @click="bookItem(entry.id)"
+            @click="requestBooking(entry.id)"
           >
             {{ $t('items.book') }}
           </v-btn>
@@ -667,7 +667,7 @@
         block
         :loading="weekBookingInProgress"
         data-cy="week-confirm-btn"
-        @click="submitWeekBookings"
+        @click="startWeekWarningFlow"
       >
         {{ $t('items.bookDays', { count: weekSelectionCount }, weekSelectionCount) }}
       </v-btn>
@@ -851,6 +851,49 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="showWarningDialog" max-width="400" persistent data-cy="warning-dialog">
+      <v-card>
+        <v-card-title>{{ $t('items.warningDialogTitle') }}</v-card-title>
+        <v-card-text>
+          <div
+            data-cy="warning-item-name"
+            class="text-subtitle-2 mb-2"
+            style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+          >
+            {{ warningDialogItemName }}
+          </div>
+          <div data-cy="warning-message" style="white-space: pre-line">{{ warningDialogMessage }}</div>
+        </v-card-text>
+        <v-card-actions class="flex-column align-start px-4 pb-4">
+          <v-checkbox
+            v-model="warningDontShowAgain"
+            :label="$t('items.warningDontShowAgain')"
+            density="compact"
+            hide-details
+            data-cy="warning-dont-show-checkbox"
+            class="mb-2"
+          />
+          <div class="d-flex w-100 justify-end ga-2">
+            <v-btn
+              variant="text"
+              data-cy="warning-cancel-btn"
+              @click.stop="cancelWarningDialog"
+            >
+              {{ $t('items.warningCancel') }}
+            </v-btn>
+            <v-btn
+              color="primary"
+              variant="flat"
+              data-cy="warning-confirm-btn"
+              @click.stop="confirmWarningDialog"
+            >
+              {{ $t('items.warningConfirm') }}
+            </v-btn>
+          </div>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -883,6 +926,7 @@ import { useSavedFilters } from '../composables/useSavedFilters';
 import { useDateState } from '../composables/useDateState';
 import { useFavorites } from '../composables/useFavorites';
 import { getSafeLocalStorage } from '../composables/storage';
+import { useWarningSuppression } from '../composables/useWarningSuppression';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { middleTruncate } from '../utils/text';
@@ -901,6 +945,14 @@ const showErrorSnackbar = computed({
 });
 const showLimitDialog = ref(false);
 const limitDialogMessage = ref('');
+const { isWarningSuppressed, suppressWarning } = useWarningSuppression();
+const showWarningDialog = ref(false);
+const warningDialogItemId = ref('');
+const warningDialogItemName = ref('');
+const warningDialogMessage = ref('');
+const warningDontShowAgain = ref(false);
+const warningQueue = ref<{ itemId: string; itemName: string; warning: string }[]>([]);
+const warningQueueMode = ref<'day' | 'week'>('day');
 const lastBookingDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
@@ -1505,6 +1557,106 @@ const loadItems = async (itemGroupId: string, date: string) => {
     }
     itemsErrorMessage.value = t('items.unableToLoad');
   }
+};
+
+const requestBooking = (itemId: string) => {
+  if (showWarningDialog.value) return;
+
+  const item = items.value.find(entry => entry.id === itemId);
+  const warning = item?.attributes.warning;
+
+  if (warning && !isWarningSuppressed(itemId, warning)) {
+    warningDialogItemId.value = itemId;
+    warningDialogItemName.value = item?.attributes.name || '';
+    warningDialogMessage.value = warning;
+    warningDontShowAgain.value = false;
+    showWarningDialog.value = true;
+    return;
+  }
+
+  bookItem(itemId);
+};
+
+const findWeekItem = (itemId: string): JsonApiResource<ItemAttributes> | undefined => {
+  for (const dayItems of Object.values(weekData.value)) {
+    const item = dayItems.find(i => i.id === itemId);
+    if (item) return item;
+  }
+  return undefined;
+};
+
+const collectUnsuppressedWarnings = (): { itemId: string; itemName: string; warning: string }[] => {
+  const uniqueItemIds = [...new Set(
+    [...weekSelections.value].map(key => key.split('::')[0] || '')
+  )];
+  return uniqueItemIds
+    .map(itemId => {
+      const item = findWeekItem(itemId);
+      const w = item?.attributes.warning;
+      if (!item || !w) return null;
+      return { itemId, itemName: item.attributes.name || '', warning: w };
+    })
+    .filter((entry): entry is { itemId: string; itemName: string; warning: string } => entry !== null)
+    .filter(entry => !isWarningSuppressed(entry.itemId, entry.warning));
+};
+
+const startWeekWarningFlow = () => {
+  if (showWarningDialog.value) return;
+  const queue = collectUnsuppressedWarnings();
+  if (queue.length === 0) {
+    submitWeekBookings();
+    return;
+  }
+  warningQueue.value = queue;
+  warningQueueMode.value = 'week';
+  const first = queue[0]!;
+  warningDialogItemId.value = first.itemId;
+  warningDialogItemName.value = first.itemName;
+  warningDialogMessage.value = first.warning;
+  warningDontShowAgain.value = false;
+  showWarningDialog.value = true;
+};
+
+const resetWarningDialogState = () => {
+  showWarningDialog.value = false;
+  warningDialogItemId.value = '';
+  warningDialogItemName.value = '';
+  warningDialogMessage.value = '';
+  warningDontShowAgain.value = false;
+};
+
+const confirmWarningDialog = () => {
+  if (!showWarningDialog.value) return;
+  const itemId = warningDialogItemId.value;
+  const warning = warningDialogMessage.value;
+  if (warningDontShowAgain.value) {
+    suppressWarning(itemId, warning);
+  }
+
+  if (warningQueueMode.value === 'week') {
+    warningQueue.value = warningQueue.value.slice(1);
+    if (warningQueue.value.length > 0) {
+      // Update dialog content in-place — keep showWarningDialog true
+      warningDontShowAgain.value = false;
+      const next = warningQueue.value[0]!;
+      warningDialogItemId.value = next.itemId;
+      warningDialogItemName.value = next.itemName;
+      warningDialogMessage.value = next.warning;
+      return;
+    }
+    resetWarningDialogState();
+    warningQueueMode.value = 'day';
+    submitWeekBookings();
+  } else {
+    resetWarningDialogState();
+    bookItem(itemId);
+  }
+};
+
+const cancelWarningDialog = () => {
+  resetWarningDialogState();
+  warningQueue.value = [];
+  warningQueueMode.value = 'day';
 };
 
 const bookItem = async (itemId: string) => {

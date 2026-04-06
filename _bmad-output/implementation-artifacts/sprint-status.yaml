@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-04-06T16:02:21+02:00
+last_updated: 2026-04-06T18:30:00+02:00
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -217,3 +217,9 @@ development_status:
   23-2-booking-limit-error-modal: done
   23-3-floor-plan-full-width-desktop: review
   epic-23-retrospective: optional
+
+  epic-24: in-progress
+  24-1-warning-confirmation-dialog: done
+  24-2-sequential-warning-dialogs-week-mode: done
+  24-3-profile-and-settings-consolidation: done
+  epic-24-retrospective: optional

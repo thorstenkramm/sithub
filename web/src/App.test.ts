@@ -73,6 +73,55 @@ describe('App', () => {
     expect(wrapper.find('router-view-stub').exists()).toBe(true);
   });
 
+  describe('consolidated profile menu', () => {
+    beforeEach(() => {
+      const authStore = useAuthStore(pinia);
+      authStore.setUser({
+        id: 'user-1',
+        display_name: 'Test User',
+        email: 'test@example.com',
+        is_admin: true,
+        auth_source: 'internal',
+      });
+    });
+
+    it('desktop menu contains all settings and profile items', async () => {
+      const wrapper = mountApp();
+      await nextTick();
+
+      // Profile actions present
+      expect(wrapper.find('[data-cy="floor-plan-editor-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="avatar-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="change-password-btn"]').exists()).toBe(true);
+
+      // Settings controls present
+      expect(wrapper.find('[data-cy="theme-selector"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="language-selector"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="show-weekends-toggle"]').exists()).toBe(true);
+
+      // Logout present
+      expect(wrapper.find('[data-cy="logout-btn"]').exists()).toBe(true);
+    });
+
+    it('mobile menu contains all settings and profile items', async () => {
+      const wrapper = mountApp();
+      await nextTick();
+
+      // Profile actions present
+      expect(wrapper.find('[data-cy="mobile-floor-plan-editor-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="mobile-avatar-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="mobile-change-password-btn"]').exists()).toBe(true);
+
+      // Settings controls present
+      expect(wrapper.find('[data-cy="mobile-theme-selector"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="mobile-language-selector"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="mobile-show-weekends-toggle"]').exists()).toBe(true);
+
+      // Logout present
+      expect(wrapper.find('[data-cy="mobile-logout-btn"]').exists()).toBe(true);
+    });
+  });
+
   it('renders the current user avatar and retries after a user switch', async () => {
     const authStore = useAuthStore(pinia);
     authStore.setUser({

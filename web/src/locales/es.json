@@ -157,7 +157,11 @@
     "bookDays": "Reservar ({count} dia) | Reservar ({count} dias)",
     "bookingLimitExceeded": "Ha alcanzado el máximo de {count} reservas activas para {scope}",
     "bookingLimitExceededGlobal": "Ha alcanzado el máximo de {count} reservas activas",
-    "bookingLimitTitle": "Limite de reservas alcanzado"
+    "bookingLimitTitle": "Limite de reservas alcanzado",
+    "warningDialogTitle": "¡ATENCIÓN!",
+    "warningConfirm": "CONFIRMAR",
+    "warningCancel": "CANCELAR",
+    "warningDontShowAgain": "No mostrar de nuevo."
   },
   "bookings": {
     "title": "Mis Reservas",

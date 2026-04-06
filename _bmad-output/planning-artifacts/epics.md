@@ -4,6 +4,7 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-23.md
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-24.md
 lastEdited: '2026-04-06'
 editHistory:
   - date: '2026-02-07'
@@ -26,6 +27,8 @@ editHistory:
     changes: "Added FR91-FR100 and Epic 22: Bug Fixes, Avatars & Reserved Areas. Covers mobile UX audit findings (truncation, menu overflow, week mode readability, floor plan mobile), user avatar sync/upload, and reserved areas/items with YAML-based access control."
   - date: '2026-04-06'
     changes: "Added FR101-FR103 and Epic 23: UI Bug Fixes. Covers booking tile heart icon positioning, hidden booking limit error messages, and floor plan desktop width."
+  - date: '2026-04-06'
+    changes: "Added FR104-FR106 and Epic 24: Booking Warnings & Profile Consolidation. Covers item warning confirmation dialogs with don't-show-again, sequential warnings in week mode, and merging Settings into Profile."
 ---
 
 # sithub - Epic Breakdown
@@ -309,6 +312,20 @@ FR100: Reserved areas and items. Acceptance: `reserved_for` in the areas YAML re
 booking to listed user emails at area, item group, and item levels; hierarchical
 validation rejects configs where a child reserves for users excluded by a parent; items
 not bookable by the current user are disabled and blurred in the UI and floor plan.
+FR104: Warning confirmation before booking. Acceptance: when a user attempts to book an
+item that has a warning, a dialog appears showing the item name (truncated if necessary),
+the warning text, CONFIRM and CANCEL buttons, and a "Don't show again" checkbox; confirming
+proceeds with the booking; cancelling aborts; the don't-show-again status is stored per
+item in browser localStorage and suppresses the dialog on future bookings of that item.
+FR105: Sequential warning display in week booking mode. Acceptance: when booking multiple
+items in week mode where different items have warnings, the warning dialogs are shown one
+after another before the booking is submitted; each dialog identifies the item; the user
+can cancel at any point which aborts the entire booking; items whose warnings were
+previously dismissed via "Don't show again" are skipped.
+FR106: Profile and Settings consolidation. Acceptance: the separate Settings menu option is
+removed from the navigation; all settings (theme, language, show weekends, change password)
+are accessible under the Profile menu; the Profile menu uses the current profile layout;
+no settings functionality is lost.
 
 ### NonFunctional Requirements
 
@@ -460,6 +477,9 @@ FR100: Epic 22 - Reserved areas and items
 FR101: Epic 23 - Booking tile heart icon mispositioned in day and week modes
 FR102: Epic 23 - Booking limit error hidden at page bottom instead of modal overlay
 FR103: Epic 23 - Floor plan wastes space on desktop (does not use full width)
+FR104: Epic 24 - Warning confirmation before booking
+FR105: Epic 24 - Sequential warning display in week mode
+FR106: Epic 24 - Profile and Settings consolidation
 
 ## Epic List
 
@@ -591,6 +611,13 @@ specific users via YAML configuration.
 
 Fix booking tile layout, hidden error messages, and floor plan width on desktop.
 **FRs covered:** FR101, FR102, FR103
+
+### Epic 24: Booking Warnings & Profile Consolidation
+
+Users are prompted with a confirmation dialog before booking items that have warnings,
+with a "don't show again" option per item. In week mode, warnings for multiple items are
+shown sequentially. The Settings menu is removed and consolidated into the Profile menu.
+**FRs covered:** FR104, FR105, FR106
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -3136,3 +3163,109 @@ so that I can see floor plan details without unnecessary whitespace.
 **Given** I am viewing a floor plan on a mobile viewport
 **When** the floor plan renders
 **Then** the existing mobile layout behavior is unchanged
+
+## Epic 24 Stories: Booking Warnings & Profile Consolidation
+
+Users are prompted with a confirmation dialog before booking items that have warnings,
+with a "don't show again" option per item. In week mode, warnings for multiple items are
+shown sequentially. The Settings menu is removed and consolidated into the Profile menu.
+**FRs covered:** FR104, FR105, FR106
+
+### Story 24.1: Warning Confirmation Dialog (Day Mode)
+
+**FRs covered:** FR104
+
+As a user,
+I want to see a confirmation dialog with the item's warning before booking,
+so that I am aware of restrictions and can decide whether to proceed or choose a
+different item.
+
+**Acceptance Criteria:**
+
+**Given** I click BOOK on an item that has a warning in day booking mode
+**When** the warning dialog appears
+**Then** it displays the item name (truncated with ellipsis if longer than the dialog
+width), the warning text, a CONFIRM button, and a CANCEL button
+
+**Given** the warning dialog is displayed
+**When** I click CONFIRM
+**Then** the booking proceeds as normal
+
+**Given** the warning dialog is displayed
+**When** I click CANCEL
+**Then** the booking is aborted and I remain on the booking view with no booking created
+
+**Given** the warning dialog is displayed with a "Don't show again" checkbox
+**When** I check "Don't show again" and click CONFIRM
+**Then** the booking proceeds and the suppression is stored in localStorage keyed by
+item ID
+
+**Given** I have previously checked "Don't show again" for an item
+**When** I book that same item again
+**Then** the warning dialog is skipped and the booking proceeds immediately
+
+**Given** an item has no warning configured
+**When** I click BOOK
+**Then** no warning dialog is shown and the booking proceeds as before
+
+### Story 24.2: Sequential Warning Dialogs (Week Mode)
+
+**FRs covered:** FR105
+
+As a user,
+I want warnings for multiple items shown one after another when booking in week mode,
+so that I can review each item's restrictions before confirming the full week booking.
+
+**Acceptance Criteria:**
+
+**Given** I am in week booking mode and have selected days on multiple items that have
+warnings
+**When** I click "Confirm My Booking"
+**Then** the warning dialogs are shown sequentially, one per item with a warning, each
+identifying the item by name
+
+**Given** a sequential warning dialog is displayed for item A
+**When** I click CONFIRM
+**Then** the next item's warning dialog is shown (or booking proceeds if no more warnings
+remain)
+
+**Given** a sequential warning dialog is displayed for item B
+**When** I click CANCEL
+**Then** the entire week booking is aborted and no bookings are created for any item
+
+**Given** I have previously suppressed warnings for some items via "Don't show again"
+**When** I book a week that includes those items
+**Then** the suppressed items' warning dialogs are skipped; only unsuppressed warnings
+are shown
+
+**Given** all items in my week booking have their warnings suppressed
+**When** I click "Confirm My Booking"
+**Then** the booking proceeds immediately with no warning dialogs
+
+### Story 24.3: Profile and Settings Consolidation
+
+**FRs covered:** FR106
+
+As a user,
+I want all settings accessible from a single Profile menu,
+so that I don't have to choose between two overlapping menus to find what I need.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in and viewing the app
+**When** I look at the navigation
+**Then** there is no separate "Settings" menu option; only the Profile menu
+(avatar/initials) exists
+
+**Given** I open the Profile menu
+**When** I view the menu contents
+**Then** all settings are present: theme selector, language selector, show weekends
+toggle, and change password option
+
+**Given** I open the Profile menu on mobile
+**When** I view the menu contents
+**Then** the same settings are available with the current profile layout styling
+
+**Given** I previously accessed a setting via the old Settings menu
+**When** I look for it after the consolidation
+**Then** the setting is accessible from the Profile menu with no functionality lost

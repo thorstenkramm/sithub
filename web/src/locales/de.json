@@ -157,7 +157,11 @@
     "bookDays": "Buchen ({count} Tag) | Buchen ({count} Tage)",
     "bookingLimitExceeded": "Sie haben das Maximum von {count} aktiven Buchungen für {scope} erreicht",
     "bookingLimitExceededGlobal": "Sie haben das Maximum von {count} aktiven Buchungen erreicht",
-    "bookingLimitTitle": "Buchungslimit erreicht"
+    "bookingLimitTitle": "Buchungslimit erreicht",
+    "warningDialogTitle": "WARNUNG!",
+    "warningConfirm": "BESTÄTIGEN",
+    "warningCancel": "ABBRECHEN",
+    "warningDontShowAgain": "Nicht mehr anzeigen."
   },
   "bookings": {
     "title": "Meine Buchungen",
