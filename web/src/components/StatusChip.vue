@@ -27,7 +27,7 @@ const props = withDefaults(defineProps<{
 
 const statusConfig: Record<StatusType, { color: string; labelKey: string; icon: string }> = {
   available: { color: 'success', labelKey: 'status.available', icon: '$success' },
-  booked: { color: 'warning', labelKey: 'status.booked', icon: '$calendar' },
+  booked: { color: 'error', labelKey: 'status.booked', icon: '$calendar' },
   mine: { color: 'primary', labelKey: 'status.mine', icon: '$check' },
   unavailable: { color: 'error', labelKey: 'status.unavailable', icon: '$close' },
   guest: { color: 'warning', labelKey: 'status.guest', icon: '$userPlus' },

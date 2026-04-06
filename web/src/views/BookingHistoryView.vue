@@ -9,18 +9,18 @@
     <!-- Date Filter Card -->
     <v-card class="mb-6">
       <v-card-text>
-        <div class="d-flex flex-wrap align-end ga-4">
+        <div class="d-flex flex-column flex-sm-row flex-wrap align-end ga-4">
           <DatePickerField
             v-model="fromDate"
             :label="$t('history.fromDate')"
             data-cy="from-date"
-            style="max-width: 200px;"
+            class="history-date-field"
           />
           <DatePickerField
             v-model="toDate"
             :label="$t('history.toDate')"
             data-cy="to-date"
-            style="max-width: 200px;"
+            class="history-date-field"
           />
           <v-btn
             color="primary"
@@ -163,3 +163,17 @@ onMounted(async () => {
   await loadHistory();
 });
 </script>
+
+<style scoped>
+.history-date-field {
+  min-width: 160px;
+  max-width: 280px;
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .history-date-field {
+    max-width: 200px;
+  }
+}
+</style>

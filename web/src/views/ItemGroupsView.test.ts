@@ -10,6 +10,8 @@ import { useDateState } from '../composables/useDateState';
 import { getISOWeekString, getMondayOfWeek } from '../composables/useWeekSelector';
 import { buildViewStubs, createFetchMeMocker, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import en from '../locales/en.json';
+import de from '../locales/de.json';
 
 const pushMock = vi.fn();
 
@@ -120,11 +122,11 @@ describe('ItemGroupsView', () => {
     }]);
   };
 
-  const mountView = () =>
+  const mountView = (i18n = createTestI18n()) =>
     mount(ItemGroupsView, {
       global: {
         stubs,
-        plugins: [createPinia(), createTestI18n()]
+        plugins: [createPinia(), i18n]
       }
     });
 
@@ -251,6 +253,25 @@ describe('ItemGroupsView', () => {
     expect(indicators.text()).toContain('MO');
     expect(indicators.text()).toContain('TU');
     expect(indicators.text()).toContain('FR');
+  });
+
+  it('localizes main item-group availability indicators and aria labels', async () => {
+    mockFetchItemGroups(1);
+    mockAvailabilityForIG1([1, 0, 2, 2, 2]);
+    const wrapper = mountView(createTestI18n({
+      locale: 'de',
+      messages: { en, de }
+    }));
+
+    await flushPromises();
+
+    const indicators = wrapper.find('[data-cy="availability-indicators"]');
+    expect(indicators.text()).toContain('DI');
+    expect(indicators.text()).not.toContain('TU');
+
+    const firstIndicator = wrapper.find('.availability-indicator');
+    expect(firstIndicator.attributes('aria-label')).toContain('verfügbar');
+    expect(firstIndicator.attributes('aria-label')).not.toContain('available');
   });
 
   it('shows available dot for days with availability', async () => {

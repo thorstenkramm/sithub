@@ -44,8 +44,10 @@
             :label="$t('items.bookingDate')"
             :min="todayDate"
             :max="maxBookingDate"
+            density="compact"
+            hide-details
             data-cy="items-date"
-            style="max-width: 280px;"
+            style="max-width: 320px;"
           />
 
           <!-- Week mode: week selector -->
@@ -192,71 +194,66 @@
         <v-card-item>
           <template #prepend>
             <v-avatar
-              :color="entry.attributes.availability === 'available' ? 'success' : 'warning'"
+              :color="entry.attributes.availability === 'available' ? 'success' : 'error'"
               variant="tonal"
               size="48"
             >
               <v-icon size="24">{{ resolveItemIcon(entry.attributes.icon) }}</v-icon>
             </v-avatar>
           </template>
-          <v-card-title class="d-flex align-center flex-wrap">
-            <span class="mr-2">{{ entry.attributes.name }}</span>
+          <!-- Line 1: Item name -->
+          <v-card-title>
+            <v-tooltip location="top" :disabled="!dayNameTruncatedMap[entry.id]">
+              <template #activator="{ props: nameTooltip }">
+                <span v-bind="nameTooltip" class="item-name-shell">
+                  <span :ref="setDayNameRef(entry.id)" class="item-name">{{ getDayNameLabel(entry.id, entry.attributes.name) }}</span>
+                  <span :ref="setDayNameMeasureRef(entry.id)" class="item-name-measure" aria-hidden="true">{{ entry.attributes.name }}</span>
+                </span>
+              </template>
+              {{ entry.attributes.name }}
+            </v-tooltip>
+          </v-card-title>
+          <!-- Line 2: Status chip + warning + chevron -->
+          <div class="d-flex align-center ga-2 mt-1 px-4">
             <StatusChip
               :status="entry.attributes.availability === 'available' ? 'available' : 'booked'"
               size="x-small"
               data-cy="item-status"
             />
+            <v-tooltip
+              v-if="entry.attributes.warning"
+              location="top"
+              content-class="warning-tooltip"
+            >
+              <template #activator="{ props: tooltipProps }">
+                <v-btn
+                  v-bind="tooltipProps"
+                  icon
+                  variant="text"
+                  size="x-small"
+                  color="warning"
+                  data-cy="folded-warning-icon"
+                >
+                  <v-icon size="18">$warning</v-icon>
+                </v-btn>
+              </template>
+              {{ entry.attributes.warning }}
+            </v-tooltip>
+            <v-spacer />
             <v-btn
               icon
               variant="text"
-              size="x-small"
-              class="ml-1"
-              data-cy="item-favorite-heart"
-              @click.stop="handleToggleItemFav(entry.id, entry.attributes.name)"
+              size="small"
+              data-cy="day-tile-chevron"
+              :aria-label="`Toggle details for ${entry.attributes.name}`"
+              :aria-expanded="expandedDayTiles.has(entry.id)"
+              @click="toggleDayTileExpansion(entry.id)"
             >
-              <v-icon size="18" :color="isItemFav(entry.id) ? 'error' : undefined">
-                {{ isItemFav(entry.id) ? '$heart' : '$heartOutline' }}
+              <v-icon>
+                {{ expandedDayTiles.has(entry.id) ? '$chevronDown' : '$chevronLeft' }}
               </v-icon>
             </v-btn>
-          </v-card-title>
-          <template #append>
-            <div v-if="entry.attributes.availability === 'occupied'" class="d-flex align-center">
-              <v-tooltip
-                v-if="!expandedDayTiles.has(entry.id) && entry.attributes.warning"
-                location="top"
-                content-class="warning-tooltip"
-              >
-                <template #activator="{ props: tooltipProps }">
-                  <v-btn
-                    v-bind="tooltipProps"
-                    icon
-                    variant="text"
-                    size="x-small"
-                    color="warning"
-                    class="mr-1"
-                    :aria-label="`View warning for ${entry.attributes.name}`"
-                    data-cy="folded-warning-icon"
-                  >
-                    <v-icon size="18">$warning</v-icon>
-                  </v-btn>
-                </template>
-                {{ entry.attributes.warning }}
-              </v-tooltip>
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                data-cy="day-tile-chevron"
-                :aria-label="`Toggle details for ${entry.attributes.name}`"
-                :aria-expanded="expandedDayTiles.has(entry.id)"
-                @click="toggleDayTileExpansion(entry.id)"
-              >
-                <v-icon>
-                  {{ expandedDayTiles.has(entry.id) ? '$chevronDown' : '$chevronLeft' }}
-                </v-icon>
-              </v-btn>
-            </div>
-          </template>
+          </div>
         </v-card-item>
 
         <v-card-text class="pt-0">
@@ -280,10 +277,9 @@
             </div>
           </div>
 
-          <!-- Warning (hidden on folded booked tiles) -->
+          <!-- Warning (only shown when tile is expanded) -->
           <v-alert
-            v-if="entry.attributes.warning
-              && (entry.attributes.availability === 'available' || expandedDayTiles.has(entry.id))"
+            v-if="entry.attributes.warning && expandedDayTiles.has(entry.id)"
             type="warning"
             variant="tonal"
             density="compact"
@@ -324,12 +320,12 @@
           </div>
         </v-card-text>
 
-        <v-card-actions class="px-4 pb-4">
+        <v-card-actions class="px-4 pb-4 ga-2" data-cy="day-item-actions">
           <v-btn
             v-if="entry.attributes.availability === 'available'"
             color="primary"
             variant="flat"
-            block
+            class="flex-grow-1"
             :loading="bookingItemId === entry.id"
             :disabled="bookingItemId !== null || cancelingBookingId !== null"
             data-cy="book-item-btn"
@@ -341,7 +337,7 @@
             v-else-if="authStore.isAdmin && entry.attributes.booking_id"
             color="error"
             variant="tonal"
-            block
+            class="flex-grow-1"
             :loading="cancelingBookingId === entry.attributes.booking_id"
             :disabled="bookingItemId !== null || cancelingBookingId !== null"
             data-cy="admin-cancel-btn"
@@ -349,7 +345,19 @@
           >
             {{ $t('items.cancelBooking') }}
           </v-btn>
-          <div v-else class="py-2" />
+          <div v-else class="py-2 flex-grow-1" />
+          <v-spacer />
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            data-cy="item-favorite-heart"
+            @click.stop="handleToggleItemFav(entry.id, entry.attributes.name)"
+          >
+            <v-icon size="18" :color="isItemFav(entry.id) ? 'error' : undefined">
+              {{ isItemFav(entry.id) ? '$heart' : '$heartOutline' }}
+            </v-icon>
+          </v-btn>
         </v-card-actions>
       </v-card>
       </div>
@@ -377,67 +385,89 @@
         >
         <v-card-item>
           <template #prepend>
-            <v-avatar color="primary" variant="tonal" size="48">
+            <v-avatar :color="getWeekItemAvatarColor(item.id)" variant="tonal" size="48">
               <v-icon size="24">{{ resolveItemIcon(item.icon) }}</v-icon>
             </v-avatar>
           </template>
-          <v-card-title class="d-flex align-center">
-            {{ item.name }}
+          <!-- Line 1: Item name -->
+          <v-card-title>
+            <v-tooltip location="top" :disabled="!weekNameTruncatedMap[item.id]">
+              <template #activator="{ props: nameTooltip }">
+                <span v-bind="nameTooltip" class="item-name-shell">
+                  <span :ref="setWeekNameRef(item.id)" class="item-name">{{ getWeekNameLabel(item.id, item.name) }}</span>
+                  <span :ref="setWeekNameMeasureRef(item.id)" class="item-name-measure" aria-hidden="true">{{ item.name }}</span>
+                </span>
+              </template>
+              {{ item.name }}
+            </v-tooltip>
+          </v-card-title>
+          <!-- Line 2: Availability + warning + chevron -->
+          <div class="d-flex align-center ga-2 mt-1 px-4">
+            <v-chip
+              size="x-small"
+              :color="getWeekItemAvatarColor(item.id)"
+              variant="tonal"
+              data-cy="week-item-availability"
+            >
+              <v-icon start size="14">{{ getWeekItemFreeDays(item.id) === selectedWeekDates.length ? '$success' : getWeekItemFreeDays(item.id) === 0 ? '$calendar' : '$success' }}</v-icon>
+              {{ getWeekItemFreeDays(item.id) === 0 ? $t('status.booked') : `${$t('status.available')} ${getWeekItemFreeDays(item.id)}/${selectedWeekDates.length}` }}
+            </v-chip>
+            <v-tooltip
+              v-if="getWeekItemAttributes(item.id).warning"
+              location="top"
+              content-class="warning-tooltip"
+            >
+              <template #activator="{ props: tooltipProps }">
+                <v-btn
+                  v-bind="tooltipProps"
+                  icon
+                  variant="text"
+                  size="x-small"
+                  color="warning"
+                  data-cy="week-folded-warning-icon"
+                >
+                  <v-icon size="18">$warning</v-icon>
+                </v-btn>
+              </template>
+              {{ getWeekItemAttributes(item.id).warning }}
+            </v-tooltip>
+            <v-spacer />
             <v-btn
               icon
               variant="text"
-              size="x-small"
-              class="ml-1"
-              data-cy="week-item-favorite-heart"
-              @click.stop="handleToggleItemFav(item.id, item.name)"
+              size="small"
+              data-cy="week-tile-chevron"
+              :aria-label="`Toggle details for ${item.name}`"
+              :aria-expanded="expandedWeekTiles.has(item.id)"
+              @click="toggleWeekTileExpansion(item.id)"
             >
-              <v-icon size="18" :color="isItemFav(item.id) ? 'error' : undefined">
-                {{ isItemFav(item.id) ? '$heart' : '$heartOutline' }}
+              <v-icon>
+                {{ expandedWeekTiles.has(item.id) ? '$chevronDown' : '$chevronLeft' }}
               </v-icon>
             </v-btn>
-          </v-card-title>
-          <template #append>
-            <div class="d-flex align-center">
-              <v-tooltip
-                v-if="!expandedWeekTiles.has(item.id) && getWeekItemAttributes(item.id).warning"
-                location="top"
-                content-class="warning-tooltip"
-              >
-                <template #activator="{ props: tooltipProps }">
-                  <v-btn
-                    v-bind="tooltipProps"
-                    icon
-                    variant="text"
-                    size="x-small"
-                    color="warning"
-                    class="mr-1"
-                    :aria-label="`View warning for ${item.name}`"
-                    data-cy="week-folded-warning-icon"
-                  >
-                    <v-icon size="18">$warning</v-icon>
-                  </v-btn>
-                </template>
-                {{ getWeekItemAttributes(item.id).warning }}
-              </v-tooltip>
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                data-cy="week-tile-chevron"
-                :aria-label="`Toggle details for ${item.name}`"
-                :aria-expanded="expandedWeekTiles.has(item.id)"
-                @click="toggleWeekTileExpansion(item.id)"
-              >
-                <v-icon>
-                  {{ expandedWeekTiles.has(item.id) ? '$chevronDown' : '$chevronLeft' }}
-                </v-icon>
-              </v-btn>
-            </div>
-          </template>
+          </div>
         </v-card-item>
 
         <v-card-text class="pt-0">
-          <!-- Folded view: compact M-F row -->
+          <!-- Line 3: Equipment (always visible) -->
+          <div
+            v-if="getWeekItemAttributes(item.id).equipment.length"
+            class="mb-2"
+            data-cy="week-item-equipment-folded"
+          >
+            <div class="text-caption text-medium-emphasis mb-1">{{ $t('items.equipment') }}</div>
+            <div class="d-flex flex-wrap ga-1">
+              <v-chip
+                v-for="equip in getWeekItemAttributes(item.id).equipment"
+                :key="equip"
+                size="x-small"
+                variant="outlined"
+              >
+                {{ equip }}
+              </v-chip>
+            </div>
+          </div>
+          <!-- Line 4: Folded view compact M-F row -->
           <div
             v-if="!expandedWeekTiles.has(item.id)"
             :class="isMobile ? 'week-days-compact' : 'week-days'"
@@ -451,7 +481,7 @@
               :data-cy-weekday="getWeekdayLabel(dayIdx)"
             >
               <span class="week-day-label text-caption font-weight-medium">
-                {{ getWeekdayLabel(dayIdx, isMobile) }}
+                {{ getWeekdayLabel(dayIdx, isMobile, t) }}
               </span>
               <v-checkbox
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
@@ -501,24 +531,20 @@
                 @click.stop="requestWeekCancel(item.id, date)"
               >$cancelCircle</v-icon>
               <template v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'">
-                <v-tooltip location="top" :disabled="!shouldShowWeekNameTooltip(getWeekDayBooker(item.id, date))">
+                <v-tooltip location="top">
                   <template #activator="{ props: tooltipProps }">
                     <span
                       v-bind="tooltipProps"
-                      class="week-day-status week-day-status-truncated text-caption text-error"
-                    >{{ getWeekDayBooker(item.id, date) }}</span>
+                      class="week-day-status text-caption text-error"
+                    >{{ getBookerInitials(item.id, date) }}</span>
                   </template>
                   {{ getWeekDayBooker(item.id, date) }}
                 </v-tooltip>
               </template>
-              <span
-                v-else
-                :class="['week-day-status', 'text-caption', 'text-medium-emphasis']"
-              >{{ $t('items.notAvailable') }}</span>
             </div>
           </div>
           <!-- Expanded view: one line per day -->
-          <div v-else data-cy="week-days-expanded">
+          <div v-else-if="expandedWeekTiles.has(item.id)" data-cy="week-days-expanded">
             <div
               v-for="(date, dayIdx) in selectedWeekDates"
               :key="date"
@@ -579,10 +605,6 @@
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-error']"
               >{{ getWeekDayBooker(item.id, date) }}</span>
-              <span
-                v-else
-                :class="['text-body-2', 'text-medium-emphasis']"
-              >{{ $t('items.notAvailable') }}</span>
             </div>
             <!-- Equipment -->
             <div
@@ -615,12 +637,26 @@
             </v-alert>
           </div>
         </v-card-text>
+        <v-card-actions class="px-4 pb-4 pt-0" data-cy="week-item-actions">
+          <v-spacer />
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            data-cy="week-item-favorite-heart"
+            @click.stop="handleToggleItemFav(item.id, item.name)"
+          >
+            <v-icon size="18" :color="isItemFav(item.id) ? 'error' : undefined">
+              {{ isItemFav(item.id) ? '$heart' : '$heartOutline' }}
+            </v-icon>
+          </v-btn>
+        </v-card-actions>
       </v-card>
       </div>
     </div>
 
-    <!-- Confirm Booking Button (Week mode) -->
-    <div v-if="bookingMode === 'week' && weekSelectionCount > 0" class="mt-4" data-cy="week-confirm-section">
+    <!-- Confirm Booking Button (Week mode) — sticky footer -->
+    <div v-if="bookingMode === 'week' && weekSelectionCount > 0" class="week-book-footer" data-cy="week-confirm-section">
       <v-btn
         color="primary"
         variant="flat"
@@ -630,7 +666,7 @@
         data-cy="week-confirm-btn"
         @click="submitWeekBookings"
       >
-        {{ $t('items.confirmMyBooking', { count: weekSelectionCount }, weekSelectionCount) }}
+        {{ $t('items.bookDays', { count: weekSelectionCount }, weekSelectionCount) }}
       </v-btn>
     </div>
 
@@ -829,6 +865,7 @@ import { useFavorites } from '../composables/useFavorites';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
+import { middleTruncate } from '../utils/text';
 import { fetchSettings } from '../api/settings';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
@@ -874,6 +911,12 @@ const savingNote = ref(false);
 const expandedNote = ref('');
 const noteTruncatedMap = ref<Record<string, boolean>>({});
 const noteElements = new Map<string, HTMLElement>();
+const dayNameTruncatedMap = ref<Record<string, boolean>>({});
+const weekNameTruncatedMap = ref<Record<string, boolean>>({});
+const dayNameElements = new Map<string, HTMLElement>();
+const dayNameMeasureElements = new Map<string, HTMLElement>();
+const weekNameElements = new Map<string, HTMLElement>();
+const weekNameMeasureElements = new Map<string, HTMLElement>();
 const isMobile = ref(false);
 const isCompactFloorPlanViewport = ref(false);
 const useBottomSheet = computed(() => isMobile.value);
@@ -932,6 +975,10 @@ const isItemFav = (itemId: string) =>
   !!activeItemGroupId.value
   && !!getCurrentAreaId()
   && isItemFavorite(getCurrentAreaId(), activeItemGroupId.value, itemId);
+const getDayNameLabel = (itemId: string, name: string) =>
+  dayNameTruncatedMap.value[itemId] ? middleTruncate(name, 25) : name;
+const getWeekNameLabel = (itemId: string, name: string) =>
+  weekNameTruncatedMap.value[itemId] ? middleTruncate(name, 25) : name;
 const handleToggleItemFav = (itemId: string, itemName: string) => {
   const areaId = getCurrentAreaId();
   const igName = itemGroupName.value || '';
@@ -1016,7 +1063,6 @@ const weekBookingResults = ref<WeekBookingResult[]>([]);
 
 // Story 15-1: Week tile expansion
 const expandedWeekTiles = ref<Set<string>>(new Set());
-const WEEK_NAME_TRUNCATE_LIMIT = 12;
 
 const getFullDayLabel = (date: string, fallbackIndex: number): string => {
   const parsed = new Date(`${date}T00:00:00`);
@@ -1027,11 +1073,9 @@ const getFullDayLabel = (date: string, fallbackIndex: number): string => {
       day: '2-digit'
     }).format(parsed);
   }
-  const fallback = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  return fallback[fallbackIndex] ?? date;
+  return getWeekdayLabel(fallbackIndex, false, t) || date;
 };
 
-const shouldShowWeekNameTooltip = (name: string): boolean => name.length > WEEK_NAME_TRUNCATE_LIMIT;
 
 const toggleWeekTileExpansion = (itemId: string) => {
   const next = new Set(expandedWeekTiles.value);
@@ -1060,6 +1104,17 @@ const weekItemAttributesMap = computed(() => {
 
 const getWeekItemAttributes = (itemId: string): { equipment: string[]; warning?: string } =>
   weekItemAttributesMap.value.get(itemId) ?? { equipment: [] };
+
+const getWeekItemFreeDays = (itemId: string): number =>
+  selectedWeekDates.value.filter(date => getWeekDayStatus(itemId, date) === 'free').length;
+
+const getWeekItemAvatarColor = (itemId: string): string => {
+  const free = getWeekItemFreeDays(itemId);
+  const total = selectedWeekDates.value.length;
+  if (free === total) return 'success';
+  if (free === 0) return 'error';
+  return 'primary';
+};
 
 // Story 15-2: Day tile expansion
 const expandedDayTiles = ref<Set<string>>(new Set());
@@ -1114,6 +1169,15 @@ const getWeekDayBooker = (itemId: string, date: string): string => {
   if (!dayItems) return t('common.booked');
   const item = dayItems.find(i => i.id === itemId);
   return item?.attributes.booker_name || t('common.booked');
+};
+
+const getBookerInitials = (itemId: string, date: string): string => {
+  const name = getWeekDayBooker(itemId, date);
+  const parts = name.split(' ');
+  if (parts.length >= 2 && parts[0] && parts[parts.length - 1]) {
+    return (parts[0].charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
 };
 
 const isWeekDaySelected = (itemId: string, date: string) =>
@@ -1195,6 +1259,8 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
       }
     }
     myWeekBookings.value = bookedMap;
+    await nextTick();
+    updateNameTruncation();
   } catch (err) {
     weekData.value = {};
     myWeekBookings.value = new Map();
@@ -1228,9 +1294,15 @@ const localizeItemsBookingConflict = (err: ApiError): string => {
   const detail = err.detail ?? '';
   const lower = detail.toLowerCase();
   if (lower.includes('booking limit exceeded')) {
-    // Extract the user-facing message after the sentinel prefix
-    const colonIdx = detail.indexOf(':');
-    return colonIdx >= 0 ? detail.substring(colonIdx + 2) : detail;
+    // Parse count and scope from backend message for i18n interpolation
+    const countMatch = detail.match(/maximum of (\d+)/);
+    const scopeMatch = detail.match(/for (.+)$/);
+    const count = countMatch?.[1] ?? '?';
+    const scope = scopeMatch?.[1] ?? '';
+    if (scope) {
+      return t('items.bookingLimitExceeded', { count, scope });
+    }
+    return t('items.bookingLimitExceededGlobal', { count });
   }
   if (lower.includes('already have this item booked')) {
     return t('items.alreadyBookedByYouForDate');
@@ -1352,6 +1424,7 @@ const loadItems = async (itemGroupId: string, date: string) => {
     items.value = resp.data;
     await nextTick();
     updateNoteTruncation();
+    updateNameTruncation();
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
@@ -1513,6 +1586,24 @@ const setNoteRef = (id: string) => (el: Element | ComponentPublicInstance | null
   noteElements.delete(id);
 };
 
+const setMeasuredRef = (elements: Map<string, HTMLElement>, id: string) =>
+  (el: Element | ComponentPublicInstance | null) => {
+    if (el instanceof HTMLElement) {
+      elements.set(id, el);
+      return;
+    }
+    if (el && '$el' in el && (el.$el instanceof HTMLElement)) {
+      elements.set(id, el.$el);
+      return;
+    }
+    elements.delete(id);
+  };
+
+const setDayNameRef = (id: string) => setMeasuredRef(dayNameElements, id);
+const setDayNameMeasureRef = (id: string) => setMeasuredRef(dayNameMeasureElements, id);
+const setWeekNameRef = (id: string) => setMeasuredRef(weekNameElements, id);
+const setWeekNameMeasureRef = (id: string) => setMeasuredRef(weekNameMeasureElements, id);
+
 const updateNoteTruncation = () => {
   const map: Record<string, boolean> = {};
   for (const entry of items.value) {
@@ -1522,6 +1613,28 @@ const updateNoteTruncation = () => {
     }
   }
   noteTruncatedMap.value = map;
+};
+
+const updateNameTruncation = () => {
+  const dayMap: Record<string, boolean> = {};
+  for (const entry of items.value) {
+    const displayEl = dayNameElements.get(entry.id);
+    const measureEl = dayNameMeasureElements.get(entry.id);
+    if (displayEl && measureEl) {
+      dayMap[entry.id] = measureEl.scrollWidth > displayEl.clientWidth;
+    }
+  }
+  dayNameTruncatedMap.value = dayMap;
+
+  const weekMap: Record<string, boolean> = {};
+  for (const item of weekItems.value) {
+    const displayEl = weekNameElements.get(item.id);
+    const measureEl = weekNameMeasureElements.get(item.id);
+    if (displayEl && measureEl) {
+      weekMap[item.id] = measureEl.scrollWidth > displayEl.clientWidth;
+    }
+  }
+  weekNameTruncatedMap.value = weekMap;
 };
 
 onMounted(async () => {
@@ -1646,6 +1759,7 @@ function updateViewport() {
 function handleResize() {
   updateViewport();
   updateNoteTruncation();
+  updateNameTruncation();
 }
 
 function formatDate(date: Date) {
@@ -1672,11 +1786,43 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
 </script>
 
 <style scoped>
+.week-book-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: rgb(var(--v-theme-surface));
+  padding: 12px 0;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
 .note-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 200px;
+}
+
+.item-name-shell {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.item-name {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+.item-name-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .week-days {

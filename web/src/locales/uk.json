@@ -8,6 +8,7 @@
     "userMenu": {
       "theme": "Тема",
       "themeAuto": "Автоматично",
+      "themeAutoShort": "Авто",
       "themeLight": "Світла",
       "themeDark": "Темна",
       "showWeekends": "Показувати вихідні",
@@ -141,7 +142,10 @@
     "filterSyntaxAnd": "використовуйте знак плюс для поєднання через І;",
     "filterSyntaxExact": "використовуйте одинарні або подвійні лапки для точного збігу;",
     "filterSyntaxCase": "фільтри не залежать від регістру;",
-    "filterSyntaxExample": "приклад:"
+    "filterSyntaxExample": "приклад:",
+    "bookDays": "Забронювати ({count} день) | Забронювати ({count} днів)",
+    "bookingLimitExceeded": "Ви досягли максимуму {count} активних бронювань для {scope}",
+    "bookingLimitExceededGlobal": "Ви досягли максимуму {count} активних бронювань"
   },
   "bookings": {
     "title": "Мої бронювання",
@@ -215,7 +219,8 @@
     "deleteItem": "Видалити {name}",
     "save": "Зберегти",
     "savedSuccessfully": "Позиції на плані поверху збережено.",
-    "saveFailed": "Не вдалося зберегти позиції на плані поверху."
+    "saveFailed": "Не вдалося зберегти позиції на плані поверху.",
+    "desktopRecommended": "Редактор планів найкраще працює на екрані комп'ютера."
   },
   "floorPlan": {
     "noPositions": "На цьому плані поверху ще не розміщено жодного елемента. Адміністратор може налаштувати їх у редакторі плану поверху.",
@@ -269,5 +274,21 @@
     "itemGroup": "Група елементів",
     "presence": "Присутність",
     "bookings": "Бронювання"
+  },
+  "weekdays": {
+    "mo": "ПН",
+    "tu": "ВТ",
+    "we": "СР",
+    "th": "ЧТ",
+    "fr": "ПТ",
+    "sa": "СБ",
+    "su": "НД",
+    "moShort": "П",
+    "tuShort": "В",
+    "weShort": "С",
+    "thShort": "Ч",
+    "frShort": "П",
+    "saShort": "С",
+    "suShort": "Н"
   }
 }

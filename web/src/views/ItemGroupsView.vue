@@ -5,7 +5,7 @@
       :breadcrumbs="breadcrumbs"
     />
 
-    <!-- Week Selector -->
+    <!-- Week Selector & Equipment Filter -->
     <v-card class="mb-6" data-cy="week-selector-card">
       <v-card-text>
         <div class="d-flex flex-wrap align-end ga-4">
@@ -31,13 +31,9 @@
             {{ $t('itemGroups.floorPlan') }}
           </v-btn>
         </div>
-      </v-card-text>
-    </v-card>
 
-    <!-- Equipment Filter -->
-    <v-card v-if="itemGroups.length > 0" class="mb-6">
-      <v-card-text>
-        <div class="d-flex align-center ga-2" style="max-width: 420px;">
+        <!-- Equipment Filter -->
+        <div v-if="itemGroups.length > 0" class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
           <v-combobox
             v-model="equipmentFilter"
             :items="savedFilterItems"
@@ -63,6 +59,16 @@
               </v-btn>
             </template>
           </v-tooltip>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            data-cy="ig-equipment-filter-info"
+            :aria-label="$t('itemGroups.equipmentFilterHelp')"
+            @click="showFilterHelp = true"
+          >
+            <v-icon>$info</v-icon>
+          </v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -122,14 +128,14 @@
                 :key="day.date"
                 class="availability-indicator"
                 :class="day.available > 0 ? 'available' : 'fully-booked'"
-                :aria-label="`${day.weekday}: ${day.available > 0 ? day.available + ' available' : 'fully booked'}`"
+                :aria-label="formatAvailabilityAriaLabel(day)"
                 :data-cy-weekday="day.weekday"
               >
                 <span
                   class="indicator-dot"
                   :class="day.available > 0 ? 'dot-available' : 'dot-booked'"
                 />
-                <span class="indicator-label text-caption">{{ day.weekday }}</span>
+                <span class="indicator-label text-caption">{{ localizeWeekday(day.weekday, t) }}</span>
               </span>
             </div>
           </v-card-text>
@@ -207,14 +213,14 @@
               :key="day.date"
               class="availability-indicator"
               :class="day.available > 0 ? 'available' : 'fully-booked'"
-              :aria-label="`${day.weekday}: ${day.available > 0 ? day.available + ' available' : 'fully booked'}`"
+              :aria-label="formatAvailabilityAriaLabel(day)"
               :data-cy-weekday="day.weekday"
             >
               <span
                 class="indicator-dot"
                 :class="day.available > 0 ? 'dot-available' : 'dot-booked'"
               />
-              <span class="indicator-label text-caption">{{ day.weekday }}</span>
+              <span class="indicator-label text-caption">{{ localizeWeekday(day.weekday, t) }}</span>
             </span>
           </div>
         </v-card-text>
@@ -280,6 +286,26 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="showFilterHelp" max-width="500">
+      <v-card>
+        <v-card-title>{{ $t('itemGroups.equipmentFilterHelp') }}</v-card-title>
+        <v-card-text data-cy="ig-equipment-filter-help">
+          <p class="mb-3">{{ $t('items.filterSyntaxDescription') }}</p>
+          <ul class="mb-3">
+            <li>{{ $t('items.filterSyntaxOr') }}</li>
+            <li>{{ $t('items.filterSyntaxAnd') }}</li>
+            <li>{{ $t('items.filterSyntaxExact') }}</li>
+            <li>{{ $t('items.filterSyntaxCase') }}</li>
+          </ul>
+          <p class="text-caption text-medium-emphasis">{{ $t('items.filterSyntaxExample') }} <code>"27 inch display" + webcam</code></p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showFilterHelp = false">{{ $t('common.close') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar
       :key="successSnackbarKey"
       v-model="showSuccessSnackbar"
@@ -305,7 +331,7 @@ import type { DayAvailability } from '../api/itemGroupAvailability';
 import type { ItemGroupAttributes } from '../api/itemGroups';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
-import { useWeekSelector } from '../composables/useWeekSelector';
+import { useWeekSelector, localizeWeekday } from '../composables/useWeekSelector';
 import { useWeekendPreference } from '../composables/useWeekendPreference';
 import { fetchItems } from '../api/items';
 import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
@@ -351,7 +377,16 @@ const showSuccessSnackbar = computed({
 });
 const availabilityMap = ref<Record<string, DayAvailability[]>>({});
 
+const formatAvailabilityAriaLabel = (day: DayAvailability): string => {
+  const weekday = localizeWeekday(day.weekday, t);
+  const status = day.available > 0
+    ? `${day.available} ${t('status.available').toLowerCase()}`
+    : t('common.booked');
+  return `${weekday}: ${status}`;
+};
+
 const equipmentFilter = ref('');
+const showFilterHelp = ref(false);
 const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
 const isCurrentFilterSaved = computed(() => !!equipmentFilter.value && isSavedFilter(equipmentFilter.value));
 const showSuccessFeedback = (message: string, cy: string) => {

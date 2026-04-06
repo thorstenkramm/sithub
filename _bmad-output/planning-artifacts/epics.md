@@ -21,6 +21,8 @@ editHistory:
     changes: "Added FR83-FR84 and Story 20.8: Floor Plan Booking UX Refinements. Covers multi-day booking dialog with weekday checkboxes, persistent overlay, mobile fullscreen layout, close/back navigation stack, drill-down safety enforcement, and precise booking error messages. Based on user testing feedback."
   - date: '2026-04-04'
     changes: "Added FR85-FR90 and Epic 21: i18n, UX Improvements & Booking Limits. Covers multilanguage UI with auto-detection, My Bookings layout reorder, visual fixes (equipment filter icon, floor plan button), and configurable booking limits (advance weeks, max per person with area overrides)."
+  - date: '2026-04-05'
+    changes: "Added FR91-FR100 and Epic 22: Bug Fixes, Avatars & Reserved Areas. Covers mobile UX audit findings (truncation, menu overflow, week mode readability, floor plan mobile), user avatar sync/upload, and reserved areas/items with YAML-based access control."
 ---
 
 # sithub - Epic Breakdown
@@ -277,6 +279,33 @@ default 0 means unlimited; the areas YAML supports the same key at area, item gr
 item levels to override the global limit; the most specific (deepest) matching limit applies;
 exceeded limits produce a clear error naming the limit and scope (e.g., "You have exceeded
 the maximum of 2 active bookings for 'Tiefgaragenstellplätze, Stellplatz 1'").
+FR91: Translation bug fixes. Acceptance: booking limit error messages use frontend i18n
+keys; weekday abbreviations in item group tiles use locale-aware labels (DE: MO, DI, MI,
+DO, FR, SA, SO); "n/a" labels in week mode are translated or removed.
+FR92: Language selector mobile layout. Acceptance: language and theme buttons in the
+navigation drawer render without clipping on 390px-wide mobile screens.
+FR93: Mobile text truncation. Acceptance: item names in card titles, week mode tile
+headers, and My Bookings subtitles wrap to multiple lines instead of truncating with
+ellipsis; history date filter fields stack vertically on narrow viewports.
+FR94: Week mode mobile readability. Acceptance: booked user names in week mode columns
+show initials or abbreviated form that does not overflow or collide with adjacent columns.
+FR95: Floor plan mobile improvements. Acceptance: floor plan auto-zooms to fit viewport
+width on mobile; floor plan images apply a dark-mode filter when dark theme is active;
+floor plan editor shows a desktop-recommended banner on narrow viewports.
+FR96: Favorites heart icon visibility. Acceptance: the favorite heart icon is visible on
+all item tiles including those with warning badges.
+FR97: User avatar sync from Entra ID. Acceptance: on each Entra ID login the user's
+profile photo is downloaded from Microsoft Graph and stored locally; avatars are served
+via an authenticated API endpoint; missing photos fall back to initials.
+FR98: User avatar upload for local users. Acceptance: local users can upload, replace,
+and delete a profile image from settings; images are stored under
+`{data_dir}/avatars/{user_id}.png` with a reasonable size limit.
+FR99: Avatar display integration. Acceptance: user avatars appear in the settings menu,
+Today's Presence list, and optionally on floor plan overlays via a toggle.
+FR100: Reserved areas and items. Acceptance: `reserved_for` in the areas YAML restricts
+booking to listed user emails at area, item group, and item levels; hierarchical
+validation rejects configs where a child reserves for users excluded by a parent; items
+not bookable by the current user are disabled and blurred in the UI and floor plan.
 
 ### NonFunctional Requirements
 
@@ -415,6 +444,16 @@ FR87: Epic 21 - Equipment filter save icon
 FR88: Epic 21 - Floor plan button height and position
 FR89: Epic 21 - Booking advance limit
 FR90: Epic 21 - Maximum bookings per person with area overrides
+FR91: Epic 22 - Translation bug fixes (limit errors, weekdays, n/a)
+FR92: Epic 22 - Language selector mobile layout
+FR93: Epic 22 - Mobile text truncation fixes
+FR94: Epic 22 - Week mode mobile readability
+FR95: Epic 22 - Floor plan mobile improvements
+FR96: Epic 22 - Favorites heart icon visibility
+FR97: Epic 22 - User avatar sync from Entra ID
+FR98: Epic 22 - User avatar upload for local users
+FR99: Epic 22 - Avatar display integration
+FR100: Epic 22 - Reserved areas and items
 
 ## Epic List
 
@@ -533,6 +572,14 @@ Users can switch the UI language, benefit from visual refinements (My Bookings l
 equipment filter icon, floor plan button positioning), and operators can configure booking
 limits (advance booking window and maximum bookings per person with per-area overrides).
 **FRs covered:** FR85, FR86, FR87, FR88, FR89, FR90
+
+### Epic 22: Bug Fixes, Avatars & Reserved Areas
+
+Mobile UX audit findings are resolved (translation bugs, text truncation, menu overflow,
+week mode readability, floor plan usability). User avatars are synced from Entra ID or
+uploaded locally and displayed across the app. Areas and items can be reserved for
+specific users via YAML configuration.
+**FRs covered:** FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR98, FR99, FR100
 
 Users can view live free/busy status on floor plan overlays, book items directly from
 floor plans, and admins can position items on floor plan images. Navigation state is
@@ -2799,3 +2846,218 @@ group, item group overrides area, area overrides global
 **Then** it names the exact limit value and the scope where it applies (e.g.,
 "You have exceeded the maximum of 2 active bookings for the item
 'Tiefgaragenstellplätze, Stellplatz 1'")
+
+## Epic 22 Stories: Bug Fixes, Avatars & Reserved Areas
+
+Mobile UX audit findings are addressed (translations, truncation, menu layout, floor
+plan), user avatars are synced and displayed, and areas/items can be reserved for
+specific users.
+**FRs covered:** FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR98, FR99, FR100
+
+### Story 22.1: Translation and i18n Bug Fixes
+
+**FRs covered:** FR91
+
+As a user,
+I want booking limit errors, weekday abbreviations, and availability labels translated
+to my selected language,
+So that the app feels fully localized.
+
+**Acceptance Criteria:**
+
+**Given** the UI language is German and a booking limit error occurs
+**When** the error message is displayed
+**Then** the message is in German (e.g., "Sie haben das Maximum von 2 aktiven
+Buchungen erreicht"), not English
+
+**Given** the UI language is German
+**When** weekday abbreviation dots render on item group tiles
+**Then** they show MO, DI, MI, DO, FR, SA, SO (not English MO, TU, WE, TH, FR)
+
+**Given** the UI language is German and a day is free in week mode
+**When** the availability label renders
+**Then** "n/a" is replaced with a translated label or removed entirely
+
+### Story 22.2: Language Selector and Menu Mobile Layout
+
+**FRs covered:** FR92
+
+As a mobile user,
+I want the language and theme buttons to fit the navigation drawer without clipping,
+So that I can read and tap each option.
+
+**Acceptance Criteria:**
+
+**Given** I open the hamburger menu on a 390px-wide screen
+**When** the language buttons render
+**Then** all language names and flags are fully visible (no clipping)
+
+**Given** I open the hamburger menu on a 390px-wide screen
+**When** the theme toggle renders
+**Then** all three options (Automatisch, Hell, Dunkel) are fully readable
+
+### Story 22.3: Mobile Text Truncation Fixes
+
+**FRs covered:** FR93
+
+As a mobile user,
+I want to see full item names and dates without truncation,
+So that I can distinguish between similar items.
+
+**Acceptance Criteria:**
+
+**Given** an item name is longer than the card width (e.g., "Tisch 2, Fenster, rechts")
+**When** it renders in day mode cards, week mode tile headers, or My Bookings subtitles
+**Then** the text wraps to a second line instead of truncating with ellipsis
+
+**Given** I view the booking history page on mobile
+**When** the date filter fields render
+**Then** the "Von" and "Bis" fields stack vertically with full-width date display
+
+### Story 22.4: Week Mode Mobile Readability
+
+**FRs covered:** FR94
+
+As a mobile user,
+I want to see who booked a desk in week mode without overlapping text,
+So that I can quickly scan the week grid.
+
+**Acceptance Criteria:**
+
+**Given** a desk is booked in week mode on a mobile screen
+**When** the booker's name renders under the day column
+**Then** it shows initials (e.g., "AE") or a short abbreviation that fits the column
+width without overflow
+
+**Given** I tap on a booked day cell with initials
+**When** the interaction completes
+**Then** I see the full user name (via tooltip or expanded state)
+
+### Story 22.5: Floor Plan Mobile Improvements
+
+**FRs covered:** FR95
+
+As a mobile user,
+I want the floor plan to be readable on my phone and adapt to dark mode,
+So that I can use it without squinting or being blinded.
+
+**Acceptance Criteria:**
+
+**Given** I open the floor plan on a 390px-wide screen
+**When** it renders
+**Then** the zoom level auto-adjusts so the floor plan width fits the viewport
+
+**Given** dark mode is active
+**When** the floor plan image renders
+**Then** a CSS filter is applied to reduce brightness contrast with the dark UI
+
+**Given** I open the floor plan editor on a narrow viewport
+**When** the editor renders
+**Then** a banner recommends using a desktop screen for precise positioning
+
+### Story 22.6: Favorites Heart Icon Visibility Fix
+
+**FRs covered:** FR96
+
+As a user,
+I want to see the favorite heart icon on all item tiles,
+So that I can manage my favorites regardless of other badges shown.
+
+**Acceptance Criteria:**
+
+**Given** an item tile has a warning badge
+**When** the tile renders
+**Then** the favorite heart icon is still visible and tappable, not hidden behind
+or overlapping with the warning badge
+
+### Story 22.7: User Avatars — Backend and Entra ID Sync
+
+**FRs covered:** FR97, FR98
+
+As a user,
+I want my profile photo stored and served by SitHub,
+So that colleagues can identify me visually across the app.
+
+**Acceptance Criteria:**
+
+**Given** a user logs in via Entra ID
+**When** the login completes
+**Then** their Microsoft Graph profile photo is downloaded and stored at
+`{data_dir}/avatars/{user_id}.png`; if no photo exists, the file is not created
+
+**Given** a local user opens settings
+**When** they upload a profile image
+**Then** the image is stored at `{data_dir}/avatars/{user_id}.png` with a maximum
+file size of 512 KB; the avatars directory is created if missing
+
+**Given** an avatar exists for a user
+**When** any authenticated user requests `GET /api/v1/avatars/{user_id}`
+**Then** the image is served with appropriate cache headers
+
+**Given** no avatar exists for a user
+**When** the avatar endpoint is called
+**Then** a 404 is returned and the frontend falls back to initials
+
+### Story 22.8: User Avatars — Frontend Integration
+
+**FRs covered:** FR99
+
+As a user,
+I want to see profile photos in the navigation, presence list, and floor plan,
+So that I can visually identify colleagues.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in and have an avatar
+**When** I see the navigation bar
+**Then** my avatar replaces the initials circle in the top-right corner
+
+**Given** I view Today's Presence
+**When** the presence list renders
+**Then** each user's entry shows their avatar (or initials fallback)
+
+**Given** I open the floor plan with the "Show avatars" checkbox enabled
+**When** a desk is booked
+**Then** the booker's avatar thumbnail appears on the desk position
+
+### Story 22.9: Reserved Areas and Items — Backend
+
+**FRs covered:** FR100
+
+As an operator,
+I want to restrict areas and items to specific users via YAML configuration,
+So that shared resources can be reserved for designated teams or individuals.
+
+**Acceptance Criteria:**
+
+**Given** an area has `reserved_for: [anna@sithub.local, tk@system42.io]`
+**When** a user not in the list attempts to book any item in that area
+**Then** the booking is rejected with a clear error naming the area
+
+**Given** a child item has `reserved_for: [user2@example.com]` but the parent area
+does not include `user2@example.com` in its `reserved_for` list
+**When** the server starts
+**Then** startup fails with a validation error explaining the hierarchical conflict
+
+**Given** `reserved_for` is missing or null on an area/item group/item
+**When** a booking is attempted
+**Then** no reservation restriction applies at that level
+
+### Story 22.10: Reserved Areas and Items — Frontend
+
+**FRs covered:** FR100
+
+As a user,
+I want to see which items I cannot book because they are reserved for others,
+So that I do not waste time trying to book restricted items.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing items in an area where some are reserved for other users
+**When** the item list renders
+**Then** items I cannot book are disabled and visually blurred (similar to the
+equipment filter blur pattern)
+
+**Given** a floor plan shows items reserved for other users
+**When** the floor plan renders
+**Then** reserved items are grayed out or marked with a lock icon

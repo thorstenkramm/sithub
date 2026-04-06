@@ -8,6 +8,7 @@
     "userMenu": {
       "theme": "Tema",
       "themeAuto": "Auto",
+      "themeAutoShort": "Auto",
       "themeLight": "Claro",
       "themeDark": "Oscuro",
       "showWeekends": "Mostrar fines de semana",
@@ -141,7 +142,10 @@
     "filterSyntaxAnd": "use el signo mas para combinar con Y (AND);",
     "filterSyntaxExact": "use comillas simples o dobles para coincidencia exacta;",
     "filterSyntaxCase": "los filtros no distinguen entre mayusculas y minusculas;",
-    "filterSyntaxExample": "ejemplo:"
+    "filterSyntaxExample": "ejemplo:",
+    "bookDays": "Reservar ({count} dia) | Reservar ({count} dias)",
+    "bookingLimitExceeded": "Ha alcanzado el máximo de {count} reservas activas para {scope}",
+    "bookingLimitExceededGlobal": "Ha alcanzado el máximo de {count} reservas activas"
   },
   "bookings": {
     "title": "Mis Reservas",
@@ -215,7 +219,8 @@
     "deleteItem": "Eliminar {name}",
     "save": "Guardar",
     "savedSuccessfully": "Posiciones del plano de planta guardadas.",
-    "saveFailed": "No se pudieron guardar las posiciones del plano de planta."
+    "saveFailed": "No se pudieron guardar las posiciones del plano de planta.",
+    "desktopRecommended": "El editor de planos funciona mejor en una pantalla de escritorio."
   },
   "floorPlan": {
     "noPositions": "Aun no se han posicionado elementos en este plano de planta. Un administrador puede configurarlos en el Editor de plano de planta.",
@@ -269,5 +274,21 @@
     "itemGroup": "Grupo de elementos",
     "presence": "Presencia",
     "bookings": "Reservas"
+  },
+  "weekdays": {
+    "mo": "LU",
+    "tu": "MA",
+    "we": "MI",
+    "th": "JU",
+    "fr": "VI",
+    "sa": "SA",
+    "su": "DO",
+    "moShort": "L",
+    "tuShort": "M",
+    "weShort": "X",
+    "thShort": "J",
+    "frShort": "V",
+    "saShort": "S",
+    "suShort": "D"
   }
 }

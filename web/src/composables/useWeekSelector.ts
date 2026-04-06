@@ -47,12 +47,36 @@ export function getWeekdayDates(monday: Date, includeWeekends = false): string[]
   return dates;
 }
 
-const WEEKDAY_LABELS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
-const WEEKDAY_LABELS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WEEKDAY_KEYS = ['mo', 'tu', 'we', 'th', 'fr', 'sa', 'su'] as const;
+const WEEKDAY_SHORT_KEYS = ['moShort', 'tuShort', 'weShort', 'thShort', 'frShort', 'saShort', 'suShort'] as const;
 
-export function getWeekdayLabel(index: number, short = false): string {
-  const labels = short ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS;
+/** Default English labels used when no translation function is provided. */
+const WEEKDAY_LABELS_EN = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+const WEEKDAY_LABELS_SHORT_EN = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/**
+ * Returns a localized weekday label for the given day index (0=Monday).
+ * When a translation function is provided, uses i18n keys from the `weekdays` section.
+ * Falls back to English labels when no translation function is given.
+ */
+export function getWeekdayLabel(index: number, short = false, t?: (key: string) => string): string {
+  if (t) {
+    const keys = short ? WEEKDAY_SHORT_KEYS : WEEKDAY_KEYS;
+    const key = keys[index];
+    return key ? t(`weekdays.${key}`) : '';
+  }
+  const labels = short ? WEEKDAY_LABELS_SHORT_EN : WEEKDAY_LABELS_EN;
   return labels[index] ?? '';
+}
+
+/** Maps a backend weekday abbreviation (MO, TU, ...) to a localized label. */
+export function localizeWeekday(backendAbbrev: string, t: (key: string) => string): string {
+  const key = backendAbbrev.toLowerCase();
+  const validKeys = new Set(WEEKDAY_KEYS as readonly string[]);
+  if (validKeys.has(key)) {
+    return t(`weekdays.${key}`);
+  }
+  return backendAbbrev;
 }
 
 /**

@@ -282,6 +282,11 @@ onBeforeUnmount(() => {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.booking-card :deep(.v-card-subtitle) {
+  white-space: normal;
+  line-height: 1.4;
+}
+
 .booking-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);

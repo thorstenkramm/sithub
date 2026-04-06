@@ -110,9 +110,11 @@
               }"
             >
               <img
+                ref="fpImageRef"
                 :src="`/api/v1/floor-plans/${encodeURIComponent(activeFloorPlan)}`"
                 draggable="false"
                 class="fp-image-fit"
+                @load="onFloorPlanImageLoad"
               />
 
               <template v-if="isAreaView">
@@ -441,6 +443,18 @@ const zoomScale = ref(1);
 const pinchState = ref<{ startDistance: number; startScale: number } | null>(
   null,
 );
+const fpImageRef = ref<HTMLImageElement | null>(null);
+
+function applyMobileAutoZoom() {
+  const img = fpImageRef.value;
+  if (!img || img.naturalWidth <= 0 || window.innerWidth >= 768) return;
+  const containerWidth = img.parentElement?.parentElement?.clientWidth ?? window.innerWidth;
+  zoomScale.value = clampZoom(containerWidth / img.naturalWidth);
+}
+
+function onFloorPlanImageLoad() {
+  applyMobileAutoZoom();
+}
 
 interface PositionData {
   id: string;
@@ -821,10 +835,12 @@ async function refreshAvailability() {
   await loadAvailability();
 }
 
-async function initialLoad() {
+async function initialLoad({ resetZoom = true }: { resetZoom?: boolean } = {}) {
   initialLoading.value = true;
   preselectDay();
-  zoomScale.value = 1;
+  if (resetZoom) {
+    zoomScale.value = 1;
+  }
   showBookingDialog.value = false;
   await loadPositions();
   if (props.areaLevel) {
@@ -841,9 +857,16 @@ watch(
     () => props.weekDates.join("|"),
     () => props.areaLevel,
   ],
-  async () => {
-    drilledInto.value = null;
-    await initialLoad();
+  async ([floorPlan, itemGroupId, , areaLevel], previousValues) => {
+    const [previousFloorPlan, previousItemGroupId, , previousAreaLevel] = previousValues ?? [];
+    const resetView =
+      floorPlan !== previousFloorPlan ||
+      itemGroupId !== previousItemGroupId ||
+      areaLevel !== previousAreaLevel;
+    if (resetView) {
+      drilledInto.value = null;
+    }
+    await initialLoad({ resetZoom: resetView });
   },
   { immediate: true },
 );
@@ -1456,6 +1479,10 @@ onBeforeUnmount(() => {
   width: auto;
   height: auto;
   user-select: none;
+}
+
+:global(.v-theme--dark) .fp-image-fit {
+  filter: brightness(0.85) contrast(1.1);
 }
 
 .fp-item {

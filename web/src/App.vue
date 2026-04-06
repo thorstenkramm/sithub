@@ -178,7 +178,7 @@
               @update:model-value="setThemePreference($event)"
             >
               <v-btn
-                v-for="opt in themeOptions"
+                v-for="opt in themeOptionsMobile"
                 :key="opt.value"
                 :value="opt.value"
                 size="small"
@@ -189,7 +189,7 @@
           </v-list-item>
           <v-list-item data-cy="mobile-language-selector">
             <v-list-item-title class="text-caption text-medium-emphasis mb-1">{{ $t('app.userMenu.language') }}</v-list-item-title>
-            <div class="locale-grid">
+            <div class="locale-grid locale-grid--mobile">
               <v-btn
                 v-for="opt in localeOptions"
                 :key="opt.value"
@@ -321,6 +321,12 @@ const themeOptions = computed(() => [
   { label: t('app.userMenu.themeDark'), value: 'dark' as const }
 ]);
 
+const themeOptionsMobile = computed(() => [
+  { label: t('app.userMenu.themeAutoShort'), value: 'auto' as const },
+  { label: t('app.userMenu.themeLight'), value: 'light' as const },
+  { label: t('app.userMenu.themeDark'), value: 'dark' as const }
+]);
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -430,5 +436,9 @@ function closePasswordDialog() {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
+}
+
+.locale-grid--mobile {
+  grid-template-columns: repeat(2, 1fr);
 }
 </style>

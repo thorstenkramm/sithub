@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-04-04T18:00:00Z
+last_updated: 2026-04-05T11:00:00Z
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -186,12 +186,28 @@ development_status:
   20-8-floor-plan-booking-ux-refinements: done
   epic-20-retrospective: optional
 
-  epic-21: in-progress
+  epic-21: done
   21-1-i18n-infrastructure-and-english-baseline: done
   21-2-language-selector-with-flags-and-auto-detection: done
   21-3-translations-de-es-fr-uk: done
-  21-4-my-bookings-display-reorder: backlog
-  21-5-equipment-filter-icon-and-floor-plan-button-fixes: backlog
-  21-6-booking-advance-limit: backlog
-  21-7-max-bookings-per-person-with-area-overrides: backlog
+  21-4-my-bookings-display-reorder: done
+  21-5-visual-improvements: done
+  21-6-booking-limits-backend: done
+  21-7-booking-limits-frontend: done
   epic-21-retrospective: optional
+
+  epic-22: in-progress
+  22-1-translation-and-i18n-bug-fixes: done
+  22-2-language-selector-and-menu-mobile-layout: done
+  22-3-mobile-text-truncation-fixes: done
+  22-4-week-mode-mobile-readability: done
+  22-5-floor-plan-mobile-improvements: done
+  22-6-favorites-heart-icon-visibility-fix: done
+  22-7-user-avatars-backend-and-entra-id-sync: ready-for-dev
+  22-8-user-avatars-frontend-integration: ready-for-dev
+  22-9-reserved-areas-and-items-backend: ready-for-dev
+  22-10-reserved-areas-and-items-frontend: ready-for-dev
+  22-11-toolbar-consistency: done
+  22-12-day-mode-warning-cleanup: done
+  22-13-week-mode-tile-overhaul: done
+  epic-22-retrospective: optional

@@ -33,6 +33,8 @@ describe("InteractiveFloorPlan", () => {
   const fetchItemGroupsMock = vi.mocked(fetchItemGroups);
   const fetchAreasMock = vi.mocked(fetchAreas);
   const originalMatchMedia = window.matchMedia;
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
 
   const weekDates = [
     "2026-04-06",
@@ -97,6 +99,14 @@ describe("InteractiveFloorPlan", () => {
   };
 
   function setViewport(width: number, height = 900) {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: width,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: height,
+    });
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches:
         query === "(max-width: 768px)"
@@ -184,6 +194,14 @@ describe("InteractiveFloorPlan", () => {
 
   afterEach(() => {
     window.matchMedia = originalMatchMedia;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
   });
 
   it("opens a confirmation dialog before booking", async () => {
@@ -394,5 +412,44 @@ describe("InteractiveFloorPlan", () => {
     expect(wrapper.get('[data-cy="fp-booking-error"]').text()).toContain(
       "The selected item is already booked.",
     );
+  });
+
+  it("preserves the mobile auto-fit zoom when only the week changes", async () => {
+    setViewport(430, 900);
+
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    const image = wrapper.get(".fp-image-fit");
+    const fitContainer = image.element.parentElement?.parentElement as HTMLElement | null;
+    expect(fitContainer).not.toBeNull();
+
+    Object.defineProperty(image.element, "naturalWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(fitContainer, "clientWidth", {
+      configurable: true,
+      value: 600,
+    });
+
+    await image.trigger("load");
+    await flushPromises();
+    expect(wrapper.text()).toContain("75%");
+
+    await wrapper.setProps({
+      weekDates: [
+        "2026-04-13",
+        "2026-04-14",
+        "2026-04-15",
+        "2026-04-16",
+        "2026-04-17",
+        "2026-04-18",
+        "2026-04-19",
+      ],
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("75%");
   });
 });

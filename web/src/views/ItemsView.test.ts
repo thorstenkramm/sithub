@@ -12,6 +12,7 @@ import { createBooking, cancelBooking, updateBookingNote, fetchMyBookings } from
 import { useDateState } from '../composables/useDateState';
 import { buildViewStubs, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { middleTruncate } from '../utils/text';
 
 /* jscpd:ignore-start */
 
@@ -75,6 +76,9 @@ describe('ItemsView', () => {
     'v-card-item': {
       template: '<div><slot name="prepend" /><slot /><slot name="append" /></div>'
     },
+    'v-card-actions': {
+      template: '<div v-bind="$attrs"><slot /></div>'
+    },
     'v-tooltip': {
       template: '<div><slot name="activator" :props="{}" /><slot /></div>'
     },
@@ -114,6 +118,25 @@ describe('ItemsView', () => {
         plugins: [createPinia(), createTestI18n()]
       }
     });
+
+  const setElementWidth = (
+    element: Element,
+    dimensions: { clientWidth?: number; scrollWidth?: number }
+  ) => {
+    if ('clientWidth' in dimensions) {
+      Object.defineProperty(element, 'clientWidth', {
+        configurable: true,
+        value: dimensions.clientWidth
+      });
+    }
+
+    if ('scrollWidth' in dimensions) {
+      Object.defineProperty(element, 'scrollWidth', {
+        configurable: true,
+        value: dimensions.scrollWidth
+      });
+    }
+  };
 
   beforeEach(() => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -352,10 +375,86 @@ describe('ItemsView', () => {
 
     expect(wrapper.find('[data-cy="folded-warning-icon"]').exists()).toBe(true);
 
+    // Warning icon stays visible when expanded (it's in the subtitle row now)
     (wrapper.vm as unknown as { expandedDayTiles: Set<string> }).expandedDayTiles = new Set(['item-1']);
     await nextTick();
 
-    expect(wrapper.find('[data-cy="folded-warning-icon"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="folded-warning-icon"]').exists()).toBe(true);
+  });
+
+  it('keeps long day-mode item names untruncated when they fit the card width', async () => {
+    const longName = 'Desk with a very descriptive suffix';
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: longName,
+          equipment: [],
+          availability: 'available'
+        }
+      }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const display = wrapper.get('.item-name').element;
+    const measure = wrapper.get('.item-name-measure').element;
+    setElementWidth(display, { clientWidth: 240 });
+    setElementWidth(measure, { scrollWidth: 180 });
+
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+
+    expect(wrapper.get('.item-name').text()).toBe(longName);
+  });
+
+  it('middle-truncates long day-mode item names only when they overflow the card width', async () => {
+    const longName = 'Desk with a very descriptive suffix';
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: longName,
+          equipment: [],
+          availability: 'available'
+        }
+      }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const display = wrapper.get('.item-name').element;
+    const measure = wrapper.get('.item-name-measure').element;
+    setElementWidth(display, { clientWidth: 120 });
+    setElementWidth(measure, { scrollWidth: 240 });
+
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+
+    expect(wrapper.get('.item-name').text()).toBe(middleTruncate(longName, 25));
+  });
+
+  it('renders the day-mode favorite heart inside the action row', async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: 'Desk A',
+          equipment: [],
+          availability: 'available'
+        }
+      }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="day-item-actions"] [data-cy="item-favorite-heart"]').exists()).toBe(true);
   });
 
   describe('week mode rendering', () => {
@@ -383,6 +482,21 @@ describe('ItemsView', () => {
       expect(wrapper.find('[data-cy="week-item-entry"]').exists()).toBe(true);
     });
 
+    it('renders the week-mode favorite heart inside the action row', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="week-item-actions"] [data-cy="week-item-favorite-heart"]').exists()).toBe(true);
+    });
+
 
     it('shows warning icon on folded week tiles with warnings', async () => {
       fetchItemsMock.mockResolvedValue({
@@ -398,10 +512,11 @@ describe('ItemsView', () => {
 
       expect(wrapper.find('[data-cy="week-folded-warning-icon"]').exists()).toBe(true);
 
+      // Warning icon stays visible when expanded (it's in the subtitle row now)
       (wrapper.vm as unknown as { expandedWeekTiles: Set<string> }).expandedWeekTiles = new Set(['item-1']);
       await nextTick();
 
-      expect(wrapper.find('[data-cy="week-folded-warning-icon"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="week-folded-warning-icon"]').exists()).toBe(true);
     });
 
     it('shows week selector instead of date picker', async () => {
@@ -602,7 +717,9 @@ describe('ItemsView', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-cy="item-equipment"]').exists()).toBe(true);
-      expect(wrapper.find('[data-cy="item-warning"]').exists()).toBe(true);
+      // Warning is only visible when tile is expanded; folded shows warning icon only
+      expect(wrapper.find('[data-cy="item-warning"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="folded-warning-icon"]').exists()).toBe(true);
     });
   });
 

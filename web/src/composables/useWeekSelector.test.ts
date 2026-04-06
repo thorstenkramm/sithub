@@ -5,6 +5,7 @@ import {
   getISOWeekString,
   getWeekdayDates,
   getWeekdayLabel,
+  localizeWeekday,
   useWeekSelector
 } from './useWeekSelector';
 
@@ -96,6 +97,40 @@ describe('getWeekdayLabel', () => {
 
   it('returns empty string for out-of-range', () => {
     expect(getWeekdayLabel(7)).toBe('');
+  });
+
+  it('uses translation function when provided', () => {
+    const mockT = (key: string) => {
+      const map: Record<string, string> = {
+        'weekdays.mo': 'MO', 'weekdays.tu': 'DI', 'weekdays.fr': 'FR',
+        'weekdays.moShort': 'M', 'weekdays.tuShort': 'D'
+      };
+      return map[key] ?? key;
+    };
+    expect(getWeekdayLabel(0, false, mockT)).toBe('MO');
+    expect(getWeekdayLabel(1, false, mockT)).toBe('DI');
+    expect(getWeekdayLabel(0, true, mockT)).toBe('M');
+    expect(getWeekdayLabel(1, true, mockT)).toBe('D');
+  });
+});
+
+describe('localizeWeekday', () => {
+  const mockT = (key: string) => {
+    const map: Record<string, string> = {
+      'weekdays.mo': 'MO', 'weekdays.tu': 'DI', 'weekdays.we': 'MI',
+      'weekdays.th': 'DO', 'weekdays.fr': 'FR', 'weekdays.sa': 'SA', 'weekdays.su': 'SO'
+    };
+    return map[key] ?? key;
+  };
+
+  it('maps backend abbreviation to localized label', () => {
+    expect(localizeWeekday('TU', mockT)).toBe('DI');
+    expect(localizeWeekday('WE', mockT)).toBe('MI');
+    expect(localizeWeekday('SU', mockT)).toBe('SO');
+  });
+
+  it('returns original for unknown abbreviation', () => {
+    expect(localizeWeekday('XX', mockT)).toBe('XX');
   });
 });
 

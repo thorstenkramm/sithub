@@ -10,8 +10,9 @@
         :model-value="displayValue"
         :label="resolvedLabel"
         :disabled="disabled"
+        :density="density"
+        :hide-details="hideDetails"
         readonly
-        prepend-inner-icon="$calendar"
         :data-cy="dataCy"
       />
     </template>
@@ -36,9 +37,13 @@ const props = withDefaults(defineProps<{
   min?: string;
   max?: string;
   disabled?: boolean;
+  density?: 'default' | 'comfortable' | 'compact';
+  hideDetails?: boolean;
   dataCy?: string;
 }>(), {
-  label: ''
+  label: '',
+  density: 'default',
+  hideDetails: false
 });
 
 const resolvedLabel = computed(() => props.label || t('common.date'));

@@ -20,7 +20,7 @@ describe('StatusChip', () => {
     expect(wrapper.find('span').classes()).toContain('success');
   });
 
-  it('renders booked status with warning color', () => {
+  it('renders booked status with error color', () => {
     const wrapper = mount(StatusChip, {
       props: { status: 'booked' },
       global: {
@@ -34,7 +34,7 @@ describe('StatusChip', () => {
       }
     });
     expect(wrapper.text()).toContain('Booked');
-    expect(wrapper.find('span').classes()).toContain('warning');
+    expect(wrapper.find('span').classes()).toContain('error');
   });
 
   it('renders mine status with primary color', () => {

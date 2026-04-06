@@ -5,6 +5,16 @@
       :breadcrumbs="[{ text: $t('common.home'), to: '/' }, { text: $t('floorPlanEditor.title') }]"
     />
 
+    <v-alert
+      v-if="isMobileViewport"
+      type="info"
+      variant="tonal"
+      class="mb-4"
+      data-cy="editor-mobile-banner"
+    >
+      {{ $t('floorPlanEditor.desktopRecommended') }}
+    </v-alert>
+
     <v-row>
       <v-col cols="12" md="3" order="2" order-md="1">
         <v-card class="mb-4" data-cy="editor-sidebar">
@@ -338,6 +348,7 @@ interface EditorSnapshot {
 type ResizeHandle = "nw" | "ne" | "sw" | "se";
 
 const { t } = useI18n();
+const isMobileViewport = ref(typeof window !== 'undefined' && window.innerWidth < 768);
 
 const floorPlanOptions = ref<FloorPlanOption[]>([]);
 const selectedFloorPlan = ref<string | null>(null);
@@ -1028,6 +1039,10 @@ onUnmounted(() => {
   max-width: 100%;
   height: auto;
   user-select: none;
+}
+
+:global(.v-theme--dark) .floor-plan-editor-image {
+  filter: brightness(0.85) contrast(1.1);
 }
 
 .floor-plan-rect {

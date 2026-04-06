@@ -8,6 +8,7 @@
     "userMenu": {
       "theme": "Thème",
       "themeAuto": "Auto",
+      "themeAutoShort": "Auto",
       "themeLight": "Clair",
       "themeDark": "Sombre",
       "showWeekends": "Afficher les week-ends",
@@ -141,7 +142,10 @@
     "filterSyntaxAnd": "utilisez le signe plus pour combiner avec ET ;",
     "filterSyntaxExact": "utilisez des guillemets simples ou doubles pour une correspondance exacte ;",
     "filterSyntaxCase": "les filtres ne sont pas sensibles à la casse ;",
-    "filterSyntaxExample": "exemple :"
+    "filterSyntaxExample": "exemple :",
+    "bookDays": "Reserver ({count} jour) | Reserver ({count} jours)",
+    "bookingLimitExceeded": "Vous avez atteint le maximum de {count} réservations actives pour {scope}",
+    "bookingLimitExceededGlobal": "Vous avez atteint le maximum de {count} réservations actives"
   },
   "bookings": {
     "title": "Mes Réservations",
@@ -215,7 +219,8 @@
     "deleteItem": "Supprimer {name}",
     "save": "Enregistrer",
     "savedSuccessfully": "Positions du plan d'étage enregistrées.",
-    "saveFailed": "Échec de l'enregistrement des positions du plan d'étage."
+    "saveFailed": "Échec de l'enregistrement des positions du plan d'étage.",
+    "desktopRecommended": "L'éditeur de plans fonctionne mieux sur un écran de bureau."
   },
   "floorPlan": {
     "noPositions": "Aucun élément n'a encore été positionné sur ce plan d'étage. Un administrateur peut les configurer dans l'éditeur de plan d'étage.",
@@ -269,5 +274,21 @@
     "itemGroup": "Groupe d'éléments",
     "presence": "Présence",
     "bookings": "Réservations"
+  },
+  "weekdays": {
+    "mo": "LU",
+    "tu": "MA",
+    "we": "ME",
+    "th": "JE",
+    "fr": "VE",
+    "sa": "SA",
+    "su": "DI",
+    "moShort": "L",
+    "tuShort": "M",
+    "weShort": "M",
+    "thShort": "J",
+    "frShort": "V",
+    "saShort": "S",
+    "suShort": "D"
   }
 }

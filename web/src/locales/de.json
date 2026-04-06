@@ -8,6 +8,7 @@
     "userMenu": {
       "theme": "Design",
       "themeAuto": "Automatisch",
+      "themeAutoShort": "Auto",
       "themeLight": "Hell",
       "themeDark": "Dunkel",
       "showWeekends": "Wochenenden anzeigen",
@@ -18,7 +19,7 @@
       "languageAuto": "Automatisch",
       "languageEn": "English",
       "languageDe": "Deutsch",
-      "languageEs": "Espanol",
+      "languageEs": "Español",
       "languageFr": "Francais",
       "languageUk": "Ukrainska"
     },
@@ -141,7 +142,10 @@
     "filterSyntaxAnd": "verwenden Sie das Pluszeichen zur UND-Verknüpfung;",
     "filterSyntaxExact": "verwenden Sie einfache oder doppelte Anführungszeichen für exakte Übereinstimmung;",
     "filterSyntaxCase": "Filter unterscheiden nicht zwischen Groß- und Kleinschreibung;",
-    "filterSyntaxExample": "Beispiel:"
+    "filterSyntaxExample": "Beispiel:",
+    "bookDays": "Buchen ({count} Tag) | Buchen ({count} Tage)",
+    "bookingLimitExceeded": "Sie haben das Maximum von {count} aktiven Buchungen für {scope} erreicht",
+    "bookingLimitExceededGlobal": "Sie haben das Maximum von {count} aktiven Buchungen erreicht"
   },
   "bookings": {
     "title": "Meine Buchungen",
@@ -215,7 +219,8 @@
     "deleteItem": "{name} löschen",
     "save": "Speichern",
     "savedSuccessfully": "Raumplanpositionen gespeichert.",
-    "saveFailed": "Raumplanpositionen konnten nicht gespeichert werden."
+    "saveFailed": "Raumplanpositionen konnten nicht gespeichert werden.",
+    "desktopRecommended": "Der Raumplan-Editor funktioniert am besten auf einem Desktop-Bildschirm."
   },
   "floorPlan": {
     "noPositions": "Es wurden noch keine Objekte auf diesem Raumplan positioniert. Ein Administrator kann diese im Raumplan-Editor einrichten.",
@@ -269,5 +274,21 @@
     "itemGroup": "Gruppe",
     "presence": "Anwesenheit",
     "bookings": "Buchungen"
+  },
+  "weekdays": {
+    "mo": "MO",
+    "tu": "DI",
+    "we": "MI",
+    "th": "DO",
+    "fr": "FR",
+    "sa": "SA",
+    "su": "SO",
+    "moShort": "M",
+    "tuShort": "D",
+    "weShort": "M",
+    "thShort": "D",
+    "frShort": "F",
+    "saShort": "S",
+    "suShort": "S"
   }
 }

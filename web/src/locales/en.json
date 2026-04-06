@@ -8,6 +8,7 @@
     "userMenu": {
       "theme": "Theme",
       "themeAuto": "Auto",
+      "themeAutoShort": "Auto",
       "themeLight": "Light",
       "themeDark": "Dark",
       "showWeekends": "Show weekends",
@@ -141,7 +142,10 @@
     "filterSyntaxAnd": "use plus sign to combine with AND;",
     "filterSyntaxExact": "use single or double quotation marks for exact matching;",
     "filterSyntaxCase": "filters are case-insensitive;",
-    "filterSyntaxExample": "example:"
+    "filterSyntaxExample": "example:",
+    "bookDays": "Book ({count} day) | Book ({count} days)",
+    "bookingLimitExceeded": "You have reached the maximum of {count} active bookings for {scope}",
+    "bookingLimitExceededGlobal": "You have reached the maximum of {count} active bookings"
   },
   "bookings": {
     "title": "My Bookings",
@@ -215,7 +219,8 @@
     "deleteItem": "Delete {name}",
     "save": "Save",
     "savedSuccessfully": "Floor plan positions saved.",
-    "saveFailed": "Failed to save floor plan positions."
+    "saveFailed": "Failed to save floor plan positions.",
+    "desktopRecommended": "The floor plan editor works best on a desktop screen."
   },
   "floorPlan": {
     "noPositions": "No items have been positioned on this floor plan yet. An administrator can set them up in the Floor Plan Editor.",
@@ -269,5 +274,21 @@
     "itemGroup": "Item Group",
     "presence": "Presence",
     "bookings": "Bookings"
+  },
+  "weekdays": {
+    "mo": "MO",
+    "tu": "TU",
+    "we": "WE",
+    "th": "TH",
+    "fr": "FR",
+    "sa": "SA",
+    "su": "SU",
+    "moShort": "M",
+    "tuShort": "T",
+    "weShort": "W",
+    "thShort": "T",
+    "frShort": "F",
+    "saShort": "S",
+    "suShort": "S"
   }
 }
