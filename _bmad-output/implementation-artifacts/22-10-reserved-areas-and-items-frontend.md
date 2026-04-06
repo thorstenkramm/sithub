@@ -113,6 +113,11 @@ flow through to the position rendering logic.
 - [Source: private/epic-22.md — "disabled and blurred"]
 - [Source: web/src/views/ItemsView.vue:1754-1772 — existing blur pattern]
 
+### Review Findings
+
+- [x] [Review][Patch] Disable and dim reserved items in week mode instead of leaving them selectable [web/src/views/ItemsView.vue:373]
+- [x] [Review][Patch] Render reserved floor-plan positions as locked, non-bookable states with explanatory copy [web/src/components/InteractiveFloorPlan.vue:144]
+
 ## Dev Agent Record
 
 ### Agent Model Used

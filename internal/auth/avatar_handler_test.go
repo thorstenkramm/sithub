@@ -159,9 +159,11 @@ func TestSyncAvatarSuccess(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSyncAvatarNotFound(t *testing.T) {
+func TestSyncAvatarNotFoundRemovesExistingAvatar(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	avatarPath := filepath.Join(dir, "user-1.png")
+	require.NoError(t, os.WriteFile(avatarPath, createTestPNG(t), 0o600))
 
 	mockClient := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
@@ -174,7 +176,7 @@ func TestSyncAvatarNotFound(t *testing.T) {
 
 	SyncAvatar(t.Context(), mockClient, "user-1", dir)
 
-	_, err := os.Stat(filepath.Join(dir, "user-1.png"))
+	_, err := os.Stat(avatarPath)
 	assert.True(t, os.IsNotExist(err))
 }
 

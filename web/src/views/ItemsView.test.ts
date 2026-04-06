@@ -73,6 +73,12 @@ describe('ItemsView', () => {
       props: ['modelValue'],
       template: '<div v-if="modelValue"><slot /></div>'
     },
+    'v-checkbox': {
+      props: ['modelValue', 'disabled', 'color'],
+      emits: ['update:modelValue'],
+      template:
+        '<label v-bind="$attrs" :data-disabled="disabled" :data-color="color"><input type="checkbox" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', !modelValue)" /><slot /></label>'
+    },
     'v-card-item': {
       template: '<div><slot name="prepend" /><slot /><slot name="append" /></div>'
     },
@@ -252,6 +258,55 @@ describe('ItemsView', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-cy="item-booker"]').exists()).toBe(false);
+  });
+
+  it('shows a reserved overlay for reserved day-mode items', async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Reserved Desk',
+            equipment: [],
+            availability: 'available',
+            reserved: true
+          }
+        }
+      ]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="item-reserved"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Reserved');
+    expect(wrapper.get('[data-cy="item-entry"]').attributes('title')).toContain('reserved');
+  });
+
+  it('dims and disables reserved week-mode items', async () => {
+    localStorage.setItem('sithub_booking_mode', 'week');
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: 'item-1',
+          type: 'items',
+          attributes: {
+            name: 'Reserved Desk',
+            equipment: [],
+            availability: 'available',
+            reserved: true
+          }
+        }
+      ]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="item-reserved"]').exists()).toBe(true);
+    expect(wrapper.get('[data-cy="week-item-entry"]').attributes('title')).toContain('reserved');
+    expect(wrapper.get('[data-cy="week-day-checkbox"]').attributes('data-disabled')).toBe('true');
   });
 
   it('shows empty state when no items exist', async () => {

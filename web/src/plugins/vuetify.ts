@@ -106,6 +106,7 @@ import {
   mdiFilterOutline,
   mdiMap,
   mdiCloseCircle,
+  mdiLock,
   mdiHeart,
   mdiHeartOutline
 } from '@mdi/js';
@@ -154,6 +155,7 @@ const customAliases = {
   filterOutline: mdiFilterOutline,
   map: mdiMap,
   cancelCircle: mdiCloseCircle,
+  lock: mdiLock,
   heart: mdiHeart,
   heartOutline: mdiHeartOutline
 };

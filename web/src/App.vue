@@ -47,8 +47,8 @@
             >
               <v-avatar size="32" color="primary-lighten-1" class="mr-2">
                 <v-img
-                  v-if="authStore.userId"
-                  :src="getAvatarUrl(authStore.userId)"
+                  v-if="authStore.userId && !avatarLoadFailed"
+                  :src="avatarPreviewUrl"
                   @error="avatarLoadFailed = true"
                 />
                 <span v-if="!authStore.userId || avatarLoadFailed" class="text-body-2 font-weight-medium">{{ userInitials }}</span>
@@ -116,6 +116,15 @@
                 <v-icon size="small">$map</v-icon>
               </template>
               <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item
+              data-cy="avatar-btn"
+              @click="showAvatarDialog = true"
+            >
+              <template #prepend>
+                <v-icon size="small">$user</v-icon>
+              </template>
+              <v-list-item-title>{{ $t('app.userMenu.avatar') }}</v-list-item-title>
             </v-list-item>
             <v-list-item
               v-if="authStore.authSource === 'internal'"
@@ -228,6 +237,15 @@
             <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
           </v-list-item>
           <v-list-item
+            data-cy="mobile-avatar-btn"
+            @click="showAvatarDialog = true; mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon>$user</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('app.userMenu.avatar') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item
             v-if="authStore.authSource === 'internal'"
             data-cy="mobile-change-password-btn"
             @click="showPasswordDialog = true; mobileDrawer = false"
@@ -298,6 +316,70 @@
       <v-snackbar v-model="passwordSuccess" :timeout="3000" location="bottom" color="success" data-cy="password-success">
         {{ $t('app.passwordDialog.success') }}
       </v-snackbar>
+
+      <!-- Avatar Dialog -->
+      <v-dialog v-model="showAvatarDialog" max-width="400" persistent>
+        <v-card>
+          <v-card-title>{{ $t('app.avatarDialog.title') }}</v-card-title>
+          <v-card-text class="d-flex flex-column align-center">
+            <v-avatar size="96" color="primary-lighten-1" class="mb-4" data-cy="avatar-preview">
+              <v-img
+                v-if="authStore.userId && !avatarLoadFailed"
+                :src="avatarPreviewUrl"
+                @error="avatarLoadFailed = true"
+              />
+              <span v-else class="text-h5 font-weight-medium">{{ userInitials }}</span>
+            </v-avatar>
+            <input
+              ref="avatarFileInput"
+              type="file"
+              accept="image/png,image/jpeg"
+              hidden
+              data-cy="avatar-file-input"
+              @change="handleAvatarUpload"
+            />
+            <div class="d-flex ga-2">
+              <v-btn
+                color="primary"
+                variant="flat"
+                :loading="avatarUploading"
+                data-cy="avatar-upload-btn"
+                @click="avatarFileInput?.click()"
+              >
+                {{ $t('app.avatarDialog.upload') }}
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                :loading="avatarDeleting"
+                data-cy="avatar-delete-btn"
+                @click="handleAvatarDelete"
+              >
+                {{ $t('app.avatarDialog.remove') }}
+              </v-btn>
+            </div>
+            <v-alert
+              v-if="avatarError"
+              type="error"
+              variant="tonal"
+              density="compact"
+              class="mt-3"
+              data-cy="avatar-error"
+            >
+              {{ avatarError }}
+            </v-alert>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn variant="text" @click="closeAvatarDialog" data-cy="avatar-close">
+              {{ $t('common.close') }}
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <v-snackbar v-model="avatarSuccess" :timeout="3000" location="bottom" color="success" data-cy="avatar-success">
+        {{ $t('app.avatarDialog.success') }}
+      </v-snackbar>
     </template>
 
     <v-main>
@@ -307,10 +389,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from './stores/useAuthStore';
-import { getAvatarUrl } from './api/avatars';
+import { getAvatarUrl, uploadAvatar, deleteAvatar } from './api/avatars';
 import { logout } from './api/auth';
 import { changePassword } from './api/me';
 import { ApiError } from './api/client';
@@ -357,6 +439,69 @@ const newPassword = ref('');
 const passwordError = ref('');
 const passwordSuccess = ref(false);
 const passwordLoading = ref(false);
+
+const showAvatarDialog = ref(false);
+const avatarUploading = ref(false);
+const avatarDeleting = ref(false);
+const avatarError = ref('');
+const avatarSuccess = ref(false);
+const avatarCacheBust = ref(Date.now());
+const avatarFileInput = ref<HTMLInputElement | null>(null);
+
+const avatarPreviewUrl = computed(() => {
+  if (!authStore.userId) return '';
+  return `${getAvatarUrl(authStore.userId)}?t=${avatarCacheBust.value}`;
+});
+
+watch(
+  () => authStore.userId,
+  () => {
+    avatarLoadFailed.value = false;
+    avatarError.value = '';
+    avatarSuccess.value = false;
+  },
+);
+
+async function handleAvatarUpload(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  avatarUploading.value = true;
+  avatarError.value = '';
+  try {
+    await uploadAvatar(file);
+    avatarCacheBust.value = Date.now();
+    avatarLoadFailed.value = false;
+    avatarSuccess.value = true;
+  } catch {
+    avatarError.value = t('app.avatarDialog.uploadFailed');
+  } finally {
+    avatarUploading.value = false;
+    input.value = '';
+  }
+}
+
+async function handleAvatarDelete() {
+  avatarDeleting.value = true;
+  avatarError.value = '';
+  try {
+    await deleteAvatar();
+    avatarCacheBust.value = Date.now();
+    avatarLoadFailed.value = true;
+    avatarSuccess.value = true;
+  } catch {
+    avatarError.value = t('app.avatarDialog.deleteFailed');
+  } finally {
+    avatarDeleting.value = false;
+  }
+}
+
+function closeAvatarDialog() {
+  showAvatarDialog.value = false;
+  avatarError.value = '';
+  avatarSuccess.value = false;
+}
 
 const userInitials = computed(() => {
   const name = authStore.userName || 'U';

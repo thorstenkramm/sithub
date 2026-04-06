@@ -124,6 +124,8 @@ func DeleteAvatarHandler(avatarsDir string) echo.HandlerFunc {
 // and saves it as a PNG. Errors are logged but not propagated — avatar
 // sync must never block login.
 func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir string) {
+	avatarPath := filepath.Join(avatarsDir, userID+".png")
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://graph.microsoft.com/v1.0/me/photo/$value", http.NoBody)
 	if err != nil {
@@ -136,6 +138,12 @@ func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir strin
 	}
 	defer resp.Body.Close() //nolint:errcheck // Best-effort cleanup
 
+	if resp.StatusCode == http.StatusNotFound {
+		if err := os.Remove(avatarPath); err != nil && !os.IsNotExist(err) {
+			return
+		}
+		return
+	}
 	if resp.StatusCode != http.StatusOK {
 		return
 	}
@@ -147,7 +155,6 @@ func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir strin
 		return
 	}
 
-	avatarPath := filepath.Join(avatarsDir, userID+".png")
 	// #nosec G304 -- path is constructed from trusted avatarsDir + user ID
 	out, err := os.Create(avatarPath)
 	if err != nil {

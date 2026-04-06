@@ -182,12 +182,18 @@ components:
         booker_name:
           type: string
           description: Name of user who booked (present when occupied)
+        booker_user_id:
+          type: string
+          description: User ID of the booking owner (present when occupied and not a guest booking)
         booked_by_me:
           type: boolean
           description: True when the current authenticated user owns the booking for this item
         note:
           type: string
           description: Booking note (present when occupied and note is not empty)
+        reserved:
+          type: boolean
+          description: True when the current authenticated user cannot book this item because it is reserved for other users
       required:
         - name
         - equipment

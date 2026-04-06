@@ -139,29 +139,55 @@
                   }}</span>
                 </div>
 
-                <div
-                  v-for="pos in deskPositions"
-                  :key="`desk-${pos.itemId}`"
-                  class="fp-item"
-                  :class="{
-                    'fp-item--free': pos.status === 'free',
-                    'fp-item--busy': pos.status === 'busy',
-                    'fp-item--clickable':
+                <template v-for="pos in deskPositions" :key="`desk-${pos.itemId}`">
+                  <v-tooltip
+                    v-if="pos.status === 'reserved'"
+                    location="top"
+                    :text="$t('items.reservedTooltip')"
+                  >
+                    <template #activator="{ props: tooltipProps }">
+                      <div
+                        v-bind="tooltipProps"
+                        class="fp-item fp-item--reserved"
+                        :style="rectStyle(pos)"
+                        :data-cy="`fp-desk-${pos.itemId}`"
+                      >
+                        <v-icon size="16" class="fp-item-lock" :data-cy="`fp-lock-${pos.itemId}`">$lock</v-icon>
+                        <span class="fp-item-label">{{ pos.displayLabel }}</span>
+                      </div>
+                    </template>
+                  </v-tooltip>
+
+                  <div
+                    v-else
+                    class="fp-item"
+                    :class="{
+                      'fp-item--free': pos.status === 'free',
+                      'fp-item--busy': pos.status === 'busy',
+                      'fp-item--clickable':
+                        pos.status === 'free' &&
+                        shouldDrillIntoItemGroup(itemToGroupMap.get(pos.itemId)),
+                    }"
+                    :style="{
+                      ...rectStyle(pos),
+                      pointerEvents: pos.status === 'free' ? 'auto' : 'none',
+                    }"
+                    :data-cy="`fp-desk-${pos.itemId}`"
+                    @click="
                       pos.status === 'free' &&
-                      shouldDrillIntoItemGroup(itemToGroupMap.get(pos.itemId)),
-                  }"
-                  :style="{
-                    ...rectStyle(pos),
-                    pointerEvents: pos.status === 'free' ? 'auto' : 'none',
-                  }"
-                  :data-cy="`fp-desk-${pos.itemId}`"
-                  @click="
-                    pos.status === 'free' &&
-                    handleDeskClick(pos.itemId, pos.displayLabel)
-                  "
-                >
-                  <span class="fp-item-label">{{ pos.displayLabel }}</span>
-                </div>
+                      handleDeskClick(pos.itemId, pos.displayLabel)
+                    "
+                  >
+                    <img
+                      v-if="pos.status === 'busy' && shouldShowAvatar(pos.bookerUserId)"
+                      :src="getAvatarUrl(pos.bookerUserId!)"
+                      class="fp-item-avatar"
+                      :data-cy="`fp-avatar-${pos.itemId}`"
+                      @error="onAvatarError(pos.bookerUserId!)"
+                    />
+                    <span class="fp-item-label">{{ pos.displayLabel }}</span>
+                  </div>
+                </template>
               </template>
 
               <template v-else>
@@ -186,15 +212,37 @@
                     </template>
                   </v-tooltip>
 
+                  <v-tooltip
+                    v-else-if="pos.status === 'reserved'"
+                    location="top"
+                    :text="$t('items.reservedTooltip')"
+                  >
+                    <template #activator="{ props: tooltipProps }">
+                      <div
+                        v-bind="tooltipProps"
+                        class="fp-item fp-item--reserved"
+                        :style="rectStyle(pos)"
+                        :data-cy="`fp-item-${pos.itemId}`"
+                      >
+                        <v-icon size="16" class="fp-item-lock" :data-cy="`fp-lock-${pos.itemId}`">$lock</v-icon>
+                        <span class="fp-item-label">{{ pos.displayLabel }}</span>
+                      </div>
+                    </template>
+                  </v-tooltip>
+
                   <div
                     v-else
-                    class="fp-item"
-                    :class="
-                      'fp-item--busy'
-                    "
+                    class="fp-item fp-item--busy"
                     :style="rectStyle(pos)"
                     :data-cy="`fp-item-${pos.itemId}`"
                   >
+                    <img
+                      v-if="shouldShowAvatar(pos.bookerUserId)"
+                      :src="getAvatarUrl(pos.bookerUserId!)"
+                      class="fp-item-avatar"
+                      :data-cy="`fp-avatar-${pos.itemId}`"
+                      @error="onAvatarError(pos.bookerUserId!)"
+                    />
                     <span class="fp-item-label">{{ pos.displayLabel }}</span>
                   </div>
                 </template>
@@ -206,15 +254,24 @@
     </div>
 
     <div class="fp-footer" data-cy="fp-footer">
-      <v-checkbox
-        v-if="positions.length > 0"
-        v-model="showLabels"
-        :label="$t('floorPlan.showLabels')"
-        hide-details
-        density="compact"
-        data-cy="fp-show-labels"
-      />
-      <div v-else />
+      <div class="d-flex align-center ga-4">
+        <v-checkbox
+          v-if="positions.length > 0"
+          v-model="showLabels"
+          :label="$t('floorPlan.showLabels')"
+          hide-details
+          density="compact"
+          data-cy="fp-show-labels"
+        />
+        <v-checkbox
+          v-if="positions.length > 0"
+          v-model="showAvatars"
+          :label="$t('floorPlan.showAvatars')"
+          hide-details
+          density="compact"
+          data-cy="fp-show-avatars"
+        />
+      </div>
       <v-btn
         variant="text"
         data-cy="fp-close-btn"
@@ -409,6 +466,7 @@ import {
   createBooking,
   createMultiDayBooking,
 } from "../api/bookings";
+import { getAvatarUrl } from "../api/avatars";
 import { fetchFloorPlanPositions } from "../api/floorPlanPositions";
 import { fetchItemGroups } from "../api/itemGroups";
 import { fetchItems } from "../api/items";
@@ -438,6 +496,20 @@ const isCompactViewport = ref(false);
 const LABELS_KEY = "sithub_fp_show_labels";
 const showLabels = ref(localStorage.getItem(LABELS_KEY) !== "false");
 watch(showLabels, (value) => localStorage.setItem(LABELS_KEY, String(value)));
+
+const AVATARS_KEY = "sithub_fp_show_avatars";
+const showAvatars = ref(localStorage.getItem(AVATARS_KEY) !== "false");
+watch(showAvatars, (value) => localStorage.setItem(AVATARS_KEY, String(value)));
+
+const failedAvatars = ref(new Set<string>());
+
+function onAvatarError(userId: string) {
+  failedAvatars.value = new Set([...failedAvatars.value, userId]);
+}
+
+function shouldShowAvatar(userId: string | undefined): boolean {
+  return Boolean(showAvatars.value && userId && !failedAvatars.value.has(userId));
+}
 
 const zoomScale = ref(1);
 const pinchState = ref<{ startDistance: number; startScale: number } | null>(
@@ -472,7 +544,9 @@ interface ItemData {
   equipment: string[];
   warning?: string;
   availability: string;
+  reserved?: boolean;
   bookerName?: string;
+  bookerUserId?: string;
   bookedByMe: boolean;
 }
 
@@ -725,7 +799,9 @@ async function loadAvailability() {
         equipment: item.attributes.equipment || [],
         warning: item.attributes.warning,
         availability: item.attributes.availability,
+        reserved: item.attributes.reserved === true,
         bookerName: item.attributes.booker_name,
+        bookerUserId: item.attributes.booker_user_id,
         bookedByMe: item.attributes.booked_by_me === true,
       });
     }
@@ -768,7 +844,8 @@ async function loadAreaAvailability() {
       const total = response.data.length;
       const free = response.data.filter(
         (item: JsonApiResource<ItemAttributes>) =>
-          item.attributes.availability === "available",
+          item.attributes.availability === "available" &&
+          item.attributes.reserved !== true,
       ).length;
 
       availabilityMap.set(itemGroupID, { free, total });
@@ -779,7 +856,9 @@ async function loadAreaAvailability() {
           equipment: item.attributes.equipment || [],
           warning: item.attributes.warning,
           availability: item.attributes.availability,
+          reserved: item.attributes.reserved === true,
           bookerName: item.attributes.booker_name,
+          bookerUserId: item.attributes.booker_user_id,
           bookedByMe: item.attributes.booked_by_me === true,
         });
         itemGroupLookup.set(item.id, itemGroupID);
@@ -827,6 +906,7 @@ async function loadItemGroupMap() {
 }
 
 async function refreshAvailability() {
+  failedAvatars.value = new Set();
   if (isAreaView.value) {
     await loadAreaAvailability();
     return;
@@ -911,11 +991,13 @@ const deskPositions = computed(() => {
     .map((pos) => {
       const item = itemDataMap.value.get(pos.itemId);
       const occupied = item?.availability === "occupied";
+      const reserved = item?.reserved === true;
 
       return {
         ...pos,
         displayLabel: pos.label || item?.name || pos.itemId,
-        status: occupied ? ("busy" as const) : ("free" as const),
+        status: reserved ? ("reserved" as const) : occupied ? ("busy" as const) : ("free" as const),
+        bookerUserId: item?.bookerUserId,
       };
     });
 });
@@ -941,12 +1023,14 @@ const enrichedPositions = computed(() => {
     }
 
     const occupied = item?.availability === "occupied";
+    const reserved = item?.reserved === true;
 
     return {
       ...pos,
       displayLabel: pos.label || name,
       tooltipText: tooltipParts.join("\n"),
-      status: occupied ? "busy" : ("free" as "free" | "busy" | "mine"),
+      status: reserved ? "reserved" : occupied ? "busy" : ("free" as "free" | "busy" | "reserved"),
+      bookerUserId: item?.bookerUserId,
     };
   });
 });
@@ -1487,7 +1571,9 @@ onBeforeUnmount(() => {
 
 .fp-item {
   position: absolute;
-  border: 2px solid transparent;
+  border-style: solid;
+  border-color: transparent;
+  overflow: hidden;
   transition:
     background-color 0.2s,
     border-color 0.2s,
@@ -1513,6 +1599,12 @@ onBeforeUnmount(() => {
   background-color: rgba(var(--v-theme-error), 0.3);
 }
 
+.fp-item--reserved {
+  border-color: rgb(var(--v-theme-outline));
+  background-color: rgba(var(--v-theme-surface-variant), 0.8);
+  opacity: 0.9;
+}
+
 .fp-item--area {
   flex-direction: column;
 }
@@ -1523,6 +1615,25 @@ onBeforeUnmount(() => {
 
 .fp-item--clickable:hover {
   transform: scale(1.01);
+}
+
+.fp-item-avatar {
+  position: absolute;
+  inset: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  object-fit: cover;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.fp-item-lock {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  color: rgb(var(--v-theme-on-surface));
+  pointer-events: none;
 }
 
 .fp-item-label,

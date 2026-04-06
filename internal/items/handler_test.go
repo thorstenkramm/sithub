@@ -99,11 +99,16 @@ func seedTestBooking(t *testing.T, store *sql.DB) {
 
 func seedTestUser(t *testing.T, store *sql.DB) {
 	t.Helper()
+	seedTestUserRecord(t, store, "user-1", "user-1@test.local", "Alice Smith")
+}
+
+func seedTestUserRecord(t *testing.T, store *sql.DB, userID, email, displayName string) {
+	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	_, err := store.ExecContext(context.Background(),
 		`INSERT INTO users (id, email, display_name, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?)`,
-		"user-1", "user-1@test.local", "Alice Smith", now, now)
+		userID, email, displayName, now, now)
 	require.NoError(t, err)
 }
 
@@ -219,6 +224,66 @@ func TestListHandlerAllAvailable(t *testing.T) {
 	}
 }
 
+func TestListHandlerMarksReservedItemsForExcludedUser(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestDB(t)
+	cfg := testConfig()
+	cfg.Areas[0].ReservedFor = []string{"allowed@test.local"}
+	seedTestUserRecord(t, store, "user-2", "denied@test.local", "Denied User")
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
+	c.Set("user", &auth.User{ID: "user-2", Name: "Denied User"})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 2)
+
+	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, attrs0["reserved"])
+}
+
+func TestListHandlerDoesNotMarkReservedItemsForAllowedUser(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestDB(t)
+	cfg := testConfig()
+	cfg.Areas[0].ReservedFor = []string{"allowed@test.local"}
+	seedTestUserRecord(t, store, "user-3", "allowed@test.local", "Allowed User")
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/item-groups/ig-1/items?date=2025-01-20", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("item_group_id")
+	c.SetParamValues("ig-1")
+	c.Set("user", &auth.User{ID: "user-3", Name: "Allowed User"})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 2)
+
+	attrs0, ok := resp.Data[0].Attributes.(map[string]any)
+	require.True(t, ok)
+	assert.Nil(t, attrs0["reserved"])
+}
+
 func TestListHandlerAdminSeesBookerInfo(t *testing.T) {
 	t.Parallel()
 
@@ -281,6 +346,7 @@ func TestListHandlerNonAdminSeesBookerNameButNotBookingID(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "occupied", attrs0["availability"])
 	assert.Equal(t, "Alice Smith", attrs0["booker_name"])
+	assert.Equal(t, "user-1", attrs0["booker_user_id"])
 	assert.Equal(t, true, attrs0["booked_by_me"])
 	// Non-admin should not see booking_id
 	assert.Nil(t, attrs0["booking_id"])
@@ -348,4 +414,5 @@ func TestListHandlerGuestBookingShowsGuestName(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "occupied", attrs0["availability"])
 	assert.Equal(t, "John Visitor", attrs0["booker_name"])
+	assert.Nil(t, attrs0["booker_user_id"])
 }

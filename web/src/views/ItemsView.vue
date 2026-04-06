@@ -179,7 +179,7 @@
           :data-cy="entry.attributes.reserved ? 'item-reserved' : 'equipment-not-available'"
         >
           <span class="text-body-2 font-weight-medium">
-            {{ entry.attributes.reserved ? $t('items.reserved') : $t('items.equipmentNotAvailable') }}
+            {{ getOverlayLabel(entry.attributes.reserved === true) }}
           </span>
         </div>
         <v-card
@@ -189,6 +189,7 @@
             { 'item-occupied': entry.attributes.availability === 'occupied' },
             { 'item-filtered-out': isItemFilteredOut(entry.attributes.equipment || []) || entry.attributes.reserved }
           ]"
+          :title="entry.attributes.reserved ? $t('items.reservedTooltip') : undefined"
           data-cy="item-entry"
           :data-cy-item-id="entry.id"
           :data-cy-availability="entry.attributes.availability"
@@ -373,14 +374,15 @@
         :class="['item-filter-wrapper', { 'item-expanded': expandedWeekTiles.has(item.id) }]"
       >
         <div
-          v-if="isItemFilteredOut(getWeekItemEquipment(item.id))"
+          v-if="isItemFilteredOut(getWeekItemEquipment(item.id)) || isWeekItemReserved(item.id)"
           class="item-filtered-overlay"
-          data-cy="equipment-not-available"
+          :data-cy="isWeekItemReserved(item.id) ? 'item-reserved' : 'equipment-not-available'"
         >
-          <span class="text-body-2 font-weight-medium">{{ $t('items.equipmentNotAvailable') }}</span>
+          <span class="text-body-2 font-weight-medium">{{ getOverlayLabel(isWeekItemReserved(item.id)) }}</span>
         </div>
         <v-card
-          :class="['item-card', { 'item-filtered-out': isItemFilteredOut(getWeekItemEquipment(item.id)) }]"
+          :class="['item-card', { 'item-filtered-out': isItemFilteredOut(getWeekItemEquipment(item.id)) || isWeekItemReserved(item.id) }]"
+          :title="isWeekItemReserved(item.id) ? $t('items.reservedTooltip') : undefined"
           data-cy="week-item-entry"
           :data-cy-item-name="item.name"
           :data-cy-item-id="item.id"
@@ -407,12 +409,12 @@
           <div class="d-flex align-center ga-2 mt-1 px-4">
             <v-chip
               size="x-small"
-              :color="getWeekItemAvatarColor(item.id)"
+              :color="getWeekItemStatusColor(item.id)"
               variant="tonal"
               data-cy="week-item-availability"
             >
-              <v-icon start size="14">{{ getWeekItemFreeDays(item.id) === selectedWeekDates.length ? '$success' : getWeekItemFreeDays(item.id) === 0 ? '$calendar' : '$success' }}</v-icon>
-              {{ getWeekItemFreeDays(item.id) === 0 ? $t('status.booked') : `${$t('status.available')} ${getWeekItemFreeDays(item.id)}/${selectedWeekDates.length}` }}
+              <v-icon start size="14">{{ getWeekItemStatusIcon(item.id) }}</v-icon>
+              {{ getWeekItemStatusLabel(item.id) }}
             </v-chip>
             <v-tooltip
               v-if="getWeekItemAttributes(item.id).warning"
@@ -491,10 +493,10 @@
                 hide-details
                 density="compact"
                 color="success"
-                :disabled="isDateInPast(date)"
+                :disabled="isDateInPast(date) || isWeekItemReserved(item.id)"
                 class="week-day-checkbox"
                 :data-cy="isDateInPast(date) ? 'week-day-checkbox-past' : 'week-day-checkbox'"
-                @update:model-value="toggleWeekDay(item.id, date)"
+                @update:model-value="!isWeekItemReserved(item.id) && toggleWeekDay(item.id, date)"
               />
               <v-checkbox
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
@@ -559,10 +561,10 @@
                 hide-details
                 density="compact"
                 color="success"
-                :disabled="isDateInPast(date)"
+                :disabled="isDateInPast(date) || isWeekItemReserved(item.id)"
                 class="week-day-checkbox"
                 :data-cy="isDateInPast(date) ? 'week-day-checkbox-past' : 'week-day-checkbox'"
-                @update:model-value="toggleWeekDay(item.id, date)"
+                @update:model-value="!isWeekItemReserved(item.id) && toggleWeekDay(item.id, date)"
               />
               <v-checkbox
                 v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
@@ -1089,14 +1091,18 @@ const toggleWeekTileExpansion = (itemId: string) => {
   expandedWeekTiles.value = next;
 };
 
+const getOverlayLabel = (reserved: boolean): string =>
+  reserved ? t('items.reserved') : t('items.equipmentNotAvailable');
+
 const weekItemAttributesMap = computed(() => {
-  const map = new Map<string, { equipment: string[]; warning?: string }>();
+  const map = new Map<string, { equipment: string[]; warning?: string; reserved?: boolean }>();
   for (const dayItems of Object.values(weekData.value)) {
     for (const item of dayItems) {
       if (!map.has(item.id)) {
         map.set(item.id, {
           equipment: item.attributes.equipment || [],
-          warning: item.attributes.warning
+          warning: item.attributes.warning,
+          reserved: item.attributes.reserved === true
         });
       }
     }
@@ -1104,8 +1110,11 @@ const weekItemAttributesMap = computed(() => {
   return map;
 });
 
-const getWeekItemAttributes = (itemId: string): { equipment: string[]; warning?: string } =>
+const getWeekItemAttributes = (itemId: string): { equipment: string[]; warning?: string; reserved?: boolean } =>
   weekItemAttributesMap.value.get(itemId) ?? { equipment: [] };
+
+const isWeekItemReserved = (itemId: string): boolean =>
+  getWeekItemAttributes(itemId).reserved === true;
 
 const getWeekItemFreeDays = (itemId: string): number =>
   selectedWeekDates.value.filter(date => getWeekDayStatus(itemId, date) === 'free').length;
@@ -1116,6 +1125,21 @@ const getWeekItemAvatarColor = (itemId: string): string => {
   if (free === total) return 'success';
   if (free === 0) return 'error';
   return 'primary';
+};
+
+const getWeekItemStatusColor = (itemId: string): string =>
+  isWeekItemReserved(itemId) ? 'warning' : getWeekItemAvatarColor(itemId);
+
+const getWeekItemStatusIcon = (itemId: string): string => {
+  if (isWeekItemReserved(itemId)) return '$lock';
+  return getWeekItemFreeDays(itemId) === 0 ? '$calendar' : '$success';
+};
+
+const getWeekItemStatusLabel = (itemId: string): string => {
+  if (isWeekItemReserved(itemId)) return t('items.reserved');
+  const freeDays = getWeekItemFreeDays(itemId);
+  if (freeDays === 0) return t('status.booked');
+  return `${t('status.available')} ${freeDays}/${selectedWeekDates.value.length}`;
 };
 
 // Story 15-2: Day tile expansion

@@ -14,6 +14,7 @@
       "showWeekends": "Wochenenden anzeigen",
       "editFloorPlans": "Raumpläne bearbeiten",
       "changePassword": "Passwort ändern",
+      "avatar": "Profilfoto",
       "signOut": "Abmelden",
       "language": "Sprache",
       "languageAuto": "Automatisch",
@@ -37,6 +38,14 @@
       "localAccountsOnly": "Eine Passwortänderung ist nur für lokale Konten verfügbar.",
       "failed": "Passwort konnte nicht geändert werden",
       "genericError": "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+    },
+    "avatarDialog": {
+      "title": "Profilfoto",
+      "upload": "Hochladen",
+      "remove": "Entfernen",
+      "success": "Profilfoto aktualisiert.",
+      "uploadFailed": "Foto konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
+      "deleteFailed": "Foto konnte nicht entfernt werden. Bitte versuchen Sie es erneut."
     }
   },
   "auth": {
@@ -144,6 +153,7 @@
     "filterSyntaxCase": "Filter unterscheiden nicht zwischen Groß- und Kleinschreibung;",
     "filterSyntaxExample": "Beispiel:",
     "reserved": "Reserviert",
+    "reservedTooltip": "Dieses Objekt ist reserviert. Sie haben keinen Zugriff.",
     "bookDays": "Buchen ({count} Tag) | Buchen ({count} Tage)",
     "bookingLimitExceeded": "Sie haben das Maximum von {count} aktiven Buchungen für {scope} erreicht",
     "bookingLimitExceededGlobal": "Sie haben das Maximum von {count} aktiven Buchungen erreicht"
@@ -226,6 +236,7 @@
   "floorPlan": {
     "noPositions": "Es wurden noch keine Objekte auf diesem Raumplan positioniert. Ein Administrator kann diese im Raumplan-Editor einrichten.",
     "showLabels": "Beschriftungen anzeigen",
+    "showAvatars": "Avatare anzeigen",
     "checkingAvailability": "Die Verfügbarkeit für die ausgewählte Woche wird geprüft...",
     "confirmBooking": "Buchung bestätigen",
     "confirmBookingFor": "Buchung für {label} bestätigen",

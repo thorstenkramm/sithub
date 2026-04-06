@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/notifications"
-	"github.com/thorstenkramm/sithub/internal/areas"
 )
 
 // testNotifier returns a noop notifier for tests.
@@ -29,11 +29,16 @@ func testNotifier() notifications.Notifier {
 // seedTestUser inserts a user into the users table for display name lookups.
 func seedTestUser(t *testing.T, store *sql.DB, userID, displayName string) {
 	t.Helper()
+	seedTestUserRecord(t, store, userID, userID+"@test.local", displayName)
+}
+
+func seedTestUserRecord(t *testing.T, store *sql.DB, userID, email, displayName string) {
+	t.Helper()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := store.Exec(
 		`INSERT INTO users (id, email, display_name, user_source, created_at, updated_at)
 		 VALUES (?, ?, ?, 'internal', ?, ?)`,
-		userID, userID+"@test.local", displayName, now, now,
+		userID, email, displayName, now, now,
 	)
 	require.NoError(t, err)
 }
@@ -1409,6 +1414,64 @@ func TestCreateHandlerWithinLimitsSuccess(t *testing.T) {
 
 	limits := &BookingLimits{WeeksInAdvanced: 52, MaxBookingsPerPerson: 10}
 	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), limits)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+}
+
+func TestCreateHandlerReservationRejectsWithScopedMessage(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	cfg.Areas[0].ItemGroups[0].ReservedFor = []string{"allowed@test.local"}
+	store := setupTestStore(t)
+	seedTestUserRecord(t, store, "user-1", "denied@test.local", "Denied User")
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` + tomorrow + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Denied User"})
+
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), nil)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+
+	var resp api.ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Errors, 1)
+	assert.Equal(t, "forbidden", resp.Errors[0].Code)
+	assert.Contains(t, resp.Errors[0].Detail, `item group "Room 1"`)
+	assert.Contains(t, resp.Errors[0].Detail, "reserved")
+}
+
+func TestCreateHandlerReservationUsesBookingTarget(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	cfg.Areas[0].ReservedFor = []string{"allowed@test.local"}
+	store := setupTestStore(t)
+	seedTestUserRecord(t, store, "admin-1", "admin@test.local", "Admin User")
+	seedTestUserRecord(t, store, "allowed-user", "allowed@test.local", "Allowed User")
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` +
+		tomorrow +
+		`","for_user_id":"allowed-user"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "admin-1", Name: "Admin User", IsAdmin: true})
+
+	h := CreateHandlerDynamic(func() *areas.Config { return cfg }, store, testNotifier(), nil)
 	require.NoError(t, h(c))
 
 	assert.Equal(t, http.StatusCreated, rec.Code)

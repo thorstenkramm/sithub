@@ -337,6 +337,66 @@ describe("InteractiveFloorPlan", () => {
     expect(moBtn.attributes("color")).toBe("error");
   });
 
+  it("renders busy-item avatars and hides them when show avatars is turned off", async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: "item-1",
+          type: "items",
+          attributes: {
+            name: "Desk A",
+            equipment: ["Monitor"],
+            availability: "occupied",
+            booker_name: "Alice Smith",
+            booker_user_id: "user-1",
+            booked_by_me: false,
+          },
+        },
+      ],
+    } as never);
+
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    const avatar = wrapper.get('[data-cy="fp-avatar-item-1"]');
+    expect(avatar.attributes("src")).toBe("/api/v1/avatars/user-1");
+
+    await wrapper.get('[data-cy="fp-show-avatars"] input').trigger("change");
+    await flushPromises();
+
+    expect(localStorage.getItem("sithub_fp_show_avatars")).toBe("false");
+    expect(wrapper.find('[data-cy="fp-avatar-item-1"]').exists()).toBe(false);
+  });
+
+  it("renders reserved items with a lock and blocks booking interaction", async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: "item-1",
+          type: "items",
+          attributes: {
+            name: "Desk A",
+            equipment: ["Monitor"],
+            availability: "available",
+            reserved: true,
+            booked_by_me: false,
+          },
+        },
+      ],
+    } as never);
+
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-lock-item-1"]').exists()).toBe(true);
+
+    await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-booking-dialog"]').exists()).toBe(false);
+    expect(createBookingMock).not.toHaveBeenCalled();
+  });
+
   it("uses close as back when drilled into a detailed floor plan", async () => {
     fetchFloorPlanPositionsMock
       .mockResolvedValueOnce({

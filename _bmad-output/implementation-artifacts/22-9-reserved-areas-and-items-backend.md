@@ -134,6 +134,11 @@ location where `ValidateFloorPlans()` is called (line ~66).
 - [Source: internal/areas/config.go — Area/ItemGroup/Item structs]
 - [Source: internal/bookings/handler.go — CreateHandlerDynamic flow]
 
+### Review Findings
+
+- [x] [Review][Patch] Apply reservation checks to the actual booking target instead of only the acting user [internal/bookings/handler.go:493]
+- [x] [Review][Patch] Return a reservation-specific 403 message and document the `reserved` item attribute in the API surface [internal/api/errors.go:30]
+
 ## Dev Agent Record
 
 ### Agent Model Used

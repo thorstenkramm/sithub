@@ -8,6 +8,7 @@ export interface ItemAttributes {
   warning?: string;
   icon?: string;
   booker_name?: string; // present when item is occupied
+  booker_user_id?: string; // present when item is occupied (non-guest)
   booked_by_me?: boolean; // present when item is occupied
   booking_id?: string; // admin-only, present when item is occupied
   note?: string; // present when item is occupied and has a note

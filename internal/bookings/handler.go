@@ -17,9 +17,9 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/notifications"
-	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/users"
 )
 
@@ -492,14 +492,14 @@ func CreateHandlerDynamic(
 			return api.WriteNotFound(c, "Item not found")
 		}
 
-		// Check reservation access
-		if err := handleReservation(c, store, user, loc); err != nil || c.Response().Committed {
-			return err
-		}
-
 		params, err := resolveBookingParticipants(c.Request().Context(), store, user, req)
 		if err != nil {
 			return handleValidationError(c, err)
+		}
+
+		// Reservation access applies to the eventual booking target, not just the acting user.
+		if err := handleReservation(c, store, params, loc); err != nil || c.Response().Committed {
+			return err
 		}
 
 		if err := handleBookingLimits(c, store, params, loc, limits); err != nil || c.Response().Committed {
@@ -522,7 +522,7 @@ func CreateHandlerDynamic(
 // reserved_for configuration. Returns nil when access is granted or no
 // reservations are configured.
 func handleReservation(
-	c echo.Context, store *sql.DB, user *auth.User, loc *areas.ItemLocation,
+	c echo.Context, store *sql.DB, params *bookingParticipants, loc *areas.ItemLocation,
 ) error {
 	// Skip check if no reserved_for at any level
 	if len(loc.Item.ReservedFor) == 0 &&
@@ -531,23 +531,63 @@ func handleReservation(
 		return nil
 	}
 
-	// Look up user email for reservation check
-	rec, err := users.FindByID(c.Request().Context(), store, user.ID)
+	targetEmail, err := resolveReservationEmail(c.Request().Context(), store, params)
 	if err != nil {
 		return fmt.Errorf("lookup user for reservation check: %w", err)
 	}
-	if rec == nil {
+	if targetEmail == "" {
 		//nolint:errcheck // Response signals via Committed
-		api.WriteForbidden(c)
+		api.WriteForbiddenDetail(c, reservationForbiddenMessage(loc))
 		return nil
 	}
 
-	if areas.IsReserved(loc, rec.Email) {
+	if areas.IsReserved(loc, targetEmail) {
 		//nolint:errcheck // Response signals via Committed
-		api.WriteForbidden(c)
+		api.WriteForbiddenDetail(c, reservationForbiddenMessage(loc))
 		return nil
 	}
 	return nil
+}
+
+func resolveReservationEmail(
+	ctx context.Context, store *sql.DB, params *bookingParticipants,
+) (string, error) {
+	if params.isGuest {
+		return strings.TrimSpace(params.guestEmail), nil
+	}
+
+	rec, err := users.FindByID(ctx, store, params.targetUserID)
+	if err != nil {
+		return "", fmt.Errorf("find reservation target user: %w", err)
+	}
+	if rec == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(rec.Email), nil
+}
+
+func reservationForbiddenMessage(loc *areas.ItemLocation) string {
+	kind, label := "item", loc.Item.Name
+
+	switch {
+	case len(loc.Item.ReservedFor) > 0:
+		kind, label = "item", firstNonEmpty(loc.Item.Name, loc.Item.ID)
+	case len(loc.ItemGroup.ReservedFor) > 0:
+		kind, label = "item group", firstNonEmpty(loc.ItemGroup.Name, loc.ItemGroup.ID)
+	case len(loc.Area.ReservedFor) > 0:
+		kind, label = "area", firstNonEmpty(loc.Area.Name, loc.Area.ID)
+	}
+
+	return fmt.Sprintf("This %s %q is reserved. You do not have access.", kind, label)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 // handleBookingLimits enforces booking limits and writes the error response if exceeded.

@@ -32,7 +32,12 @@ func WriteUnauthorized(c echo.Context) error {
 
 // WriteForbidden writes a JSON:API forbidden error response.
 func WriteForbidden(c echo.Context) error {
-	errResp := NewError(http.StatusForbidden, "Forbidden", "Access denied", "forbidden")
+	return WriteForbiddenDetail(c, "Access denied")
+}
+
+// WriteForbiddenDetail writes a JSON:API forbidden error response with a custom detail.
+func WriteForbiddenDetail(c echo.Context, detail string) error {
+	errResp := NewError(http.StatusForbidden, "Forbidden", detail, "forbidden")
 	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
 	if err := c.JSON(http.StatusForbidden, errResp); err != nil {
 		return fmt.Errorf("write forbidden response: %w", err)

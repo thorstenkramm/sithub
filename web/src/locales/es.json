@@ -14,6 +14,7 @@
       "showWeekends": "Mostrar fines de semana",
       "editFloorPlans": "Editar planos de planta",
       "changePassword": "Cambiar contrasena",
+      "avatar": "Foto de perfil",
       "signOut": "Cerrar sesion",
       "language": "Idioma",
       "languageAuto": "Auto",
@@ -37,6 +38,14 @@
       "localAccountsOnly": "El cambio de contrasena solo esta disponible para cuentas locales.",
       "failed": "No se pudo cambiar la contrasena",
       "genericError": "Se ha producido un error. Por favor, intentelo de nuevo."
+    },
+    "avatarDialog": {
+      "title": "Foto de perfil",
+      "upload": "Subir",
+      "remove": "Eliminar",
+      "success": "Foto de perfil actualizada.",
+      "uploadFailed": "No se pudo subir la foto. Por favor, intentelo de nuevo.",
+      "deleteFailed": "No se pudo eliminar la foto. Por favor, intentelo de nuevo."
     }
   },
   "auth": {
@@ -144,6 +153,7 @@
     "filterSyntaxCase": "los filtros no distinguen entre mayusculas y minusculas;",
     "filterSyntaxExample": "ejemplo:",
     "reserved": "Reservado",
+    "reservedTooltip": "Este elemento esta reservado. No tiene acceso.",
     "bookDays": "Reservar ({count} dia) | Reservar ({count} dias)",
     "bookingLimitExceeded": "Ha alcanzado el máximo de {count} reservas activas para {scope}",
     "bookingLimitExceededGlobal": "Ha alcanzado el máximo de {count} reservas activas"
@@ -226,6 +236,7 @@
   "floorPlan": {
     "noPositions": "Aun no se han posicionado elementos en este plano de planta. Un administrador puede configurarlos en el Editor de plano de planta.",
     "showLabels": "Mostrar etiquetas",
+    "showAvatars": "Mostrar avatares",
     "checkingAvailability": "Comprobando disponibilidad para la semana seleccionada...",
     "confirmBooking": "Confirmar reserva",
     "confirmBookingFor": "Confirmar su reserva de {label}",

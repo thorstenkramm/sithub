@@ -143,6 +143,18 @@ post:
         application/vnd.api+json:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Booking blocked because the selected area, item group, or item is reserved
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+          example:
+            errors:
+              - status: '403'
+                title: Forbidden
+                detail: This item group "Room 1" is reserved. You do not have access.
+                code: forbidden
     '404':
       description: Item not found
       content:

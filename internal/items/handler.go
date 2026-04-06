@@ -120,6 +120,22 @@ func resolveBookerNames(
 	}
 }
 
+// applyBookingAttrs populates booking-related attributes on an item.
+func applyBookingAttrs(attrs map[string]any, info *bookings.ItemBookingInfo, isAdmin bool, currentUserID string) {
+	attrs["availability"] = "occupied"
+	attrs["booker_name"] = info.BookerName
+	if !info.IsGuest {
+		attrs["booker_user_id"] = info.UserID
+	}
+	attrs["booked_by_me"] = currentUserID != "" && info.UserID == currentUserID
+	if info.Note != "" {
+		attrs["note"] = info.Note
+	}
+	if isAdmin {
+		attrs["booking_id"] = info.BookingID
+	}
+}
+
 func buildItemResources(
 	ig *areas.ItemGroup, parentArea *areas.Area,
 	itemBookings map[string]bookings.ItemBookingInfo,
@@ -128,15 +144,8 @@ func buildItemResources(
 	return api.MapResources(ig.Items, func(item areas.Item) api.Resource {
 		attrs := areas.ItemAttributes(item.Name, item.Equipment, item.Warning, "", item.Icon)
 		if info, booked := itemBookings[item.ID]; booked {
-			attrs["availability"] = "occupied"
-			attrs["booker_name"] = info.BookerName
-			attrs["booked_by_me"] = currentUserID != "" && info.UserID == currentUserID
-			if info.Note != "" {
-				attrs["note"] = info.Note
-			}
-			if isAdmin {
-				attrs["booking_id"] = info.BookingID
-			}
+			bi := info
+			applyBookingAttrs(attrs, &bi, isAdmin, currentUserID)
 		} else {
 			attrs["availability"] = "available"
 		}

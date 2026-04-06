@@ -76,6 +76,10 @@ so that colleagues can identify me visually across the app.
   - [ ] 6.2 Add paths to `api-doc/openapi.yaml`
   - [ ] 6.3 Lint with redocly
 
+### Review Findings
+
+- [x] [Review][Patch] Remove stale avatar files when Microsoft Graph reports no photo [internal/auth/avatar_handler.go:141]
+
 ## Dev Notes
 
 ### Microsoft Graph Photo API
