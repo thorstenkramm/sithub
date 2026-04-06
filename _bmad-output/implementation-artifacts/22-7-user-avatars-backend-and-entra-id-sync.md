@@ -1,6 +1,6 @@
 # Story 22.7: User Avatars — Backend and Entra ID Sync
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 

@@ -1,0 +1,53 @@
+post:
+  summary: Upload avatar
+  description: Upload or replace the current user's profile photo. Accepts PNG or JPEG, max 512 KB.
+  operationId: uploadAvatar
+  tags:
+    - avatars
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          properties:
+            avatar:
+              type: string
+              format: binary
+              description: PNG or JPEG image file, max 512 KB
+          required:
+            - avatar
+  responses:
+    '200':
+      description: Avatar uploaded successfully.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/SingleResponse'
+    '400':
+      description: Invalid file (wrong format, too large, or missing).
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: Authentication required.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
+delete:
+  summary: Delete avatar
+  description: Remove the current user's profile photo.
+  operationId: deleteAvatar
+  tags:
+    - avatars
+  responses:
+    '204':
+      description: Avatar deleted successfully.
+    '401':
+      description: Authentication required.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'

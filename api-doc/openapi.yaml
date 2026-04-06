@@ -42,6 +42,10 @@ paths:
     $ref: ./endpoints/users.yaml
   /users/{user_id}:
     $ref: ./endpoints/user.yaml
+  /avatars/{user_id}:
+    $ref: ./endpoints/avatars.yaml
+  /me/avatar:
+    $ref: ./endpoints/me-avatar.yaml
   /floor-plans/{filename}:
     $ref: ./endpoints/floor-plans.yaml
   /floor-plan-positions:

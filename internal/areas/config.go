@@ -2,6 +2,7 @@
 package areas
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -126,18 +127,20 @@ type Area struct {
 	FloorPlan            string      `yaml:"floor_plan,omitempty"`
 	Icon                 string      `yaml:"icon,omitempty"`
 	MaxBookingsPerPerson int         `yaml:"max_bookings_per_person,omitempty"`
+	ReservedFor          []string    `yaml:"reserved_for,omitempty"`
 	ItemGroups           []ItemGroup `yaml:"items"`
 }
 
 // ItemGroup describes a group of bookable items within an area.
 type ItemGroup struct {
-	ID                   string `yaml:"id"`
-	Name                 string `yaml:"name"`
-	Description          string `yaml:"description,omitempty"`
-	FloorPlan            string `yaml:"floor_plan,omitempty"`
-	Icon                 string `yaml:"icon,omitempty"`
-	MaxBookingsPerPerson int    `yaml:"max_bookings_per_person,omitempty"`
-	Items                []Item `yaml:"items"`
+	ID                   string   `yaml:"id"`
+	Name                 string   `yaml:"name"`
+	Description          string   `yaml:"description,omitempty"`
+	FloorPlan            string   `yaml:"floor_plan,omitempty"`
+	Icon                 string   `yaml:"icon,omitempty"`
+	MaxBookingsPerPerson int      `yaml:"max_bookings_per_person,omitempty"`
+	ReservedFor          []string `yaml:"reserved_for,omitempty"`
+	Items                []Item   `yaml:"items"`
 }
 
 // Item describes a bookable item within an item group.
@@ -148,6 +151,7 @@ type Item struct {
 	Warning              string   `yaml:"warning,omitempty"`
 	Icon                 string   `yaml:"icon,omitempty"`
 	MaxBookingsPerPerson int      `yaml:"max_bookings_per_person,omitempty"`
+	ReservedFor          []string `yaml:"reserved_for,omitempty"`
 }
 
 // IconWarning describes an invalid configured icon reference.
@@ -187,13 +191,15 @@ var supportedFloorPlanExts = map[string]bool{
 // ValidateFloorPlans checks that all floor_plan references in the config
 // point to existing files with supported formats inside floorPlansDir.
 func ValidateFloorPlans(cfg *Config, floorPlansDir string) error {
-	for _, area := range cfg.Areas {
+	for i := range cfg.Areas {
+		area := &cfg.Areas[i]
 		if area.FloorPlan != "" {
 			if err := validateFloorPlanFile(area.FloorPlan, floorPlansDir); err != nil {
 				return fmt.Errorf("area %q: %w", area.ID, err)
 			}
 		}
-		for _, ig := range area.ItemGroups {
+		for j := range area.ItemGroups {
+			ig := &area.ItemGroups[j]
 			if ig.FloorPlan != "" {
 				if err := validateFloorPlanFile(ig.FloorPlan, floorPlansDir); err != nil {
 					return fmt.Errorf("item group %q: %w", ig.ID, err)
@@ -209,7 +215,8 @@ func ValidateFloorPlans(cfg *Config, floorPlansDir string) error {
 func FindInvalidConfiguredIcons(cfg *Config) []IconWarning {
 	warnings := make([]IconWarning, 0)
 
-	for _, area := range cfg.Areas {
+	for i := range cfg.Areas {
+		area := &cfg.Areas[i]
 		if area.Icon != "" && !isValidConfiguredIcon(area.Icon) {
 			warnings = append(warnings, IconWarning{
 				Location: fmt.Sprintf("area %q", area.ID),
@@ -217,7 +224,8 @@ func FindInvalidConfiguredIcons(cfg *Config) []IconWarning {
 			})
 		}
 
-		for _, ig := range area.ItemGroups {
+		for j := range area.ItemGroups {
+			ig := &area.ItemGroups[j]
 			if ig.Icon != "" && !isValidConfiguredIcon(ig.Icon) {
 				warnings = append(warnings, IconWarning{
 					Location: fmt.Sprintf("item group %q", ig.ID),
@@ -259,12 +267,93 @@ func validateFloorPlanFile(filename, floorPlansDir string) error {
 	return nil
 }
 
+// ErrReservationConflict indicates a hierarchical reservation conflict.
+var ErrReservationConflict = errors.New("reservation conflict")
+
+// ValidateReservations checks that child reserved_for lists are subsets of parent lists.
+func ValidateReservations(cfg *Config) error {
+	for i := range cfg.Areas {
+		area := &cfg.Areas[i]
+		areaSet := toStringSet(area.ReservedFor)
+		for j := range area.ItemGroups {
+			ig := &area.ItemGroups[j]
+			if err := checkSubset(areaSet, ig.ReservedFor, area.ID, ig.ID, "item group"); err != nil {
+				return err
+			}
+			igSet := toStringSet(ig.ReservedFor)
+			if len(ig.ReservedFor) == 0 {
+				igSet = areaSet
+			}
+			for k := range ig.Items {
+				item := &ig.Items[k]
+				if err := checkSubset(igSet, item.ReservedFor, ig.ID, item.ID, "item"); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func toStringSet(s []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(s))
+	for _, v := range s {
+		set[v] = struct{}{}
+	}
+	return set
+}
+
+// checkSubset verifies that all entries in child are present in parent (if parent is non-empty).
+func checkSubset(parentSet map[string]struct{}, child []string, parentID, childID, childType string) error {
+	if len(parentSet) == 0 || len(child) == 0 {
+		return nil
+	}
+	for _, email := range child {
+		if _, ok := parentSet[email]; !ok {
+			return fmt.Errorf(
+				"%w: %s %q reserves for %q but parent %q does not include this user",
+				ErrReservationConflict, childType, childID, email, parentID,
+			)
+		}
+	}
+	return nil
+}
+
+// IsReserved checks if the item at the given location is reserved and the user is excluded.
+// Returns true if the user cannot book (is excluded from a reserved_for list).
+func IsReserved(loc *ItemLocation, userEmail string) bool {
+	// Check item level
+	if len(loc.Item.ReservedFor) > 0 {
+		return !containsString(loc.Item.ReservedFor, userEmail)
+	}
+	// Check item group level
+	if len(loc.ItemGroup.ReservedFor) > 0 {
+		return !containsString(loc.ItemGroup.ReservedFor, userEmail)
+	}
+	// Check area level
+	if len(loc.Area.ReservedFor) > 0 {
+		return !containsString(loc.Area.ReservedFor, userEmail)
+	}
+	return false
+}
+
+func containsString(slice []string, target string) bool {
+	for _, s := range slice {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
 func validateConfig(cfg *Config) error {
-	for _, area := range cfg.Areas {
+	for i := range cfg.Areas {
+		area := &cfg.Areas[i]
 		if area.ID == "" || area.Name == "" {
 			return fmt.Errorf("area requires id and name")
 		}
-		for _, ig := range area.ItemGroups {
+		for j := range area.ItemGroups {
+			ig := &area.ItemGroups[j]
 			if ig.ID == "" || ig.Name == "" {
 				return fmt.Errorf("item group requires id and name")
 			}

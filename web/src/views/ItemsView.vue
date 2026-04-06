@@ -174,18 +174,20 @@
         :class="['item-filter-wrapper', { 'item-expanded': expandedDayTiles.has(entry.id) }]"
       >
         <div
-          v-if="isItemFilteredOut(entry.attributes.equipment || [])"
+          v-if="isItemFilteredOut(entry.attributes.equipment || []) || entry.attributes.reserved"
           class="item-filtered-overlay"
-          data-cy="equipment-not-available"
+          :data-cy="entry.attributes.reserved ? 'item-reserved' : 'equipment-not-available'"
         >
-          <span class="text-body-2 font-weight-medium">{{ $t('items.equipmentNotAvailable') }}</span>
+          <span class="text-body-2 font-weight-medium">
+            {{ entry.attributes.reserved ? $t('items.reserved') : $t('items.equipmentNotAvailable') }}
+          </span>
         </div>
         <v-card
           :class="[
             'item-card',
             { 'item-available': entry.attributes.availability === 'available' },
             { 'item-occupied': entry.attributes.availability === 'occupied' },
-            { 'item-filtered-out': isItemFilteredOut(entry.attributes.equipment || []) }
+            { 'item-filtered-out': isItemFilteredOut(entry.attributes.equipment || []) || entry.attributes.reserved }
           ]"
           data-cy="item-entry"
           :data-cy-item-id="entry.id"

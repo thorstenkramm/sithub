@@ -11,6 +11,7 @@ export interface ItemAttributes {
   booked_by_me?: boolean; // present when item is occupied
   booking_id?: string; // admin-only, present when item is occupied
   note?: string; // present when item is occupied and has a note
+  reserved?: boolean; // true when item is reserved for other users
 }
 
 export function fetchItems(itemGroupId: string, date?: string) {

@@ -47,6 +47,7 @@
         >
           <template #prepend>
             <v-avatar color="primary" variant="tonal" size="40">
+              <v-img :src="getAvatarUrl(entry.attributes.user_id)" />
               <span class="text-body-2 font-weight-medium">
                 {{ getInitials(entry.attributes.user_name) }}
               </span>
@@ -125,6 +126,7 @@ import { fetchAreaPresence } from '../api/areaPresence';
 import { fetchAreas } from '../api/areas';
 import type { PresenceAttributes } from '../api/areaPresence';
 import type { JsonApiResource } from '../api/types';
+import { getAvatarUrl } from '../api/avatars';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
 import { useI18n } from 'vue-i18n';

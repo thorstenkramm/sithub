@@ -143,6 +143,7 @@
     "filterSyntaxExact": "use single or double quotation marks for exact matching;",
     "filterSyntaxCase": "filters are case-insensitive;",
     "filterSyntaxExample": "example:",
+    "reserved": "Reserved",
     "bookDays": "Book ({count} day) | Book ({count} days)",
     "bookingLimitExceeded": "You have reached the maximum of {count} active bookings for {scope}",
     "bookingLimitExceededGlobal": "You have reached the maximum of {count} active bookings"

@@ -61,14 +61,16 @@ type itemDetails struct {
 // buildItemIndex creates a map of item IDs to their details for an area.
 func buildItemIndex(area *Area) (itemIDs []string, itemInfo map[string]itemDetails) {
 	var totalItems int
-	for _, ig := range area.ItemGroups {
+	for i := range area.ItemGroups {
+		ig := &area.ItemGroups[i]
 		totalItems += len(ig.Items)
 	}
 
 	itemIDs = make([]string, 0, totalItems)
 	itemInfo = make(map[string]itemDetails, totalItems)
 
-	for _, ig := range area.ItemGroups {
+	for i := range area.ItemGroups {
+		ig := &area.ItemGroups[i]
 		for _, item := range ig.Items {
 			itemIDs = append(itemIDs, item.ID)
 			itemInfo[item.ID] = itemDetails{

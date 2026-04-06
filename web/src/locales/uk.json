@@ -143,6 +143,7 @@
     "filterSyntaxExact": "використовуйте одинарні або подвійні лапки для точного збігу;",
     "filterSyntaxCase": "фільтри не залежать від регістру;",
     "filterSyntaxExample": "приклад:",
+    "reserved": "Зарезервовано",
     "bookDays": "Забронювати ({count} день) | Забронювати ({count} днів)",
     "bookingLimitExceeded": "Ви досягли максимуму {count} активних бронювань для {scope}",
     "bookingLimitExceededGlobal": "Ви досягли максимуму {count} активних бронювань"

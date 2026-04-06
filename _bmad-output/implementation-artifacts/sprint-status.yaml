@@ -203,10 +203,10 @@ development_status:
   22-4-week-mode-mobile-readability: done
   22-5-floor-plan-mobile-improvements: done
   22-6-favorites-heart-icon-visibility-fix: done
-  22-7-user-avatars-backend-and-entra-id-sync: ready-for-dev
-  22-8-user-avatars-frontend-integration: ready-for-dev
-  22-9-reserved-areas-and-items-backend: ready-for-dev
-  22-10-reserved-areas-and-items-frontend: ready-for-dev
+  22-7-user-avatars-backend-and-entra-id-sync: done
+  22-8-user-avatars-frontend-integration: done
+  22-9-reserved-areas-and-items-backend: done
+  22-10-reserved-areas-and-items-frontend: done
   22-11-toolbar-consistency: done
   22-12-day-mode-warning-cleanup: done
   22-13-week-mode-tile-overhaul: done

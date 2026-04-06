@@ -161,12 +161,14 @@ func buildAvailabilityResources(
 ) ([]api.Resource, error) {
 	// Collect all item IDs for this area to query bookings.
 	var totalItems int
-	for _, ig := range area.ItemGroups {
+	for i := range area.ItemGroups {
+		ig := &area.ItemGroups[i]
 		totalItems += len(ig.Items)
 	}
 	allItemIDs := make([]string, 0, totalItems)
 	itemGroupItems := make(map[string][]string, len(area.ItemGroups))
-	for _, ig := range area.ItemGroups {
+	for i := range area.ItemGroups {
+		ig := &area.ItemGroups[i]
 		igItemIDs := make([]string, 0, len(ig.Items))
 		for _, item := range ig.Items {
 			allItemIDs = append(allItemIDs, item.ID)
@@ -182,7 +184,8 @@ func buildAvailabilityResources(
 	}
 
 	resources := make([]api.Resource, 0, len(area.ItemGroups))
-	for _, ig := range area.ItemGroups {
+	for i := range area.ItemGroups {
+		ig := &area.ItemGroups[i]
 		igItemIDs := itemGroupItems[ig.ID]
 		totalItems := len(igItemIDs)
 

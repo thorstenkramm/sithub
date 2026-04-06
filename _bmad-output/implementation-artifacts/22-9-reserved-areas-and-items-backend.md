@@ -1,6 +1,6 @@
 # Story 22.9: Reserved Areas and Items — Backend
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 

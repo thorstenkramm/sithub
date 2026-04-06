@@ -143,6 +143,7 @@
     "filterSyntaxExact": "utilisez des guillemets simples ou doubles pour une correspondance exacte ;",
     "filterSyntaxCase": "les filtres ne sont pas sensibles à la casse ;",
     "filterSyntaxExample": "exemple :",
+    "reserved": "Réservé",
     "bookDays": "Reserver ({count} jour) | Reserver ({count} jours)",
     "bookingLimitExceeded": "Vous avez atteint le maximum de {count} réservations actives pour {scope}",
     "bookingLimitExceededGlobal": "Vous avez atteint le maximum de {count} réservations actives"

@@ -143,6 +143,7 @@
     "filterSyntaxExact": "verwenden Sie einfache oder doppelte Anführungszeichen für exakte Übereinstimmung;",
     "filterSyntaxCase": "Filter unterscheiden nicht zwischen Groß- und Kleinschreibung;",
     "filterSyntaxExample": "Beispiel:",
+    "reserved": "Reserviert",
     "bookDays": "Buchen ({count} Tag) | Buchen ({count} Tage)",
     "bookingLimitExceeded": "Sie haben das Maximum von {count} aktiven Buchungen für {scope} erreicht",
     "bookingLimitExceededGlobal": "Sie haben das Maximum von {count} aktiven Buchungen erreicht"

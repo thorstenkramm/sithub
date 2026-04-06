@@ -1,6 +1,6 @@
 # Story 22.8: User Avatars — Frontend Integration
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 

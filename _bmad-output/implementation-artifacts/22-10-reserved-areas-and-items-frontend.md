@@ -1,6 +1,6 @@
 # Story 22.10: Reserved Areas and Items — Frontend
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 

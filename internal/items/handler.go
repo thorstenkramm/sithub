@@ -47,14 +47,34 @@ func ListHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.Handle
 
 		resolveBookerNames(ctx, store, itemBookings)
 
-		currentUserID := ""
-		if user != nil {
-			currentUserID = user.ID
-		}
+		currentUserID, userEmail := resolveCurrentUser(ctx, store, user)
+		parentArea := findParentArea(cfg, itemGroupID)
 
-		resources := buildItemResources(ig.Items, itemBookings, isAdmin, currentUserID)
+		resources := buildItemResources(ig, parentArea, itemBookings, isAdmin, currentUserID, userEmail)
 		return api.WriteCollection(c, resources, "write items response")
 	}
+}
+
+func resolveCurrentUser(ctx context.Context, store *sql.DB, user *auth.User) (userID, email string) {
+	if user == nil {
+		return "", ""
+	}
+	rec, err := users.FindByID(ctx, store, user.ID)
+	if err != nil || rec == nil {
+		return user.ID, ""
+	}
+	return user.ID, rec.Email
+}
+
+func findParentArea(cfg *areas.Config, itemGroupID string) *areas.Area {
+	for i := range cfg.Areas {
+		for j := range cfg.Areas[i].ItemGroups {
+			if cfg.Areas[i].ItemGroups[j].ID == itemGroupID {
+				return &cfg.Areas[i]
+			}
+		}
+	}
+	return nil
 }
 
 func loadItemBookings(
@@ -101,9 +121,11 @@ func resolveBookerNames(
 }
 
 func buildItemResources(
-	items []areas.Item, itemBookings map[string]bookings.ItemBookingInfo, isAdmin bool, currentUserID string,
+	ig *areas.ItemGroup, parentArea *areas.Area,
+	itemBookings map[string]bookings.ItemBookingInfo,
+	isAdmin bool, currentUserID, userEmail string,
 ) []api.Resource {
-	return api.MapResources(items, func(item areas.Item) api.Resource {
+	return api.MapResources(ig.Items, func(item areas.Item) api.Resource {
 		attrs := areas.ItemAttributes(item.Name, item.Equipment, item.Warning, "", item.Icon)
 		if info, booked := itemBookings[item.ID]; booked {
 			attrs["availability"] = "occupied"
@@ -118,6 +140,20 @@ func buildItemResources(
 		} else {
 			attrs["availability"] = "available"
 		}
+
+		// Check if item is reserved for other users
+		if userEmail != "" {
+			loc := &areas.ItemLocation{Item: &item, ItemGroup: ig}
+			if parentArea != nil {
+				loc.Area = parentArea
+			} else {
+				loc.Area = &areas.Area{}
+			}
+			if areas.IsReserved(loc, userEmail) {
+				attrs["reserved"] = true
+			}
+		}
+
 		return api.Resource{
 			Type:       "items",
 			ID:         item.ID,

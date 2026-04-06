@@ -9,6 +9,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -48,24 +50,14 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 
-	// Load areas configuration from YAML (single source of truth)
-	areasConfig, err := areas.Load(cfg.Areas.ConfigFile)
+	areasConfig, err := loadAndValidateAreas(cfg)
 	if err != nil {
-		return fmt.Errorf("load areas config: %w", err)
-	}
-	for _, warning := range areas.FindInvalidConfiguredIcons(areasConfig) {
-		slog.Warn(
-			"invalid configured icon; frontend will fall back to the default icon",
-			"location", warning.Location,
-			"icon", warning.Icon,
-		)
+		return err
 	}
 
-	// Validate floor plan references if floor plans directory is configured
-	if cfg.Areas.FloorPlansDir != "" {
-		if err := areas.ValidateFloorPlans(areasConfig, cfg.Areas.FloorPlansDir); err != nil {
-			return fmt.Errorf("validate floor plans: %w", err)
-		}
+	avatarsDir, err := ensureAvatarsDir(cfg.Main.DataDir)
+	if err != nil {
+		return err
 	}
 
 	authService, err := auth.NewService(cfg, store)
@@ -89,7 +81,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, store, notifier, bookingLimits)
+	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, avatarsDir, store, notifier, bookingLimits)
 	registerSPAHandlers(e, webFS)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -116,7 +108,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 func registerRoutes(
 	e *echo.Echo, authService *auth.Service, areasConfig *areas.Config,
-	floorPlansDir string, store *sql.DB, notifier notifications.Notifier,
+	floorPlansDir, avatarsDir string, store *sql.DB, notifier notifications.Notifier,
 	bookingLimits *bookings.BookingLimits,
 ) {
 	// Helper to get current config (returns the same config, loaded at startup)
@@ -124,7 +116,7 @@ func registerRoutes(
 
 	// OAuth routes
 	e.GET("/oauth/login", auth.LoginHandler(authService))
-	e.GET("/oauth/callback", auth.CallbackHandler(authService))
+	e.GET("/oauth/callback", auth.CallbackHandler(authService, avatarsDir))
 
 	// Auth routes (no auth middleware required)
 	loginLimiter := middleware.NewRateLimiter(60, time.Minute)
@@ -167,6 +159,14 @@ func registerRoutes(
 	e.GET("/api/v1/floor-plans/:filename",
 		areas.FloorPlanHandler(floorPlansDir), requireAuth)
 
+	// Avatar routes (authenticated)
+	e.GET("/api/v1/avatars/:user_id",
+		auth.ServeAvatarHandler(avatarsDir), requireAuth)
+	e.POST("/api/v1/me/avatar",
+		auth.UploadAvatarHandler(avatarsDir), requireAuth)
+	e.DELETE("/api/v1/me/avatar",
+		auth.DeleteAvatarHandler(avatarsDir), requireAuth)
+
 	// Colleagues endpoint (all authenticated users)
 	e.GET("/api/v1/colleagues", users.ColleaguesHandler(store), requireAuth)
 
@@ -187,6 +187,37 @@ func registerRoutes(
 		floorplanpos.UpdateHandler(store), requireAuth, requireAdmin)
 	e.DELETE("/api/v1/floor-plan-positions/:id",
 		floorplanpos.DeleteHandler(store), requireAuth, requireAdmin)
+}
+
+func loadAndValidateAreas(cfg *config.Config) (*areas.Config, error) {
+	areasConfig, err := areas.Load(cfg.Areas.ConfigFile)
+	if err != nil {
+		return nil, fmt.Errorf("load areas config: %w", err)
+	}
+	for _, warning := range areas.FindInvalidConfiguredIcons(areasConfig) {
+		slog.Warn(
+			"invalid configured icon; frontend will fall back to the default icon",
+			"location", warning.Location,
+			"icon", warning.Icon,
+		)
+	}
+	if cfg.Areas.FloorPlansDir != "" {
+		if err := areas.ValidateFloorPlans(areasConfig, cfg.Areas.FloorPlansDir); err != nil {
+			return nil, fmt.Errorf("validate floor plans: %w", err)
+		}
+	}
+	if err := areas.ValidateReservations(areasConfig); err != nil {
+		return nil, fmt.Errorf("validate reservations: %w", err)
+	}
+	return areasConfig, nil
+}
+
+func ensureAvatarsDir(dataDir string) (string, error) {
+	dir := filepath.Join(dataDir, "avatars")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return "", fmt.Errorf("create avatars directory: %w", err)
+	}
+	return dir, nil
 }
 
 func registerSPAHandlers(e *echo.Echo, webFS fs.FS) {

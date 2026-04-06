@@ -42,7 +42,8 @@ func LoginHandler(svc *Service) echo.HandlerFunc {
 }
 
 // CallbackHandler handles the OAuth callback from Entra ID.
-func CallbackHandler(svc *Service) echo.HandlerFunc {
+// avatarsDir is optional; if provided, the user's profile photo is synced.
+func CallbackHandler(svc *Service, avatarsDir ...string) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		state := c.QueryParam("state")
 		code := c.QueryParam("code")
@@ -73,6 +74,12 @@ func CallbackHandler(svc *Service) echo.HandlerFunc {
 		_ = users.UpdateAccessToken( //nolint:errcheck // Best-effort
 			c.Request().Context(), svc.Store(), user.ID, token.AccessToken,
 		)
+
+		// Sync avatar from Microsoft Graph (best-effort, don't fail the login)
+		if len(avatarsDir) > 0 && avatarsDir[0] != "" {
+			client := svc.oauthConfig.Client(c.Request().Context(), token)
+			SyncAvatar(c.Request().Context(), client, user.ID, avatarsDir[0])
+		}
 
 		return setUserCookieAndRedirect(svc, c, user, redirectPath(user))
 	}

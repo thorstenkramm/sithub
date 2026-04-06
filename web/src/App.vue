@@ -46,7 +46,12 @@
               data-cy="user-menu-trigger"
             >
               <v-avatar size="32" color="primary-lighten-1" class="mr-2">
-                <span class="text-body-2 font-weight-medium">{{ userInitials }}</span>
+                <v-img
+                  v-if="authStore.userId"
+                  :src="getAvatarUrl(authStore.userId)"
+                  @error="avatarLoadFailed = true"
+                />
+                <span v-if="!authStore.userId || avatarLoadFailed" class="text-body-2 font-weight-medium">{{ userInitials }}</span>
               </v-avatar>
               <span class="d-none d-sm-inline">{{ authStore.userName }}</span>
             </v-btn>
@@ -305,6 +310,7 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from './stores/useAuthStore';
+import { getAvatarUrl } from './api/avatars';
 import { logout } from './api/auth';
 import { changePassword } from './api/me';
 import { ApiError } from './api/client';
@@ -331,6 +337,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const mobileDrawer = ref(false);
+const avatarLoadFailed = ref(false);
 const { preference: themePreference, setPreference: setThemePreference } = useThemePreference();
 const { preference: localePreference, setPreference: setLocalePreference } = useLocalePreference();
 const { showWeekends } = useWeekendPreference();

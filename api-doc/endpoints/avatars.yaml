@@ -1,0 +1,37 @@
+get:
+  summary: Get user avatar
+  description: Serves the user's profile photo as a PNG image.
+  operationId: getAvatar
+  tags:
+    - avatars
+  parameters:
+    - name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Avatar image returned.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            example: max-age=300
+      content:
+        image/png:
+          schema:
+            type: string
+            format: binary
+    '404':
+      description: No avatar found for this user.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
+    '401':
+      description: Authentication required.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'

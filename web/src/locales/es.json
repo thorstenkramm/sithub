@@ -143,6 +143,7 @@
     "filterSyntaxExact": "use comillas simples o dobles para coincidencia exacta;",
     "filterSyntaxCase": "los filtros no distinguen entre mayusculas y minusculas;",
     "filterSyntaxExample": "ejemplo:",
+    "reserved": "Reservado",
     "bookDays": "Reservar ({count} dia) | Reservar ({count} dias)",
     "bookingLimitExceeded": "Ha alcanzado el máximo de {count} reservas activas para {scope}",
     "bookingLimitExceededGlobal": "Ha alcanzado el máximo de {count} reservas activas"

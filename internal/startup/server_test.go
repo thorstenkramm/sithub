@@ -69,24 +69,23 @@ func writeAreasConfigIn(t *testing.T, dir string) string {
 	return path
 }
 
-func TestFloorPlanRouteRequiresAuthentication(t *testing.T) {
+func setupTestRouter(t *testing.T) *echo.Echo {
+	t.Helper()
 	e := echo.New()
 	authService := newTestAuthService(t)
 	e.Use(middleware.LoadUser(authService))
-
 	registerRoutes(
-		e,
-		authService,
-		&areas.Config{},
-		t.TempDir(),
-		nil,
-		notifications.NewNotifier(""),
-		nil,
+		e, authService, &areas.Config{},
+		t.TempDir(), t.TempDir(), nil,
+		notifications.NewNotifier(""), nil,
 	)
+	return e
+}
 
+func TestFloorPlanRouteRequiresAuthentication(t *testing.T) {
+	e := setupTestRouter(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/floor-plans/plan.png", http.NoBody)
 	rec := httptest.NewRecorder()
-
 	e.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
@@ -95,23 +94,9 @@ func TestFloorPlanRouteRequiresAuthentication(t *testing.T) {
 }
 
 func TestFloorPlanPositionsWriteRouteRequiresAuthentication(t *testing.T) {
-	e := echo.New()
-	authService := newTestAuthService(t)
-	e.Use(middleware.LoadUser(authService))
-
-	registerRoutes(
-		e,
-		authService,
-		&areas.Config{},
-		t.TempDir(),
-		nil,
-		notifications.NewNotifier(""),
-		nil,
-	)
-
+	e := setupTestRouter(t)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)
 	rec := httptest.NewRecorder()
-
 	e.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
@@ -123,15 +108,10 @@ func TestFloorPlanPositionsWriteRouteRequiresAdmin(t *testing.T) {
 	e := echo.New()
 	authService := newTestAuthService(t)
 	e.Use(middleware.LoadUser(authService))
-
 	registerRoutes(
-		e,
-		authService,
-		&areas.Config{},
-		t.TempDir(),
-		nil,
-		notifications.NewNotifier(""),
-		nil,
+		e, authService, &areas.Config{},
+		t.TempDir(), t.TempDir(), nil,
+		notifications.NewNotifier(""), nil,
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)

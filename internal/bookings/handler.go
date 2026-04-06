@@ -486,9 +486,15 @@ func CreateHandlerDynamic(
 			return err
 		}
 
-		loc, exists := getConfig().FindItemLocation(itemID)
+		cfg := getConfig()
+		loc, exists := cfg.FindItemLocation(itemID)
 		if !exists {
 			return api.WriteNotFound(c, "Item not found")
+		}
+
+		// Check reservation access
+		if err := handleReservation(c, store, user, loc); err != nil || c.Response().Committed {
+			return err
 		}
 
 		params, err := resolveBookingParticipants(c.Request().Context(), store, user, req)
@@ -510,6 +516,38 @@ func CreateHandlerDynamic(
 
 		return processMultiDayBooking(c, store, notifier, itemID, params, dates)
 	}
+}
+
+// handleReservation checks if the user is allowed to book the item based on
+// reserved_for configuration. Returns nil when access is granted or no
+// reservations are configured.
+func handleReservation(
+	c echo.Context, store *sql.DB, user *auth.User, loc *areas.ItemLocation,
+) error {
+	// Skip check if no reserved_for at any level
+	if len(loc.Item.ReservedFor) == 0 &&
+		len(loc.ItemGroup.ReservedFor) == 0 &&
+		len(loc.Area.ReservedFor) == 0 {
+		return nil
+	}
+
+	// Look up user email for reservation check
+	rec, err := users.FindByID(c.Request().Context(), store, user.ID)
+	if err != nil {
+		return fmt.Errorf("lookup user for reservation check: %w", err)
+	}
+	if rec == nil {
+		//nolint:errcheck // Response signals via Committed
+		api.WriteForbidden(c)
+		return nil
+	}
+
+	if areas.IsReserved(loc, rec.Email) {
+		//nolint:errcheck // Response signals via Committed
+		api.WriteForbidden(c)
+		return nil
+	}
+	return nil
 }
 
 // handleBookingLimits enforces booking limits and writes the error response if exceeded.
@@ -794,7 +832,8 @@ func collectItemIDs(items []areas.Item) []string {
 // collectAreaItemIDs returns all item IDs across all item groups in an area.
 func collectAreaItemIDs(area *areas.Area) []string {
 	var ids []string
-	for _, ig := range area.ItemGroups {
+	for i := range area.ItemGroups {
+		ig := &area.ItemGroups[i]
 		for _, item := range ig.Items {
 			ids = append(ids, item.ID)
 		}
