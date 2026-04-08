@@ -224,15 +224,26 @@ describe("InteractiveFloorPlan", () => {
 
     await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
     await flushPromises();
+
+    // Select an additional future day (today is pre-selected via initializeBookingSelection)
+    const today = new Date().toISOString().slice(0, 10);
+    const todayIdx = weekDates.indexOf(today);
+    // Find the next non-past day after today to toggle on
+    const nextIdx = todayIdx + 1;
+    const nextDate = weekDates[nextIdx];
+    const nextDayIndex = new Date(nextDate!).getDay();
+    const labels = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+    const nextLabel = labels[nextDayIndex]!;
+
     await wrapper
-      .get('[data-cy="fp-booking-day-TU"] input')
+      .get(`[data-cy="fp-booking-day-${nextLabel}"] input`)
       .trigger("change");
     await wrapper.get('[data-cy="fp-booking-confirm"]').trigger("click");
     await flushPromises();
 
     expect(createMultiDayBookingMock).toHaveBeenCalledWith("item-1", [
-      "2026-04-06",
-      "2026-04-07",
+      today,
+      nextDate,
     ]);
     expect(wrapper.find('[data-cy="fp-booking-success"]').exists()).toBe(true);
   });
@@ -293,6 +304,15 @@ describe("InteractiveFloorPlan", () => {
   });
 
   it("disables days where the selected item is already booked", async () => {
+    // Use a future date that's in the week range as the occupied day
+    const today = new Date().toISOString().slice(0, 10);
+    const todayIdx = weekDates.indexOf(today);
+    const futureIdx = todayIdx + 1;
+    const occupiedDate = weekDates[futureIdx]!;
+    const occupiedDayIndex = new Date(occupiedDate).getDay();
+    const labels = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+    const occupiedLabel = labels[occupiedDayIndex]!;
+
     fetchItemsMock.mockImplementation(
       async (_itemGroupId: string, date: string) =>
         ({
@@ -303,9 +323,9 @@ describe("InteractiveFloorPlan", () => {
               attributes: {
                 name: "Desk A",
                 equipment: [],
-                availability: date === "2026-04-08" ? "occupied" : "available",
+                availability: date === occupiedDate ? "occupied" : "available",
                 booked_by_me: false,
-                booker_name: date === "2026-04-08" ? "Jane Doe" : undefined,
+                booker_name: date === occupiedDate ? "Jane Doe" : undefined,
               },
             },
           ],
@@ -318,10 +338,10 @@ describe("InteractiveFloorPlan", () => {
     await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
     await flushPromises();
 
-    const weRow = wrapper.get('[data-cy="fp-booking-day-WE"]');
-    const checkbox = weRow.find("input");
+    const dayRow = wrapper.get(`[data-cy="fp-booking-day-${occupiedLabel}"]`);
+    const checkbox = dayRow.find("input");
     expect((checkbox.element as HTMLInputElement).disabled).toBe(true);
-    expect(weRow.text()).toContain("Jane Doe");
+    expect(dayRow.text()).toContain("Jane Doe");
   });
 
   it("shows all weekdays including weekends on compact screens and highlights the selection in red", async () => {
@@ -332,9 +352,15 @@ describe("InteractiveFloorPlan", () => {
 
     expect(wrapper.find('[data-cy="fp-day-SA"]').exists()).toBe(true);
     expect(wrapper.find('[data-cy="fp-day-SU"]').exists()).toBe(true);
-    const moBtn = wrapper.get('[data-cy="fp-day-MO"]');
-    expect(moBtn.attributes("variant")).toBe("flat");
-    expect(moBtn.attributes("color")).toBe("error");
+
+    // The selected day defaults to today (WE) — verify it is highlighted
+    const today = new Date().toISOString().slice(0, 10);
+    const todayDayIndex = new Date(today).getDay(); // 0=SU,1=MO,...
+    const labels = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+    const todayLabel = labels[todayDayIndex] || "MO";
+    const todayBtn = wrapper.get(`[data-cy="fp-day-${todayLabel}"]`);
+    expect(todayBtn.attributes("variant")).toBe("flat");
+    expect(todayBtn.attributes("color")).toBe("error");
   });
 
   it("renders busy-item avatars and hides them when show avatars is turned off", async () => {
@@ -387,6 +413,7 @@ describe("InteractiveFloorPlan", () => {
 
     const wrapper = mountComponent();
     await flushPromises();
+    createBookingMock.mockClear();
 
     expect(wrapper.find('[data-cy="fp-lock-item-1"]').exists()).toBe(true);
 

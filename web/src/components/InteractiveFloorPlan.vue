@@ -525,6 +525,16 @@ function applyMobileAutoZoom() {
 }
 
 function onFloorPlanImageLoad() {
+  const img = fpImageRef.value;
+  if (!img || img.naturalWidth <= 0) return;
+
+  // Fit image to container width so SVGs with large viewBox dimensions
+  // don't render at their intrinsic pixel size
+  const shell = img.closest('.fp-scroll-shell');
+  if (shell) {
+    img.style.width = `${shell.clientWidth}px`;
+  }
+
   applyMobileAutoZoom();
 }
 
@@ -1559,8 +1569,7 @@ onBeforeUnmount(() => {
 
 .fp-image-fit {
   display: block;
-  max-width: 100%;
-  width: auto;
+  max-width: none;
   height: auto;
   user-select: none;
 }

@@ -208,9 +208,11 @@
                   @pointerup="onCanvasPointerUp"
                 >
                   <img
+                    ref="floorPlanImageRef"
                     :src="`/api/v1/floor-plans/${encodeURIComponent(selectedFloorPlan)}`"
                     draggable="false"
                     class="floor-plan-editor-image"
+                    @load="onEditorImageLoad"
                   />
 
                   <div
@@ -395,6 +397,15 @@ const showSnackbar = computed({
 });
 
 const containerRef = ref<HTMLElement | null>(null);
+const floorPlanImageRef = ref<HTMLImageElement | null>(null);
+const canvasShellRef = ref<HTMLElement | null>(null);
+
+function onEditorImageLoad() {
+  const shell = canvasShellRef.value;
+  const img = floorPlanImageRef.value;
+  if (!shell || !img) return;
+  img.style.width = `${shell.clientWidth}px`;
+}
 
 const currentOption = computed(
   () =>
@@ -1036,7 +1047,7 @@ onUnmounted(() => {
 
 .floor-plan-editor-image {
   display: block;
-  max-width: 100%;
+  max-width: none;
   height: auto;
   user-select: none;
 }
