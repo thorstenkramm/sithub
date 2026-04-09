@@ -16,65 +16,7 @@
     </v-alert>
 
     <v-row>
-      <v-col cols="12" md="3" order="2" order-md="1">
-        <v-card class="mb-4" data-cy="editor-sidebar">
-          <v-card-title>
-            {{ isAreaLevel && activeTab === "areas" ? $t('floorPlanEditor.subAreas') : $t('floorPlanEditor.itemsLabel') }}
-          </v-card-title>
-          <v-card-text>
-            <v-alert
-              v-if="!selectedFloorPlan"
-              type="info"
-              variant="tonal"
-              density="compact"
-            >
-              {{ $t('floorPlanEditor.selectFloorPlanToPosition') }}
-            </v-alert>
-
-            <v-list v-else density="compact" nav>
-              <v-list-item
-                v-for="item in scopedItems"
-                :key="item.id"
-                :active="
-                  drawModeItemId === item.id || selectedRectId === item.id
-                "
-                :class="{ 'editor-item--positioned': item.positioned }"
-                :data-cy="`sidebar-item-${item.id}`"
-                @click="selectSidebarItem(item)"
-              >
-                <template #prepend>
-                  <v-icon size="small">
-                    {{ item.positioned ? "$success" : "$location" }}
-                  </v-icon>
-                </template>
-                <v-list-item-title>{{ item.name }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{
-                    item.positioned
-                      ? $t('floorPlanEditor.positioned')
-                      : drawModeItemId === item.id
-                        ? $t('floorPlanEditor.drawOnPlan')
-                        : $t('floorPlanEditor.unpositioned')
-                  }}
-                </v-list-item-subtitle>
-                <template #append>
-                  <v-btn
-                    v-if="item.positioned"
-                    icon="$delete"
-                    size="x-small"
-                    variant="text"
-                    color="error"
-                    :data-cy="`sidebar-delete-${item.id}`"
-                    @click.stop="deleteByItemId(item.id)"
-                  />
-                </template>
-              </v-list-item>
-            </v-list>
-          </v-card-text>
-        </v-card>
-      </v-col>
-
-      <v-col cols="12" md="9" order="1" order-md="2">
+      <v-col cols="12">
         <v-card class="mb-4">
           <v-card-text>
             <div class="d-flex flex-wrap align-center ga-3">
@@ -106,17 +48,45 @@
               </v-btn-toggle>
 
               <v-select
-                v-if="isAreaLevel && activeTab === 'items'"
-                v-model="selectedSubAreaId"
+                v-if="isAreaLevel"
+                :model-value="selectedSubAreaId"
                 :items="subAreas"
                 item-title="name"
                 item-value="id"
                 :label="$t('floorPlanEditor.subArea')"
                 density="compact"
                 hide-details
-                data-cy="subarea-selector"
+                :disabled="subAreas.length === 0"
+                data-cy="toolbar-subarea-select"
                 style="min-width: 180px; max-width: 240px"
+                @update:model-value="onToolbarSubAreaSelect"
               />
+
+              <v-select
+                v-if="selectedFloorPlan"
+                :model-value="toolbarSelectedItemId"
+                :items="toolbarItems"
+                item-title="name"
+                item-value="id"
+                :label="$t('floorPlanEditor.itemsLabel')"
+                density="compact"
+                hide-details
+                clearable
+                :disabled="isAreaLevel && !selectedSubAreaId"
+                data-cy="toolbar-items-select"
+                style="min-width: 200px; max-width: 280px"
+                @update:model-value="onToolbarItemSelect"
+              >
+                <template #item="{ item: option, props: listProps }">
+                  <v-list-item v-bind="listProps">
+                    <template #prepend>
+                      <v-icon size="small" :color="option.raw.positioned ? 'success' : undefined">
+                        {{ option.raw.positioned ? 'mdi-check-circle' : 'mdi-map-marker' }}
+                      </v-icon>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-select>
 
               <v-select
                 v-model="borderWidth"
@@ -194,6 +164,16 @@
             </div>
           </v-card-text>
         </v-card>
+
+        <v-alert
+          v-if="!selectedFloorPlan"
+          type="info"
+          variant="tonal"
+          class="mb-4"
+          data-cy="editor-no-floor-plan-alert"
+        >
+          {{ $t('floorPlanEditor.selectFloorPlanToPosition') }}
+        </v-alert>
 
         <v-card v-if="selectedFloorPlan" data-cy="floor-plan-canvas-card">
           <v-card-text class="pa-2">
@@ -295,7 +275,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { fetchAreas } from "../api/areas";
 import {
@@ -429,6 +409,28 @@ const scopedItems = computed(() =>
   allEditableItems.value.filter((item) => item.scope === activeScope.value),
 );
 
+const toolbarItems = computed(() => {
+  if (!isAreaLevel.value) {
+    return allEditableItems.value;
+  }
+  if (!selectedSubAreaId.value) {
+    return [];
+  }
+  return allEditableItems.value.filter(
+    (item) => item.scope === selectedSubAreaId.value,
+  );
+});
+
+const toolbarSelectedItemId = computed(() => {
+  const selectedItemId = drawModeItemId.value ?? selectedRectId.value;
+  if (!selectedItemId) {
+    return null;
+  }
+  return toolbarItems.value.some((item) => item.id === selectedItemId)
+    ? selectedItemId
+    : null;
+});
+
 const activePositions = computed(() => {
   if (!isAreaLevel.value) {
     return allPositions.value;
@@ -534,6 +536,35 @@ function toPercent(event: PointerEvent) {
     x: ((event.clientX - rect.left) / rect.width) * 100,
     y: ((event.clientY - rect.top) / rect.height) * 100,
   };
+}
+
+function onToolbarSubAreaSelect(subAreaId: string | null) {
+  selectedSubAreaId.value = subAreaId;
+  if (subAreaId && isAreaLevel.value) {
+    activeTab.value = "items";
+  }
+}
+
+function onToolbarItemSelect(itemId: string | null) {
+  if (!itemId) {
+    drawModeItemId.value = null;
+    selectedRectId.value = null;
+    return;
+  }
+  const item = allEditableItems.value.find((entry) => entry.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  if (isAreaLevel.value && activeTab.value !== "items") {
+    activeTab.value = "items";
+    void nextTick(() => {
+      selectSidebarItem(item);
+    });
+    return;
+  }
+
+  selectSidebarItem(item);
 }
 
 function selectSidebarItem(item: EditableItem) {
@@ -1135,10 +1166,6 @@ onUnmounted(() => {
   right: -6px;
   bottom: -6px;
   cursor: nwse-resize;
-}
-
-.editor-item--positioned {
-  opacity: 0.78;
 }
 
 .editor-zoom-controls {

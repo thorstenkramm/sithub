@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-04-06T18:30:00+02:00
+last_updated: 2026-04-09
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -196,7 +196,7 @@ development_status:
   21-7-booking-limits-frontend: done
   epic-21-retrospective: optional
 
-  epic-22: in-progress
+  epic-22: done
   22-1-translation-and-i18n-bug-fixes: done
   22-2-language-selector-and-menu-mobile-layout: done
   22-3-mobile-text-truncation-fixes: done
@@ -212,14 +212,23 @@ development_status:
   22-13-week-mode-tile-overhaul: done
   epic-22-retrospective: optional
 
-  epic-23: in-progress
+  epic-23: done
   23-1-booking-tile-heart-icon-position: done
   23-2-booking-limit-error-modal: done
-  23-3-floor-plan-full-width-desktop: review
+  23-3-floor-plan-full-width-desktop: done
   epic-23-retrospective: optional
 
-  epic-24: in-progress
+  epic-24: done
   24-1-warning-confirmation-dialog: done
   24-2-sequential-warning-dialogs-week-mode: done
   24-3-profile-and-settings-consolidation: done
   epic-24-retrospective: optional
+
+  epic-25: in-progress
+  25-1-editor-layout-sidebar-to-toolbar-dropdowns: done
+  25-2-canvas-height-and-zoom-controls: ready-for-dev
+  25-3-auto-save-and-remove-undo: ready-for-dev
+  25-4-enlarged-subarea-images-on-drill-down: ready-for-dev
+  25-5-hide-profile-photo-for-entra-id-users: ready-for-dev
+  25-6-async-avatar-sync-and-login-spinner: ready-for-dev
+  epic-25-retrospective: optional

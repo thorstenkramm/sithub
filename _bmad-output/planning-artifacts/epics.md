@@ -3,9 +3,8 @@ stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-c
 inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
-  - /Users/thorsten/projects/thorsten/sithub/private/epic-23.md
-  - /Users/thorsten/projects/thorsten/sithub/private/epic-24.md
-lastEdited: '2026-04-06'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-25.md
+lastEdited: '2026-04-09'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -29,6 +28,8 @@ editHistory:
     changes: "Added FR101-FR103 and Epic 23: UI Bug Fixes. Covers booking tile heart icon positioning, hidden booking limit error messages, and floor plan desktop width."
   - date: '2026-04-06'
     changes: "Added FR104-FR106 and Epic 24: Booking Warnings & Profile Consolidation. Covers item warning confirmation dialogs with don't-show-again, sequential warnings in week mode, and merging Settings into Profile."
+  - date: '2026-04-09'
+    changes: "Added FR107-FR117, UX-DR1-UX-DR14, and Epic 25: UX/UI Improvements — Floor Plan Editor, Booking & Avatar. Covers floor plan editor overhaul (sidebar removal, toolbar dropdowns, auto-save, undo removal, zoom redesign, canvas enlargement), subarea drill-down image enlargement, Entra ID avatar async sync, login spinner, and Profile Photo menu hiding for Entra ID users."
 ---
 
 # sithub - Epic Breakdown
@@ -326,6 +327,42 @@ FR106: Profile and Settings consolidation. Acceptance: the separate Settings men
 removed from the navigation; all settings (theme, language, show weekends, change password)
 are accessible under the Profile menu; the Profile menu uses the current profile layout;
 no settings functionality is lost.
+FR107: Remove the floor plan editor sidebar and expand the canvas to full width. Acceptance:
+the left-hand sidebar listing subareas and items is removed from the floor plan editor; the
+canvas card expands to use the full 12-column width.
+FR108: Replace the floor plan editor sidebar subarea list with a toolbar dropdown. Acceptance:
+a v-select dropdown for subareas appears in the toolbar row (same area as the floor plan
+selector); selecting a subarea in the dropdown has the same effect as the old sidebar click.
+FR109: Replace the floor plan editor sidebar items list with a toolbar dropdown. Acceptance:
+a v-select dropdown for items appears in the toolbar row; each option indicates positioned
+or unpositioned status; selecting an unpositioned item enters draw mode; selecting a
+positioned item selects its rectangle; a delete action is available for positioned items
+from this dropdown.
+FR110: Double the floor plan editor canvas height. Acceptance: the editor canvas area uses
+approximately twice the vertical space compared to the current layout.
+FR111: Auto-save the floor plan editor and remove the manual save button. Acceptance: after
+a draw, move, or resize interaction completes (pointerup), changes are saved automatically
+when unsaved changes exist; the manual Save button is removed; the unsaved changes chip is
+replaced with a saving/saved indicator reflecting auto-save state.
+FR112: Remove the undo function from the floor plan editor. Acceptance: the Undo button and
+all undo-related logic are removed from the floor plan editor.
+FR113: Reposition the zoom factor label in the floor plan editor toolbar. Acceptance: the
+zoom percentage label appears between the minus and plus buttons (not next to them); the
+layout is compact.
+FR114: Enlarge subarea floor plan images when drilling down. Acceptance: when a user drills
+into a subarea in the floor plan booking view, the floor plan image renders at an enlarged
+size that fills the available viewport width; no horizontal scrollbars appear at the default
+zoom level after drill-in.
+FR115: Hide the "Profile Photo" menu item for Entra ID users. Acceptance: the "Profile
+Photo" option is hidden in both desktop user menu and mobile navigation drawer when the
+authenticated user's auth_source is not "internal"; Entra ID users cannot access the
+avatar upload.
+FR116: Make Entra ID avatar sync asynchronous. Acceptance: the avatar sync in the backend
+CallbackHandler runs in a goroutine so the OAuth callback returns immediately; the avatar
+downloads in the background; login is not blocked by avatar sync.
+FR117: Show loading spinner on Entra ID login button. Acceptance: after clicking "Sign in
+with Entra ID", the button shows a loading spinner and is disabled; visual feedback is
+provided during the redirect to the OAuth flow.
 
 ### NonFunctional Requirements
 
@@ -371,6 +408,37 @@ visible, and form inputs are labeled.
 - Domain-neutral terminology: "items" instead of "desks", "item groups" instead of "rooms"
   throughout codebase, API, and UI.
 - Bookings table normalized: user names resolved via JOIN, no denormalized name columns.
+
+### UX Design Requirements
+
+UX-DR1: Remove the left-hand sidebar from the floor plan editor; expand the canvas card to
+use the full 12-column width. (FR107)
+UX-DR2: Add a subarea v-select dropdown in the toolbar row of the floor plan editor,
+replacing the sidebar list for subarea selection. (FR108)
+UX-DR3: Add an items v-select dropdown in the toolbar row of the floor plan editor,
+replacing the sidebar list for item selection; each option indicates positioned/unpositioned
+status; selecting an item enters draw mode or selects its rectangle. (FR109)
+UX-DR4: Add a delete action for positioned items accessible from the items dropdown in the
+toolbar, replacing the sidebar delete button. (FR109)
+UX-DR5: Double the height of the floor plan editor canvas area. (FR110)
+UX-DR6: Implement auto-save on pointerup after draw/move/resize interactions, only when
+there are actual unsaved changes. (FR111)
+UX-DR7: Remove the manual Save button; replace the unsaved changes chip with a
+saving/saved indicator reflecting auto-save state. (FR111)
+UX-DR8: Remove the Undo button and all undo-related logic from the floor plan editor.
+(FR112)
+UX-DR9: Reposition the zoom factor percentage label between the minus and plus buttons
+instead of next to them. (FR113)
+UX-DR10: When drilling into a subarea in the floor plan booking view, enlarge the image to
+fill the viewport width without horizontal scrollbars at default zoom. (FR114)
+UX-DR11: Hide the "Profile Photo" menu item in the desktop user menu for Entra ID users.
+(FR115)
+UX-DR12: Hide the "Profile Photo" menu item in the mobile navigation drawer for Entra ID
+users. (FR115)
+UX-DR13: Make the Entra ID avatar sync asynchronous in the backend CallbackHandler so the
+login is not blocked. (FR116)
+UX-DR14: Show a loading spinner and disable the "Sign in with Entra ID" button during login
+redirect. (FR117)
 
 ### FR Coverage Map
 
@@ -480,6 +548,17 @@ FR103: Epic 23 - Floor plan wastes space on desktop (does not use full width)
 FR104: Epic 24 - Warning confirmation before booking
 FR105: Epic 24 - Sequential warning display in week mode
 FR106: Epic 24 - Profile and Settings consolidation
+FR107: Epic 25 - Remove floor plan editor sidebar, expand canvas to full width
+FR108: Epic 25 - Subarea toolbar dropdown replaces sidebar list
+FR109: Epic 25 - Items toolbar dropdown replaces sidebar list with delete action
+FR110: Epic 25 - Double floor plan editor canvas height
+FR111: Epic 25 - Auto-save floor plan editor, remove save button
+FR112: Epic 25 - Remove undo function from floor plan editor
+FR113: Epic 25 - Reposition zoom factor label between minus and plus
+FR114: Epic 25 - Enlarge subarea floor plan images on drill-down
+FR115: Epic 25 - Hide Profile Photo menu for Entra ID users
+FR116: Epic 25 - Async Entra ID avatar sync
+FR117: Epic 25 - Loading spinner on Entra ID login button
 
 ## Epic List
 
@@ -618,6 +697,15 @@ Users are prompted with a confirmation dialog before booking items that have war
 with a "don't show again" option per item. In week mode, warnings for multiple items are
 shown sequentially. The Settings menu is removed and consolidated into the Profile menu.
 **FRs covered:** FR104, FR105, FR106
+
+### Epic 25: UX/UI Improvements — Floor Plan Editor, Booking & Avatar
+
+The floor plan editor is overhauled for a streamlined editing experience: sidebar replaced
+with toolbar dropdowns, canvas enlarged, auto-save replaces manual save, undo removed, and
+zoom controls redesigned. Subarea drill-down images are enlarged for usability. Entra ID
+avatar sync is made asynchronous with login feedback, and the Profile Photo menu is hidden
+for Entra ID users.
+**FRs covered:** FR107, FR108, FR109, FR110, FR111, FR112, FR113, FR114, FR115, FR116, FR117
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -3269,3 +3357,195 @@ toggle, and change password option
 **Given** I previously accessed a setting via the old Settings menu
 **When** I look for it after the consolidation
 **Then** the setting is accessible from the Profile menu with no functionality lost
+
+## Epic 25 Stories: UX/UI Improvements — Floor Plan Editor, Booking & Avatar
+
+The floor plan editor is overhauled for a streamlined editing experience: sidebar replaced
+with toolbar dropdowns, canvas enlarged, auto-save replaces manual save, undo removed, and
+zoom controls redesigned. Subarea drill-down images are enlarged for usability. Entra ID
+avatar sync is made asynchronous with login feedback, and the Profile Photo menu is hidden
+for Entra ID users.
+**FRs covered:** FR107, FR108, FR109, FR110, FR111, FR112, FR113, FR114, FR115, FR116, FR117
+
+### Story 25.1: Editor Layout — Sidebar to Toolbar Dropdowns
+
+**FRs covered:** FR107, FR108, FR109
+
+As an admin,
+I want the floor plan editor to use the full page width with controls in the toolbar,
+so that I have maximum canvas space for positioning items on the floor plan.
+
+**Acceptance Criteria:**
+
+**Given** I open the floor plan editor as an admin
+**When** the editor loads
+**Then** there is no left-hand sidebar listing subareas and items; the canvas card uses
+the full available width
+
+**Given** the editor is loaded
+**When** I look at the toolbar row
+**Then** I see a subarea dropdown that lists all subareas for the selected floor plan
+
+**Given** the editor is loaded
+**When** I select a subarea from the toolbar dropdown
+**Then** the editor switches to that subarea, identical to the old sidebar click behavior
+
+**Given** the editor is loaded
+**When** I look at the toolbar row
+**Then** I see an items dropdown that lists all items for the current subarea, each
+indicating whether it is positioned or unpositioned (e.g., via icon or chip)
+
+**Given** I select an unpositioned item from the items dropdown
+**When** the selection is made
+**Then** the editor enters draw mode for that item, identical to the old sidebar behavior
+
+**Given** I select a positioned item from the items dropdown
+**When** the selection is made
+**Then** the editor selects that item's rectangle on the canvas, identical to the old
+sidebar behavior
+
+**Given** I have a positioned item selected via the items dropdown
+**When** I look for a way to delete it
+**Then** I see a delete action accessible from the items dropdown or toolbar that removes
+the item's position from the floor plan
+
+### Story 25.2: Canvas Height & Zoom Controls
+
+**FRs covered:** FR110, FR113
+
+As an admin,
+I want a taller canvas and compact zoom controls,
+so that I can see and edit the floor plan image with less scrolling and a cleaner toolbar.
+
+**Acceptance Criteria:**
+
+**Given** I open the floor plan editor
+**When** the editor loads
+**Then** the canvas area uses approximately double the vertical space compared to the
+previous layout
+
+**Given** I look at the zoom controls in the editor toolbar
+**When** I inspect their layout
+**Then** the zoom percentage label appears between the minus and plus buttons, not next
+to them
+
+**Given** I click the plus or minus zoom buttons
+**When** the zoom level changes
+**Then** the percentage label between the buttons updates to reflect the current zoom
+factor
+
+### Story 25.3: Auto-Save & Remove Undo
+
+**FRs covered:** FR111, FR112
+
+As an admin,
+I want the floor plan editor to save automatically and not distract me with undo and
+manual save controls,
+so that I can focus on positioning items without worrying about losing changes.
+
+**Acceptance Criteria:**
+
+**Given** I draw a new rectangle on the floor plan
+**When** I release the mouse button (pointerup)
+**Then** the changes are saved automatically without clicking a save button
+
+**Given** I move an existing rectangle on the floor plan
+**When** I release the mouse button (pointerup)
+**Then** the changes are saved automatically
+
+**Given** I resize an existing rectangle on the floor plan
+**When** I release the mouse button (pointerup)
+**Then** the changes are saved automatically
+
+**Given** no unsaved changes exist
+**When** a pointerup event fires
+**Then** no save request is triggered
+
+**Given** the editor is loaded
+**When** I look at the toolbar
+**Then** there is no manual Save button
+
+**Given** an auto-save is in progress
+**When** I look at the toolbar
+**Then** I see a brief saving/saved indicator reflecting the auto-save state
+
+**Given** the editor is loaded
+**When** I look at the toolbar
+**Then** there is no Undo button and the undo keyboard shortcut has no effect
+
+### Story 25.4: Enlarged Subarea Images on Drill-Down
+
+**FRs covered:** FR114
+
+As a user,
+I want subarea floor plan images to be displayed enlarged when I drill into them,
+so that I can clearly see the layout and available items without zooming.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing the floor plan booking view for an area
+**When** I click on a subarea rectangle to drill into it
+**Then** the subarea floor plan image renders at an enlarged size that fills the available
+viewport width
+
+**Given** I have drilled into a subarea
+**When** the subarea floor plan is displayed at default zoom level
+**Then** no horizontal scrollbars appear; the image fits within the viewport width
+
+**Given** I manually zoom in beyond the default level
+**When** the image exceeds the viewport width
+**Then** scrollbars appear as expected to allow navigation
+
+### Story 25.5: Hide Profile Photo for Entra ID Users
+
+**FRs covered:** FR115
+
+As an Entra ID user,
+I want the Profile Photo menu option to be hidden,
+so that I am not confused by an option that would have no effect since my avatar is
+synced from Entra ID.
+
+**Acceptance Criteria:**
+
+**Given** I am logged in via Entra ID on desktop
+**When** I open the user menu (Profile menu)
+**Then** the "Profile Photo" menu item is not visible
+
+**Given** I am logged in via Entra ID on mobile
+**When** I open the navigation drawer
+**Then** the "Profile Photo" menu item is not visible
+
+**Given** I am logged in as a local (internal) user on desktop
+**When** I open the user menu
+**Then** the "Profile Photo" menu item is visible and functional
+
+**Given** I am logged in as a local (internal) user on mobile
+**When** I open the navigation drawer
+**Then** the "Profile Photo" menu item is visible and functional
+
+### Story 25.6: Async Avatar Sync & Login Spinner
+
+**FRs covered:** FR116, FR117
+
+As an Entra ID user,
+I want the login to complete quickly with visual feedback,
+so that I am not left waiting on a slow avatar sync with no indication of progress.
+
+**Acceptance Criteria:**
+
+**Given** I click "Sign in with Entra ID" on the login page
+**When** the click is registered
+**Then** the button shows a loading spinner and is disabled, preventing double-clicks
+
+**Given** the Entra ID OAuth callback is processed by the backend
+**When** the avatar sync would normally run
+**Then** the avatar sync runs asynchronously in a goroutine; the OAuth callback returns
+immediately and redirects the user without waiting for the avatar download
+
+**Given** the async avatar sync completes successfully in the background
+**When** I navigate to a page showing my avatar
+**Then** my Entra ID profile photo is displayed
+
+**Given** the async avatar sync fails (e.g., no photo in Entra ID, network error)
+**When** I navigate to a page showing my avatar
+**Then** the fallback initials avatar is displayed; no error is shown to the user
