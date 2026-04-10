@@ -230,10 +230,9 @@
     "itemsTab": "Objekte",
     "subArea": "Unterbereich",
     "lineLabel": "Linie",
-    "unsavedChanges": "Ungespeicherte Änderungen",
-    "undo": "Rückgängig",
+    "saving": "Speichern…",
+    "saved": "Gespeichert",
     "deleteItem": "{name} löschen",
-    "save": "Speichern",
     "savedSuccessfully": "Raumplanpositionen gespeichert.",
     "saveFailed": "Raumplanpositionen konnten nicht gespeichert werden.",
     "desktopRecommended": "Der Raumplan-Editor funktioniert am besten auf einem Desktop-Bildschirm."

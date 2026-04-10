@@ -230,10 +230,9 @@
     "itemsTab": "Elementos",
     "subArea": "Subzona",
     "lineLabel": "Linea",
-    "unsavedChanges": "Cambios sin guardar",
-    "undo": "Deshacer",
+    "saving": "Guardando…",
+    "saved": "Guardado",
     "deleteItem": "Eliminar {name}",
-    "save": "Guardar",
     "savedSuccessfully": "Posiciones del plano de planta guardadas.",
     "saveFailed": "No se pudieron guardar las posiciones del plano de planta.",
     "desktopRecommended": "El editor de planos funciona mejor en una pantalla de escritorio."

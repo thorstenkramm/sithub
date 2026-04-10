@@ -230,10 +230,9 @@
     "itemsTab": "Items",
     "subArea": "Sub-area",
     "lineLabel": "Line",
-    "unsavedChanges": "Unsaved changes",
-    "undo": "Undo",
+    "saving": "Saving…",
+    "saved": "Saved",
     "deleteItem": "Delete {name}",
-    "save": "Save",
     "savedSuccessfully": "Floor plan positions saved.",
     "saveFailed": "Failed to save floor plan positions.",
     "desktopRecommended": "The floor plan editor works best on a desktop screen."

@@ -98,48 +98,26 @@
                 style="min-width: 90px; max-width: 100px"
               />
 
-              <div class="d-flex align-center ga-2 editor-zoom-controls">
-                <v-btn size="x-small" variant="text" @click="adjustZoom(-0.1)"
-                  >-</v-btn
-                >
-                <v-slider
-                  v-model="zoomScale"
-                  min="0.75"
-                  max="2"
-                  step="0.05"
-                  hide-details
-                  density="compact"
-                  data-cy="editor-zoom-slider"
-                  style="width: 140px"
-                />
-                <v-btn size="x-small" variant="text" @click="adjustZoom(0.1)"
-                  >+</v-btn
-                >
-                <span class="text-caption text-medium-emphasis"
-                  >{{ Math.round(zoomScale * 100) }}%</span
-                >
+              <div class="d-flex align-center ga-1">
+                <v-btn size="x-small" variant="text" data-cy="zoom-out-btn" @click="adjustZoom(-0.1)">-</v-btn>
+                <span class="text-caption text-medium-emphasis" data-cy="zoom-label" style="min-width: 36px; text-align: center">
+                  {{ Math.round(zoomScale * 100) }}%
+                </span>
+                <v-btn size="x-small" variant="text" data-cy="zoom-in-btn" @click="adjustZoom(0.1)">+</v-btn>
               </div>
 
               <v-chip
-                v-if="hasUnsavedChanges"
-                color="warning"
+                v-if="saveState !== 'idle'"
+                :color="saveState === 'saving' ? 'warning' : 'success'"
                 size="small"
                 variant="tonal"
-                data-cy="editor-unsaved-chip"
+                data-cy="editor-save-indicator"
               >
-                {{ $t('floorPlanEditor.unsavedChanges') }}
+                <v-progress-circular v-if="saveState === 'saving'" size="14" width="2" indeterminate class="mr-1" />
+                {{ saveState === 'saving' ? $t('floorPlanEditor.saving') : $t('floorPlanEditor.saved') }}
               </v-chip>
 
               <v-spacer />
-
-              <v-btn
-                variant="text"
-                :disabled="!undoSnapshot"
-                data-cy="editor-undo-btn"
-                @click="undoLastChange"
-              >
-                {{ $t('floorPlanEditor.undo') }}
-              </v-btn>
 
               <v-btn
                 v-if="selectedRectId"
@@ -151,16 +129,6 @@
                 {{ $t('floorPlanEditor.deleteItem', { name: selectedRectName }) }}
               </v-btn>
 
-              <v-btn
-                color="primary"
-                variant="flat"
-                :loading="saving"
-                :disabled="!selectedFloorPlan || !hasUnsavedChanges"
-                data-cy="save-floor-plan-btn"
-                @click="saveChanges"
-              >
-                {{ $t('floorPlanEditor.save') }}
-              </v-btn>
             </div>
           </v-card-text>
         </v-card>
@@ -321,11 +289,7 @@ interface SubArea {
   name: string;
 }
 
-interface EditorSnapshot {
-  positions: LocalPosition[];
-  deletedPositionIDs: string[];
-  dirtyItemIDs: string[];
-}
+type SaveState = "idle" | "saving" | "saved";
 
 type ResizeHandle = "nw" | "ne" | "sw" | "se";
 
@@ -363,7 +327,7 @@ const resizeState = ref<{
   original: LocalPosition;
 } | null>(null);
 
-const undoSnapshot = ref<EditorSnapshot | null>(null);
+const saveState = ref<SaveState>("idle");
 const recentlySaved = ref<Set<string>>(new Set());
 const snackbarMessage = ref("");
 const snackbarColor = ref<"success" | "error">("success");
@@ -474,25 +438,6 @@ const zoomLayerStyle = computed(() => ({
   transform: `scale(${zoomScale.value})`,
   transformOrigin: "top left",
 }));
-
-function clonePositions(positions: LocalPosition[]): LocalPosition[] {
-  return positions.map((pos) => ({ ...pos }));
-}
-
-function captureUndoState() {
-  undoSnapshot.value = {
-    positions: clonePositions(allPositions.value),
-    deletedPositionIDs: [...deletedPositionIDs.value],
-    dirtyItemIDs: [...dirtyItemIDs.value],
-  };
-}
-
-function restoreUndoState(snapshot: EditorSnapshot) {
-  allPositions.value = clonePositions(snapshot.positions);
-  deletedPositionIDs.value = [...snapshot.deletedPositionIDs];
-  dirtyItemIDs.value = new Set(snapshot.dirtyItemIDs);
-  updatePositionedState();
-}
 
 function markDirty(itemId: string) {
   const next = new Set(dirtyItemIDs.value);
@@ -644,8 +589,6 @@ function onCanvasPointerMove(event: PointerEvent) {
 function onCanvasPointerUp() {
   if (drawStart.value && drawPreview.value && drawModeItemId.value) {
     if (drawPreview.value.width > 0.5 && drawPreview.value.height > 0.5) {
-      captureUndoState();
-
       const itemId = drawModeItemId.value;
       const item = allEditableItems.value.find((entry) => entry.id === itemId);
       allPositions.value.push({
@@ -670,6 +613,10 @@ function onCanvasPointerUp() {
 
   movingItemId.value = null;
   resizeState.value = null;
+
+  if (hasUnsavedChanges.value && !saving.value) {
+    void autoSave();
+  }
 }
 
 function startMoveRect(event: PointerEvent, itemId: string) {
@@ -677,7 +624,6 @@ function startMoveRect(event: PointerEvent, itemId: string) {
     return;
   }
 
-  captureUndoState();
   selectedRectId.value = itemId;
   const rect = allPositions.value.find((pos) => pos.itemId === itemId);
   if (!rect) {
@@ -698,7 +644,6 @@ function startResizeRect(
   itemId: string,
   handle: ResizeHandle,
 ) {
-  captureUndoState();
   selectedRectId.value = itemId;
   const rect = allPositions.value.find((pos) => pos.itemId === itemId);
   if (!rect) {
@@ -759,7 +704,6 @@ function updatePositionedState() {
 }
 
 function deleteByItemId(itemId: string) {
-  captureUndoState();
   const target = allPositions.value.find((pos) => pos.itemId === itemId);
   if (!target) {
     return;
@@ -780,6 +724,10 @@ function deleteByItemId(itemId: string) {
   if (drawModeItemId.value === itemId) {
     drawModeItemId.value = null;
   }
+
+  if (hasUnsavedChanges.value && !saving.value) {
+    void autoSave();
+  }
 }
 
 function deleteSelected() {
@@ -789,22 +737,7 @@ function deleteSelected() {
   deleteByItemId(selectedRectId.value);
 }
 
-function undoLastChange() {
-  if (!undoSnapshot.value) {
-    return;
-  }
-
-  restoreUndoState(undoSnapshot.value);
-  undoSnapshot.value = null;
-}
-
 function onKeyDown(event: KeyboardEvent) {
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
-    event.preventDefault();
-    undoLastChange();
-    return;
-  }
-
   if (event.key === "Escape") {
     drawModeItemId.value = null;
     drawPreview.value = null;
@@ -838,6 +771,7 @@ async function saveChanges() {
   }
 
   saving.value = true;
+  saveState.value = "saving";
   try {
     for (const id of deletedPositionIDs.value) {
       await deleteFloorPlanPosition(id);
@@ -876,14 +810,21 @@ async function saveChanges() {
     window.setTimeout(() => {
       recentlySaved.value = new Set();
     }, 600);
-    snackbarColor.value = "success";
-    snackbarMessage.value = t('floorPlanEditor.savedSuccessfully');
+    saveState.value = "saved";
+    window.setTimeout(() => {
+      saveState.value = "idle";
+    }, 1500);
   } catch {
+    saveState.value = "idle";
     snackbarColor.value = "error";
     snackbarMessage.value = t('floorPlanEditor.saveFailed');
   } finally {
     saving.value = false;
   }
+}
+
+async function autoSave() {
+  await saveChanges();
 }
 
 async function loadFloorPlanOptions() {
@@ -948,7 +889,6 @@ watch(selectedFloorPlan, async (floorPlan) => {
   activeTab.value = "areas";
   selectedSubAreaId.value = null;
   zoomScale.value = 1;
-  undoSnapshot.value = null;
 
   const option = currentOption.value;
   if (!option) {
@@ -1059,7 +999,7 @@ onUnmounted(() => {
 <style scoped>
 .editor-shell {
   overflow: auto;
-  max-height: calc(100vh - 230px);
+  max-height: calc(100vh - 130px);
 }
 
 .editor-zoom-layer {
@@ -1166,9 +1106,5 @@ onUnmounted(() => {
   right: -6px;
   bottom: -6px;
   cursor: nwse-resize;
-}
-
-.editor-zoom-controls {
-  min-width: 220px;
 }
 </style>

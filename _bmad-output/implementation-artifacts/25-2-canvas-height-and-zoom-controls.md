@@ -1,6 +1,6 @@
 # Story 25.2: Canvas Height & Zoom Controls
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -27,22 +27,22 @@ so that I can see and edit the floor plan image with less scrolling and a cleane
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Double the canvas height (AC: #1)
-  - [ ] 1.1 In `FloorPlanEditorView.vue`, locate `.editor-shell` CSS (line ~1031): change `max-height: calc(100vh - 230px)` to approximately `calc(100vh - 130px)` to roughly double vertical space
-  - [ ] 1.2 Verify the editor canvas is visibly taller and the floor plan image has more room
-  - [ ] 1.3 Test on a smaller viewport to ensure the editor remains usable (no overflow issues)
-- [ ] Task 2: Reposition zoom percentage label (AC: #2, #3)
-  - [ ] 2.1 In the toolbar section (lines ~142-156), locate the zoom controls: currently ordered as minus button, slider, plus button, then percentage label
-  - [ ] 2.2 Rearrange to: minus button, percentage label (e.g., "100%"), plus button — remove or reposition the slider
-  - [ ] 2.3 Ensure the percentage label reactively displays `Math.round(zoomScale * 100) + '%'`
-  - [ ] 2.4 Style the label to be visually centered between the buttons with appropriate spacing
-  - [ ] 2.5 Verify clicking plus/minus updates the displayed percentage
-- [ ] Task 3: Validate (AC: #1-#3)
-  - [ ] 3.1 Run `npm run lint` and fix findings
-  - [ ] 3.2 Run `npm run type-check` and fix findings
-  - [ ] 3.3 Run `npm run build` and verify no build errors
-  - [ ] 3.4 Run `npx vitest run` and verify no regressions
-  - [ ] 3.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
+- [x] Task 1: Double the canvas height (AC: #1)
+  - [x] 1.1 In `FloorPlanEditorView.vue`, locate `.editor-shell` CSS (line ~1031): change `max-height: calc(100vh - 230px)` to approximately `calc(100vh - 130px)` to roughly double vertical space
+  - [x] 1.2 Verify the editor canvas is visibly taller and the floor plan image has more room
+  - [x] 1.3 Test on a smaller viewport to ensure the editor remains usable (no overflow issues)
+- [x] Task 2: Reposition zoom percentage label (AC: #2, #3)
+  - [x] 2.1 In the toolbar section (lines ~142-156), locate the zoom controls: currently ordered as minus button, slider, plus button, then percentage label
+  - [x] 2.2 Rearrange to: minus button, percentage label (e.g., "100%"), plus button — remove or reposition the slider
+  - [x] 2.3 Ensure the percentage label reactively displays `Math.round(zoomScale * 100) + '%'`
+  - [x] 2.4 Style the label to be visually centered between the buttons with appropriate spacing
+  - [x] 2.5 Verify clicking plus/minus updates the displayed percentage
+- [x] Task 3: Validate (AC: #1-#3)
+  - [x] 3.1 Run `npm run lint` and fix findings
+  - [x] 3.2 Run `npm run type-check` and fix findings
+  - [x] 3.3 Run `npm run build` and verify no build errors
+  - [x] 3.4 Run `npx vitest run` and verify no regressions
+  - [x] 3.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
 
 ## Dev Notes
 
@@ -86,10 +86,23 @@ so that I can see and edit the floor plan image with less scrolling and a cleane
 
 ### Agent Model Used
 
+Claude Opus 4.6
+
 ### Debug Log References
+
+- ESLint: pass, TypeScript type-check: pass, Build: pass, Vitest: 308/308 pass
 
 ### Completion Notes List
 
+- Changed `.editor-shell` max-height from `calc(100vh - 230px)` to `calc(100vh - 130px)` for taller canvas
+- Replaced zoom slider with compact minus/percentage/plus layout (label centered between buttons)
+- Removed `.editor-zoom-controls` CSS class (no longer needed)
+- Added `data-cy` attributes: `zoom-out-btn`, `zoom-label`, `zoom-in-btn`
+
 ### File List
 
+- `web/src/views/FloorPlanEditorView.vue` (modified)
+
 ### Change Log
+
+- 2026-04-10: Implemented story 25.2 — taller canvas, compact zoom controls

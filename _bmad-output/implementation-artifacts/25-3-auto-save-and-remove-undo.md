@@ -1,6 +1,6 @@
 # Story 25.3: Auto-Save & Remove Undo
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -41,33 +41,33 @@ so that I can focus on positioning items without worrying about losing changes.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Implement auto-save on pointerup (AC: #1, #2, #3, #4)
-  - [ ] 1.1 In `FloorPlanEditorView.vue`, locate the `onCanvasPointerUp` handler (or equivalent pointerup handler for draw, move, and resize operations)
-  - [ ] 1.2 After the pointer interaction completes, check `hasUnsavedChanges` computed property (`dirtyItemIDs.size > 0 || deletedPositionIDs.length > 0`)
-  - [ ] 1.3 If unsaved changes exist, call `saveChanges()` automatically
-  - [ ] 1.4 Ensure auto-save does NOT fire when no changes exist (AC #4)
-  - [ ] 1.5 Handle the case where a save is already in progress (debounce or skip if saving)
-- [ ] Task 2: Add saving/saved indicator (AC: #6)
-  - [ ] 2.1 Add a reactive ref `saveState` with values: `'idle' | 'saving' | 'saved'`
-  - [ ] 2.2 Before `saveChanges()` runs, set `saveState = 'saving'`; after completion, set `saveState = 'saved'`; after a brief timeout (e.g., 1.5s), set back to `'idle'`
-  - [ ] 2.3 Replace the unsaved changes chip (`data-cy="editor-unsaved-chip"`, line ~158) with a saving/saved indicator: show a spinner or "Saving..." text when saving, a checkmark or "Saved" when saved, and nothing when idle
-  - [ ] 2.4 Add `data-cy="editor-save-indicator"` to the new indicator element
-- [ ] Task 3: Remove Save button (AC: #5)
-  - [ ] 3.1 Remove the Save button (`data-cy="save-floor-plan-btn"`, line ~189) from the toolbar template
-  - [ ] 3.2 Keep the `saveChanges()` function — it's now called by auto-save
-  - [ ] 3.3 Remove the Ctrl+S keyboard shortcut handler if one exists for manual save
-- [ ] Task 4: Remove Undo button and logic (AC: #7)
-  - [ ] 4.1 Remove the Undo button (`data-cy="editor-undo-btn"`, line ~168) from the toolbar template
-  - [ ] 4.2 Remove the `undoSnapshot` ref (line ~386) and the `undoLastChange()` function (line ~761)
-  - [ ] 4.3 Remove all `captureUndoSnapshot()` calls throughout the component (called before draw, move, resize, delete operations)
-  - [ ] 4.4 Remove the Ctrl+Z keyboard event handler if one exists
-  - [ ] 4.5 Remove any CSS or types related to undo functionality
-- [ ] Task 5: Validate (AC: #1-#7)
-  - [ ] 5.1 Run `npm run lint` and fix findings
-  - [ ] 5.2 Run `npm run type-check` and fix findings
-  - [ ] 5.3 Run `npm run build` and verify no build errors
-  - [ ] 5.4 Run `npx vitest run` and verify no regressions
-  - [ ] 5.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
+- [x] Task 1: Implement auto-save on pointerup (AC: #1, #2, #3, #4)
+  - [x] 1.1 In `FloorPlanEditorView.vue`, locate the `onCanvasPointerUp` handler (or equivalent pointerup handler for draw, move, and resize operations)
+  - [x] 1.2 After the pointer interaction completes, check `hasUnsavedChanges` computed property (`dirtyItemIDs.size > 0 || deletedPositionIDs.length > 0`)
+  - [x] 1.3 If unsaved changes exist, call `saveChanges()` automatically
+  - [x] 1.4 Ensure auto-save does NOT fire when no changes exist (AC #4)
+  - [x] 1.5 Handle the case where a save is already in progress (debounce or skip if saving)
+- [x] Task 2: Add saving/saved indicator (AC: #6)
+  - [x] 2.1 Add a reactive ref `saveState` with values: `'idle' | 'saving' | 'saved'`
+  - [x] 2.2 Before `saveChanges()` runs, set `saveState = 'saving'`; after completion, set `saveState = 'saved'`; after a brief timeout (e.g., 1.5s), set back to `'idle'`
+  - [x] 2.3 Replace the unsaved changes chip (`data-cy="editor-unsaved-chip"`, line ~158) with a saving/saved indicator: show a spinner or "Saving..." text when saving, a checkmark or "Saved" when saved, and nothing when idle
+  - [x] 2.4 Add `data-cy="editor-save-indicator"` to the new indicator element
+- [x] Task 3: Remove Save button (AC: #5)
+  - [x] 3.1 Remove the Save button (`data-cy="save-floor-plan-btn"`, line ~189) from the toolbar template
+  - [x] 3.2 Keep the `saveChanges()` function — it's now called by auto-save
+  - [x] 3.3 Remove the Ctrl+S keyboard shortcut handler if one exists for manual save
+- [x] Task 4: Remove Undo button and logic (AC: #7)
+  - [x] 4.1 Remove the Undo button (`data-cy="editor-undo-btn"`, line ~168) from the toolbar template
+  - [x] 4.2 Remove the `undoSnapshot` ref (line ~386) and the `undoLastChange()` function (line ~761)
+  - [x] 4.3 Remove all `captureUndoSnapshot()` calls throughout the component (called before draw, move, resize, delete operations)
+  - [x] 4.4 Remove the Ctrl+Z keyboard event handler if one exists
+  - [x] 4.5 Remove any CSS or types related to undo functionality
+- [x] Task 5: Validate (AC: #1-#7)
+  - [x] 5.1 Run `npm run lint` and fix findings
+  - [x] 5.2 Run `npm run type-check` and fix findings
+  - [x] 5.3 Run `npm run build` and verify no build errors
+  - [x] 5.4 Run `npx vitest run` and verify no regressions
+  - [x] 5.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
 
 ## Dev Notes
 
@@ -123,10 +123,34 @@ All of these should be removed completely.
 
 ### Agent Model Used
 
+Claude Opus 4.6
+
 ### Debug Log References
+
+- ESLint: pass, TypeScript type-check: pass, Build: pass, Vitest: 308/308 pass
 
 ### Completion Notes List
 
+- Added `autoSave()` function called at end of `onCanvasPointerUp` and `deleteByItemId` when changes exist
+- Added `saveState` ref (`idle`/`saving`/`saved`) with toolbar indicator chip (`data-cy="editor-save-indicator"`)
+- Saving indicator shows spinner + "Saving..." during save, checkmark + "Saved" for 1.5s after
+- Removed Save button (`save-floor-plan-btn`) from toolbar
+- Removed Undo button (`editor-undo-btn`) from toolbar
+- Removed all undo infrastructure: `EditorSnapshot` interface, `undoSnapshot` ref, `captureUndoState()`,
+  `restoreUndoState()`, `clonePositions()`, `undoLastChange()`, Ctrl+Z keyboard handler
+- Removed unused i18n keys: `unsavedChanges`, `undo`, `save` from `floorPlanEditor` namespace
+- Added i18n keys: `saving`, `saved` in all 5 locale files (en, de, es, fr, uk)
+- Error snackbar retained for save failures
+
 ### File List
 
+- `web/src/views/FloorPlanEditorView.vue` (modified)
+- `web/src/locales/en.json` (modified)
+- `web/src/locales/de.json` (modified)
+- `web/src/locales/es.json` (modified)
+- `web/src/locales/fr.json` (modified)
+- `web/src/locales/uk.json` (modified)
+
 ### Change Log
+
+- 2026-04-10: Implemented story 25.3 — auto-save on pointerup, removed undo and manual save

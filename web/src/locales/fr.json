@@ -230,10 +230,9 @@
     "itemsTab": "Éléments",
     "subArea": "Sous-espace",
     "lineLabel": "Ligne",
-    "unsavedChanges": "Modifications non enregistrées",
-    "undo": "Annuler",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
     "deleteItem": "Supprimer {name}",
-    "save": "Enregistrer",
     "savedSuccessfully": "Positions du plan d'étage enregistrées.",
     "saveFailed": "Échec de l'enregistrement des positions du plan d'étage.",
     "desktopRecommended": "L'éditeur de plans fonctionne mieux sur un écran de bureau."
