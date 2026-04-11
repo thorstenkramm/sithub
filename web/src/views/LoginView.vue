@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { loginLocal } from '../api/auth';
@@ -120,8 +120,16 @@ async function handleLogin() {
   }
 }
 
-function handleEntraIdLogin() {
+async function handleEntraIdLogin() {
   entraIdLoading.value = true;
-  window.location.href = '/oauth/login';
+  await nextTick();
+  await new Promise<void>((resolve) => {
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => resolve());
+      return;
+    }
+    window.setTimeout(resolve, 0);
+  });
+  window.location.assign('/oauth/login');
 }
 </script>

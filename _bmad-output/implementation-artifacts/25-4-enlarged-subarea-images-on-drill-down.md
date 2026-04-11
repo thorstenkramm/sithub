@@ -1,6 +1,6 @@
 # Story 25.4: Enlarged Subarea Images on Drill-Down
 
-Status: review
+Status: done
 
 ## Story
 

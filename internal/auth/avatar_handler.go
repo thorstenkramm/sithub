@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/png"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -125,26 +126,39 @@ func DeleteAvatarHandler(avatarsDir string) echo.HandlerFunc {
 // sync must never block login.
 func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir string) {
 	avatarPath := filepath.Join(avatarsDir, userID+".png")
+	logFailure := func(message string, err error, extra ...any) {
+		args := []any{"user_id", userID}
+		if err != nil {
+			args = append(args, "error", err)
+		}
+		args = append(args, extra...)
+		slog.Error(message, args...)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://graph.microsoft.com/v1.0/me/photo/$value", http.NoBody)
 	if err != nil {
+		logFailure("build avatar sync request", err)
 		return
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logFailure("download avatar", err)
 		return
 	}
 	defer resp.Body.Close() //nolint:errcheck // Best-effort cleanup
 
 	if resp.StatusCode == http.StatusNotFound {
+		slog.Info("avatar not found in Microsoft Graph", "user_id", userID)
 		if err := os.Remove(avatarPath); err != nil && !os.IsNotExist(err) {
+			logFailure("remove stale avatar after not-found response", err, "avatar_path", avatarPath)
 			return
 		}
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
+		slog.Error("unexpected avatar sync status", "user_id", userID, "status_code", resp.StatusCode)
 		return
 	}
 
@@ -152,17 +166,20 @@ func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir strin
 	lr := io.LimitReader(resp.Body, maxAvatarSize+1)
 	img, _, err := image.Decode(lr)
 	if err != nil {
+		logFailure("decode avatar image", err)
 		return
 	}
 
 	// #nosec G304 -- path is constructed from trusted avatarsDir + user ID
 	out, err := os.Create(avatarPath)
 	if err != nil {
+		logFailure("create avatar file", err, "avatar_path", avatarPath)
 		return
 	}
 	defer out.Close() //nolint:errcheck // Best-effort cleanup
 
 	if err := png.Encode(out, img); err != nil {
+		logFailure("encode avatar PNG", err, "avatar_path", avatarPath)
 		os.Remove(avatarPath) //nolint:errcheck // Clean up on failure
 	}
 }

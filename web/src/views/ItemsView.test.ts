@@ -61,6 +61,10 @@ describe('ItemsView', () => {
     'v-btn': {
       template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>'
     },
+    'v-checkbox': {
+      props: ['modelValue', 'disabled'],
+      template: '<div v-bind="$attrs" :data-disabled="disabled ? \'true\' : undefined"><input type="checkbox" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" /><slot /></div>'
+    },
     'v-combobox': {
       props: ['modelValue'],
       template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
@@ -285,6 +289,9 @@ describe('ItemsView', () => {
   });
 
   it('dims and disables reserved week-mode items', async () => {
+    // Use a Monday so the current week has non-past weekdays
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-06T10:00:00'));
     localStorage.setItem('sithub_booking_mode', 'week');
     fetchItemsMock.mockResolvedValue({
       data: [
@@ -307,6 +314,7 @@ describe('ItemsView', () => {
     expect(wrapper.find('[data-cy="item-reserved"]').exists()).toBe(true);
     expect(wrapper.get('[data-cy="week-item-entry"]').attributes('title')).toContain('reserved');
     expect(wrapper.get('[data-cy="week-day-checkbox"]').attributes('data-disabled')).toBe('true');
+    vi.useRealTimers();
   });
 
   it('shows empty state when no items exist', async () => {
@@ -1005,6 +1013,8 @@ describe('ItemsView', () => {
     });
 
     it('shows limit dialog for week-mode limit errors', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-04-06T10:00:00'));
       localStorage.setItem('sithub_booking_mode', 'week');
       fetchItemsMock.mockResolvedValue({
         data: [{
@@ -1036,6 +1046,7 @@ describe('ItemsView', () => {
 
       expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
       localStorage.removeItem('sithub_booking_mode');
+      vi.useRealTimers();
     });
 
     it('dismisses the limit dialog when OK is clicked', async () => {

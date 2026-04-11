@@ -1,6 +1,6 @@
 # Story 25.6: Async Avatar Sync & Login Spinner
 
-Status: review
+Status: done
 
 ## Story
 
@@ -142,3 +142,9 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-04-11: Implemented story 25.6 — async avatar sync, Entra ID login spinner
+
+### Review Findings
+
+- [x] [Review][Patch] Entra ID loading spinner may never render before the redirect starts [web/src/views/LoginView.vue:123]
+
+- [x] [Review][Patch] Async avatar sync failures are still completely silent even though the story requires logged background errors [internal/auth/avatar_handler.go:123]

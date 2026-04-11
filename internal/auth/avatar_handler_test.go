@@ -2,15 +2,18 @@ package auth
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -178,6 +181,29 @@ func TestSyncAvatarNotFoundRemovesExistingAvatar(t *testing.T) {
 
 	_, err := os.Stat(avatarPath)
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestSyncAvatarLogsClientError(t *testing.T) {
+	dir := t.TempDir()
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	previousLogger := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	mockClient := &mockHTTPClient{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("network down")
+		},
+	}
+
+	SyncAvatar(t.Context(), mockClient, "user-1", dir)
+
+	assert.Contains(t, logBuffer.String(), "download avatar")
+	assert.Contains(t, logBuffer.String(), "user-1")
+	assert.True(t, strings.Contains(logBuffer.String(), "network down"))
 }
 
 type mockHTTPClient struct {

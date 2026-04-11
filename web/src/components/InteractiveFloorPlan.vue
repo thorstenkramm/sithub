@@ -528,13 +528,27 @@ function onFloorPlanImageLoad() {
   const img = fpImageRef.value;
   if (!img || img.naturalWidth <= 0) return;
 
-  // Fit image to container width so SVGs with large viewBox dimensions
-  // don't render at their intrinsic pixel size.
-  // Subtract the fp-fit-container border (1px each side = 2px) to prevent
-  // horizontal scrollbars at default zoom.
-  const shell = img.closest('.fp-scroll-shell');
+  // Fit image within the scroll shell so the entire floor plan is visible
+  // without scrollbars at default zoom. Compare aspect ratios to decide
+  // whether width or height is the constraining dimension.
+  // Subtract 2px for the fp-fit-container border (1px each side).
+  // Use the CSS max-height constraint for available height because the
+  // shell's clientHeight may be collapsed during Vue Transitions.
+  const shell = img.closest('.fp-scroll-shell') as HTMLElement | null;
   if (shell) {
-    img.style.width = `${shell.clientWidth - 2}px`;
+    const availW = shell.clientWidth - 2;
+    const isCompact = shell.classList.contains('fp-scroll-shell--compact');
+    const availH = isCompact
+      ? shell.clientHeight - 4
+      : window.innerHeight - 260 - 4;
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const shellRatio = availW / Math.max(availH, 1);
+
+    if (imgRatio > shellRatio) {
+      img.style.width = `${availW}px`;
+    } else {
+      img.style.width = `${Math.floor(availH * imgRatio)}px`;
+    }
   }
 
   applyMobileAutoZoom();
@@ -1539,6 +1553,7 @@ onBeforeUnmount(() => {
   overflow: auto;
   max-height: calc(100vh - 260px);
   touch-action: pan-x pan-y;
+  scrollbar-gutter: stable;
 }
 
 .fp-scroll-shell--compact {
@@ -1557,6 +1572,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   display: inline-flex;
   justify-content: center;
+  vertical-align: top;
   background: rgb(var(--v-theme-surface));
 }
 

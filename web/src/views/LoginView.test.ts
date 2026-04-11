@@ -59,4 +59,17 @@ describe('LoginView', () => {
 
     expect(wrapper.text()).toContain(CONNECTION_LOST_MESSAGE);
   });
+
+  it('disables the Entra ID button immediately after click', async () => {
+    const requestAnimationFrameMock = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 0);
+    const wrapper = mountView();
+
+    await wrapper.get('[data-cy="login-entraid"]').trigger('click');
+
+    expect(wrapper.get('[data-cy="login-entraid"]').attributes('disabled')).toBeDefined();
+
+    requestAnimationFrameMock.mockRestore();
+  });
 });

@@ -75,6 +75,7 @@
               <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
             </v-list-item>
             <v-list-item
+              v-if="authStore.authSource === 'internal'"
               data-cy="avatar-btn"
               @click="showAvatarDialog = true"
             >
@@ -194,6 +195,7 @@
             <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
           </v-list-item>
           <v-list-item
+            v-if="authStore.authSource === 'internal'"
             data-cy="mobile-avatar-btn"
             @click="showAvatarDialog = true; mobileDrawer = false"
           >
