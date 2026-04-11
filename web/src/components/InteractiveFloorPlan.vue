@@ -529,10 +529,12 @@ function onFloorPlanImageLoad() {
   if (!img || img.naturalWidth <= 0) return;
 
   // Fit image to container width so SVGs with large viewBox dimensions
-  // don't render at their intrinsic pixel size
+  // don't render at their intrinsic pixel size.
+  // Subtract the fp-fit-container border (1px each side = 2px) to prevent
+  // horizontal scrollbars at default zoom.
   const shell = img.closest('.fp-scroll-shell');
   if (shell) {
-    img.style.width = `${shell.clientWidth}px`;
+    img.style.width = `${shell.clientWidth - 2}px`;
   }
 
   applyMobileAutoZoom();

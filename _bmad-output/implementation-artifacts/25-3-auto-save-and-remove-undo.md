@@ -1,6 +1,6 @@
 # Story 25.3: Auto-Save & Remove Undo
 
-Status: review
+Status: done
 
 ## Story
 
@@ -154,3 +154,9 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-04-10: Implemented story 25.3 — auto-save on pointerup, removed undo and manual save
+
+### Review Findings
+
+- [x] [Review][Patch] Auto-save can silently lose edits made while another save is already in flight [web/src/views/FloorPlanEditorView.vue:617]
+
+- [x] [Review][Patch] Saving/saved indicator timers can hide a newer save state too early during back-to-back auto-saves [web/src/views/FloorPlanEditorView.vue:813]

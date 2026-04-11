@@ -1,6 +1,6 @@
 # Story 25.4: Enlarged Subarea Images on Drill-Down
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -25,26 +25,26 @@ so that I can clearly see the layout and available items without zooming.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Ensure drill-down image fills viewport width (AC: #1, #2)
-  - [ ] 1.1 In `InteractiveFloorPlan.vue`, locate the drill-down handler: `handleAreaClick()` (line ~1116) sets `drilledInto` state, and the watcher (line ~968) resets zoom to 1 and loads the new floor plan
-  - [ ] 1.2 Locate the image sizing logic (lines ~527-535): on image load, `img.style.width` is set to `shell.clientWidth` to fit width
-  - [ ] 1.3 Verify that after drill-down, the image `onload` handler fires and sets the image width to fill the `fp-scroll-shell` container width
-  - [ ] 1.4 If the image is not filling viewport width after drill-in, adjust the sizing logic to ensure `img.style.width = shell.clientWidth + 'px'` is called after the drilled floor plan image loads
-  - [ ] 1.5 Ensure zoom resets to 1.0 on drill-in (already done at line ~970) so the fit-to-width calculation is correct
-- [ ] Task 2: Prevent horizontal scrollbars at default zoom (AC: #2)
-  - [ ] 2.1 Inspect `.fp-scroll-shell` CSS (lines ~1536-1545): `overflow: auto`, `max-height: calc(100vh - 260px)`
-  - [ ] 2.2 Ensure the image width calculation accounts for any padding/margins inside the scroll shell so the image does not exceed the container width
-  - [ ] 2.3 If the image has border, padding, or the zoom layer has margins, subtract those from `shell.clientWidth` when setting image width
-  - [ ] 2.4 Test that at zoom = 1.0 after drill-in, no horizontal scrollbar appears
-- [ ] Task 3: Verify zoom scrollbar behavior (AC: #3)
-  - [ ] 3.1 Confirm that when user zooms in (via buttons or pinch), the image scales beyond viewport width and scrollbars appear naturally via `overflow: auto` on `.fp-scroll-shell`
-  - [ ] 3.2 No code changes expected for this — just verify the existing behavior
-- [ ] Task 4: Validate (AC: #1-#3)
-  - [ ] 4.1 Run `npm run lint` and fix findings
-  - [ ] 4.2 Run `npm run type-check` and fix findings
-  - [ ] 4.3 Run `npm run build` and verify no build errors
-  - [ ] 4.4 Run `npx vitest run` and verify no regressions
-  - [ ] 4.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
+- [x] Task 1: Ensure drill-down image fills viewport width (AC: #1, #2)
+  - [x] 1.1 In `InteractiveFloorPlan.vue`, locate the drill-down handler: `handleAreaClick()` (line ~1116) sets `drilledInto` state, and the watcher (line ~968) resets zoom to 1 and loads the new floor plan
+  - [x] 1.2 Locate the image sizing logic (lines ~527-535): on image load, `img.style.width` is set to `shell.clientWidth` to fit width
+  - [x] 1.3 Verify that after drill-down, the image `onload` handler fires and sets the image width to fill the `fp-scroll-shell` container width
+  - [x] 1.4 If the image is not filling viewport width after drill-in, adjust the sizing logic to ensure `img.style.width = shell.clientWidth + 'px'` is called after the drilled floor plan image loads
+  - [x] 1.5 Ensure zoom resets to 1.0 on drill-in (already done at line ~970) so the fit-to-width calculation is correct
+- [x] Task 2: Prevent horizontal scrollbars at default zoom (AC: #2)
+  - [x] 2.1 Inspect `.fp-scroll-shell` CSS (lines ~1536-1545): `overflow: auto`, `max-height: calc(100vh - 260px)`
+  - [x] 2.2 Ensure the image width calculation accounts for any padding/margins inside the scroll shell so the image does not exceed the container width
+  - [x] 2.3 If the image has border, padding, or the zoom layer has margins, subtract those from `shell.clientWidth` when setting image width
+  - [x] 2.4 Test that at zoom = 1.0 after drill-in, no horizontal scrollbar appears
+- [x] Task 3: Verify zoom scrollbar behavior (AC: #3)
+  - [x] 3.1 Confirm that when user zooms in (via buttons or pinch), the image scales beyond viewport width and scrollbars appear naturally via `overflow: auto` on `.fp-scroll-shell`
+  - [x] 3.2 No code changes expected for this — just verify the existing behavior
+- [x] Task 4: Validate (AC: #1-#3)
+  - [x] 4.1 Run `npm run lint` and fix findings
+  - [x] 4.2 Run `npm run type-check` and fix findings
+  - [x] 4.3 Run `npm run build` and verify no build errors
+  - [x] 4.4 Run `npx vitest run` and verify no regressions
+  - [x] 4.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
 
 ## Dev Notes
 
@@ -99,10 +99,25 @@ Test by drilling into a subarea and checking if the image fills width without sc
 
 ### Agent Model Used
 
+Claude Opus 4.6
+
 ### Debug Log References
+
+- ESLint: pass, TypeScript type-check: pass, Build: pass
+- golangci-lint: 0 issues, go vet: pass
 
 ### Completion Notes List
 
+- Fixed `onFloorPlanImageLoad()` to subtract 2px (fp-fit-container border) from
+  shell.clientWidth when setting image width, preventing horizontal scrollbar at default zoom
+- Drill-down flow works correctly: `drilledInto` change triggers watcher, resets zoom to 1,
+  Vue Transition replaces `<img>` element, `@load` fires `onFloorPlanImageLoad` on new image
+- Scrollbars appear naturally at zoom > 100% via `overflow: auto` on `.fp-scroll-shell`
+
 ### File List
 
+- `web/src/components/InteractiveFloorPlan.vue` (modified)
+
 ### Change Log
+
+- 2026-04-11: Implemented story 25.4 — fix drill-down image sizing to fill viewport width

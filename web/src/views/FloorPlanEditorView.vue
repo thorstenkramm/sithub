@@ -28,6 +28,7 @@
                 :label="$t('floorPlanEditor.floorPlanLabel')"
                 density="compact"
                 hide-details
+                :disabled="saving"
                 data-cy="floor-plan-selector"
                 style="min-width: 220px; max-width: 320px"
               />
@@ -123,6 +124,7 @@
                 v-if="selectedRectId"
                 color="error"
                 variant="text"
+                :disabled="saving"
                 data-cy="delete-rect-btn"
                 @click="deleteSelected"
               >
@@ -150,7 +152,10 @@
                 <div
                   ref="containerRef"
                   class="floor-plan-editor-container"
-                  :class="{ 'draw-mode': drawModeItemId !== null }"
+                  :class="{
+                    'draw-mode': drawModeItemId !== null,
+                    'floor-plan-editor-container--saving': saving,
+                  }"
                   @pointerdown="onCanvasPointerDown"
                   @pointermove="onCanvasPointerMove"
                   @pointerup="onCanvasPointerUp"
@@ -331,6 +336,8 @@ const saveState = ref<SaveState>("idle");
 const recentlySaved = ref<Set<string>>(new Set());
 const snackbarMessage = ref("");
 const snackbarColor = ref<"success" | "error">("success");
+let saveStateResetTimeoutId: number | undefined;
+let recentlySavedTimeoutId: number | undefined;
 const showSnackbar = computed({
   get: () => snackbarMessage.value.length > 0,
   set: (value: boolean) => {
@@ -524,6 +531,9 @@ function selectSidebarItem(item: EditableItem) {
 }
 
 function onCanvasPointerDown(event: PointerEvent) {
+  if (saving.value) {
+    return;
+  }
   if (!drawModeItemId.value) {
     selectedRectId.value = null;
     return;
@@ -620,6 +630,9 @@ function onCanvasPointerUp() {
 }
 
 function startMoveRect(event: PointerEvent, itemId: string) {
+  if (saving.value) {
+    return;
+  }
   if (drawModeItemId.value) {
     return;
   }
@@ -644,6 +657,9 @@ function startResizeRect(
   itemId: string,
   handle: ResizeHandle,
 ) {
+  if (saving.value) {
+    return;
+  }
   selectedRectId.value = itemId;
   const rect = allPositions.value.find((pos) => pos.itemId === itemId);
   if (!rect) {
@@ -731,13 +747,16 @@ function deleteByItemId(itemId: string) {
 }
 
 function deleteSelected() {
-  if (!selectedRectId.value) {
+  if (saving.value || !selectedRectId.value) {
     return;
   }
   deleteByItemId(selectedRectId.value);
 }
 
 function onKeyDown(event: KeyboardEvent) {
+  if (saving.value) {
+    return;
+  }
   if (event.key === "Escape") {
     drawModeItemId.value = null;
     drawPreview.value = null;
@@ -766,10 +785,12 @@ function onWheelZoom(event: WheelEvent) {
 }
 
 async function saveChanges() {
-  if (!selectedFloorPlan.value || !hasUnsavedChanges.value) {
+  const floorPlanToSave = selectedFloorPlan.value;
+  if (!floorPlanToSave || !hasUnsavedChanges.value) {
     return;
   }
 
+  window.clearTimeout(saveStateResetTimeoutId);
   saving.value = true;
   saveState.value = "saving";
   try {
@@ -791,7 +812,7 @@ async function saveChanges() {
         savedItemIDs.push(pos.itemId);
       } else if (!pos.id) {
         const response = await createFloorPlanPosition({
-          floor_plan: selectedFloorPlan.value,
+          floor_plan: floorPlanToSave,
           item_id: pos.itemId,
           label: pos.label,
           x: pos.x,
@@ -807,14 +828,16 @@ async function saveChanges() {
 
     clearDirty();
     recentlySaved.value = new Set(savedItemIDs);
-    window.setTimeout(() => {
+    window.clearTimeout(recentlySavedTimeoutId);
+    recentlySavedTimeoutId = window.setTimeout(() => {
       recentlySaved.value = new Set();
     }, 600);
     saveState.value = "saved";
-    window.setTimeout(() => {
+    saveStateResetTimeoutId = window.setTimeout(() => {
       saveState.value = "idle";
     }, 1500);
   } catch {
+    window.clearTimeout(recentlySavedTimeoutId);
     saveState.value = "idle";
     snackbarColor.value = "error";
     snackbarMessage.value = t('floorPlanEditor.saveFailed');
@@ -993,6 +1016,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onKeyDown);
+  window.clearTimeout(saveStateResetTimeoutId);
+  window.clearTimeout(recentlySavedTimeoutId);
 });
 </script>
 
@@ -1010,6 +1035,10 @@ onUnmounted(() => {
   position: relative;
   display: inline-block;
   cursor: default;
+}
+
+.floor-plan-editor-container--saving {
+  pointer-events: none;
 }
 
 .floor-plan-editor-container.draw-mode {

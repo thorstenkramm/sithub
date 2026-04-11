@@ -1,6 +1,6 @@
 # Story 25.2: Canvas Height & Zoom Controls
 
-Status: review
+Status: done
 
 ## Story
 

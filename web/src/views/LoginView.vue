@@ -50,10 +50,12 @@
             </v-form>
             <v-divider class="my-4" />
             <v-btn
-              href="/oauth/login"
               variant="outlined"
               block
+              :loading="entraIdLoading"
+              :disabled="entraIdLoading"
               data-cy="login-entraid"
+              @click="handleEntraIdLogin"
             >
               {{ $t('auth.signInWithEntraId') }}
             </v-btn>
@@ -78,6 +80,7 @@ const authStore = useAuthStore();
 const email = ref('');
 const password = ref('');
 const loading = ref(false);
+const entraIdLoading = ref(false);
 const errorMessage = ref('');
 const { t } = useI18n();
 
@@ -115,5 +118,10 @@ async function handleLogin() {
   } finally {
     loading.value = false;
   }
+}
+
+function handleEntraIdLogin() {
+  entraIdLoading.value = true;
+  window.location.href = '/oauth/login';
 }
 </script>

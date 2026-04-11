@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -75,10 +76,10 @@ func CallbackHandler(svc *Service, avatarsDir ...string) echo.HandlerFunc {
 			c.Request().Context(), svc.Store(), user.ID, token.AccessToken,
 		)
 
-		// Sync avatar from Microsoft Graph (best-effort, don't fail the login)
+		// Sync avatar from Microsoft Graph asynchronously (best-effort, don't block login)
 		if len(avatarsDir) > 0 && avatarsDir[0] != "" {
 			client := svc.oauthConfig.Client(c.Request().Context(), token)
-			SyncAvatar(c.Request().Context(), client, user.ID, avatarsDir[0])
+			go SyncAvatar(context.Background(), client, user.ID, avatarsDir[0])
 		}
 
 		return setUserCookieAndRedirect(svc, c, user, redirectPath(user))

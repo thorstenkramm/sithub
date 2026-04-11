@@ -1,6 +1,6 @@
 # Story 25.6: Async Avatar Sync & Login Spinner
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -29,29 +29,29 @@ so that I am not left waiting on a slow avatar sync with no indication of progre
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Make avatar sync asynchronous in backend (AC: #2, #3, #4)
-  - [ ] 1.1 In `internal/auth/handlers.go`, locate `CallbackHandler()` (line ~46) and the `SyncAvatar()` call (line ~81)
-  - [ ] 1.2 Wrap the `SyncAvatar()` call in a goroutine: `go SyncAvatar(context.Background(), client, user.ID, avatarsDir[0])`
-  - [ ] 1.3 Use `context.Background()` instead of `c.Request().Context()` because the request context will be cancelled after the redirect response is sent
-  - [ ] 1.4 Ensure errors in the goroutine are logged via `slog.Error` (SyncAvatar already logs errors internally — verify this)
-  - [ ] 1.5 Verify the OAuth callback returns immediately and the redirect happens without waiting for avatar download
-- [ ] Task 2: Add loading spinner to Entra ID login button (AC: #1)
-  - [ ] 2.1 In `LoginView.vue`, locate the Entra ID button (`data-cy="login-entraid"`, line ~52-59): currently a `v-btn` with `href="/oauth/login"`
-  - [ ] 2.2 Add a reactive ref `entraIdLoading = ref(false)`
-  - [ ] 2.3 Add `:loading="entraIdLoading"` and `:disabled="entraIdLoading"` props to the button
-  - [ ] 2.4 Replace the `href` with a `@click` handler that sets `entraIdLoading = true` and then navigates via `window.location.href = '/oauth/login'`
-  - [ ] 2.5 Verify the spinner appears and the button is disabled after click, before the browser navigates away
-- [ ] Task 3: Backend validation (AC: #2, #3, #4)
-  - [ ] 3.1 Run `go fmt ./...` and `go vet ./...`
-  - [ ] 3.2 Run `golangci-lint run ./...` and fix findings
-  - [ ] 3.3 Run `go test ./internal/auth/...` if tests exist, and verify no regressions
-  - [ ] 3.4 Run `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1` for duplication check
-- [ ] Task 4: Frontend validation (AC: #1)
-  - [ ] 4.1 Run `npm run lint` and fix findings
-  - [ ] 4.2 Run `npm run type-check` and fix findings
-  - [ ] 4.3 Run `npm run build` and verify no build errors
-  - [ ] 4.4 Run `npx vitest run` and verify no regressions
-  - [ ] 4.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
+- [x] Task 1: Make avatar sync asynchronous in backend (AC: #2, #3, #4)
+  - [x] 1.1 In `internal/auth/handlers.go`, locate `CallbackHandler()` (line ~46) and the `SyncAvatar()` call (line ~81)
+  - [x] 1.2 Wrap the `SyncAvatar()` call in a goroutine: `go SyncAvatar(context.Background(), client, user.ID, avatarsDir[0])`
+  - [x] 1.3 Use `context.Background()` instead of `c.Request().Context()` because the request context will be cancelled after the redirect response is sent
+  - [x] 1.4 Ensure errors in the goroutine are logged via `slog.Error` (SyncAvatar already logs errors internally — verify this)
+  - [x] 1.5 Verify the OAuth callback returns immediately and the redirect happens without waiting for avatar download
+- [x] Task 2: Add loading spinner to Entra ID login button (AC: #1)
+  - [x] 2.1 In `LoginView.vue`, locate the Entra ID button (`data-cy="login-entraid"`, line ~52-59): currently a `v-btn` with `href="/oauth/login"`
+  - [x] 2.2 Add a reactive ref `entraIdLoading = ref(false)`
+  - [x] 2.3 Add `:loading="entraIdLoading"` and `:disabled="entraIdLoading"` props to the button
+  - [x] 2.4 Replace the `href` with a `@click` handler that sets `entraIdLoading = true` and then navigates via `window.location.href = '/oauth/login'`
+  - [x] 2.5 Verify the spinner appears and the button is disabled after click, before the browser navigates away
+- [x] Task 3: Backend validation (AC: #2, #3, #4)
+  - [x] 3.1 Run `go fmt ./...` and `go vet ./...`
+  - [x] 3.2 Run `golangci-lint run ./...` and fix findings
+  - [x] 3.3 Run `go test ./internal/auth/...` if tests exist, and verify no regressions
+  - [x] 3.4 Run `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1` for duplication check
+- [x] Task 4: Frontend validation (AC: #1)
+  - [x] 4.1 Run `npm run lint` and fix findings
+  - [x] 4.2 Run `npm run type-check` and fix findings
+  - [x] 4.3 Run `npm run build` and verify no build errors
+  - [x] 4.4 Run `npx vitest run` and verify no regressions
+  - [x] 4.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
 
 ## Dev Notes
 
@@ -118,10 +118,27 @@ The button is a `v-btn` with `href="/oauth/login"` — a simple link. It has no 
 
 ### Agent Model Used
 
+Claude Opus 4.6
+
 ### Debug Log References
+
+- ESLint: pass, TypeScript type-check: pass, Build: pass
+- golangci-lint: 0 issues, go vet: pass, go test ./internal/auth/...: pass
 
 ### Completion Notes List
 
+- Wrapped `SyncAvatar()` call in `go` goroutine with `context.Background()` so OAuth
+  callback returns immediately without waiting for avatar download
+- Added `context` import to handlers.go
+- Replaced `href="/oauth/login"` on Entra ID button with `@click="handleEntraIdLogin"`
+- Added `entraIdLoading` ref for loading/disabled state on the button
+- `handleEntraIdLogin()` sets loading state then navigates via `window.location.href`
+
 ### File List
 
+- `internal/auth/handlers.go` (modified)
+- `web/src/views/LoginView.vue` (modified)
+
 ### Change Log
+
+- 2026-04-11: Implemented story 25.6 — async avatar sync, Entra ID login spinner
