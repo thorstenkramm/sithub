@@ -160,6 +160,8 @@ describe("InteractiveFloorPlan", () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-08T10:00:00"));
     localStorage.clear();
     setViewport(1280, 900);
     fetchFloorPlanPositionsMock.mockResolvedValue({
@@ -193,6 +195,7 @@ describe("InteractiveFloorPlan", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.matchMedia = originalMatchMedia;
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
