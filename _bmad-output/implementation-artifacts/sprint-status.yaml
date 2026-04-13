@@ -224,7 +224,7 @@ development_status:
   24-3-profile-and-settings-consolidation: done
   epic-24-retrospective: optional
 
-  epic-25: in-progress
+  epic-25: done
   25-1-editor-layout-sidebar-to-toolbar-dropdowns: done
   25-2-canvas-height-and-zoom-controls: done
   25-3-auto-save-and-remove-undo: done
@@ -232,3 +232,10 @@ development_status:
   25-5-hide-profile-photo-for-entra-id-users: done
   25-6-async-avatar-sync-and-login-spinner: done
   epic-25-retrospective: optional
+
+  epic-26: in-progress
+  26-1-subarea-selection-respects-active-tab: done
+  26-2-hide-items-dropdown-on-areas-tab: done
+  26-3-enable-draw-mode-for-subareas: done
+  26-4-lock-other-rectangles-when-subarea-selected: done
+  epic-26-retrospective: optional

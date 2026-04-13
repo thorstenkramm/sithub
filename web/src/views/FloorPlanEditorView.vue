@@ -64,7 +64,7 @@
               />
 
               <v-select
-                v-if="selectedFloorPlan"
+                v-if="selectedFloorPlan && !(isAreaLevel && activeTab === 'areas')"
                 :model-value="toolbarSelectedItemId"
                 :items="toolbarItems"
                 item-title="name"
@@ -77,17 +77,7 @@
                 data-cy="toolbar-items-select"
                 style="min-width: 200px; max-width: 280px"
                 @update:model-value="onToolbarItemSelect"
-              >
-                <template #item="{ item: option, props: listProps }">
-                  <v-list-item v-bind="listProps">
-                    <template #prepend>
-                      <v-icon size="small" :color="option.raw.positioned ? 'success' : undefined">
-                        {{ option.raw.positioned ? 'mdi-check-circle' : 'mdi-map-marker' }}
-                      </v-icon>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-select>
+              />
 
               <v-select
                 v-model="borderWidth"
@@ -407,6 +397,13 @@ const activePositions = computed(() => {
     return allPositions.value;
   }
 
+  // On Areas tab with a subarea selected, only that subarea's rect is active
+  if (activeTab.value === "areas" && selectedSubAreaId.value) {
+    return allPositions.value.filter(
+      (pos) => pos.itemId === selectedSubAreaId.value,
+    );
+  }
+
   const ids = new Set(scopedItems.value.map((item) => item.id));
   return allPositions.value.filter((pos) => ids.has(pos.itemId));
 });
@@ -422,6 +419,12 @@ const contextPositions = computed(() => {
       .map((item) => item.id),
   );
   if (activeTab.value === "areas") {
+    // When a subarea is selected, all OTHER positions are context (locked)
+    if (selectedSubAreaId.value) {
+      return allPositions.value.filter(
+        (pos) => pos.itemId !== selectedSubAreaId.value,
+      );
+    }
     return allPositions.value.filter((pos) => !areaIDs.has(pos.itemId));
   }
   return allPositions.value.filter((pos) => areaIDs.has(pos.itemId));
@@ -492,8 +495,13 @@ function toPercent(event: PointerEvent) {
 
 function onToolbarSubAreaSelect(subAreaId: string | null) {
   selectedSubAreaId.value = subAreaId;
-  if (subAreaId && isAreaLevel.value) {
-    activeTab.value = "items";
+  if (subAreaId && isAreaLevel.value && activeTab.value === "areas") {
+    const item = allEditableItems.value.find(
+      (entry) => entry.id === subAreaId && entry.scope === "area",
+    );
+    if (item) {
+      selectSidebarItem(item);
+    }
   }
 }
 
@@ -989,9 +997,6 @@ watch(selectedFloorPlan, async (floorPlan) => {
 
   subAreas.value = nextSubAreas;
   allEditableItems.value = items;
-  if (nextSubAreas[0]) {
-    selectedSubAreaId.value = nextSubAreas[0].id;
-  }
 
   for (const position of allPositions.value) {
     const match = items.find((item) => item.id === position.itemId);
@@ -1002,9 +1007,22 @@ watch(selectedFloorPlan, async (floorPlan) => {
 
   clearDirty();
   updatePositionedState();
+
+  if (nextSubAreas[0]) {
+    onToolbarSubAreaSelect(nextSubAreas[0].id);
+  }
 });
 
-watch([activeTab, selectedSubAreaId], () => {
+watch(activeTab, () => {
+  drawModeItemId.value = null;
+  selectedRectId.value = null;
+});
+
+watch(selectedSubAreaId, () => {
+  if (activeTab.value !== "items") {
+    return;
+  }
+
   drawModeItemId.value = null;
   selectedRectId.value = null;
 });

@@ -4,7 +4,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/prd.md
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-25.md
-lastEdited: '2026-04-09'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-26.md
+lastEdited: '2026-04-13'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -30,6 +31,8 @@ editHistory:
     changes: "Added FR104-FR106 and Epic 24: Booking Warnings & Profile Consolidation. Covers item warning confirmation dialogs with don't-show-again, sequential warnings in week mode, and merging Settings into Profile."
   - date: '2026-04-09'
     changes: "Added FR107-FR117, UX-DR1-UX-DR14, and Epic 25: UX/UI Improvements — Floor Plan Editor, Booking & Avatar. Covers floor plan editor overhaul (sidebar removal, toolbar dropdowns, auto-save, undo removal, zoom redesign, canvas enlargement), subarea drill-down image enlargement, Entra ID avatar async sync, login spinner, and Profile Photo menu hiding for Entra ID users."
+  - date: '2026-04-13'
+    changes: "Added FR118-FR121 and Epic 26: Floor Plan Editor — Area Drawing Fixes. Fixes subarea selection tab switching, items dropdown visibility on Areas tab, draw mode for subareas, and rectangle locking during subarea editing."
 ---
 
 # sithub - Epic Breakdown
@@ -559,6 +562,13 @@ FR114: Epic 25 - Enlarge subarea floor plan images on drill-down
 FR115: Epic 25 - Hide Profile Photo menu for Entra ID users
 FR116: Epic 25 - Async Entra ID avatar sync
 FR117: Epic 25 - Loading spinner on Entra ID login button
+FR118: Epic 26 - Subarea selection from dropdown must respect the active tab (Areas/Items)
+and not force-switch to Items mode.
+FR119: Epic 26 - Items dropdown must be hidden when the Areas tab is active.
+FR120: Epic 26 - Selecting an unpositioned subarea on the Areas tab must enter draw mode;
+selecting a positioned subarea must select its rectangle.
+FR121: Epic 26 - When a subarea is selected for editing, all other subarea rectangles must
+be locked (non-interactive) to prevent accidental modification.
 
 ## Epic List
 
@@ -3549,3 +3559,82 @@ immediately and redirects the user without waiting for the avatar download
 **Given** the async avatar sync fails (e.g., no photo in Entra ID, network error)
 **When** I navigate to a page showing my avatar
 **Then** the fallback initials avatar is displayed; no error is shown to the user
+
+## Epic 26 Stories: Floor Plan Editor — Area Drawing Fixes
+
+The floor plan editor's Areas tab workflow is broken after the sidebar-to-toolbar refactor.
+Subarea selection forces a tab switch, drawing areas is impossible, and unrelated subareas
+can be accidentally modified. This epic fixes all four interaction bugs.
+**FRs covered:** FR118, FR119, FR120, FR121
+
+### Story 26.1: Subarea Selection Respects Active Tab
+
+**FRs covered:** FR118
+
+As an admin,
+I want selecting a subarea from the dropdown to stay on the current tab,
+so that I can position area rectangles without being forced into Items mode.
+
+**Acceptance Criteria:**
+
+**Given** I am on the Areas tab with an area-level floor plan loaded
+**When** I select "Open Space" from the subarea dropdown
+**Then** the toggle stays on "Areas" and does not switch to "Items"
+
+**Given** I am on the Items tab
+**When** I select a subarea from the dropdown
+**Then** the toggle stays on "Items" (existing behavior preserved)
+
+### Story 26.2: Hide Items Dropdown on Areas Tab
+
+**FRs covered:** FR119
+
+As an admin,
+I want the items dropdown to be hidden when I am on the Areas tab,
+so that I am not confused by irrelevant controls while positioning subareas.
+
+**Acceptance Criteria:**
+
+**Given** I am on the Areas tab
+**When** I look at the toolbar
+**Then** the "Objekte" (Items) dropdown is not visible
+
+**Given** I switch to the Items tab
+**When** I look at the toolbar
+**Then** the "Objekte" (Items) dropdown appears
+
+### Story 26.3: Enable Draw Mode for Subareas on Areas Tab
+
+**FRs covered:** FR120
+
+As an admin,
+I want to draw a rectangle for an unpositioned subarea when I select it on the Areas tab,
+so that I can position subareas on the floor plan.
+
+**Acceptance Criteria:**
+
+**Given** I am on the Areas tab and select an unpositioned subarea from the dropdown
+**When** the selection is made
+**Then** the editor enters draw mode (crosshair cursor) for that subarea
+
+**Given** I am on the Areas tab and select a positioned subarea from the dropdown
+**When** the selection is made
+**Then** the editor selects that subarea's rectangle on the canvas
+
+### Story 26.4: Lock Other Rectangles When Subarea Is Selected
+
+**FRs covered:** FR121
+
+As an admin,
+I want only the selected subarea to be editable on the canvas,
+so that I cannot accidentally move or delete other subareas.
+
+**Acceptance Criteria:**
+
+**Given** I have selected "Open Space" for editing on the Areas tab
+**When** I try to click, move, or delete another subarea's rectangle (e.g., "Cube 1")
+**Then** the other rectangle does not respond to interaction
+
+**Given** I have a subarea selected
+**When** I look at the other subarea rectangles on the canvas
+**Then** they appear visually distinct (e.g., dimmed or dashed) to indicate they are locked
