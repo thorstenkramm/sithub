@@ -233,9 +233,15 @@ development_status:
   25-6-async-avatar-sync-and-login-spinner: done
   epic-25-retrospective: optional
 
-  epic-26: in-progress
+  epic-26: done
   26-1-subarea-selection-respects-active-tab: done
   26-2-hide-items-dropdown-on-areas-tab: done
   26-3-enable-draw-mode-for-subareas: done
   26-4-lock-other-rectangles-when-subarea-selected: done
   epic-26-retrospective: optional
+
+  epic-27: in-progress
+  27-1-fix-avatar-image-sync: done
+  27-2-fix-reserved-area-floor-plan-display: done
+  27-3-show-occupancy-on-reserved-items: done
+  epic-27-retrospective: optional

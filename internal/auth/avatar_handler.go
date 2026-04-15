@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"image"
@@ -162,11 +163,24 @@ func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir strin
 		return
 	}
 
-	// Read up to maxAvatarSize + 1 byte to detect oversized photos
-	lr := io.LimitReader(resp.Body, maxAvatarSize+1)
-	img, _, err := image.Decode(lr)
+	// Read the full body into a buffer (up to maxAvatarSize) to avoid
+	// LimitReader truncating mid-decode, which caused "not enough pixel data" errors.
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxAvatarSize+1))
 	if err != nil {
-		logFailure("decode avatar image", err)
+		logFailure("read avatar body", err)
+		return
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if int64(len(bodyBytes)) > maxAvatarSize {
+		slog.Warn("avatar exceeds size limit, skipping",
+			"user_id", userID, "content_type", contentType, "bytes", len(bodyBytes))
+		return
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(bodyBytes))
+	if err != nil {
+		logFailure("decode avatar image", err,
+			"content_type", contentType, "bytes", len(bodyBytes))
 		return
 	}
 

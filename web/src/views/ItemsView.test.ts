@@ -283,12 +283,12 @@ describe('ItemsView', () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.find('[data-cy="item-reserved"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="item-reserved-badge"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Reserved');
-    expect(wrapper.get('[data-cy="item-entry"]').attributes('title')).toContain('reserved');
+    expect(wrapper.find('[data-cy="book-item-btn"]').exists()).toBe(false);
   });
 
-  it('dims and disables reserved week-mode items', async () => {
+  it('shows reserved badge and disables checkboxes for reserved week-mode items', async () => {
     // Use a Monday so the current week has non-past weekdays
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-06T10:00:00'));
@@ -311,8 +311,7 @@ describe('ItemsView', () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.find('[data-cy="item-reserved"]').exists()).toBe(true);
-    expect(wrapper.get('[data-cy="week-item-entry"]').attributes('title')).toContain('reserved');
+    expect(wrapper.find('[data-cy="item-reserved-badge"]').exists()).toBe(true);
     expect(wrapper.get('[data-cy="week-day-checkbox"]').attributes('data-disabled')).toBe('true');
     vi.useRealTimers();
   });

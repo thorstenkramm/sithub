@@ -5,7 +5,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/_bmad-output/planning-artifacts/architecture.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-25.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-26.md
-lastEdited: '2026-04-13'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-27.md
+lastEdited: '2026-04-15'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -33,6 +34,8 @@ editHistory:
     changes: "Added FR107-FR117, UX-DR1-UX-DR14, and Epic 25: UX/UI Improvements — Floor Plan Editor, Booking & Avatar. Covers floor plan editor overhaul (sidebar removal, toolbar dropdowns, auto-save, undo removal, zoom redesign, canvas enlargement), subarea drill-down image enlargement, Entra ID avatar async sync, login spinner, and Profile Photo menu hiding for Entra ID users."
   - date: '2026-04-13'
     changes: "Added FR118-FR121 and Epic 26: Floor Plan Editor — Area Drawing Fixes. Fixes subarea selection tab switching, items dropdown visibility on Areas tab, draw mode for subareas, and rectangle locking during subarea editing."
+  - date: '2026-04-15'
+    changes: "Added FR122-FR125 and Epic 27: Avatar Sync Fix & Reserved Item Visibility. Fixes Entra ID avatar decoding for non-PNG formats, corrects reserved area free/busy display on floor plans, and shows occupancy on reserved items in list view."
 ---
 
 # sithub - Epic Breakdown
@@ -569,6 +572,17 @@ FR120: Epic 26 - Selecting an unpositioned subarea on the Areas tab must enter d
 selecting a positioned subarea must select its rectangle.
 FR121: Epic 26 - When a subarea is selected for editing, all other subarea rectangles must
 be locked (non-interactive) to prevent accidental modification.
+FR122: Epic 27 - Avatar sync from Entra ID must handle JPEG, PNG, and other common image
+formats; failed syncs must log detailed diagnostics (user ID, HTTP status, content-type,
+body size) and fall back to initials avatar.
+FR123: Epic 27 - Reserved areas on the interactive floor plan must show correct free/busy
+counts and green/red indicators based on actual availability, not reservation status.
+FR124: Epic 27 - Users must be able to drill down into reserved areas on the floor plan and
+see individual desk availability; free desks the user cannot book must show a "reserved"
+overlay.
+FR125: Epic 27 - Reserved items in the regular booking list view must show occupancy
+(booker names, free/busy status) instead of an opaque veil; free reserved items show a lock
+badge and block booking actions.
 
 ## Epic List
 
@@ -3638,3 +3652,87 @@ so that I cannot accidentally move or delete other subareas.
 **Given** I have a subarea selected
 **When** I look at the other subarea rectangles on the canvas
 **Then** they appear visually distinct (e.g., dimmed or dashed) to indicate they are locked
+
+## Epic 27 Stories: Avatar Sync Fix & Reserved Item Visibility
+
+Avatar sync from Entra ID fails on certain image formats. Reserved areas and items hide
+occupancy information too aggressively — users cannot see who sits where. This epic fixes
+avatar decoding, corrects reserved area display on floor plans, and makes reserved items
+visible (but non-bookable) in the regular booking view.
+**FRs covered:** FR122, FR123, FR124, FR125
+
+### Story 27.1: Fix Avatar Image Sync from Entra ID
+
+**FRs covered:** FR122
+
+As an Entra ID user,
+I want my profile photo to sync correctly regardless of image format,
+so that my avatar displays properly in SitHub.
+
+**Acceptance Criteria:**
+
+**Given** Microsoft Graph returns a JPEG, PNG, or other common image format
+**When** the avatar sync runs
+**Then** the image is decoded and re-encoded as PNG successfully
+
+**Given** the avatar download or decoding fails
+**When** the error is logged
+**Then** the log message includes the user ID, HTTP status, content-type, and body size
+for diagnosis
+
+**Given** a user has no profile photo or the sync fails
+**When** their avatar is displayed
+**Then** the fallback initials avatar is shown (no broken image)
+
+**Given** an admin reads the FAQ
+**When** they look for avatar troubleshooting
+**Then** the README.md explains common causes and fixes for broken avatar sync
+
+### Story 27.2: Fix Reserved Area Display on Floor Plan
+
+**FRs covered:** FR123, FR124
+
+As a user,
+I want reserved areas on the floor plan to show correct availability and allow drill-down,
+so that I can see who is in a reserved room even though I cannot book there.
+
+**Acceptance Criteria:**
+
+**Given** I view the floor plan and "People & Finance" is a reserved area with 3 of 4
+desks free
+**When** I look at the area overlay
+**Then** it shows "3/4 free" with a green indicator (not "0/4" red)
+
+**Given** a desk in a reserved area is booked by someone
+**When** I look at the floor plan
+**Then** their avatar is displayed on that desk
+
+**Given** I click on a reserved area on the floor plan
+**When** I drill down into it
+**Then** I can see individual desk availability and who has booked
+
+**Given** I see a free desk in a reserved area after drill-down
+**When** I look at that desk
+**Then** it is blurred/dimmed with a "reserved" message and I cannot book it
+
+### Story 27.3: Show Occupancy on Reserved Items in Regular Booking View
+
+**FRs covered:** FR125
+
+As a user,
+I want to see who is sitting where on reserved items in the list view,
+so that I know room occupancy even though I cannot book there myself.
+
+**Acceptance Criteria:**
+
+**Given** I view items in a reserved area (e.g., Finance & People Area)
+**When** I look at the item list
+**Then** I can see free/busy status and booker names — the opaque veil is removed
+
+**Given** I see a reserved item that is free
+**When** I look at it
+**Then** it shows a badge with a lock icon and "reserved" text
+
+**Given** I try to book a reserved item
+**When** I interact with it
+**Then** the booking action is blocked (no book button or it is disabled)

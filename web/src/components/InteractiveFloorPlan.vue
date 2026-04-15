@@ -870,8 +870,7 @@ async function loadAreaAvailability() {
       const total = response.data.length;
       const free = response.data.filter(
         (item: JsonApiResource<ItemAttributes>) =>
-          item.attributes.availability === "available" &&
-          item.attributes.reserved !== true,
+          item.attributes.availability === "available",
       ).length;
 
       availabilityMap.set(itemGroupID, { free, total });

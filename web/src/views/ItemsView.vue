@@ -174,12 +174,12 @@
         :class="['item-filter-wrapper', { 'item-expanded': expandedDayTiles.has(entry.id) }]"
       >
         <div
-          v-if="isItemFilteredOut(entry.attributes.equipment || []) || entry.attributes.reserved"
+          v-if="isItemFilteredOut(entry.attributes.equipment || [])"
           class="item-filtered-overlay"
-          :data-cy="entry.attributes.reserved ? 'item-reserved' : 'equipment-not-available'"
+          data-cy="equipment-not-available"
         >
           <span class="text-body-2 font-weight-medium">
-            {{ getOverlayLabel(entry.attributes.reserved === true) }}
+            {{ $t('items.equipmentNotAvailable') }}
           </span>
         </div>
         <v-card
@@ -187,9 +187,8 @@
             'item-card',
             { 'item-available': entry.attributes.availability === 'available' },
             { 'item-occupied': entry.attributes.availability === 'occupied' },
-            { 'item-filtered-out': isItemFilteredOut(entry.attributes.equipment || []) || entry.attributes.reserved }
+            { 'item-filtered-out': isItemFilteredOut(entry.attributes.equipment || []) }
           ]"
-          :title="entry.attributes.reserved ? $t('items.reservedTooltip') : undefined"
           data-cy="item-entry"
           :data-cy-item-id="entry.id"
           :data-cy-availability="entry.attributes.availability"
@@ -216,13 +215,23 @@
               {{ entry.attributes.name }}
             </v-tooltip>
           </v-card-title>
-          <!-- Line 2: Status chip + heart + warning + chevron -->
+          <!-- Line 2: Status chip + reserved badge + heart + warning + chevron -->
           <div class="d-flex align-center ga-2 mt-1 px-4" data-cy="day-status-row">
             <StatusChip
               :status="entry.attributes.availability === 'available' ? 'available' : 'booked'"
               size="x-small"
               data-cy="item-status"
             />
+            <v-chip
+              v-if="entry.attributes.reserved"
+              size="x-small"
+              variant="tonal"
+              color="warning"
+              prepend-icon="mdi-lock"
+              data-cy="item-reserved-badge"
+            >
+              {{ $t('items.reserved') }}
+            </v-chip>
             <v-btn
               icon
               variant="text"
@@ -340,7 +349,7 @@
           data-cy="day-item-actions"
         >
           <v-btn
-            v-if="entry.attributes.availability === 'available'"
+            v-if="entry.attributes.availability === 'available' && !entry.attributes.reserved"
             color="primary"
             variant="flat"
             class="flex-grow-1"
@@ -376,15 +385,14 @@
         :class="['item-filter-wrapper', { 'item-expanded': expandedWeekTiles.has(item.id) }]"
       >
         <div
-          v-if="isItemFilteredOut(getWeekItemEquipment(item.id)) || isWeekItemReserved(item.id)"
+          v-if="isItemFilteredOut(getWeekItemEquipment(item.id))"
           class="item-filtered-overlay"
-          :data-cy="isWeekItemReserved(item.id) ? 'item-reserved' : 'equipment-not-available'"
+          data-cy="equipment-not-available"
         >
-          <span class="text-body-2 font-weight-medium">{{ getOverlayLabel(isWeekItemReserved(item.id)) }}</span>
+          <span class="text-body-2 font-weight-medium">{{ $t('items.equipmentNotAvailable') }}</span>
         </div>
         <v-card
-          :class="['item-card', { 'item-filtered-out': isItemFilteredOut(getWeekItemEquipment(item.id)) || isWeekItemReserved(item.id) }]"
-          :title="isWeekItemReserved(item.id) ? $t('items.reservedTooltip') : undefined"
+          :class="['item-card', { 'item-filtered-out': isItemFilteredOut(getWeekItemEquipment(item.id)) }]"
           data-cy="week-item-entry"
           :data-cy-item-name="item.name"
           :data-cy-item-id="item.id"
@@ -407,7 +415,7 @@
               {{ item.name }}
             </v-tooltip>
           </v-card-title>
-          <!-- Line 2: Availability + heart + warning + chevron -->
+          <!-- Line 2: Availability + reserved badge + heart + warning + chevron -->
           <div class="d-flex align-center ga-2 mt-1 px-4" data-cy="week-status-row">
             <v-chip
               size="x-small"
@@ -417,6 +425,16 @@
             >
               <v-icon start size="14">{{ getWeekItemStatusIcon(item.id) }}</v-icon>
               {{ getWeekItemStatusLabel(item.id) }}
+            </v-chip>
+            <v-chip
+              v-if="isWeekItemReserved(item.id)"
+              size="x-small"
+              variant="tonal"
+              color="warning"
+              prepend-icon="mdi-lock"
+              data-cy="item-reserved-badge"
+            >
+              {{ $t('items.reserved') }}
             </v-chip>
             <v-btn
               icon
@@ -1161,8 +1179,7 @@ const toggleWeekTileExpansion = (itemId: string) => {
   expandedWeekTiles.value = next;
 };
 
-const getOverlayLabel = (reserved: boolean): string =>
-  reserved ? t('items.reserved') : t('items.equipmentNotAvailable');
+
 
 const weekItemAttributesMap = computed(() => {
   const map = new Map<string, { equipment: string[]; warning?: string; reserved?: boolean }>();

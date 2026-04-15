@@ -87,3 +87,23 @@ You can view the API documentation by launching any OpenAPI viewer. Example:
 ```shell
 npx redoc-cli serve ./docs/openapi.yaml
 ```
+
+## FAQ
+
+### Avatar sync from Entra ID fails
+
+SitHub downloads profile photos from Microsoft Graph (`/me/photo/$value`) during
+Entra ID login. Common reasons for sync failure:
+
+- **Image format**: Microsoft Graph may return JPEG or PNG. SitHub decodes both formats
+  and re-encodes as PNG. If the image uses an unsupported format (e.g., BMP, TIFF), the
+  sync will fail and the fallback initials avatar is used instead.
+- **Graph API permissions**: The Entra ID app registration needs the `User.Read` scope.
+  Without it, the photo endpoint returns 403.
+- **No profile photo**: If the user has no photo in Entra ID, Graph returns 404 and SitHub
+  removes any stale avatar file. The initials avatar is shown.
+- **Large photos**: Photos exceeding 512 KB are skipped. Ask users to resize their photo
+  in Microsoft 365.
+
+Check the server log for detailed diagnostics. Failed syncs log the user ID, HTTP status,
+content-type, and response body size.
