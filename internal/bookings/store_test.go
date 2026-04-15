@@ -107,3 +107,74 @@ func TestCountUserFutureBookingsFiltered(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
+
+func TestFindMatrixBookingsMultipleItemsAndDates(t *testing.T) {
+	t.Parallel()
+	store := setupTestStore(t)
+
+	seedTestBooking(t, store, "b1", "desk-1", "user-1", "2026-01-19")
+	seedTestBooking(t, store, "b2", "desk-2", "user-2", "2026-01-20")
+
+	result, err := FindMatrixBookings(t.Context(), store,
+		[]string{"desk-1", "desk-2"},
+		[]string{"2026-01-19", "2026-01-20", "2026-01-21"},
+	)
+	require.NoError(t, err)
+
+	require.Contains(t, result, "desk-1|2026-01-19")
+	assert.Equal(t, "b1", result["desk-1|2026-01-19"].BookingID)
+	assert.Equal(t, "user-1", result["desk-1|2026-01-19"].UserID)
+	assert.False(t, result["desk-1|2026-01-19"].IsGuest)
+
+	require.Contains(t, result, "desk-2|2026-01-20")
+	assert.Equal(t, "b2", result["desk-2|2026-01-20"].BookingID)
+
+	require.NotContains(t, result, "desk-1|2026-01-20")
+	require.NotContains(t, result, "desk-2|2026-01-19")
+}
+
+func TestFindMatrixBookingsGuestBooking(t *testing.T) {
+	t.Parallel()
+	store := setupTestStore(t)
+
+	seedTestBookingWithGuest(t, store, "bg1", "desk-1", "booker-1",
+		"booker-1", "2026-01-19", true, "Guest Visitor", "guest@example.com")
+
+	result, err := FindMatrixBookings(t.Context(), store,
+		[]string{"desk-1"},
+		[]string{"2026-01-19"},
+	)
+	require.NoError(t, err)
+
+	require.Contains(t, result, "desk-1|2026-01-19")
+	info := result["desk-1|2026-01-19"]
+	assert.True(t, info.IsGuest)
+	assert.Equal(t, "Guest Visitor", info.GuestName)
+}
+
+func TestFindMatrixBookingsEmptyInputs(t *testing.T) {
+	t.Parallel()
+	store := setupTestStore(t)
+
+	result, err := FindMatrixBookings(t.Context(), store, nil, nil)
+	require.NoError(t, err)
+	assert.Empty(t, result)
+
+	result, err = FindMatrixBookings(t.Context(), store, []string{"desk-1"}, nil)
+	require.NoError(t, err)
+	assert.Empty(t, result)
+
+	result, err = FindMatrixBookings(t.Context(), store, nil, []string{"2026-01-19"})
+	require.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestFindMatrixBookingsErrorOnClosedDB(t *testing.T) {
+	store, err := db.Open(t.TempDir())
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
+
+	_, err = FindMatrixBookings(t.Context(), store,
+		[]string{"desk-1"}, []string{"2026-01-19"})
+	require.Error(t, err)
+}

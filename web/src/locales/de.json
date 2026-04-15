@@ -89,7 +89,10 @@
     "filterSaved": "Filter gespeichert.",
     "savedAsFavorite": "{name} als Favorit gespeichert.",
     "removedFromFavorites": "{name} aus Favoriten entfernt.",
-    "unableToLoad": "Gruppen konnten nicht geladen werden."
+    "unableToLoad": "Gruppen konnten nicht geladen werden.",
+    "viewTiles": "Kacheln",
+    "viewTable": "Tabelle",
+    "viewTableDesktopOnly": "Die Tabellenansicht ist nur auf dem Desktop verfügbar."
   },
   "items": {
     "day": "Tag",
@@ -290,6 +293,15 @@
     "itemGroup": "Gruppe",
     "presence": "Anwesenheit",
     "bookings": "Buchungen"
+  },
+  "matrix": {
+    "bookingConfirmed": "Buchung bestätigt.",
+    "deskNoLongerAvailable": "Dieser Platz ist nicht mehr verfügbar.",
+    "cancelBooking": "Buchung stornieren",
+    "cancelConfirmed": "Buchung storniert.",
+    "cancelFailed": "Buchung konnte nicht storniert werden.",
+    "person": "Person",
+    "desk": "Platz"
   },
   "weekdays": {
     "mo": "MO",

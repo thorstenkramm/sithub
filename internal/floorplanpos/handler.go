@@ -13,11 +13,11 @@ import (
 
 func toResource(p Position) api.Resource { //nolint:gocritic // value needed for MapResources
 	attrs := map[string]interface{}{
-		"floor_plan": p.FloorPlan,
-		"item_id":    p.ItemID,
-		"x":          p.X,
-		"y":          p.Y,
-		"width":      p.Width,
+		"floor_plan":   p.FloorPlan,
+		"item_id":      p.ItemID,
+		"x":            p.X,
+		"y":            p.Y,
+		"width":        p.Width,
 		"height":       p.Height,
 		"border_width": p.BorderWidth,
 		"created_at":   p.CreatedAt,
@@ -56,11 +56,11 @@ type createRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
-			FloorPlan string  `json:"floor_plan"`
-			ItemID    string  `json:"item_id"`
-			Label     string  `json:"label"`
-			X         float64 `json:"x"`
-			Y         float64 `json:"y"`
+			FloorPlan   string  `json:"floor_plan"`
+			ItemID      string  `json:"item_id"`
+			Label       string  `json:"label"`
+			X           float64 `json:"x"`
+			Y           float64 `json:"y"`
 			Width       float64 `json:"width"`
 			Height      float64 `json:"height"`
 			BorderWidth int     `json:"border_width"`

@@ -197,4 +197,3 @@ func FindByID(ctx context.Context, db *sql.DB, id string) (*Position, error) {
 	}
 	return &p, nil
 }
-

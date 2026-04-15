@@ -45,6 +45,7 @@ type CreateRequest struct {
 			ForUserName  string   `json:"for_user_name,omitempty"`
 			IsGuest      bool     `json:"is_guest,omitempty"`
 			GuestEmail   string   `json:"guest_email,omitempty"`
+			Note         string   `json:"note,omitempty"`
 		} `json:"attributes"`
 	} `json:"data"`
 }
@@ -486,6 +487,12 @@ func CreateHandlerDynamic(
 			return err
 		}
 
+		note := strings.TrimSpace(req.Data.Attributes.Note)
+		if len(note) > maxNoteLength {
+			return handleValidationError(c, errBadRequest(
+				fmt.Sprintf("Note must be at most %d characters", maxNoteLength)))
+		}
+
 		cfg := getConfig()
 		loc, exists := cfg.FindItemLocation(itemID)
 		if !exists {
@@ -509,12 +516,12 @@ func CreateHandlerDynamic(
 		if len(dates) == 1 {
 			return processBooking(
 				c, store, notifier, itemID, params.targetUserID,
-				params.bookedByUserID, dates[0],
+				params.bookedByUserID, dates[0], note,
 				params.isGuest, params.guestName, params.guestEmail,
 			)
 		}
 
-		return processMultiDayBooking(c, store, notifier, itemID, params, dates)
+		return processMultiDayBooking(c, store, notifier, itemID, params, dates, note)
 	}
 }
 
@@ -886,7 +893,7 @@ var errResponseWritten = errors.New("response already written")
 
 func processBooking(
 	c echo.Context, store *sql.DB, notifier notifications.Notifier,
-	itemID, userID, bookedByUserID, bookingDate string,
+	itemID, userID, bookedByUserID, bookingDate, note string,
 	isGuest bool, guestName, guestEmail string,
 ) error {
 	ctx := c.Request().Context()
@@ -909,7 +916,7 @@ func processBooking(
 
 	booking, err := CreateBooking(
 		ctx, store, itemID, userID,
-		bookedByUserID, bookingDate,
+		bookedByUserID, bookingDate, note,
 		isGuest, guestName, guestEmail,
 	)
 	if err != nil {
@@ -950,7 +957,7 @@ func processBooking(
 // Returns created bookings and reports conflicts per day.
 func processMultiDayBooking(
 	c echo.Context, store *sql.DB, notifier notifications.Notifier,
-	itemID string, params *bookingParticipants, dates []string,
+	itemID string, params *bookingParticipants, dates []string, note string,
 ) error {
 	ctx := c.Request().Context()
 
@@ -974,7 +981,7 @@ func processMultiDayBooking(
 
 		booking, err := CreateBooking(
 			ctx, store, itemID, params.targetUserID,
-			params.bookedByUserID, bookingDate,
+			params.bookedByUserID, bookingDate, note,
 			params.isGuest, params.guestName, params.guestEmail,
 		)
 		if err != nil {
@@ -1097,7 +1104,7 @@ func FindUserBooking(ctx context.Context, store *sql.DB, itemID, userID, booking
 // CreateBooking inserts a new booking record.
 func CreateBooking(
 	ctx context.Context, store *sql.DB,
-	itemID, userID, bookedByUserID, bookingDate string,
+	itemID, userID, bookedByUserID, bookingDate, note string,
 	isGuest bool, guestName, guestEmail string,
 ) (*Booking, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -1111,10 +1118,10 @@ func CreateBooking(
 	_, err := store.ExecContext(ctx, `
 		INSERT INTO bookings
 		(id, item_id, user_id, booked_by_user_id, booking_date,
-		 is_guest, guest_name, guest_email, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 is_guest, guest_name, guest_email, note, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, itemID, userID, bookedByUserID,
-		bookingDate, isGuestInt, guestName, guestEmail, now, now,
+		bookingDate, isGuestInt, guestName, guestEmail, note, now, now,
 	)
 	if err != nil {
 		var sqliteErr sqlite3.Error
@@ -1133,6 +1140,7 @@ func CreateBooking(
 		IsGuest:        isGuest,
 		GuestName:      guestName,
 		GuestEmail:     guestEmail,
+		Note:           note,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}, nil

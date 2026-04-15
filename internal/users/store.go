@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	bcryptCost = 12
+	bcryptCost  = 12
 	userColumns = `id, email, display_name, password_hash,
 		user_source, entra_id, is_admin, last_login,
 		created_at, updated_at`

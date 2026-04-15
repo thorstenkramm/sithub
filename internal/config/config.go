@@ -38,7 +38,7 @@ type Config struct {
 
 // BookingsConfig contains booking limit settings.
 type BookingsConfig struct {
-	WeeksInAdvanced     int `mapstructure:"weeks_in_advanced"`
+	WeeksInAdvanced      int `mapstructure:"weeks_in_advanced"`
 	MaxBookingsPerPerson int `mapstructure:"max_bookings_per_person"`
 }
 

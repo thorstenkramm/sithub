@@ -89,7 +89,10 @@
     "filterSaved": "Фільтр збережено.",
     "savedAsFavorite": "{name} додано до обраного.",
     "removedFromFavorites": "{name} видалено з обраного.",
-    "unableToLoad": "Не вдалося завантажити групи елементів."
+    "unableToLoad": "Не вдалося завантажити групи елементів.",
+    "viewTiles": "Плитки",
+    "viewTable": "Таблиця",
+    "viewTableDesktopOnly": "Подання таблиці доступне лише на комп’ютері."
   },
   "items": {
     "day": "День",
@@ -290,6 +293,15 @@
     "itemGroup": "Група елементів",
     "presence": "Присутність",
     "bookings": "Бронювання"
+  },
+  "matrix": {
+    "bookingConfirmed": "Бронювання підтверджено.",
+    "deskNoLongerAvailable": "Це місце більше недоступне.",
+    "cancelBooking": "Скасувати бронювання",
+    "cancelConfirmed": "Бронювання скасовано.",
+    "cancelFailed": "Не вдалося скасувати бронювання.",
+    "person": "Особа",
+    "desk": "Місце"
   },
   "weekdays": {
     "mo": "ПН",

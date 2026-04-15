@@ -44,6 +44,7 @@ import {
   VSkeletonLoader,
   VSnackbar,
   VSpacer,
+  VSwitch,
   VTextField,
   VTextarea,
   VTooltip
@@ -56,8 +57,8 @@ const appComponents = {
   VCardTitle, VCheckbox, VChip, VCol, VCombobox, VContainer, VDatePicker,
   VDialog, VDivider, VExpandTransition, VForm, VIcon, VImg, VList, VListItem,
   VListItemSubtitle, VListItemTitle, VMain, VMenu, VNavigationDrawer, VRadio,
-  VRadioGroup, VRow, VSelect, VSkeletonLoader, VSnackbar, VSpacer, VTextField,
-  VTextarea, VTooltip,
+  VRadioGroup, VRow, VSelect, VSkeletonLoader, VSnackbar, VSpacer, VSwitch,
+  VTextField, VTextarea, VTooltip,
 };
 /* jscpd:ignore-end */
 
@@ -108,7 +109,9 @@ import {
   mdiCloseCircle,
   mdiLock,
   mdiHeart,
-  mdiHeartOutline
+  mdiHeartOutline,
+  mdiDesktopClassic,
+  mdiTable
 } from '@mdi/js';
 
 // Custom icon aliases for the app
@@ -157,7 +160,9 @@ const customAliases = {
   cancelCircle: mdiCloseCircle,
   lock: mdiLock,
   heart: mdiHeart,
-  heartOutline: mdiHeartOutline
+  heartOutline: mdiHeartOutline,
+  equipment: mdiDesktopClassic,
+  table: mdiTable
 };
 
 // Light theme colors

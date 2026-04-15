@@ -5,10 +5,11 @@
       :breadcrumbs="breadcrumbs"
     />
 
-    <!-- Week Selector & Equipment Filter -->
+    <!-- Toolbar -->
     <v-card class="mb-6" data-cy="week-selector-card">
       <v-card-text>
-        <div class="d-flex flex-wrap align-end ga-4">
+        <!-- Row 1: Week selector, floor plan, view switch -->
+        <div class="d-flex flex-wrap align-center ga-4">
           <v-select
             v-model="selectedWeek"
             :items="weekOptions"
@@ -23,17 +24,56 @@
           <v-btn
             v-if="areaFloorPlan"
             variant="outlined"
-            density="compact"
+            density="default"
             prepend-icon="$map"
             data-cy="area-floor-plan-btn"
             @click="showFloorPlanDialog = true"
           >
             {{ $t('itemGroups.floorPlan') }}
           </v-btn>
+
+          <!-- View switch: Tiles / Table -->
+          <div class="d-flex align-center" data-cy="view-switch-container">
+            <span class="text-button mr-1" :class="activeView === 'cards' ? 'text-primary font-weight-bold' : 'text-medium-emphasis'">{{ $t('itemGroups.viewTiles') }}</span>
+            <v-tooltip v-if="isCompactViewport" location="top">
+              <template #activator="{ props: tooltipProps }">
+                <div v-bind="tooltipProps" data-cy="view-switch-disabled-wrapper">
+                  <v-switch
+                    :model-value="activeView === 'table'"
+                    :disabled="true"
+                    hide-details
+                    inline
+                    inset
+                    density="compact"
+                    color="primary"
+                    base-color="primary"
+                    data-cy="view-switch"
+                    class="view-switch"
+                  />
+                </div>
+              </template>
+              <span data-cy="view-switch-tooltip">{{ $t('itemGroups.viewTableDesktopOnly') }}</span>
+            </v-tooltip>
+            <v-switch
+              v-else
+              :model-value="activeView === 'table'"
+              :disabled="false"
+              hide-details
+              inline
+              inset
+              density="compact"
+              color="primary"
+              base-color="primary"
+              data-cy="view-switch"
+              class="view-switch"
+              @update:model-value="toggleView"
+            />
+            <span class="text-button ml-1" :class="activeView === 'table' ? 'text-primary font-weight-bold' : 'text-medium-emphasis'">{{ $t('itemGroups.viewTable') }}</span>
+          </div>
         </div>
 
-        <!-- Equipment Filter -->
-        <div v-if="itemGroups.length > 0" class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
+        <!-- Row 2: Equipment filter with info icon immediately after input -->
+        <div v-if="itemGroups.length > 0" class="d-flex align-center ga-1 mt-4" style="max-width: 480px;">
           <v-combobox
             v-model="equipmentFilter"
             :items="savedFilterItems"
@@ -44,7 +84,17 @@
             prepend-inner-icon="$filterOutline"
             data-cy="ig-equipment-filter"
           />
-          <v-tooltip :text="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')" location="top">
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            data-cy="ig-equipment-filter-info"
+            :aria-label="$t('itemGroups.equipmentFilterHelp')"
+            @click="showFilterHelp = true"
+          >
+            <v-icon>$info</v-icon>
+          </v-btn>
+          <v-tooltip v-if="equipmentFilter" :text="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')" location="top">
             <template #activator="{ props: tooltipProps }">
               <v-btn
                 v-bind="tooltipProps"
@@ -59,16 +109,6 @@
               </v-btn>
             </template>
           </v-tooltip>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            data-cy="ig-equipment-filter-info"
-            :aria-label="$t('itemGroups.equipmentFilterHelp')"
-            @click="showFilterHelp = true"
-          >
-            <v-icon>$info</v-icon>
-          </v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -92,7 +132,15 @@
       data-cy="item-groups-empty"
     />
 
-    <!-- Item Groups Grid -->
+    <!-- Table View -->
+    <AreaWeeklyMatrixView
+      v-else-if="activeView === 'table'"
+      :area-id="route.params.areaId as string"
+      :week="selectedWeek"
+      :show-weekends="showWeekends"
+    />
+
+    <!-- Item Groups Grid (Card View) -->
     <div v-else class="card-grid" data-cy="item-groups-list">
       <!-- Third-level favorites promoted to this view -->
       <div
@@ -343,6 +391,8 @@ import { resolveConfiguredIcon } from '../utils/icons';
 import { fetchSettings } from '../api/settings';
 import { PageHeader, LoadingState, EmptyState } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
+import AreaWeeklyMatrixView from '../components/area-weekly-matrix/AreaWeeklyMatrixView.vue';
+import { useAreaViewPreference } from '../composables/useAreaViewPreference';
 
 const authStore = useAuthStore();
 const { t } = useI18n();
@@ -351,6 +401,14 @@ const areaFloorPlan = ref<string | null>(null);
 const areaIcon = ref<string | null>(null);
 const showFloorPlanDialog = ref(false);
 const isCompactFloorPlanViewport = ref(false);
+const isCompactViewport = ref(false);
+const { activeView, load: loadViewPref, save: saveViewPref } = useAreaViewPreference();
+
+const toggleView = (val: boolean | null) => {
+  const areaId = route.params.areaId as string;
+  const next = val ? 'table' : 'cards';
+  saveViewPref(areaId, next);
+};
 const itemGroups = ref<JsonApiResource<ItemGroupAttributes>[]>([]);
 const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
@@ -510,12 +568,14 @@ const loadAvailability = async (areaId: string, week: string) => {
 const updateViewport = () => {
   if (typeof window.matchMedia !== 'function') {
     isCompactFloorPlanViewport.value = false;
+    isCompactViewport.value = false;
     return;
   }
 
   const narrow = window.matchMedia('(max-width: 768px)').matches;
   const short = window.matchMedia('(max-height: 500px)').matches;
   isCompactFloorPlanViewport.value = narrow || short;
+  isCompactViewport.value = narrow;
 };
 
 const handleResize = () => {
@@ -524,6 +584,7 @@ const handleResize = () => {
 
 onMounted(async () => {
   updateViewport();
+  loadViewPref(route.params.areaId as string, !isCompactViewport.value);
   window.addEventListener('resize', handleResize);
   try {
     const resp = await fetchMe();
@@ -684,5 +745,9 @@ watch([selectedWeek, showWeekends], async ([week]) => {
 
 .floor-plan-dialog-body {
   height: 100%;
+}
+
+.view-switch {
+  flex: none;
 }
 </style>

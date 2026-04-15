@@ -18,11 +18,11 @@ import (
 
 	"github.com/thorstenkramm/sithub/assets"
 	"github.com/thorstenkramm/sithub/internal/areas"
-	"github.com/thorstenkramm/sithub/internal/floorplanpos"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
 	"github.com/thorstenkramm/sithub/internal/config"
 	"github.com/thorstenkramm/sithub/internal/db"
+	"github.com/thorstenkramm/sithub/internal/floorplanpos"
 	"github.com/thorstenkramm/sithub/internal/itemgroups"
 	"github.com/thorstenkramm/sithub/internal/items"
 	"github.com/thorstenkramm/sithub/internal/middleware"
@@ -141,6 +141,8 @@ func registerRoutes(
 		itemgroups.ListHandlerDynamic(getConfig), requireAuth)
 	e.GET("/api/v1/areas/:area_id/item-groups/availability",
 		itemgroups.AvailabilityHandlerDynamic(getConfig, store), requireAuth)
+	e.GET("/api/v1/areas/:area_id/item-groups/matrix",
+		itemgroups.MatrixHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/areas/:area_id/presence",
 		areas.PresenceHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/item-groups/:item_group_id/items",

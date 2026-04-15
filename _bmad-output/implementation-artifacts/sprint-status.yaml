@@ -250,3 +250,12 @@ development_status:
   28-1-preserve-selected-date-after-booking: done
   28-2-floor-plan-booker-name-tooltips-and-initials: done
   epic-28-retrospective: optional
+
+  epic-29: in-progress
+  29-1-weekly-desk-matrix-api: done
+  29-2-table-view-entry-and-view-persistence: done
+  29-3-weekly-matrix-layout-sticky-orientation-and-room-state: done
+  29-4-cell-states-occupant-identity-and-reserved-permissions: done
+  29-5-direct-booking-from-free-cells: done
+  29-6-in-place-cancellation-for-own-and-admin-allowed-bookings: done
+  epic-29-retrospective: optional

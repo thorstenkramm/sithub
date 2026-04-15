@@ -20,6 +20,7 @@ vi.mock('../api/itemGroups', () => ({ fetchItemGroups: vi.fn() }));
 vi.mock('../api/areas', () => ({ fetchAreas: vi.fn() }));
 vi.mock('../api/items', () => ({ fetchItems: vi.fn() }));
 vi.mock('../api/itemGroupAvailability', () => ({ fetchWeeklyAvailability: vi.fn() }));
+vi.mock('../api/itemGroupMatrix', () => ({ fetchWeeklyMatrix: vi.fn() }));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { areaId: 'area-1' } }),
   useRouter: () => ({ push: pushMock })
@@ -62,6 +63,14 @@ describe('ItemGroupsView', () => {
     },
     'v-tooltip': {
       template: '<div><slot name="activator" :props="{}" /><slot /></div>'
+    },
+    'v-switch': {
+      props: ['modelValue', 'disabled'],
+      template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
+    },
+    'AreaWeeklyMatrixView': {
+      props: ['areaId', 'week', 'showWeekends'],
+      template: '<div data-cy="area-weekly-matrix" />'
     }
   };
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
@@ -444,6 +453,63 @@ describe('ItemGroupsView', () => {
     expect(JSON.parse(localStorage.getItem('sithub_saved_filters')!)).toEqual([]);
     expect((wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter).toBe('');
     expect(wrapper.text()).toContain('Saved filter deleted.');
+  });
+
+  it('shows view switch on desktop', async () => {
+    mockFetchItemGroups(1);
+    const wrapper = mountView();
+    await flushPromises();
+
+    const container = wrapper.find('[data-cy="view-switch-container"]');
+    expect(container.exists()).toBe(true);
+    expect(container.text()).toContain('Tiles');
+    expect(container.text()).toContain('Table');
+
+    const sw = wrapper.find('[data-cy="view-switch"]');
+    expect(sw.exists()).toBe(true);
+    expect(sw.attributes('disabled')).toBeUndefined();
+  });
+
+  it('disables view switch on mobile', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 768px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    })) as typeof window.matchMedia;
+    mockFetchItemGroups(1);
+    const wrapper = mountView();
+    await flushPromises();
+
+    const sw = wrapper.find('[data-cy="view-switch"]');
+    expect(sw.exists()).toBe(true);
+    expect(sw.attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-cy="view-switch-tooltip"]').text()).toContain('desktop only');
+  });
+
+  it('restores memorized table view for the same area on desktop', async () => {
+    localStorage.setItem('sithub_area_view', JSON.stringify({ 'area-1': 'table' }));
+    mockFetchItemGroups(1);
+    const wrapper = mountView();
+    await flushPromises();
+
+    // Should show table view instead of card grid
+    expect(wrapper.find('[data-cy="item-groups-list"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="area-weekly-matrix"]').exists()).toBe(true);
+  });
+
+  it('does not inherit table view from another area', async () => {
+    localStorage.setItem('sithub_area_view', JSON.stringify({ 'area-other': 'table' }));
+    mockFetchItemGroups(1);
+    const wrapper = mountView();
+    await flushPromises();
+
+    // Should show card grid since area-1 has no preference
+    expect(wrapper.find('[data-cy="item-groups-list"]').exists()).toBe(true);
   });
 
 });

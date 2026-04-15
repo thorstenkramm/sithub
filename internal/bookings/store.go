@@ -240,3 +240,67 @@ func FindItemBookings(
 
 	return result, nil
 }
+
+// MatrixBookingInfo contains booking details for a single item+date cell.
+type MatrixBookingInfo struct {
+	BookingID  string
+	UserID     string
+	BookerName string
+	IsGuest    bool
+	GuestName  string
+}
+
+// FindMatrixBookings returns booking info for a set of items across multiple dates.
+// Results are keyed by "itemID|date". BookerName is left empty; callers must resolve
+// display names separately.
+func FindMatrixBookings(
+	ctx context.Context, store *sql.DB, itemIDs, dates []string,
+) (result map[string]MatrixBookingInfo, err error) {
+	if len(itemIDs) == 0 || len(dates) == 0 {
+		return make(map[string]MatrixBookingInfo), nil
+	}
+
+	itemPlaceholders, itemArgs := api.BuildINClause(itemIDs)
+	datePlaceholders, dateArgs := api.BuildINClause(dates)
+
+	args := make([]any, 0, len(itemArgs)+len(dateArgs))
+	args = append(args, itemArgs...)
+	args = append(args, dateArgs...)
+
+	//nolint:gosec // G201: placeholders are "?" literals from BuildINClause
+	query := fmt.Sprintf(
+		`SELECT id, item_id, booking_date, user_id, is_guest, guest_name
+		 FROM bookings
+		 WHERE item_id IN (%s) AND booking_date IN (%s)`,
+		itemPlaceholders, datePlaceholders,
+	)
+
+	rows, err := store.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query matrix bookings: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close matrix bookings rows: %w", closeErr)
+		}
+	}()
+
+	result = make(map[string]MatrixBookingInfo)
+	for rows.Next() {
+		var info MatrixBookingInfo
+		var itemID, bookingDate string
+		var isGuestInt int
+		if scanErr := rows.Scan(
+			&info.BookingID, &itemID, &bookingDate, &info.UserID, &isGuestInt, &info.GuestName,
+		); scanErr != nil {
+			return nil, fmt.Errorf("scan matrix booking: %w", scanErr)
+		}
+		info.IsGuest = isGuestInt == 1
+		result[itemID+"|"+bookingDate] = info
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate matrix bookings: %w", err)
+	}
+
+	return result, nil
+}

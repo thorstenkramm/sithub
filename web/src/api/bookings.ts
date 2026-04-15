@@ -38,6 +38,7 @@ export interface CreateBookingPayload {
       for_user_name?: string;
       is_guest?: boolean;
       guest_email?: string;
+      note?: string;
     };
   };
 }
@@ -67,6 +68,7 @@ function buildBookingAttributes(params: {
   bookingDates?: string[];
   onBehalf?: BookOnBehalfOptions;
   guest?: GuestBookingOptions;
+  note?: string;
 }): CreateBookingPayload['data']['attributes'] {
   const attrs: CreateBookingPayload['data']['attributes'] = {
     item_id: params.itemId
@@ -94,6 +96,10 @@ function buildBookingAttributes(params: {
     }
   }
 
+  if (params.note) {
+    attrs.note = params.note;
+  }
+
   return attrs;
 }
 
@@ -101,7 +107,8 @@ export function createBooking(
   itemId: string,
   bookingDate: string,
   onBehalf?: BookOnBehalfOptions,
-  guest?: GuestBookingOptions
+  guest?: GuestBookingOptions,
+  note?: string
 ) {
   const payload: CreateBookingPayload = {
     data: {
@@ -110,7 +117,8 @@ export function createBooking(
         itemId,
         bookingDate,
         onBehalf,
-        guest
+        guest,
+        note
       })
     }
   };
@@ -125,7 +133,8 @@ export function createMultiDayBooking(
   itemId: string,
   bookingDates: string[],
   onBehalf?: BookOnBehalfOptions,
-  guest?: GuestBookingOptions
+  guest?: GuestBookingOptions,
+  note?: string
 ) {
   const payload: CreateBookingPayload = {
     data: {
@@ -134,7 +143,8 @@ export function createMultiDayBooking(
         itemId,
         bookingDates,
         onBehalf,
-        guest
+        guest,
+        note
       })
     }
   };

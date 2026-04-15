@@ -1,5 +1,6 @@
 import { apiRequest } from './client';
 import type { CollectionResponse } from './types';
+import { buildWeekQuery } from './weekQuery';
 
 export interface DayAvailability {
   date: string;
@@ -15,10 +16,7 @@ export interface ItemGroupAvailabilityAttributes {
 }
 
 export function fetchWeeklyAvailability(areaId: string, week?: string, days?: number) {
-  const searchParams = new URLSearchParams();
-  if (week) searchParams.set('week', week);
-  if (days) searchParams.set('days', String(days));
-  const qs = searchParams.toString();
+  const qs = buildWeekQuery(week, days);
   return apiRequest<CollectionResponse<ItemGroupAvailabilityAttributes>>(
     `/api/v1/areas/${areaId}/item-groups/availability${qs ? `?${qs}` : ''}`
   );

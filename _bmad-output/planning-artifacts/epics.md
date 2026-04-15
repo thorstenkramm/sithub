@@ -3849,3 +3849,208 @@ so that I can identify people without having to drill down into each item.
 **Given** a user's display name has multiple parts (e.g. "Alexander Seidemann-Klamant")
 **When** their initials are derived
 **Then** they use the first letter of each space-separated name part (e.g. "AS")
+
+## Epic 29 Stories: Desktop Weekly Table View
+
+Add a desktop-only weekly table view on the selected area's item-groups page that restores the
+Confluence-style full-week overview while keeping SitHub's stronger booking and permission
+model. The view must show all subareas and desks in one long matrix for the currently selected
+week, respect user weekend settings, and allow in-place booking and cancellation without
+leaving the table.
+**FRs covered:** FR129, FR130, FR131, FR132, FR133, FR134, FR135, FR136
+
+### Story 29.1: Weekly Desk Matrix API
+
+**FRs covered:** FR131
+
+As a user,
+I want the frontend to load one weekly desk matrix for the selected area,
+so that the table can render quickly and consistently without dozens of follow-up requests.
+
+**Acceptance Criteria:**
+
+**Given** the frontend requests weekly table data for an area and week
+**When** the backend responds
+**Then** the payload contains all subareas and desks for that area in the configured SitHub
+order
+**And** each desk contains one cell per requested visible day
+
+**Given** the frontend requests 5 visible days because the current user has weekends disabled
+**When** the backend responds
+**Then** the payload contains Monday through Friday only
+
+**Given** a matrix cell is occupied
+**When** the backend responds
+**Then** the cell includes the booker's display name and user ID
+**And** enough booking metadata is present for permitted cancellation actions
+
+**Given** a matrix cell is free but reserved for other users
+**When** the backend responds
+**Then** the payload clearly distinguishes between `bookable` free cells and `locked`
+reserved cells
+
+### Story 29.2: Table View Entry & View Persistence
+
+**FRs covered:** FR129, FR130
+
+As a desktop user,
+I want a Table view option on the area item-groups page and for SitHub to remember my last
+desktop view,
+so that I can return directly to the weekly matrix without extra setup.
+
+**Acceptance Criteria:**
+
+**Given** I open `/areas/:areaId/item-groups` on a desktop viewport
+**When** the page renders
+**Then** I see a `Table view` action alongside the existing area actions in the same control
+area as `Floor plan`
+
+**Given** I open `/areas/:areaId/item-groups` on a mobile viewport
+**When** I look at the `Table view` action
+**Then** it is disabled
+**And** hovering or long-pressing it explains that the table view is available on desktop only
+
+**Given** I switch from the default card view to `Table view` on desktop
+**When** I leave the page and come back later to the same area
+**Then** SitHub restores `Table view` as the active desktop view for that area context
+
+### Story 29.3: Weekly Matrix Layout, Sticky Orientation & Room State
+
+**FRs covered:** FR132, FR133
+
+As a user,
+I want a dense but readable weekly matrix with collapsible room sections,
+so that I can scan the whole floor quickly without losing orientation.
+
+**Acceptance Criteria:**
+
+**Given** I open `Table view`
+**When** the matrix renders
+**Then** it shows all subareas of the selected area in one long table
+**And** the subareas and desks appear in the exact configured SitHub order
+
+**Given** I view the matrix
+**When** I scroll vertically
+**Then** the weekday header remains sticky
+**And** the left desk-name column remains sticky
+
+**Given** I open the matrix for the first time
+**When** the room sections render
+**Then** all rooms are expanded by default
+
+**Given** I collapse or expand a room using its dedicated chevron
+**When** I reopen the table later or switch to another week
+**Then** the previous collapsed state is restored from local storage
+
+**Given** a room is collapsed
+**When** I look at its header
+**Then** I see compact occupied counts for each visible day of the current week
+
+**Given** the selected week contains past days
+**When** the matrix renders
+**Then** those past-day columns stay visible
+**And** their cells are visually muted and non-interactive
+
+### Story 29.4: Cell States, Occupant Identity & Reserved Permissions
+
+**FRs covered:** FR134
+
+As a user,
+I want every cell to communicate availability and permissions immediately,
+so that I can understand the board without extra clicks.
+
+**Acceptance Criteria:**
+
+**Given** I look at a free cell I am allowed to book
+**When** the matrix renders
+**Then** the cell looks like a normal bookable free cell with minimal text
+
+**Given** I look at a free cell in a reserved room or desk that I am not allowed to book
+**When** the matrix renders
+**Then** the cell shows a lock indicator
+**And** it is not clickable
+
+**Given** I look at an occupied cell
+**When** the matrix renders
+**Then** it shows the occupant using avatar plus initials in the compact cell layout
+**And** hovering reveals the full person name
+
+**Given** I hover a desk label
+**When** that desk has equipment configured
+**Then** I see the equipment hints on hover
+
+**Given** I am not an admin and the occupied cell is not my own booking
+**When** I interact with it
+**Then** it is non-clickable and exposes no extra popup content
+
+### Story 29.5: Direct Booking from Free Cells
+
+**FRs covered:** FR135
+
+As a user,
+I want to book directly from a free table cell,
+so that I can act from the weekly overview without leaving the matrix.
+
+**Acceptance Criteria:**
+
+**Given** I click a bookable free cell
+**When** the booking UI opens
+**Then** it appears as a lightweight desktop popover anchored to that cell
+
+**Given** the booking popover is open
+**When** I inspect its controls
+**Then** `Book for myself` is selected by default
+**And** I can switch to `Book for colleague`
+**And** the colleague picker appears only when `Book for colleague` is selected
+
+**Given** I previously booked for a colleague from the table
+**When** I switch the booking popover to `Book for colleague` again
+**Then** the last selected colleague is preselected
+
+**Given** the booking popover is open
+**When** I inspect its contents
+**Then** the note field is visible immediately
+**And** any booking warning is shown inline in the same popover instead of a second dialog
+
+**Given** I enter a note and confirm a booking successfully
+**When** the request completes
+**Then** the note is stored with the created booking
+
+**Given** I confirm the booking successfully
+**When** the request completes
+**Then** the popover closes
+**And** the cell updates immediately in place without navigation away from the matrix
+
+**Given** another user books the same desk before my confirmation succeeds
+**When** the booking request returns a conflict
+**Then** the popover stays open
+**And** it shows an inline error explaining that the desk is no longer available
+
+### Story 29.6: In-Place Cancellation for Own & Admin-Allowed Bookings
+
+**FRs covered:** FR136
+
+As a user,
+I want eligible occupied cells to support lightweight cancellation in place,
+so that I can correct bookings without leaving the weekly overview.
+
+**Acceptance Criteria:**
+
+**Given** I click a cell containing my own booking
+**When** the cancellation UI opens
+**Then** it uses the same lightweight anchored popover pattern as booking
+**And** it shows only person, desk, and date before the `Cancel booking` action
+
+**Given** I am an admin and click a cell containing someone else's booking
+**When** the cancellation UI opens
+**Then** I can cancel that booking from the same anchored popover pattern
+
+**Given** I am not an admin and the occupied cell belongs to another user
+**When** I interact with that cell
+**Then** no popup opens
+**And** the cell remains read-only
+
+**Given** I confirm a cancellation successfully
+**When** the request completes
+**Then** the popover closes
+**And** the cell updates immediately in place to its new free or locked state

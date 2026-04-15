@@ -12,6 +12,20 @@ export function middleTruncate(text: string, maxLen: number): string {
 }
 
 /**
+ * Returns a compact display name: first initial + dot + last name part.
+ * Example: getShortName("Thorsten Kramm") → "T. Kramm"
+ * Example: getShortName("Alexander Seidemann-Klamant") → "A. Seidemann-Klamant"
+ * Falls back to the full name if it has only one part.
+ */
+export function getShortName(name: string | undefined, maxLen = 14): string {
+  if (!name || !name.trim()) return '';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return middleTruncate(parts[0]!, maxLen);
+  const short = `${parts[0]!.charAt(0).toUpperCase()}. ${parts.slice(1).join(' ')}`;
+  return middleTruncate(short, maxLen);
+}
+
+/**
  * Derives initials from a display name by taking the first letter of each
  * space-separated part and uppercasing them.
  * Example: getInitials("Alexander Seidemann-Klamant") → "AS"

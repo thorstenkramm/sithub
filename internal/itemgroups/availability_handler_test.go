@@ -18,10 +18,10 @@ func TestParseISOWeek(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		input     string
-		wantDate  string
-		wantErr   bool
+		name     string
+		input    string
+		wantDate string
+		wantErr  bool
 	}{
 		{"valid week 1 2026", "2026-W01", "2025-12-29", false},
 		{"valid week 12 2026", "2026-W12", "2026-03-16", false},

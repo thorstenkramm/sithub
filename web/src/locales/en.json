@@ -89,7 +89,10 @@
     "filterSaved": "Filter saved.",
     "savedAsFavorite": "{name} saved as favorite.",
     "removedFromFavorites": "{name} removed from favorites.",
-    "unableToLoad": "Unable to load item groups."
+    "unableToLoad": "Unable to load item groups.",
+    "viewTiles": "Tiles",
+    "viewTable": "Table",
+    "viewTableDesktopOnly": "Table view is available on desktop only."
   },
   "items": {
     "day": "Day",
@@ -290,6 +293,15 @@
     "itemGroup": "Item Group",
     "presence": "Presence",
     "bookings": "Bookings"
+  },
+  "matrix": {
+    "bookingConfirmed": "Booking confirmed.",
+    "deskNoLongerAvailable": "This desk is no longer available.",
+    "cancelBooking": "Cancel booking",
+    "cancelConfirmed": "Booking cancelled.",
+    "cancelFailed": "Unable to cancel booking.",
+    "person": "Person",
+    "desk": "Desk"
   },
   "weekdays": {
     "mo": "MO",

@@ -224,6 +224,59 @@ func TestCreateHandlerSuccess(t *testing.T) {
 	assert.NotEmpty(t, attrs["created_at"])
 }
 
+func TestCreateHandlerWithNote(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	store := setupTestStore(t)
+
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `","note":"Arriving late"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := CreateHandler(cfg, store, testNotifier())
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp api.SingleResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "Arriving late", attrs["note"])
+}
+
+func TestCreateHandlerNoteTooLong(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	store := setupTestStore(t)
+
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	longNote := strings.Repeat("x", 501)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `","note":"` + longNote + `"}}}`
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bookings", bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := CreateHandler(cfg, store, testNotifier())
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
 func TestCreateHandlerConflictCases(t *testing.T) {
 	t.Parallel()
 

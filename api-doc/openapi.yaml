@@ -20,6 +20,8 @@ paths:
     $ref: ./endpoints/item-groups.yaml
   /areas/{area_id}/item-groups/availability:
     $ref: ./endpoints/item-group-availability.yaml
+  /areas/{area_id}/item-groups/matrix:
+    $ref: ./endpoints/item-group-matrix.yaml
   /areas/{area_id}/presence:
     $ref: ./endpoints/area-presence.yaml
   /item-groups/{item_group_id}/items:
@@ -256,6 +258,10 @@ components:
           type: string
           format: email
           description: Optional contact email for guest bookings.
+        note:
+          type: string
+          maxLength: 500
+          description: Optional free-text note to attach to the booking (max 500 characters).
       required:
         - item_id
     CreateBookingRequest:
@@ -854,5 +860,118 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ItemGroupAvailabilityResource'
+      required:
+        - data
+    MatrixDayMeta:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        weekday:
+          type: string
+          description: Two-letter weekday abbreviation
+          enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+      required:
+        - date
+        - weekday
+    MatrixCell:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        availability:
+          type: string
+          enum:
+            - free
+            - occupied
+        booker_name:
+          type: string
+          description: Display name of the booker (present when occupied)
+        booker_user_id:
+          type: string
+          description: User ID of the booker (present when occupied and not a guest)
+        booked_by_me:
+          type: boolean
+          description: True when the current user owns the booking
+        booking_id:
+          type: string
+          description: Booking ID (present only for the booking owner or admins)
+      required:
+        - date
+        - availability
+        - booked_by_me
+    MatrixItem:
+      type: object
+      properties:
+        item_id:
+          type: string
+        item_name:
+          type: string
+        equipment:
+          type: array
+          items:
+            type: string
+        warning:
+          type: string
+        reserved:
+          type: boolean
+          description: True when the item is reserved for other users
+        cells:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatrixCell'
+      required:
+        - item_id
+        - item_name
+        - equipment
+        - cells
+    ItemGroupMatrixAttributes:
+      type: object
+      properties:
+        item_group_id:
+          type: string
+        item_group_name:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatrixDayMeta'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatrixItem'
+      required:
+        - item_group_id
+        - item_group_name
+        - days
+        - items
+    ItemGroupMatrixResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: item-group-weekly-matrix
+            attributes:
+              $ref: '#/components/schemas/ItemGroupMatrixAttributes'
+          required:
+            - type
+            - attributes
+    ItemGroupMatrixCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemGroupMatrixResource'
       required:
         - data

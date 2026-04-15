@@ -89,7 +89,10 @@
     "filterSaved": "Filtro guardado.",
     "savedAsFavorite": "{name} guardado como favorito.",
     "removedFromFavorites": "{name} eliminado de favoritos.",
-    "unableToLoad": "No se pudieron cargar los grupos de elementos."
+    "unableToLoad": "No se pudieron cargar los grupos de elementos.",
+    "viewTiles": "Mosaicos",
+    "viewTable": "Tabla",
+    "viewTableDesktopOnly": "La vista de tabla solo está disponible en escritorio."
   },
   "items": {
     "day": "Dia",
@@ -290,6 +293,15 @@
     "itemGroup": "Grupo de elementos",
     "presence": "Presencia",
     "bookings": "Reservas"
+  },
+  "matrix": {
+    "bookingConfirmed": "Reserva confirmada.",
+    "deskNoLongerAvailable": "Este puesto ya no está disponible.",
+    "cancelBooking": "Cancelar reserva",
+    "cancelConfirmed": "Reserva cancelada.",
+    "cancelFailed": "No se pudo cancelar la reserva.",
+    "person": "Persona",
+    "desk": "Puesto"
   },
   "weekdays": {
     "mo": "LU",
