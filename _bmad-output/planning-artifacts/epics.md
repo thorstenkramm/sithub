@@ -6,6 +6,7 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-25.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-26.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-27.md
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-28.md
 lastEdited: '2026-04-15'
 editHistory:
   - date: '2026-02-07'
@@ -36,6 +37,8 @@ editHistory:
     changes: "Added FR118-FR121 and Epic 26: Floor Plan Editor — Area Drawing Fixes. Fixes subarea selection tab switching, items dropdown visibility on Areas tab, draw mode for subareas, and rectangle locking during subarea editing."
   - date: '2026-04-15'
     changes: "Added FR122-FR125 and Epic 27: Avatar Sync Fix & Reserved Item Visibility. Fixes Entra ID avatar decoding for non-PNG formats, corrects reserved area free/busy display on floor plans, and shows occupancy on reserved items in list view."
+  - date: '2026-04-15'
+    changes: "Added FR126-FR128 and Epic 28: Date Selector Fix & Floor Plan Booker Names. Fixes date picker jumping to today after booking, adds booker name tooltips on floor plan avatars, and shows initials with name tooltip when avatars are disabled."
 ---
 
 # sithub - Epic Breakdown
@@ -369,6 +372,36 @@ downloads in the background; login is not blocked by avatar sync.
 FR117: Show loading spinner on Entra ID login button. Acceptance: after clicking "Sign in
 with Entra ID", the button shows a loading spinner and is disabled; visual feedback is
 provided during the redirect to the OAuth flow.
+FR118: Subarea selection from dropdown must respect the active tab (Areas/Items) and not
+force-switch to Items mode.
+FR119: Items dropdown must be hidden when the Areas tab is active.
+FR120: Selecting an unpositioned subarea on the Areas tab must enter draw mode; selecting a
+positioned subarea must select its rectangle.
+FR121: When a subarea is selected for editing, all other subarea rectangles must be locked
+(non-interactive) to prevent accidental modification.
+FR122: Avatar sync from Entra ID must handle JPEG, PNG, and other common image formats;
+failed syncs must log detailed diagnostics (user ID, HTTP status, content-type, body size)
+and fall back to initials avatar.
+FR123: Reserved areas on the interactive floor plan must show correct free/busy counts and
+green/red indicators based on actual availability, not reservation status.
+FR124: Users must be able to drill down into reserved areas on the floor plan and see
+individual desk availability; free desks the user cannot book must show a "reserved" overlay.
+FR125: Reserved items in the regular booking list view must show occupancy (booker names,
+free/busy status) instead of an opaque veil; free reserved items show a lock badge and
+block booking actions.
+FR126: After completing a booking, the date selector must stay on the previously selected
+date instead of jumping to today. Acceptance: when a user selects a future date (e.g.
+30 April 2026), books an item, and the confirmation completes, the date picker still shows
+30 April 2026 and the displayed bookings reflect that date.
+FR127: On the interactive floor plan with "Show Avatar" enabled, hovering over (or tapping
+on mobile) a booked item's avatar shows the full display name of the booker in a tooltip.
+Acceptance: hovering over any avatar on the floor plan displays a tooltip with the person's
+full name; tapping on mobile shows the same.
+FR128: On the interactive floor plan with "Show Avatar" disabled, booked items show the
+booker's initials (e.g. "AS" for Alexander Seidemann-Klamant) instead of an avatar image.
+Hovering or tapping shows the full display name in a tooltip. Acceptance: initials are
+derived from the first letters of the user's display name parts; the tooltip shows the
+full name.
 
 ### NonFunctional Requirements
 
@@ -583,6 +616,10 @@ overlay.
 FR125: Epic 27 - Reserved items in the regular booking list view must show occupancy
 (booker names, free/busy status) instead of an opaque veil; free reserved items show a lock
 badge and block booking actions.
+FR126: Epic 28 - Date selector stays on selected date after booking instead of jumping to
+today
+FR127: Epic 28 - Floor plan avatar tooltip shows full booker name on hover/tap
+FR128: Epic 28 - Floor plan shows booker initials with name tooltip when avatars are disabled
 
 ## Epic List
 
@@ -730,6 +767,24 @@ zoom controls redesigned. Subarea drill-down images are enlarged for usability. 
 avatar sync is made asynchronous with login feedback, and the Profile Photo menu is hidden
 for Entra ID users.
 **FRs covered:** FR107, FR108, FR109, FR110, FR111, FR112, FR113, FR114, FR115, FR116, FR117
+
+### Epic 26: Floor Plan Editor — Area Drawing Fixes
+
+Fix subarea selection tab switching, items dropdown visibility on Areas tab, draw mode for
+subareas, and rectangle locking during subarea editing.
+**FRs covered:** FR118, FR119, FR120, FR121
+
+### Epic 27: Avatar Sync Fix & Reserved Item Visibility
+
+Fix Entra ID avatar decoding for non-PNG formats, correct reserved area free/busy display
+on floor plans, and show occupancy on reserved items in list view.
+**FRs covered:** FR122, FR123, FR124, FR125
+
+### Epic 28: Date Selector Fix & Floor Plan Booker Names
+
+Fix the date picker jumping to today after booking, and add booker identification on floor
+plans via name tooltips on avatars and initials display when avatars are disabled.
+**FRs covered:** FR126, FR127, FR128
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -3736,3 +3791,61 @@ so that I know room occupancy even though I cannot book there myself.
 **Given** I try to book a reserved item
 **When** I interact with it
 **Then** the booking action is blocked (no book button or it is disabled)
+
+## Epic 28 Stories: Date Selector Fix & Floor Plan Booker Names
+
+Fix the date picker jumping to today after booking, and add booker identification on floor
+plans via name tooltips on avatars and initials display when avatars are disabled.
+**FRs covered:** FR126, FR127, FR128
+
+### Story 28.1: Preserve Selected Date After Booking
+
+**FRs covered:** FR126
+
+As a user,
+I want the date selector to stay on my selected date after completing a booking,
+so that I can continue browsing availability for the same date without being sent back to
+today.
+
+**Acceptance Criteria:**
+
+**Given** I am on the items page for an item group (e.g. Cube) with a future date selected
+(e.g. 30 April 2026)
+**When** I book an item and the booking confirmation completes
+**Then** the date picker still shows 30 April 2026
+**And** the displayed items reflect booking status for 30 April 2026 (including my new
+booking)
+
+**Given** I am in week booking mode with a future week selected
+**When** I confirm bookings for that week
+**Then** the week selector stays on the same week
+**And** my new bookings are shown as booked in the week view
+
+### Story 28.2: Floor Plan Booker Name Tooltips and Initials
+
+**FRs covered:** FR127, FR128
+
+As a user,
+I want to see who has booked a desk on the floor plan by hovering over avatars or seeing
+initials,
+so that I can identify people without having to drill down into each item.
+
+**Acceptance Criteria:**
+
+**Given** "Show Avatar" is enabled and I view the interactive floor plan
+**When** I hover over a booked item's avatar (or tap on mobile)
+**Then** a tooltip displays the full display name of the booker (e.g.
+"Alexander Seidemann-Klamant")
+
+**Given** "Show Avatar" is disabled and I view the interactive floor plan
+**When** I look at booked items
+**Then** each booked item shows the booker's initials (e.g. "AS" for
+"Alexander Seidemann-Klamant") instead of an avatar image
+
+**Given** "Show Avatar" is disabled and I view the interactive floor plan
+**When** I hover over (or tap on mobile) a booked item showing initials
+**Then** a tooltip displays the full display name of the booker
+
+**Given** a user's display name has multiple parts (e.g. "Alexander Seidemann-Klamant")
+**When** their initials are derived
+**Then** they use the first letter of each space-separated name part (e.g. "AS")

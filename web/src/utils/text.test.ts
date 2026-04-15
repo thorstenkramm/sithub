@@ -1,4 +1,4 @@
-import { middleTruncate } from './text';
+import { getInitials, middleTruncate } from './text';
 
 describe('middleTruncate', () => {
   it('returns original text when shorter than maxLen', () => {
@@ -21,5 +21,39 @@ describe('middleTruncate', () => {
     const result = middleTruncate('Hello World', 5);
     expect(result).toHaveLength(5);
     expect(result).toContain('\u2026');
+  });
+});
+
+describe('getInitials', () => {
+  it('returns initials from multi-word name', () => {
+    expect(getInitials('Alexander Seidemann-Klamant')).toBe('AS');
+  });
+
+  it('returns single initial from single name', () => {
+    expect(getInitials('Alex')).toBe('A');
+  });
+
+  it('handles three-part name', () => {
+    expect(getInitials('John Michael Doe')).toBe('JMD');
+  });
+
+  it('returns empty string for undefined', () => {
+    expect(getInitials(undefined)).toBe('');
+  });
+
+  it('returns empty string for empty string', () => {
+    expect(getInitials('')).toBe('');
+  });
+
+  it('returns empty string for whitespace-only', () => {
+    expect(getInitials('   ')).toBe('');
+  });
+
+  it('handles extra whitespace between parts', () => {
+    expect(getInitials('  Jane   Doe  ')).toBe('JD');
+  });
+
+  it('uppercases lowercase initials', () => {
+    expect(getInitials('jane doe')).toBe('JD');
   });
 });

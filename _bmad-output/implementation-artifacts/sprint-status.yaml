@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-04-11
+last_updated: 2026-04-15
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -240,8 +240,13 @@ development_status:
   26-4-lock-other-rectangles-when-subarea-selected: done
   epic-26-retrospective: optional
 
-  epic-27: in-progress
+  epic-27: done
   27-1-fix-avatar-image-sync: done
   27-2-fix-reserved-area-floor-plan-display: done
   27-3-show-occupancy-on-reserved-items: done
   epic-27-retrospective: optional
+
+  epic-28: in-progress
+  28-1-preserve-selected-date-after-booking: done
+  28-2-floor-plan-booker-name-tooltips-and-initials: done
+  epic-28-retrospective: optional

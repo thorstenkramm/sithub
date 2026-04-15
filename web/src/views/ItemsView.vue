@@ -975,7 +975,7 @@ const warningQueueMode = ref<'day' | 'week'>('day');
 const lastBookingDetails = ref<{ itemName: string; date: string } | null>(null);
 const bookingItemId = ref<string | null>(null);
 const cancelingBookingId = ref<string | null>(null);
-const { getDay, setDay, resetDayToToday, getWeek, setWeek } = useDateState();
+const { getDay, setDay, getWeek, setWeek } = useDateState();
 const selectedDate = ref(getDay());
 const todayDate = formatDate(new Date());
 const maxBookingDate = computed(() => {
@@ -1712,21 +1712,15 @@ const bookItem = async (itemId: string) => {
       }
     );
 
-    // Reset memorized day to today after successful booking
-    resetDayToToday();
-    const resetDate = getDay();
-    const dayChanged = selectedDate.value !== resetDate;
-    selectedDate.value = resetDate;
-
     // Reset booking type fields
     if (bookingType.value === 'colleague') {
       selectedColleagueId.value = null;
       bookingType.value = 'self';
     }
 
-    // Reload items to reflect updated availability
-    if (activeItemGroupId.value && !dayChanged) {
-      await loadItems(activeItemGroupId.value, resetDate);
+    // Reload items to reflect updated availability (keep selected date)
+    if (activeItemGroupId.value) {
+      await loadItems(activeItemGroupId.value, selectedDate.value);
     }
   } catch (err) {
     if (await handleAuthError(err)) {

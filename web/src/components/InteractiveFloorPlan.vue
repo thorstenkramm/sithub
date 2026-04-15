@@ -158,33 +158,52 @@
                     </template>
                   </v-tooltip>
 
+                  <v-tooltip
+                    v-else-if="pos.status === 'busy'"
+                    location="top"
+                    :text="pos.tooltipText"
+                  >
+                    <template #activator="{ props: tooltipProps }">
+                      <div
+                        v-bind="tooltipProps"
+                        class="fp-item fp-item--busy"
+                        :style="rectStyle(pos)"
+                        :data-cy="`fp-desk-${pos.itemId}`"
+                      >
+                        <img
+                          v-if="shouldShowAvatar(pos.bookerUserId)"
+                          :src="getAvatarUrl(pos.bookerUserId!)"
+                          class="fp-item-avatar"
+                          :data-cy="`fp-avatar-${pos.itemId}`"
+                          @error="onAvatarError(pos.bookerUserId!)"
+                        />
+                        <span
+                          v-else-if="pos.bookerName"
+                          class="fp-item-initials"
+                        >
+                          {{ getInitials(pos.bookerName) }}
+                        </span>
+                        <span class="fp-item-label">{{
+                          pos.displayLabel
+                        }}</span>
+                      </div>
+                    </template>
+                  </v-tooltip>
+
                   <div
                     v-else
-                    class="fp-item"
+                    class="fp-item fp-item--free"
                     :class="{
-                      'fp-item--free': pos.status === 'free',
-                      'fp-item--busy': pos.status === 'busy',
                       'fp-item--clickable':
-                        pos.status === 'free' &&
                         shouldDrillIntoItemGroup(itemToGroupMap.get(pos.itemId)),
                     }"
                     :style="{
                       ...rectStyle(pos),
-                      pointerEvents: pos.status === 'free' ? 'auto' : 'none',
+                      pointerEvents: 'auto',
                     }"
                     :data-cy="`fp-desk-${pos.itemId}`"
-                    @click="
-                      pos.status === 'free' &&
-                      handleDeskClick(pos.itemId, pos.displayLabel)
-                    "
+                    @click="handleDeskClick(pos.itemId, pos.displayLabel)"
                   >
-                    <img
-                      v-if="pos.status === 'busy' && shouldShowAvatar(pos.bookerUserId)"
-                      :src="getAvatarUrl(pos.bookerUserId!)"
-                      class="fp-item-avatar"
-                      :data-cy="`fp-avatar-${pos.itemId}`"
-                      @error="onAvatarError(pos.bookerUserId!)"
-                    />
                     <span class="fp-item-label">{{ pos.displayLabel }}</span>
                   </div>
                 </template>
@@ -230,21 +249,37 @@
                     </template>
                   </v-tooltip>
 
-                  <div
+                  <v-tooltip
                     v-else
-                    class="fp-item fp-item--busy"
-                    :style="rectStyle(pos)"
-                    :data-cy="`fp-item-${pos.itemId}`"
+                    location="top"
+                    :text="pos.tooltipText"
                   >
-                    <img
-                      v-if="shouldShowAvatar(pos.bookerUserId)"
-                      :src="getAvatarUrl(pos.bookerUserId!)"
-                      class="fp-item-avatar"
-                      :data-cy="`fp-avatar-${pos.itemId}`"
-                      @error="onAvatarError(pos.bookerUserId!)"
-                    />
-                    <span class="fp-item-label">{{ pos.displayLabel }}</span>
-                  </div>
+                    <template #activator="{ props: tooltipProps }">
+                      <div
+                        v-bind="tooltipProps"
+                        class="fp-item fp-item--busy"
+                        :style="rectStyle(pos)"
+                        :data-cy="`fp-item-${pos.itemId}`"
+                      >
+                        <img
+                          v-if="shouldShowAvatar(pos.bookerUserId)"
+                          :src="getAvatarUrl(pos.bookerUserId!)"
+                          class="fp-item-avatar"
+                          :data-cy="`fp-avatar-${pos.itemId}`"
+                          @error="onAvatarError(pos.bookerUserId!)"
+                        />
+                        <span
+                          v-else-if="pos.bookerName"
+                          class="fp-item-initials"
+                        >
+                          {{ getInitials(pos.bookerName) }}
+                        </span>
+                        <span class="fp-item-label">{{
+                          pos.displayLabel
+                        }}</span>
+                      </div>
+                    </template>
+                  </v-tooltip>
                 </template>
               </template>
             </div>
@@ -473,6 +508,7 @@ import { fetchItems } from "../api/items";
 import type { FloorPlanPositionAttributes } from "../api/floorPlanPositions";
 import type { ItemAttributes } from "../api/items";
 import type { JsonApiResource } from "../api/types";
+import { getInitials } from "../utils/text";
 
 const props = defineProps<{
   floorPlan: string;
@@ -1017,12 +1053,20 @@ const deskPositions = computed(() => {
       const item = itemDataMap.value.get(pos.itemId);
       const occupied = item?.availability === "occupied";
       const reserved = item?.reserved === true;
+      const displayLabel = pos.label || item?.name || pos.itemId;
+      const tooltipParts = [];
+      if (occupied && item?.bookerName) {
+        tooltipParts.push(item.bookerName);
+      }
+      tooltipParts.push(displayLabel);
 
       return {
         ...pos,
-        displayLabel: pos.label || item?.name || pos.itemId,
+        displayLabel,
+        tooltipText: tooltipParts.join("\n"),
         status: occupied ? ("busy" as const) : reserved ? ("reserved" as const) : ("free" as const),
         bookerUserId: item?.bookerUserId,
+        bookerName: item?.bookerName,
       };
     });
 });
@@ -1039,7 +1083,11 @@ const enrichedPositions = computed(() => {
     const item = itemDataMap.value.get(pos.itemId);
     const name = item?.name || pos.itemId;
     const equipmentText = item?.equipment?.join(", ") || "";
-    const tooltipParts = [name];
+    const tooltipParts = [];
+    if (item?.availability === "occupied" && item?.bookerName) {
+      tooltipParts.push(item.bookerName);
+    }
+    tooltipParts.push(name);
     if (equipmentText) {
       tooltipParts.push(equipmentText);
     }
@@ -1056,6 +1104,7 @@ const enrichedPositions = computed(() => {
       tooltipText: tooltipParts.join("\n"),
       status: occupied ? "busy" : reserved ? "reserved" : ("free" as "free" | "busy" | "reserved"),
       bookerUserId: item?.bookerUserId,
+      bookerName: item?.bookerName,
     };
   });
 });
@@ -1650,7 +1699,21 @@ onBeforeUnmount(() => {
   height: calc(100% - 2px);
   object-fit: cover;
   border-radius: 2px;
-  pointer-events: none;
+}
+
+.fp-item-initials {
+  position: absolute;
+  inset: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: white;
+  background: rgba(var(--v-theme-error), 0.85);
+  border-radius: 2px;
+  user-select: none;
+  line-height: 1;
 }
 
 .fp-item-lock {

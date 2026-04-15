@@ -10,3 +10,17 @@ export function middleTruncate(text: string, maxLen: number): string {
   const back = Math.floor(available / 2);
   return text.slice(0, front) + ellipsis + text.slice(text.length - back);
 }
+
+/**
+ * Derives initials from a display name by taking the first letter of each
+ * space-separated part and uppercasing them.
+ * Example: getInitials("Alexander Seidemann-Klamant") → "AS"
+ */
+export function getInitials(name: string | undefined): string {
+  if (!name || !name.trim()) return '';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}

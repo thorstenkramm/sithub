@@ -659,7 +659,7 @@ describe('ItemsView', () => {
     expect(sessionStorage.getItem('sithub_selected_day')).toBe(storedDay);
   });
 
-  it('resets the live selected day to today after a successful booking', async () => {
+  it('preserves the selected day after a successful booking', async () => {
     const storedDay = futureDay();
     useDateState().setDay(storedDay);
     fetchItemsMock.mockResolvedValue({
@@ -680,10 +680,9 @@ describe('ItemsView', () => {
     await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
     await flushPromises();
 
-    const today = formatDate(new Date());
     expect(createBookingMock).toHaveBeenCalledWith('item-1', storedDay, undefined);
-    expect(sessionStorage.getItem('sithub_selected_day')).toBe(today);
-    expect((wrapper.vm as unknown as { selectedDate: string }).selectedDate).toBe(today);
+    expect(sessionStorage.getItem('sithub_selected_day')).toBe(storedDay);
+    expect((wrapper.vm as unknown as { selectedDate: string }).selectedDate).toBe(storedDay);
     expect(wrapper.find('[data-cy="booking-success"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Desk A');
   });
