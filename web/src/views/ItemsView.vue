@@ -344,7 +344,8 @@
         </v-card-text>
 
         <v-card-actions
-          v-if="entry.attributes.availability === 'available' || (authStore.isAdmin && entry.attributes.booking_id)"
+          v-if="(entry.attributes.availability === 'available' && !entry.attributes.reserved)
+            || (authStore.isAdmin && entry.attributes.booking_id)"
           class="px-4 pb-4 ga-2"
           data-cy="day-item-actions"
         >
@@ -1215,15 +1216,13 @@ const getWeekItemAvatarColor = (itemId: string): string => {
 };
 
 const getWeekItemStatusColor = (itemId: string): string =>
-  isWeekItemReserved(itemId) ? 'warning' : getWeekItemAvatarColor(itemId);
+  getWeekItemAvatarColor(itemId);
 
 const getWeekItemStatusIcon = (itemId: string): string => {
-  if (isWeekItemReserved(itemId)) return '$lock';
   return getWeekItemFreeDays(itemId) === 0 ? '$calendar' : '$success';
 };
 
 const getWeekItemStatusLabel = (itemId: string): string => {
-  if (isWeekItemReserved(itemId)) return t('items.reserved');
   const freeDays = getWeekItemFreeDays(itemId);
   if (freeDays === 0) return t('status.booked');
   return `${t('status.available')} ${freeDays}/${selectedWeekDates.value.length}`;

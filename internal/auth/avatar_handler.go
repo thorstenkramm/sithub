@@ -20,7 +20,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 )
 
-const maxAvatarSize = 512 * 1024 // 512 KB
+const maxAvatarSize = 4 * 1024 * 1024 // 4 MB
 
 // ServeAvatarHandler serves user avatar images.
 // GET /api/v1/avatars/:user_id
@@ -158,28 +158,33 @@ func SyncAvatar(ctx context.Context, client HTTPClient, userID, avatarsDir strin
 		}
 		return
 	}
-	if resp.StatusCode != http.StatusOK {
-		slog.Error("unexpected avatar sync status", "user_id", userID, "status_code", resp.StatusCode)
-		return
-	}
 
 	// Read the full body into a buffer (up to maxAvatarSize) to avoid
 	// LimitReader truncating mid-decode, which caused "not enough pixel data" errors.
+	contentType := resp.Header.Get("Content-Type")
 	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxAvatarSize+1))
 	if err != nil {
-		logFailure("read avatar body", err)
+		logFailure("read avatar body", err,
+			"status_code", resp.StatusCode, "content_type", contentType, "bytes", len(bodyBytes))
 		return
 	}
-	contentType := resp.Header.Get("Content-Type")
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("unexpected avatar sync status",
+			"user_id", userID, "status_code", resp.StatusCode,
+			"content_type", contentType, "bytes", len(bodyBytes))
+		return
+	}
 	if int64(len(bodyBytes)) > maxAvatarSize {
 		slog.Warn("avatar exceeds size limit, skipping",
-			"user_id", userID, "content_type", contentType, "bytes", len(bodyBytes))
+			"user_id", userID, "status_code", resp.StatusCode,
+			"content_type", contentType, "bytes", len(bodyBytes))
 		return
 	}
 
 	img, _, err := image.Decode(bytes.NewReader(bodyBytes))
 	if err != nil {
 		logFailure("decode avatar image", err,
+			"status_code", resp.StatusCode,
 			"content_type", contentType, "bytes", len(bodyBytes))
 		return
 	}

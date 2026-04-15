@@ -206,6 +206,63 @@ func TestSyncAvatarLogsClientError(t *testing.T) {
 	assert.True(t, strings.Contains(logBuffer.String(), "network down"))
 }
 
+func TestSyncAvatarLogsDiagnostics(t *testing.T) {
+	tests := []struct {
+		name        string
+		status      int
+		contentType string
+		body        string
+		wantLog     []string
+	}{
+		{
+			name:        "unexpected status includes diagnostics",
+			status:      http.StatusForbidden,
+			contentType: "application/json",
+			body:        "denied",
+			wantLog: []string{
+				"unexpected avatar sync status", "status_code=403",
+				"content_type=application/json", "bytes=6",
+			},
+		},
+		{
+			name:        "decode failure includes diagnostics",
+			status:      http.StatusOK,
+			contentType: "image/jpeg",
+			body:        "not-an-image",
+			wantLog:     []string{"decode avatar image", "status_code=200", "content_type=image/jpeg", "bytes=12"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			var logBuffer bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+			prev := slog.Default()
+			slog.SetDefault(logger)
+			t.Cleanup(func() { slog.SetDefault(prev) })
+
+			mockClient := &mockHTTPClient{
+				doFunc: func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: tt.status,
+						Header:     http.Header{"Content-Type": []string{tt.contentType}},
+						Body:       io.NopCloser(strings.NewReader(tt.body)),
+					}, nil
+				},
+			}
+
+			SyncAvatar(t.Context(), mockClient, "user-1", dir)
+
+			logs := logBuffer.String()
+			assert.Contains(t, logs, "user_id=user-1")
+			for _, want := range tt.wantLog {
+				assert.Contains(t, logs, want)
+			}
+		})
+	}
+}
+
 type mockHTTPClient struct {
 	doFunc func(req *http.Request) (*http.Response, error)
 }

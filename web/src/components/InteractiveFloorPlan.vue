@@ -1021,7 +1021,7 @@ const deskPositions = computed(() => {
       return {
         ...pos,
         displayLabel: pos.label || item?.name || pos.itemId,
-        status: reserved ? ("reserved" as const) : occupied ? ("busy" as const) : ("free" as const),
+        status: occupied ? ("busy" as const) : reserved ? ("reserved" as const) : ("free" as const),
         bookerUserId: item?.bookerUserId,
       };
     });
@@ -1054,7 +1054,7 @@ const enrichedPositions = computed(() => {
       ...pos,
       displayLabel: pos.label || name,
       tooltipText: tooltipParts.join("\n"),
-      status: reserved ? "reserved" : occupied ? "busy" : ("free" as "free" | "busy" | "reserved"),
+      status: occupied ? "busy" : reserved ? "reserved" : ("free" as "free" | "busy" | "reserved"),
       bookerUserId: item?.bookerUserId,
     };
   });

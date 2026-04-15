@@ -427,6 +427,64 @@ describe("InteractiveFloorPlan", () => {
     expect(createBookingMock).not.toHaveBeenCalled();
   });
 
+  it("shows avatars for occupied reserved desks after drilling into a reserved area", async () => {
+    fetchFloorPlanPositionsMock
+      .mockResolvedValueOnce({
+        data: [basePosition("ig-finance", "Finance")],
+      } as never)
+      .mockResolvedValueOnce({
+        data: [basePosition("item-2", "Desk 07")],
+      } as never);
+    fetchAreasMock.mockResolvedValue({
+      data: [{ id: "area-1", type: "areas", attributes: { name: "Office" } }],
+    } as never);
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [
+        {
+          id: "ig-finance",
+          type: "item-groups",
+          attributes: {
+            name: "Finance",
+            floor_plan: "finance.png",
+          },
+        },
+      ],
+    } as never);
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: "item-2",
+          type: "items",
+          attributes: {
+            name: "Desk 07",
+            equipment: [],
+            availability: "occupied",
+            reserved: true,
+            booker_name: "Alice Smith",
+            booker_user_id: "user-1",
+            booked_by_me: false,
+          },
+        },
+      ],
+    } as never);
+
+    const wrapper = mountComponent({
+      floorPlan: "office.png",
+      title: "Office",
+      itemGroupId: "",
+      areaLevel: true,
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-cy="fp-area-ig-finance"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-lock-item-2"]').exists()).toBe(false);
+    expect(wrapper.get('[data-cy="fp-avatar-item-2"]').attributes("src")).toBe(
+      "/api/v1/avatars/user-1",
+    );
+  });
+
   it("uses close as back when drilled into a detailed floor plan", async () => {
     fetchFloorPlanPositionsMock
       .mockResolvedValueOnce({

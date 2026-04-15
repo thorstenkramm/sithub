@@ -58,6 +58,10 @@ so that I know room occupancy even though I cannot book there myself.
   - [x] 6.4 Run `npx vitest run` and verify no regressions
   - [x] 6.5 Run `npm run test:e2e -- --browser electron` and verify no regressions
 
+### Review Findings
+
+- [x] [Review][Patch] Reserved available items now fall through to the cancel-booking action [web/src/views/ItemsView.vue:346]
+
 ## Dev Notes
 
 ### Architecture & Patterns

@@ -59,6 +59,10 @@ so that I can see who is in a reserved room even though I cannot book there.
   - [x] 5.3 Run `npm run build` and verify no build errors
   - [x] 5.4 Run `npx vitest run` and verify no regressions
 
+### Review Findings
+
+- [x] [Review][Patch] Occupied reserved desks still render as locked reserved items instead of busy avatars [web/src/components/InteractiveFloorPlan.vue:1024]
+
 ## Dev Notes
 
 ### Architecture & Patterns

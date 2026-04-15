@@ -264,7 +264,7 @@ describe('ItemsView', () => {
     expect(wrapper.find('[data-cy="item-booker"]').exists()).toBe(false);
   });
 
-  it('shows a reserved overlay for reserved day-mode items', async () => {
+  it('shows a reserved badge and no booking actions for reserved day-mode items', async () => {
     fetchItemsMock.mockResolvedValue({
       data: [
         {
@@ -286,6 +286,8 @@ describe('ItemsView', () => {
     expect(wrapper.find('[data-cy="item-reserved-badge"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Reserved');
     expect(wrapper.find('[data-cy="book-item-btn"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="admin-cancel-btn"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="day-item-actions"]').exists()).toBe(false);
   });
 
   it('shows reserved badge and disables checkboxes for reserved week-mode items', async () => {

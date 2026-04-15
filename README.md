@@ -102,7 +102,7 @@ Entra ID login. Common reasons for sync failure:
   Without it, the photo endpoint returns 403.
 - **No profile photo**: If the user has no photo in Entra ID, Graph returns 404 and SitHub
   removes any stale avatar file. The initials avatar is shown.
-- **Large photos**: Photos exceeding 512 KB are skipped. Ask users to resize their photo
+- **Large photos**: Photos exceeding 4 MB are skipped. Ask users to resize their photo
   in Microsoft 365.
 
 Check the server log for detailed diagnostics. Failed syncs log the user ID, HTTP status,

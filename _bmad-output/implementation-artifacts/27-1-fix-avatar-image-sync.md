@@ -56,6 +56,10 @@ so that my avatar displays properly in SitHub.
   - [x] 5.3 Run `go test ./internal/auth/...` and verify no regressions
   - [x] 5.4 Run `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0`
 
+### Review Findings
+
+- [x] [Review][Patch] Avatar failure logs still omit required diagnostics fields [internal/auth/avatar_handler.go:161]
+
 ## Dev Notes
 
 ### Architecture & Patterns
