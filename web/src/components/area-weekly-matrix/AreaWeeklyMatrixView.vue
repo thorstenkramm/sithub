@@ -84,6 +84,7 @@ import type { ItemGroupMatrixAttributes, MatrixDayMeta, MatrixCell, MatrixItem }
 import type { JsonApiResource } from '../../api/types';
 import { localizeWeekday } from '../../composables/useWeekSelector';
 import { getSafeLocalStorage } from '../../composables/storage';
+import { useLiveBookingRefresh } from '../../composables/useLiveBookingRefresh';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { LoadingState } from '../../components';
 import AreaWeeklyMatrixRoomSection from './AreaWeeklyMatrixRoomSection.vue';
@@ -226,9 +227,11 @@ function onCancelled() {
   loadMatrix();
 }
 
-async function loadMatrix() {
-  loading.value = true;
-  errorMessage.value = null;
+async function loadMatrix(opts: { silent?: boolean } = {}) {
+  if (!opts.silent) {
+    loading.value = true;
+    errorMessage.value = null;
+  }
   try {
     const dayCount = props.showWeekends ? 7 : 5;
     const resp = await fetchWeeklyMatrix(props.areaId, props.week, dayCount);
@@ -236,15 +239,20 @@ async function loadMatrix() {
     const first = resp.data[0];
     if (first) {
       days.value = first.attributes.days;
-    } else {
+    } else if (!opts.silent) {
       days.value = [];
     }
   } catch {
-    errorMessage.value = t('itemGroups.unableToLoad');
-    matrixData.value = [];
-    days.value = [];
+    if (!opts.silent) {
+      errorMessage.value = t('itemGroups.unableToLoad');
+      matrixData.value = [];
+      days.value = [];
+    }
+    // Silent refreshes ignore transient errors and keep the last known state.
   } finally {
-    loading.value = false;
+    if (!opts.silent) {
+      loading.value = false;
+    }
   }
 }
 
@@ -260,6 +268,18 @@ watch(() => [props.week, props.showWeekends], () => {
 watch(() => props.areaId, () => {
   loadCollapsedState();
   loadMatrix();
+});
+
+useLiveBookingRefresh({
+  refresh: () => loadMatrix({ silent: true }),
+  isRelevant: (event) => {
+    if (!days.value.some((day) => day.date === event.booking_date)) {
+      return false;
+    }
+    return matrixData.value.some((group) =>
+      group.attributes.items.some((item) => item.item_id === event.item_id)
+    );
+  }
 });
 </script>
 

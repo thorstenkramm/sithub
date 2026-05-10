@@ -6,6 +6,24 @@ import { createTestI18n } from '../../__tests__/helpers/i18n';
 import { useAuthStore } from '../../stores/useAuthStore';
 
 vi.mock('../../api/itemGroupMatrix', () => ({ fetchWeeklyMatrix: vi.fn() }));
+const liveFeed = vi.hoisted(() => ({
+  handler: null as ((event: unknown) => void) | null
+}));
+vi.mock('../../stores/useLiveFeedStore', () => ({
+  useLiveFeedStore: () => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    reset: vi.fn(),
+    subscribe: (handler: (event: unknown) => void) => {
+      liveFeed.handler = handler;
+      return () => {
+        if (liveFeed.handler === handler) {
+          liveFeed.handler = null;
+        }
+      };
+    }
+  })
+}));
 
 const fetchMatrixMock = fetchWeeklyMatrix as unknown as ReturnType<typeof vi.fn>;
 
@@ -221,6 +239,7 @@ describe('AreaWeeklyMatrixView', () => {
     setActivePinia(createPinia());
     fetchMatrixMock.mockReset();
     localStorage.clear();
+    liveFeed.handler = null;
   });
 
   it('renders matrix container after data loads', async () => {
@@ -230,6 +249,46 @@ describe('AreaWeeklyMatrixView', () => {
 
     expect(wrapper.find('[data-cy="matrix-container"]').exists()).toBe(true);
     expect(wrapper.find('[data-cy="matrix-loading"]').exists()).toBe(false);
+  });
+
+  it('reloads the matrix silently when a relevant live event arrives', async () => {
+    vi.useFakeTimers();
+    let resolveLiveRefresh: ((value: ReturnType<typeof makeMatrixResponse>) => void) | undefined;
+    try {
+      fetchMatrixMock
+        .mockResolvedValueOnce(makeMatrixResponse())
+        .mockImplementationOnce(() => new Promise(resolve => {
+          resolveLiveRefresh = resolve;
+        }));
+      const wrapper = mountMatrix();
+      await flushPromises();
+
+      fetchMatrixMock.mockClear();
+      expect(liveFeed.handler).toBeTypeOf('function');
+      liveFeed.handler!({
+        type: 'booking.created',
+        booking_id: 'booking-1',
+        item_id: 'desk-1',
+        user_id: 'other-user',
+        booking_date: '2099-04-13',
+        timestamp: '2026-05-10T12:00:00Z'
+      });
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(fetchMatrixMock).toHaveBeenCalledTimes(1);
+      expect(fetchMatrixMock).toHaveBeenCalledWith('area-1', '2026-W16', 5);
+      expect(wrapper.find('[data-cy="matrix-loading"]').exists()).toBe(false);
+
+      resolveLiveRefresh?.(makeOccupiedResponse({ booker_name: 'Alice Smith' }));
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="matrix-loading"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="matrix-cell-occupied"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="matrix-cell-tooltip"]').text()).toBe('Alice Smith');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows error state on fetch failure', async () => {

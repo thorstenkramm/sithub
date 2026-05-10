@@ -17,12 +17,30 @@ import { middleTruncate } from '../utils/text';
 /* jscpd:ignore-start */
 
 const pushMock = vi.fn();
+const liveFeed = vi.hoisted(() => ({
+  handler: null as ((event: unknown) => void) | null
+}));
 vi.mock('../api/me');
 vi.mock('../api/items');
 vi.mock('../api/itemGroups');
 vi.mock('../api/areas');
 vi.mock('../api/users');
 vi.mock('../api/bookings');
+vi.mock('../stores/useLiveFeedStore', () => ({
+  useLiveFeedStore: () => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    reset: vi.fn(),
+    subscribe: (handler: (event: unknown) => void) => {
+      liveFeed.handler = handler;
+      return () => {
+        if (liveFeed.handler === handler) {
+          liveFeed.handler = null;
+        }
+      };
+    }
+  })
+}));
 const routeMock = { params: { itemGroupId: 'ig-1' }, query: { areaId: 'area-1' } };
 vi.mock('vue-router', () => ({
   useRoute: () => routeMock,
@@ -43,7 +61,6 @@ describe('ItemsView', () => {
       'v-radio',
       'v-radio-group',
       'v-text-field',
-      'v-checkbox',
       'v-expand-transition',
       'v-autocomplete',
       'v-combobox',
@@ -60,10 +77,6 @@ describe('ItemsView', () => {
     ]),
     'v-btn': {
       template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>'
-    },
-    'v-checkbox': {
-      props: ['modelValue', 'disabled'],
-      template: '<div v-bind="$attrs" :data-disabled="disabled ? \'true\' : undefined"><input type="checkbox" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" /><slot /></div>'
     },
     'v-combobox': {
       props: ['modelValue'],
@@ -161,6 +174,7 @@ describe('ItemsView', () => {
     })) as typeof window.matchMedia;
     setActivePinia(createPinia());
     pushMock.mockReset();
+    liveFeed.handler = null;
     routeMock.query = { areaId: 'area-1' };
     fetchMeMock.mockResolvedValue({
       data: {
@@ -335,6 +349,115 @@ describe('ItemsView', () => {
     const lastCall = fetchItemsMock.mock.calls[fetchItemsMock.mock.calls.length - 1];
     expect(lastCall[0]).toBe('ig-1');
     expect(lastCall[1]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('refreshes day-mode tiles from live booking events without showing the loading state', async () => {
+    const day = futureDay();
+    useDateState().setDay(day);
+    vi.useFakeTimers();
+    try {
+      fetchItemsMock
+        .mockResolvedValueOnce({
+          data: [{
+            id: 'item-1',
+            type: 'items',
+            attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+          }]
+        })
+        .mockResolvedValue({
+          data: [{
+            id: 'item-1',
+            type: 'items',
+            attributes: {
+              name: 'Desk A',
+              equipment: [],
+              availability: 'occupied' as const,
+              booker_name: 'Alice Smith'
+            }
+          }]
+        });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="book-item-btn"]').exists()).toBe(true);
+      fetchItemsMock.mockClear();
+      expect(liveFeed.handler).toBeTypeOf('function');
+      liveFeed.handler!({
+        type: 'booking.created',
+        booking_id: 'booking-1',
+        item_id: 'item-1',
+        user_id: 'other-user',
+        booking_date: day,
+        timestamp: '2026-05-10T12:00:00Z'
+      });
+
+      expect(wrapper.find('[data-cy="items-loading"]').exists()).toBe(false);
+      await vi.advanceTimersByTimeAsync(300);
+      await flushPromises();
+
+      expect(fetchItemsMock).toHaveBeenCalledWith('ig-1', day);
+      expect(wrapper.find('[data-cy="items-loading"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="item-booker"]').text()).toContain('Alice Smith');
+      expect(wrapper.find('[data-cy="book-item-btn"]').exists()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refreshes week-mode tiles from live booking events and removes stale selections', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+    localStorage.setItem('sithub_booking_mode', 'week');
+    const bookedDate = '2026-05-11';
+    let liveRefresh = false;
+    fetchItemsMock.mockImplementation((_itemGroupId, date) => Promise.resolve({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: liveRefresh && date === bookedDate
+          ? {
+              name: 'Desk A',
+              equipment: [],
+              availability: 'occupied' as const,
+              booker_name: 'Bob Smith'
+            }
+          : { name: 'Desk A', equipment: [], availability: 'available' as const }
+      }]
+    }));
+
+    try {
+      const wrapper = mountView();
+      await flushPromises();
+
+      await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+      await flushPromises();
+      expect(wrapper.find('[data-cy="week-confirm-section"]').exists()).toBe(true);
+
+      liveRefresh = true;
+      fetchItemsMock.mockClear();
+      expect(liveFeed.handler).toBeTypeOf('function');
+      liveFeed.handler!({
+        type: 'booking.created',
+        booking_id: 'booking-1',
+        item_id: 'item-1',
+        user_id: 'other-user',
+        booking_date: bookedDate,
+        timestamp: '2026-05-10T12:00:00Z'
+      });
+
+      expect(wrapper.find('[data-cy="items-loading"]').exists()).toBe(false);
+      await vi.advanceTimersByTimeAsync(300);
+      await flushPromises();
+
+      expect(fetchItemsMock).toHaveBeenCalledWith('ig-1', bookedDate);
+      expect(wrapper.find('[data-cy="items-loading"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="week-day-other"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain('Bob Smith');
+      expect(wrapper.find('[data-cy="week-confirm-section"]').exists()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   describe('breadcrumbs', () => {

@@ -944,6 +944,7 @@ import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFil
 import { useSavedFilters } from '../composables/useSavedFilters';
 import { useDateState } from '../composables/useDateState';
 import { useFavorites } from '../composables/useFavorites';
+import { useLiveBookingRefresh } from '../composables/useLiveBookingRefresh';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useWarningSuppression } from '../composables/useWarningSuppression';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -1345,12 +1346,32 @@ const toggleWeekDay = (itemId: string, date: string) => {
   weekSelections.value = next;
 };
 
-const loadWeekData = async (itemGroupId: string, keepResults = false) => {
-  weekDataLoading.value = true;
-  weekSelections.value = new Set();
-  expandedWeekTiles.value = new Set();
-  itemsErrorMessage.value = null;
-  if (!keepResults) weekBookingResults.value = [];
+const pruneUnavailableWeekSelections = () => {
+  const next = new Set<string>();
+  for (const key of weekSelections.value) {
+    const separator = key.indexOf('::');
+    if (separator <= 0) continue;
+    const itemId = key.slice(0, separator);
+    const date = key.slice(separator + 2);
+    if (
+      getWeekDayStatus(itemId, date) === 'free'
+      && !isDateInPast(date)
+      && !isWeekItemReserved(itemId)
+    ) {
+      next.add(key);
+    }
+  }
+  weekSelections.value = next;
+};
+
+const loadWeekData = async (itemGroupId: string, keepResults = false, silent = false) => {
+  if (!silent) {
+    weekDataLoading.value = true;
+    weekSelections.value = new Set();
+    expandedWeekTiles.value = new Set();
+    itemsErrorMessage.value = null;
+  }
+  if (!keepResults && !silent) weekBookingResults.value = [];
   try {
     const dates = selectedWeekDates.value;
     const results = await Promise.all(
@@ -1371,14 +1392,20 @@ const loadWeekData = async (itemGroupId: string, keepResults = false) => {
       }
     }
     myWeekBookings.value = bookedMap;
+    pruneUnavailableWeekSelections();
     await nextTick();
     updateNameTruncation();
   } catch (err) {
-    weekData.value = {};
-    myWeekBookings.value = new Map();
-    itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : t('items.unableToLoadWeekly');
+    if (!silent) {
+      weekData.value = {};
+      myWeekBookings.value = new Map();
+      itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : t('items.unableToLoadWeekly');
+    }
+    // Silent refresh keeps the previously rendered state on transient errors.
   } finally {
-    weekDataLoading.value = false;
+    if (!silent) {
+      weekDataLoading.value = false;
+    }
   }
 };
 
@@ -1572,6 +1599,22 @@ const loadItems = async (itemGroupId: string, date: string) => {
       return;
     }
     itemsErrorMessage.value = t('items.unableToLoad');
+  }
+};
+
+// silentReloadItems refreshes day-mode items without toggling the loading
+// flag or resetting expansion state. Used by the live feed to apply external
+// booking/cancellation changes in place.
+const silentReloadItems = async (itemGroupId: string, date: string) => {
+  try {
+    const normalizedDate = ensureDate(date);
+    const resp = await fetchItems(itemGroupId, normalizedDate);
+    items.value = resp.data;
+    await nextTick();
+    updateNoteTruncation();
+    updateNameTruncation();
+  } catch {
+    // Silent on errors; keep last known state.
   }
 };
 
@@ -1980,6 +2023,23 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
+});
+
+useLiveBookingRefresh({
+  refresh: async () => {
+    if (!activeItemGroupId.value) return;
+    if (bookingMode.value === 'week') {
+      await loadWeekData(activeItemGroupId.value, true, true);
+    } else {
+      await silentReloadItems(activeItemGroupId.value, selectedDate.value);
+    }
+  },
+  isRelevant: (event) => {
+    if (bookingMode.value === 'week') {
+      return selectedWeekDates.value.includes(event.booking_date);
+    }
+    return event.booking_date === selectedDate.value;
+  }
 });
 
 function updateViewport() {

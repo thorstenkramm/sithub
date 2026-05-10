@@ -14,6 +14,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/config"
+	"github.com/thorstenkramm/sithub/internal/livefeed"
 	"github.com/thorstenkramm/sithub/internal/middleware"
 	"github.com/thorstenkramm/sithub/internal/notifications"
 )
@@ -77,7 +78,7 @@ func setupTestRouter(t *testing.T) *echo.Echo {
 	registerRoutes(
 		e, authService, &areas.Config{},
 		t.TempDir(), t.TempDir(), nil,
-		notifications.NewNotifier(""), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil,
 	)
 	return e
 }
@@ -111,7 +112,7 @@ func TestFloorPlanPositionsWriteRouteRequiresAdmin(t *testing.T) {
 	registerRoutes(
 		e, authService, &areas.Config{},
 		t.TempDir(), t.TempDir(), nil,
-		notifications.NewNotifier(""), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil,
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)

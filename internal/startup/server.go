@@ -25,6 +25,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/floorplanpos"
 	"github.com/thorstenkramm/sithub/internal/itemgroups"
 	"github.com/thorstenkramm/sithub/internal/items"
+	"github.com/thorstenkramm/sithub/internal/livefeed"
 	"github.com/thorstenkramm/sithub/internal/middleware"
 	"github.com/thorstenkramm/sithub/internal/notifications"
 	"github.com/thorstenkramm/sithub/internal/system"
@@ -65,7 +66,10 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("init auth service: %w", err)
 	}
 
-	notifier := notifications.NewNotifier(cfg.Notifications.WebhookURL)
+	webhookNotifier := notifications.NewNotifier(cfg.Notifications.WebhookURL)
+	hub := livefeed.NewHub()
+	go hub.Run(ctx)
+	notifier := notifications.MultiNotifier{webhookNotifier, hub}
 
 	e.Use(middleware.LoadUser(authService))
 	e.Use(middleware.RedirectForbidden(authService))
@@ -81,7 +85,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	//nolint:contextcheck // Echo handlers use request context.
-	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, avatarsDir, store, notifier, bookingLimits)
+	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, avatarsDir, store,
+		notifier, hub, bookingLimits)
 	registerSPAHandlers(e, webFS)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -109,7 +114,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 func registerRoutes(
 	e *echo.Echo, authService *auth.Service, areasConfig *areas.Config,
 	floorPlansDir, avatarsDir string, store *sql.DB, notifier notifications.Notifier,
-	bookingLimits *bookings.BookingLimits,
+	liveHub *livefeed.Hub, bookingLimits *bookings.BookingLimits,
 ) {
 	// Helper to get current config (returns the same config, loaded at startup)
 	getConfig := func() *areas.Config { return areasConfig }
@@ -156,6 +161,9 @@ func registerRoutes(
 		bookings.CreateHandlerDynamic(getConfig, store, notifier, bookingLimits), requireAuth)
 	e.PATCH("/api/v1/bookings/:id", bookings.PatchHandler(store), requireAuth)
 	e.DELETE("/api/v1/bookings/:id", bookings.DeleteHandler(store, notifier), requireAuth)
+
+	// Live feed (WebSocket) for real-time booking updates.
+	e.GET("/api/v1/live", livefeed.Handler(liveHub), requireAuth)
 
 	// Floor plan images (authenticated)
 	e.GET("/api/v1/floor-plans/:filename",

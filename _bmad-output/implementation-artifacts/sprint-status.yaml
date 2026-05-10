@@ -262,3 +262,9 @@ development_status:
   30-2-floor-plan-editor-canvas-grows-vertically-on-zoom: done
   30-3-optional-area-drill-down-toggle-on-floor-plan-booking: done
   epic-30-retrospective: optional
+
+  epic-31: in-progress
+  31-1-live-updates-for-bookings-and-cancellations: done
+  31-2-favorites-rework-as-virtual-room: ready-for-dev
+  31-3-areas-config-location-hint-in-example-toml: ready-for-dev
+  epic-31-retrospective: optional

@@ -60,7 +60,8 @@ export default defineConfig({
       },
       '/api': {
         target: 'http://localhost:9900',
-        changeOrigin: true
+        changeOrigin: true,
+        ws: true
       }
     }
   }

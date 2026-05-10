@@ -394,6 +394,7 @@
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from './stores/useAuthStore';
+import { useLiveFeedStore } from './stores/useLiveFeedStore';
 import { getAvatarUrl, uploadAvatar, deleteAvatar } from './api/avatars';
 import { logout } from './api/auth';
 import { changePassword } from './api/me';
@@ -420,7 +421,20 @@ const themeOptionsMobile = computed(() => [
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const liveFeedStore = useLiveFeedStore();
 const mobileDrawer = ref(false);
+
+watch(
+  () => authStore.isAuthenticated,
+  (authed) => {
+    if (authed) {
+      liveFeedStore.start();
+    } else {
+      liveFeedStore.stop();
+    }
+  },
+  { immediate: true }
+);
 const avatarLoadFailed = ref(false);
 const { preference: themePreference, setPreference: setThemePreference } = useThemePreference();
 const { preference: localePreference, setPreference: setLocalePreference } = useLocalePreference();

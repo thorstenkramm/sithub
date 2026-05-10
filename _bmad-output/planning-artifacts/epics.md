@@ -821,6 +821,15 @@ scrolling), and let large-screen users skip the room drill-down via an "Area dri
 toggle persisted per device.
 **FRs covered:** FR137, FR138, FR139
 
+### Epic 31: Live Updates, Favorites Rework & Areas Config Hint
+
+Bookings and cancellations made by other users propagate to all open clients in real time
+across tile, table, and floor plan views. The favorites feature is reworked into a virtual
+"Favorites" room that lists only bookable items, with consistent heart-icon affordances
+across views. The example configuration clarifies that the areas config file must live
+inside `data_dir`.
+**FRs covered:** FR140, FR141, FR142
+
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
 ## Epic 1 Stories: Dual-Source Authentication & Access Control
@@ -4197,3 +4206,116 @@ regardless of viewport size
 **When** the page renders
 **Then** the toggle uses that device's own default and stored value
 **And** the choice on this device does not affect any other device
+
+## Epic 31 Stories: Live Updates, Favorites Rework & Areas Config Hint
+
+Push booking and cancellation events to all open clients so users see availability change
+in real time without manual reloads, rework favorites into a dedicated virtual "Favorites"
+room with consistent heart-icon affordances across tile, table, and floor plan views, and
+clarify in the example configuration that the areas config file must live inside
+`data_dir`.
+**FRs covered:** FR140, FR141, FR142
+
+### Story 31.1: Live Updates for Bookings and Cancellations
+
+**FRs covered:** FR140
+
+As a user browsing room plans, area tiles, or the weekly table view,
+I want bookings and cancellations made by other users to appear without manually
+reloading,
+so that I do not waste time deciding on a desk that has already been taken.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing the area tile, weekly table, or floor plan view for a given date
+**When** another user creates a booking that affects an item in my current view
+**Then** the corresponding tile, cell, or floor plan marker updates to its new busy state
+within a few seconds
+**And** I do not need to refresh the page or change any filter for the change to appear
+
+**Given** I am viewing any of the same views
+**When** another user cancels a booking that affects an item in my current view
+**Then** the corresponding tile, cell, or floor plan marker updates to its new free state
+within a few seconds
+**And** the change is reflected without page reload
+
+**Given** I have just been viewing live updates and the network connection drops
+**When** the connection is restored
+**Then** the client reconciles state with the server and reflects any bookings or
+cancellations that occurred during the outage
+**And** the existing connection-lost messaging from Story 18.7 still surfaces while
+disconnected
+
+**Given** I open the app in multiple tabs
+**When** an event arrives
+**Then** all open tabs reflect the change consistently
+
+### Story 31.2: Favorites Rework as Virtual Room
+
+**FRs covered:** FR141
+
+As a user with favorite desks across multiple areas,
+I want my favorites grouped into a dedicated "Favorites" room with clear visual markers
+in every view,
+so that I can find and book my preferred desks quickly without scanning unrelated areas.
+
+**Acceptance Criteria:**
+
+**Given** I have at least one bookable item marked as a favorite
+**When** I open the area/room overview
+**Then** a tile labeled "Favorites" appears as the first tile
+**And** the tile behaves like any other room tile (drill-down to its items, free/busy
+indicators, identical interaction model)
+
+**Given** I have no items marked as favorites
+**When** I open the area/room overview
+**Then** the "Favorites" tile is not shown
+
+**Given** I am on a screen that previously allowed adding an area or room to favorites
+**When** the page renders
+**Then** no control to favorite an area or room is available
+**And** only bookable items (desks) can be added to favorites
+
+**Given** I am viewing the weekly table view and one or more items are favorites
+**When** the table renders
+**Then** each favorite item row displays a heart icon
+**And** clicking the heart icon removes that item from my favorites
+**And** no sorting or filtering by favorites is offered in the table view
+
+**Given** I am viewing a floor plan and one or more items shown on the plan are favorites
+**When** an item is in the free state
+**Then** a heart icon is rendered with its center positioned exactly at the bottom-right
+corner of the item marker (matching the reference image
+`epic-31-favorite-heart.png`)
+**And** clicking the heart icon removes the item from my favorites
+
+**Given** an item shown on the floor plan is busy
+**When** the floor plan renders
+**Then** no heart icon is shown for that item, regardless of favorite status
+
+**Given** I remove an item from favorites via any of the heart icons (tile, table, floor
+plan)
+**When** the change is applied
+**Then** the item is removed across all views consistently and the "Favorites" tile
+disappears once no favorites remain
+
+### Story 31.3: Areas Config Location Hint in Example TOML
+
+**FRs covered:** FR142
+
+As an operator setting up SitHub,
+I want the example configuration to state that the areas config file must live inside
+`data_dir`,
+so that I do not waste time placing the file in an unsupported location.
+
+**Acceptance Criteria:**
+
+**Given** I read `sithub.example.toml`
+**When** I look at the setting that points to the areas configuration file
+**Then** its inline comment includes the sentence "Must be inside data_dir."
+**And** the wording matches the existing hint used for the floor plans directory setting
+
+**Given** the example file is updated
+**When** the TOML linter or formatter runs
+**Then** the file remains valid TOML and follows the existing comment style described in
+`.claude/rules/toml.md`

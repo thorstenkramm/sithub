@@ -12,6 +12,10 @@ import {
 import { fetchItemGroups } from "../../api/itemGroups";
 import { fetchAreas } from "../../api/areas";
 
+const liveFeed = vi.hoisted(() => ({
+  handler: null as ((event: unknown) => void) | null,
+}));
+
 vi.mock("../../api/floorPlanPositions", () => ({
   fetchFloorPlanPositions: vi.fn(),
 }));
@@ -23,6 +27,21 @@ vi.mock("../../api/bookings", () => ({
 }));
 vi.mock("../../api/itemGroups", () => ({ fetchItemGroups: vi.fn() }));
 vi.mock("../../api/areas", () => ({ fetchAreas: vi.fn() }));
+vi.mock("../../stores/useLiveFeedStore", () => ({
+  useLiveFeedStore: () => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    reset: vi.fn(),
+    subscribe: (handler: (event: unknown) => void) => {
+      liveFeed.handler = handler;
+      return () => {
+        if (liveFeed.handler === handler) {
+          liveFeed.handler = null;
+        }
+      };
+    },
+  }),
+}));
 
 describe("InteractiveFloorPlan", () => {
   const fetchFloorPlanPositionsMock = vi.mocked(fetchFloorPlanPositions);
@@ -230,6 +249,7 @@ describe("InteractiveFloorPlan", () => {
     cancelBookingMock.mockResolvedValue(undefined as never);
     fetchItemGroupsMock.mockResolvedValue({ data: [] } as never);
     fetchAreasMock.mockResolvedValue({ data: [] } as never);
+    liveFeed.handler = null;
   });
 
   afterEach(() => {
@@ -287,6 +307,28 @@ describe("InteractiveFloorPlan", () => {
       nextDate,
     ]);
     expect(wrapper.find('[data-cy="fp-booking-success"]').exists()).toBe(true);
+  });
+
+  it("refreshes the visible item group when a relevant live event arrives", async () => {
+    mountComponent();
+    await flushPromises();
+
+    fetchItemsMock.mockClear();
+    expect(liveFeed.handler).toBeTypeOf("function");
+    liveFeed.handler!({
+      type: "booking.created",
+      booking_id: "booking-1",
+      item_id: "item-1",
+      user_id: "other-user",
+      booking_date: "2026-04-08",
+      timestamp: "2026-05-10T12:00:00Z",
+    });
+
+    await vi.advanceTimersByTimeAsync(300);
+    await flushPromises();
+
+    expect(fetchItemsMock).toHaveBeenCalledTimes(1);
+    expect(fetchItemsMock).toHaveBeenCalledWith("ig-1", "2026-04-08");
   });
 
   it("drills into the detailed floor plan when a child floor plan exists", async () => {

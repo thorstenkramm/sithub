@@ -518,6 +518,7 @@ import type { ItemAttributes } from "../api/items";
 import type { JsonApiResource } from "../api/types";
 import { getInitials } from "../utils/text";
 import { useAreaDrillDownPreference } from "../composables/useAreaDrillDownPreference";
+import { useLiveBookingRefresh } from "../composables/useLiveBookingRefresh";
 
 const props = defineProps<{
   floorPlan: string;
@@ -1037,6 +1038,21 @@ watch(drilledInto, async () => {
   await loadPositions();
   await refreshAvailability();
   initialLoading.value = false;
+});
+
+useLiveBookingRefresh({
+  refresh: () => refreshAvailability(),
+  isRelevant: (event) => {
+    if (event.booking_date !== selectedDate.value) {
+      return false;
+    }
+
+    if (itemDataMap.value.has(event.item_id)) {
+      return true;
+    }
+
+    return positions.value.some((pos) => pos.itemId === event.item_id);
+  }
 });
 
 const areaPositions = computed(() => {

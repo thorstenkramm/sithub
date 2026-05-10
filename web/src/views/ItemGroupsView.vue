@@ -385,6 +385,7 @@ import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFil
 import { useSavedFilters } from '../composables/useSavedFilters';
 import { useFavorites } from '../composables/useFavorites';
 import { useDateState } from '../composables/useDateState';
+import { useLiveBookingRefresh } from '../composables/useLiveBookingRefresh';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
@@ -433,6 +434,7 @@ const showSuccessSnackbar = computed({
   }
 });
 const availabilityMap = ref<Record<string, DayAvailability[]>>({});
+const visibleAreaItemIds = ref(new Set<string>());
 
 const formatAvailabilityAriaLabel = (day: DayAvailability): string => {
   const weekday = localizeWeekday(day.weekday, t);
@@ -469,6 +471,16 @@ const toggleSaveFilter = () => {
 };
 const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
 const itemGroupEquipment = ref<Record<string, string[]>>({});
+
+const isRelevantLiveEvent = (event: { item_id: string; booking_date: string }): boolean => {
+  if (activeView.value !== 'cards') {
+    return false;
+  }
+  if (!selectedWeekDates.value.includes(event.booking_date)) {
+    return false;
+  }
+  return visibleAreaItemIds.value.size === 0 || visibleAreaItemIds.value.has(event.item_id);
+};
 
 const isItemGroupFilteredOut = (igId: string): boolean => {
   if (!equipmentFilter.value) return false;
@@ -653,15 +665,18 @@ onMounted(async () => {
   await loadAvailability(areaId, selectedWeek.value);
 
   // Load equipment per item group for filtering (non-blocking)
+  visibleAreaItemIds.value = new Set();
   if (itemGroups.value.length > 0) {
     try {
       const results = await Promise.all(
         itemGroups.value.map(ig => fetchItems(ig.id).then(r => ({ igId: ig.id, items: r.data })))
       );
       const map: Record<string, string[]> = {};
+      const nextVisibleItemIds = new Set<string>();
       for (const { igId, items } of results) {
         const allEquipment = new Set<string>();
         for (const item of items) {
+          nextVisibleItemIds.add(item.id);
           for (const eq of item.attributes.equipment ?? []) {
             allEquipment.add(eq);
           }
@@ -669,8 +684,10 @@ onMounted(async () => {
         map[igId] = [...allEquipment];
       }
       itemGroupEquipment.value = map;
+      visibleAreaItemIds.value = nextVisibleItemIds;
     } catch {
       // Non-critical: filter just won't work
+      visibleAreaItemIds.value = new Set();
     }
   }
 });
@@ -685,6 +702,15 @@ watch([selectedWeek, showWeekends], async ([week]) => {
   if (typeof areaId === 'string' && areaId.trim() !== '') {
     await loadAvailability(areaId, week);
   }
+});
+
+useLiveBookingRefresh({
+  refresh: async () => {
+    const areaId = route.params.areaId;
+    if (typeof areaId !== 'string' || areaId.trim() === '') return;
+    await loadAvailability(areaId, selectedWeek.value);
+  },
+  isRelevant: isRelevantLiveEvent
 });
 
 

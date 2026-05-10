@@ -1,3 +1,6 @@
+import { beforeEach } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
+
 class ResizeObserver {
   observe() {}
   unobserve() {}
@@ -5,6 +8,13 @@ class ResizeObserver {
 }
 
 globalThis.ResizeObserver = ResizeObserver;
+
+// Ensure every test starts with a fresh Pinia instance. Components in the
+// app use Pinia stores (auth, live feed) and would otherwise crash on first
+// store access in tests that don't manually wire it up.
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
 function installLocalStorageShim() {
   try {

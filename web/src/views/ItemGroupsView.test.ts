@@ -7,13 +7,16 @@ import { fetchAreas } from '../api/areas';
 import { fetchItems } from '../api/items';
 import { fetchWeeklyAvailability } from '../api/itemGroupAvailability';
 import { useDateState } from '../composables/useDateState';
-import { getISOWeekString, getMondayOfWeek } from '../composables/useWeekSelector';
+import { getISOWeekString, getMondayOfWeek, getWeekdayDates } from '../composables/useWeekSelector';
 import { buildViewStubs, createFetchMeMocker, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import en from '../locales/en.json';
 import de from '../locales/de.json';
 
 const pushMock = vi.fn();
+const liveFeed = vi.hoisted(() => ({
+  handler: null as ((event: unknown) => void) | null
+}));
 
 vi.mock('../api/me', () => ({ fetchMe: vi.fn() }));
 vi.mock('../api/itemGroups', () => ({ fetchItemGroups: vi.fn() }));
@@ -21,6 +24,21 @@ vi.mock('../api/areas', () => ({ fetchAreas: vi.fn() }));
 vi.mock('../api/items', () => ({ fetchItems: vi.fn() }));
 vi.mock('../api/itemGroupAvailability', () => ({ fetchWeeklyAvailability: vi.fn() }));
 vi.mock('../api/itemGroupMatrix', () => ({ fetchWeeklyMatrix: vi.fn() }));
+vi.mock('../stores/useLiveFeedStore', () => ({
+  useLiveFeedStore: () => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    reset: vi.fn(),
+    subscribe: (handler: (event: unknown) => void) => {
+      liveFeed.handler = handler;
+      return () => {
+        if (liveFeed.handler === handler) {
+          liveFeed.handler = null;
+        }
+      };
+    }
+  })
+}));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { areaId: 'area-1' } }),
   useRouter: () => ({ push: pushMock })
@@ -161,6 +179,7 @@ describe('ItemGroupsView', () => {
     mockAvailability();
     localStorage.clear();
     sessionStorage.clear();
+    liveFeed.handler = null;
     useDateState().setWeek(currentWeek());
   });
 
@@ -248,6 +267,44 @@ describe('ItemGroupsView', () => {
     await flushPromises();
 
     expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', storedWeek, undefined);
+  });
+
+  it('reloads weekly availability when a relevant live event arrives', async () => {
+    vi.useFakeTimers();
+    try {
+      mockFetchItemGroups(1);
+      const fetchItemsMock = fetchItems as unknown as ReturnType<typeof vi.fn>;
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk 1', equipment: [] }
+        }]
+      });
+      mockAvailability();
+
+      mountView();
+      await flushPromises();
+
+      fetchAvailabilityMock.mockClear();
+      expect(liveFeed.handler).toBeTypeOf('function');
+      liveFeed.handler!({
+        type: 'booking.created',
+        booking_id: 'booking-1',
+        item_id: 'item-1',
+        user_id: 'other-user',
+        booking_date: getWeekdayDates(getMondayOfWeek(new Date()), false)[0],
+        timestamp: '2026-05-10T12:00:00Z'
+      });
+
+      await vi.advanceTimersByTimeAsync(300);
+      await flushPromises();
+
+      expect(fetchAvailabilityMock).toHaveBeenCalledTimes(1);
+      expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', currentWeek(), undefined);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows availability indicators when data is returned', async () => {
