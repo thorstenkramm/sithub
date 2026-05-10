@@ -244,6 +244,7 @@
     "noPositions": "Aucun élément n'a encore été positionné sur ce plan d'étage. Un administrateur peut les configurer dans l'éditeur de plan d'étage.",
     "showLabels": "Afficher les étiquettes",
     "showAvatars": "Afficher les avatars",
+    "areaDrillDownToggle": "Exploration des zones",
     "checkingAvailability": "Vérification de la disponibilité pour la semaine sélectionnée...",
     "confirmBooking": "Confirmer la réservation",
     "confirmBookingFor": "Confirmer votre réservation pour {label}",

@@ -270,6 +270,9 @@ func validateFloorPlanFile(filename, floorPlansDir string) error {
 // ErrReservationConflict indicates a hierarchical reservation conflict.
 var ErrReservationConflict = errors.New("reservation conflict")
 
+// ErrDuplicateID indicates a duplicate identifier in the areas configuration.
+var ErrDuplicateID = errors.New("duplicate id")
+
 // ValidateReservations checks that child reserved_for lists are subsets of parent lists.
 func ValidateReservations(cfg *Config) error {
 	for i := range cfg.Areas {
@@ -361,6 +364,53 @@ func validateConfig(cfg *Config) error {
 				if item.ID == "" || item.Name == "" {
 					return fmt.Errorf("item requires id and name")
 				}
+			}
+		}
+	}
+	if err := findDuplicateIDs(cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+// findDuplicateIDs walks the areas configuration and returns the first duplicate
+// identifier it finds at the area, item group, or item level. The returned error
+// wraps ErrDuplicateID and names both locations where the duplicate was seen so
+// operators can locate the misconfiguration.
+func findDuplicateIDs(cfg *Config) error {
+	areaSeen := make(map[string]string)
+	groupSeen := make(map[string]string)
+	itemSeen := make(map[string]string)
+
+	for i := range cfg.Areas {
+		area := &cfg.Areas[i]
+		if prev, ok := areaSeen[area.ID]; ok {
+			return fmt.Errorf(
+				"%w: area id %q is defined twice (previous: area %q)",
+				ErrDuplicateID, area.ID, prev,
+			)
+		}
+		areaSeen[area.ID] = area.ID
+
+		for j := range area.ItemGroups {
+			ig := &area.ItemGroups[j]
+			if prev, ok := groupSeen[ig.ID]; ok {
+				return fmt.Errorf(
+					"%w: item group id %q in area %q is also defined in %s",
+					ErrDuplicateID, ig.ID, area.ID, prev,
+				)
+			}
+			groupSeen[ig.ID] = fmt.Sprintf("area %q", area.ID)
+
+			for k := range ig.Items {
+				item := &ig.Items[k]
+				if prev, ok := itemSeen[item.ID]; ok {
+					return fmt.Errorf(
+						"%w: item id %q in item group %q is also defined in %s",
+						ErrDuplicateID, item.ID, ig.ID, prev,
+					)
+				}
+				itemSeen[item.ID] = fmt.Sprintf("item group %q", ig.ID)
 			}
 		}
 	}

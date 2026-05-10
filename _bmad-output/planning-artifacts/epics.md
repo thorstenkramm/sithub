@@ -7,7 +7,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-26.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-27.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-28.md
-lastEdited: '2026-04-15'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-30.md
+lastEdited: '2026-05-08'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -39,6 +40,8 @@ editHistory:
     changes: "Added FR122-FR125 and Epic 27: Avatar Sync Fix & Reserved Item Visibility. Fixes Entra ID avatar decoding for non-PNG formats, corrects reserved area free/busy display on floor plans, and shows occupancy on reserved items in list view."
   - date: '2026-04-15'
     changes: "Added FR126-FR128 and Epic 28: Date Selector Fix & Floor Plan Booker Names. Fixes date picker jumping to today after booking, adds booker name tooltips on floor plan avatars, and shows initials with name tooltip when avatars are disabled."
+  - date: '2026-05-08'
+    changes: "Added FR137-FR139 and Epic 30: Operator Validation, Editor Zoom Height & Optional Drill-Down. Adds startup detection of duplicate items in areas config, makes the floor plan editor canvas grow vertically on zoom-in, and adds an Area drill-down toggle for direct booking on large screens with per-device persistence."
 ---
 
 # sithub - Epic Breakdown
@@ -402,6 +405,24 @@ booker's initials (e.g. "AS" for Alexander Seidemann-Klamant) instead of an avat
 Hovering or tapping shows the full display name in a tooltip. Acceptance: initials are
 derived from the first letters of the user's display name parts; the tooltip shows the
 full name.
+FR137: The server must detect duplicate item identifiers in the areas configuration at
+startup and refuse to start with a clear error. Acceptance: if the same item identifier
+(e.g. `desk29`) appears more than once across the loaded areas configuration, the server
+logs an error naming the duplicate identifier and the offending locations and exits with a
+non-zero status before opening the listening socket.
+FR138: In the floor plan editor, the image container height must grow when the user zooms
+in so that vertical scrolling is not required to see the full image height. Acceptance:
+when the user zooms in, the box surrounding the floor plan image expands vertically to
+match the scaled image height; only horizontal scrolling is needed to reach off-screen
+content; on initial load the container height continues to be derived from the image.
+FR139: On the room/floor plan booking view, an "Area drill-down" toggle controls whether
+clicking an item drills into the detailed area/room view or starts booking directly. The
+toggle is enabled by default on small screens and disabled by default on large screens.
+The user's choice is persisted in browser local storage and applies to all subsequent
+floor plan bookings on that device. Acceptance: a checkbox/toggle labelled "Area
+drill-down" is visible beneath the room plan; toggling it changes click behavior on the
+floor plan accordingly; the choice survives reloads on the same device and is independent
+per device.
 
 ### NonFunctional Requirements
 
@@ -620,6 +641,12 @@ FR126: Epic 28 - Date selector stays on selected date after booking instead of j
 today
 FR127: Epic 28 - Floor plan avatar tooltip shows full booker name on hover/tap
 FR128: Epic 28 - Floor plan shows booker initials with name tooltip when avatars are disabled
+FR137: Epic 30 - Server refuses to start when areas config contains duplicate item
+identifiers
+FR138: Epic 30 - Floor plan editor image container grows vertically on zoom-in so only
+horizontal scrolling is required
+FR139: Epic 30 - Floor plan booking view exposes an "Area drill-down" toggle (default off
+on large screens, on for small) persisted per device in local storage
 
 ## Epic List
 
@@ -785,6 +812,14 @@ on floor plans, and show occupancy on reserved items in list view.
 Fix the date picker jumping to today after booking, and add booker identification on floor
 plans via name tooltips on avatars and initials display when avatars are disabled.
 **FRs covered:** FR126, FR127, FR128
+
+### Epic 30: Operator Validation, Editor Zoom Height & Optional Drill-Down
+
+Make the server fail fast on duplicate items in the areas configuration, fix the floor
+plan editor so zooming in expands the canvas vertically (eliminating unnecessary vertical
+scrolling), and let large-screen users skip the room drill-down via an "Area drill-down"
+toggle persisted per device.
+**FRs covered:** FR137, FR138, FR139
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -4054,3 +4089,111 @@ so that I can correct bookings without leaving the weekly overview.
 **When** the request completes
 **Then** the popover closes
 **And** the cell updates immediately in place to its new free or locked state
+
+## Epic 30 Stories: Operator Validation, Editor Zoom Height & Optional Drill-Down
+
+Detect duplicate items in the areas configuration at startup and refuse to start, make the
+floor plan editor canvas grow vertically when zooming in so users only need to scroll
+horizontally, and let users on large screens opt out of the room drill-down so they can
+book directly from the floor plan.
+**FRs covered:** FR137, FR138, FR139
+
+### Story 30.1: Reject Duplicate Items in Areas Config at Startup
+
+**FRs covered:** FR137
+
+As an operator,
+I want the server to refuse to start when the areas configuration contains duplicate item
+identifiers,
+so that misconfigurations are caught immediately instead of producing inconsistent booking
+state at runtime.
+
+**Acceptance Criteria:**
+
+**Given** the areas configuration contains the same item identifier (e.g. `desk29`) more
+than once across any subareas or rooms
+**When** the server starts
+**Then** the server logs an error that names the duplicated identifier and the locations
+where it appears
+**And** the server exits with a non-zero status before opening its listening socket
+
+**Given** the areas configuration contains no duplicate item identifiers
+**When** the server starts
+**Then** the server starts successfully and serves requests as before
+
+**Given** duplicate detection is implemented
+**When** the unit tests run
+**Then** a test fixture covers at least one duplicate scenario and asserts the startup
+failure path
+**And** a separate fixture covers a clean configuration and asserts successful startup
+
+### Story 30.2: Floor Plan Editor Canvas Grows Vertically on Zoom
+
+**FRs covered:** FR138
+
+As an admin editing a floor plan,
+I want the image container to grow vertically when I zoom in,
+so that I only have to scroll horizontally to inspect the full plan instead of scrolling
+in both directions.
+
+**Acceptance Criteria:**
+
+**Given** I open the floor plan editor for an area
+**When** the editor first loads
+**Then** the height of the box around the floor plan image is derived from the image's
+intrinsic height as today
+
+**Given** the floor plan editor is open at the default zoom level
+**When** I zoom in (via toolbar controls or keyboard/scroll shortcut)
+**Then** the height of the surrounding box grows to match the scaled image height
+**And** vertical scrolling inside the editor is no longer required to see the bottom of
+the image
+
+**Given** I have zoomed in
+**When** the image is wider than the viewport at the current zoom level
+**Then** I can scroll horizontally to reach off-screen content
+**And** the layout of editor controls outside the image area is unaffected
+
+**Given** I zoom back out to the default level
+**When** the editor re-renders
+**Then** the surrounding box returns to a height consistent with the displayed image
+
+### Story 30.3: Optional Area Drill-Down Toggle on Floor Plan Booking
+
+**FRs covered:** FR139
+
+As a user on a large screen,
+I want to book items directly from the floor plan without drilling into the detailed
+room/area view,
+so that I can complete bookings faster from the overview I already see.
+
+**Acceptance Criteria:**
+
+**Given** I view a floor plan in the booking view
+**When** the page renders
+**Then** an "Area drill-down" toggle (checkbox) is visible beneath the room plan
+
+**Given** the viewport is a small screen (mobile breakpoint) and I have not changed the
+toggle yet
+**When** the floor plan loads
+**Then** the "Area drill-down" toggle is enabled by default
+**And** clicking on an area or room on the floor plan opens the detailed drill-down view
+as today
+
+**Given** the viewport is a large screen (desktop breakpoint) and I have not changed the
+toggle yet
+**When** the floor plan loads
+**Then** the "Area drill-down" toggle is disabled by default
+**And** clicking on an item on the floor plan starts the booking flow directly without
+loading the detailed room/area view
+
+**Given** I change the "Area drill-down" toggle
+**When** the change is applied
+**Then** the new value is saved to local storage on the current device
+**And** subsequent floor plan booking sessions on the same device use the saved value
+regardless of viewport size
+
+**Given** I open the floor plan booking view on a different device
+**When** the page renders
+**Then** the toggle uses that device's own default and stored value
+**And** the choice on this device does not affect any other device

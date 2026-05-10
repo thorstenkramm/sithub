@@ -244,6 +244,7 @@
     "noPositions": "Aun no se han posicionado elementos en este plano de planta. Un administrador puede configurarlos en el Editor de plano de planta.",
     "showLabels": "Mostrar etiquetas",
     "showAvatars": "Mostrar avatares",
+    "areaDrillDownToggle": "Detalle de área",
     "checkingAvailability": "Comprobando disponibilidad para la semana seleccionada...",
     "confirmBooking": "Confirmar reserva",
     "confirmBookingFor": "Confirmar su reserva de {label}",

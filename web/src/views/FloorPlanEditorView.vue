@@ -155,6 +155,7 @@
                     :src="`/api/v1/floor-plans/${encodeURIComponent(selectedFloorPlan)}`"
                     draggable="false"
                     class="floor-plan-editor-image"
+                    :style="floorPlanImageStyle"
                     @load="onEditorImageLoad"
                   />
 
@@ -340,13 +341,19 @@ const showSnackbar = computed({
 const containerRef = ref<HTMLElement | null>(null);
 const floorPlanImageRef = ref<HTMLImageElement | null>(null);
 const canvasShellRef = ref<HTMLElement | null>(null);
+const baseImageWidth = ref(0);
 
 function onEditorImageLoad() {
   const shell = canvasShellRef.value;
   const img = floorPlanImageRef.value;
   if (!shell || !img) return;
-  img.style.width = `${shell.clientWidth}px`;
+  baseImageWidth.value = shell.clientWidth;
 }
+
+const floorPlanImageStyle = computed(() => {
+  if (baseImageWidth.value === 0) return {};
+  return { width: `${baseImageWidth.value * zoomScale.value}px` };
+});
 
 const currentOption = computed(
   () =>
@@ -444,10 +451,7 @@ const selectedRectName = computed(() => {
   );
 });
 
-const zoomLayerStyle = computed(() => ({
-  transform: `scale(${zoomScale.value})`,
-  transformOrigin: "top left",
-}));
+const zoomLayerStyle = computed(() => ({}));
 
 function markDirty(itemId: string) {
   const next = new Set(dirtyItemIDs.value);

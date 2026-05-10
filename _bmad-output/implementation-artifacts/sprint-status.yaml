@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-04-15
+last_updated: 2026-05-10
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -207,9 +207,6 @@ development_status:
   22-8-user-avatars-frontend-integration: done
   22-9-reserved-areas-and-items-backend: done
   22-10-reserved-areas-and-items-frontend: done
-  22-11-toolbar-consistency: done
-  22-12-day-mode-warning-cleanup: done
-  22-13-week-mode-tile-overhaul: done
   epic-22-retrospective: optional
 
   epic-23: done
@@ -246,12 +243,12 @@ development_status:
   27-3-show-occupancy-on-reserved-items: done
   epic-27-retrospective: optional
 
-  epic-28: in-progress
+  epic-28: done
   28-1-preserve-selected-date-after-booking: done
   28-2-floor-plan-booker-name-tooltips-and-initials: done
   epic-28-retrospective: optional
 
-  epic-29: in-progress
+  epic-29: done
   29-1-weekly-desk-matrix-api: done
   29-2-table-view-entry-and-view-persistence: done
   29-3-weekly-matrix-layout-sticky-orientation-and-room-state: done
@@ -259,3 +256,9 @@ development_status:
   29-5-direct-booking-from-free-cells: done
   29-6-in-place-cancellation-for-own-and-admin-allowed-bookings: done
   epic-29-retrospective: optional
+
+  epic-30: done
+  30-1-reject-duplicate-items-in-areas-config-at-startup: done
+  30-2-floor-plan-editor-canvas-grows-vertically-on-zoom: done
+  30-3-optional-area-drill-down-toggle-on-floor-plan-booking: done
+  epic-30-retrospective: optional

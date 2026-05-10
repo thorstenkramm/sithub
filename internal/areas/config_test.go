@@ -1,8 +1,10 @@
 package areas
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -307,5 +309,163 @@ func TestFindInvalidConfiguredIcons(t *testing.T) {
 	}
 	if warnings[1].Location != `item "d1"` || warnings[1].Icon != "mdi desk" {
 		t.Fatalf("unexpected second warning: %#v", warnings[1])
+	}
+}
+
+func TestValidateConfigCleanHasNoDuplicateError(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Office",
+				ItemGroups: []ItemGroup{
+					{
+						ID:    "r1",
+						Name:  "Room 1",
+						Items: []Item{{ID: "d1", Name: "Desk 1"}, {ID: "d2", Name: "Desk 2"}},
+					},
+				},
+			},
+			{
+				ID:   "a2",
+				Name: "Annex",
+				ItemGroups: []ItemGroup{
+					{
+						ID:    "r2",
+						Name:  "Room 2",
+						Items: []Item{{ID: "d3", Name: "Desk 3"}},
+					},
+				},
+			},
+		},
+	}
+	assertDuplicateValidation(t, cfg, false, nil)
+}
+
+func TestValidateConfigDuplicateItemIDWithinArea(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Office",
+				ItemGroups: []ItemGroup{
+					{ID: "r1", Name: "Room 1", Items: []Item{{ID: "desk29", Name: "Desk 29"}}},
+					{ID: "r2", Name: "Room 2", Items: []Item{{ID: "desk29", Name: "Other"}}},
+				},
+			},
+		},
+	}
+	assertDuplicateValidation(t, cfg, true, []string{"desk29", "r1", "r2"})
+}
+
+func TestValidateConfigDuplicateItemIDAcrossAreas(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Office",
+				ItemGroups: []ItemGroup{
+					{ID: "r1", Name: "Room 1", Items: []Item{{ID: "desk29", Name: "Desk 29"}}},
+				},
+			},
+			{
+				ID:   "a2",
+				Name: "Annex",
+				ItemGroups: []ItemGroup{
+					{ID: "r2", Name: "Room 2", Items: []Item{{ID: "desk29", Name: "Again"}}},
+				},
+			},
+		},
+	}
+	assertDuplicateValidation(t, cfg, true, []string{"desk29"})
+}
+
+func TestValidateConfigDuplicateItemGroupID(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{
+				ID:   "a1",
+				Name: "Office",
+				ItemGroups: []ItemGroup{
+					{ID: "shared-room", Name: "Room A", Items: []Item{{ID: "d1", Name: "D1"}}},
+				},
+			},
+			{
+				ID:   "a2",
+				Name: "Annex",
+				ItemGroups: []ItemGroup{
+					{ID: "shared-room", Name: "Room B", Items: []Item{{ID: "d2", Name: "D2"}}},
+				},
+			},
+		},
+	}
+	assertDuplicateValidation(t, cfg, true, []string{"shared-room", "a1", "a2"})
+}
+
+func TestValidateConfigDuplicateAreaID(t *testing.T) {
+	cfg := &Config{
+		Areas: []Area{
+			{ID: "dup", Name: "First"},
+			{ID: "dup", Name: "Second"},
+		},
+	}
+	assertDuplicateValidation(t, cfg, true, []string{"dup"})
+}
+
+func assertDuplicateValidation(t *testing.T, cfg *Config, wantErr bool, wantInError []string) {
+	t.Helper()
+	err := validateConfig(cfg)
+	if !wantErr {
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		return
+	}
+	if err == nil {
+		t.Fatalf("expected duplicate-id error, got nil")
+	}
+	if !errors.Is(err, ErrDuplicateID) {
+		t.Fatalf("expected error to wrap ErrDuplicateID, got %v", err)
+	}
+	for _, want := range wantInError {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error %q to contain %q", err.Error(), want)
+		}
+	}
+}
+
+func TestLoadConfigRejectsDuplicateItemID(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "areas.yaml")
+	content := `areas:
+  - id: area-1
+    name: Office
+    items:
+      - id: room-1
+        name: Room 1
+        items:
+          - id: desk29
+            name: Desk 29
+            equipment: []
+      - id: room-2
+        name: Room 2
+        items:
+          - id: desk29
+            name: Other Desk
+            equipment: []
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write areas config: %v", err)
+	}
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatalf("expected Load to fail for duplicate item id")
+	}
+	if !errors.Is(err, ErrDuplicateID) {
+		t.Fatalf("expected error to wrap ErrDuplicateID, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "desk29") {
+		t.Fatalf("expected error %q to mention duplicate id", err.Error())
 	}
 }

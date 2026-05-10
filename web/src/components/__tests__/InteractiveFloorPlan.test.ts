@@ -140,6 +140,44 @@ describe("InteractiveFloorPlan", () => {
     };
   }
 
+  function mockAreaLevelDeskScenario() {
+    fetchFloorPlanPositionsMock.mockImplementation(async (floorPlan: string) => ({
+      data:
+        floorPlan === "office.png"
+          ? [basePosition("ig-cube-2", "Cube 2"), basePosition("item-2", "Desk 07")]
+          : [basePosition("item-2", "Desk 07")],
+    }) as never);
+    fetchAreasMock.mockResolvedValue({
+      data: [{ id: "area-1", type: "areas", attributes: { name: "Office" } }],
+    } as never);
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [
+        {
+          id: "ig-cube-2",
+          type: "item-groups",
+          attributes: {
+            name: "Cube 2",
+            floor_plan: "cube-2.png",
+          },
+        },
+      ],
+    } as never);
+    fetchItemsMock.mockImplementation(async () => ({
+      data: [
+        {
+          id: "item-2",
+          type: "items",
+          attributes: {
+            name: "Desk 07",
+            equipment: [],
+            availability: "available",
+            booked_by_me: false,
+          },
+        },
+      ],
+    }) as never);
+  }
+
   function mountComponent(
     props: Partial<InstanceType<typeof InteractiveFloorPlan>["$props"]> = {},
   ) {
@@ -304,6 +342,136 @@ describe("InteractiveFloorPlan", () => {
     expect(wrapper.get('[data-cy="fp-breadcrumb-current"]').text()).toBe(
       "Cube 2",
     );
+  });
+
+  it("books desks directly by default on large screens", async () => {
+    mockAreaLevelDeskScenario();
+
+    const wrapper = mountComponent({
+      floorPlan: "office.png",
+      title: "Office",
+      itemGroupId: "",
+      areaLevel: true,
+    });
+    await flushPromises();
+
+    const drillDownToggle = wrapper.get(
+      '[data-cy="floor-plan-area-drill-down-toggle"] input',
+    );
+    expect((drillDownToggle.element as HTMLInputElement).checked).toBe(false);
+
+    fetchFloorPlanPositionsMock.mockClear();
+    await wrapper.get('[data-cy="fp-desk-item-2"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-booking-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="fp-breadcrumb-current"]').exists()).toBe(
+      false,
+    );
+    expect(fetchFloorPlanPositionsMock).not.toHaveBeenCalledWith("cube-2.png");
+  });
+
+  it("drills into desk clicks by default on compact screens", async () => {
+    mockAreaLevelDeskScenario();
+    setViewport(430, 900);
+
+    const wrapper = mountComponent({
+      floorPlan: "office.png",
+      title: "Office",
+      itemGroupId: "",
+      areaLevel: true,
+    });
+    await flushPromises();
+
+    const drillDownToggle = wrapper.get(
+      '[data-cy="floor-plan-area-drill-down-toggle"] input',
+    );
+    expect((drillDownToggle.element as HTMLInputElement).checked).toBe(true);
+
+    await wrapper.get('[data-cy="fp-desk-item-2"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-booking-dialog"]').exists()).toBe(false);
+    expect(fetchFloorPlanPositionsMock).toHaveBeenLastCalledWith("cube-2.png");
+    expect(wrapper.get('[data-cy="fp-breadcrumb-current"]').text()).toBe(
+      "Cube 2",
+    );
+  });
+
+  it("re-applies the viewport default on resize until the user chooses a value", async () => {
+    mockAreaLevelDeskScenario();
+
+    const wrapper = mountComponent({
+      floorPlan: "office.png",
+      title: "Office",
+      itemGroupId: "",
+      areaLevel: true,
+    });
+    await flushPromises();
+
+    const drillDownToggleSelector =
+      '[data-cy="floor-plan-area-drill-down-toggle"] input';
+    expect(
+      (wrapper.get(drillDownToggleSelector).element as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+
+    setViewport(430, 900);
+    window.dispatchEvent(new Event("resize"));
+    await flushPromises();
+    expect(
+      (wrapper.get(drillDownToggleSelector).element as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+
+    setViewport(1280, 900);
+    window.dispatchEvent(new Event("resize"));
+    await flushPromises();
+    expect(
+      (wrapper.get(drillDownToggleSelector).element as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+  });
+
+  it("persists the drill-down toggle override across floor plan sessions", async () => {
+    mockAreaLevelDeskScenario();
+
+    const props = {
+      floorPlan: "office.png",
+      title: "Office",
+      itemGroupId: "",
+      areaLevel: true,
+    } as const;
+
+    const firstWrapper = mountComponent(props);
+    await flushPromises();
+
+    await firstWrapper
+      .get('[data-cy="floor-plan-area-drill-down-toggle"] input')
+      .trigger("change");
+    await flushPromises();
+
+    expect(localStorage.getItem("sithub_area_drill_down")).toBe("on");
+    firstWrapper.unmount();
+
+    const secondWrapper = mountComponent(props);
+    await flushPromises();
+
+    expect(
+      (
+        secondWrapper.get(
+          '[data-cy="floor-plan-area-drill-down-toggle"] input',
+        ).element as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+
+    await secondWrapper.get('[data-cy="fp-desk-item-2"]').trigger("click");
+    await flushPromises();
+
+    expect(secondWrapper.find('[data-cy="fp-booking-dialog"]').exists()).toBe(
+      false,
+    );
+    expect(fetchFloorPlanPositionsMock).toHaveBeenLastCalledWith("cube-2.png");
   });
 
   it("disables days where the selected item is already booked", async () => {

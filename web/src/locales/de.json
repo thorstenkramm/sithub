@@ -244,6 +244,7 @@
     "noPositions": "Es wurden noch keine Objekte auf diesem Raumplan positioniert. Ein Administrator kann diese im Raumplan-Editor einrichten.",
     "showLabels": "Beschriftungen anzeigen",
     "showAvatars": "Avatare anzeigen",
+    "areaDrillDownToggle": "Bereichs-Drilldown",
     "checkingAvailability": "Die Verfügbarkeit für die ausgewählte Woche wird geprüft...",
     "confirmBooking": "Buchung bestätigen",
     "confirmBookingFor": "Buchung für {label} bestätigen",

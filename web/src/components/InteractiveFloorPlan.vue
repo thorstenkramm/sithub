@@ -306,6 +306,14 @@
           density="compact"
           data-cy="fp-show-avatars"
         />
+        <v-checkbox
+          v-if="areaLevel && !drilledInto && positions.length > 0"
+          v-model="drillDownEnabled"
+          :label="$t('floorPlan.areaDrillDownToggle')"
+          hide-details
+          density="compact"
+          data-cy="floor-plan-area-drill-down-toggle"
+        />
       </div>
       <v-btn
         variant="text"
@@ -509,6 +517,7 @@ import type { FloorPlanPositionAttributes } from "../api/floorPlanPositions";
 import type { ItemAttributes } from "../api/items";
 import type { JsonApiResource } from "../api/types";
 import { getInitials } from "../utils/text";
+import { useAreaDrillDownPreference } from "../composables/useAreaDrillDownPreference";
 
 const props = defineProps<{
   floorPlan: string;
@@ -536,6 +545,12 @@ watch(showLabels, (value) => localStorage.setItem(LABELS_KEY, String(value)));
 const AVATARS_KEY = "sithub_fp_show_avatars";
 const showAvatars = ref(localStorage.getItem(AVATARS_KEY) !== "false");
 watch(showAvatars, (value) => localStorage.setItem(AVATARS_KEY, String(value)));
+
+const areaDrillDownPref = useAreaDrillDownPreference();
+const drillDownEnabled = computed({
+  get: () => areaDrillDownPref.enabled.value,
+  set: (value: boolean) => areaDrillDownPref.set(value),
+});
 
 const failedAvatars = ref(new Set<string>());
 
@@ -1174,6 +1189,7 @@ function canDrillInto(itemGroupID: string) {
 }
 
 function shouldDrillIntoItemGroup(itemGroupID?: string) {
+  if (!drillDownEnabled.value) return false;
   return Boolean(itemGroupID && canDrillInto(itemGroupID));
 }
 
@@ -1556,10 +1572,14 @@ function updateViewport() {
 
 function handleResize() {
   updateViewport();
+  if (!areaDrillDownPref.hasUserChoice.value) {
+    areaDrillDownPref.load(!isCompactViewport.value);
+  }
 }
 
 onMounted(() => {
   updateViewport();
+  areaDrillDownPref.load(!isCompactViewport.value);
   window.addEventListener("resize", handleResize);
 });
 

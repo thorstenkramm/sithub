@@ -244,6 +244,7 @@
     "noPositions": "No items have been positioned on this floor plan yet. An administrator can set them up in the Floor Plan Editor.",
     "showLabels": "Show labels",
     "showAvatars": "Show avatars",
+    "areaDrillDownToggle": "Area drill-down",
     "checkingAvailability": "Checking availability for the selected week...",
     "confirmBooking": "Confirm booking",
     "confirmBookingFor": "Confirm your booking for {label}",
