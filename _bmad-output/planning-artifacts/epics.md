@@ -8,7 +8,9 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-27.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-28.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-30.md
-lastEdited: '2026-05-08'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-31.md
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-32.md
+lastEdited: '2026-05-11'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -42,6 +44,10 @@ editHistory:
     changes: "Added FR126-FR128 and Epic 28: Date Selector Fix & Floor Plan Booker Names. Fixes date picker jumping to today after booking, adds booker name tooltips on floor plan avatars, and shows initials with name tooltip when avatars are disabled."
   - date: '2026-05-08'
     changes: "Added FR137-FR139 and Epic 30: Operator Validation, Editor Zoom Height & Optional Drill-Down. Adds startup detection of duplicate items in areas config, makes the floor plan editor canvas grow vertically on zoom-in, and adds an Area drill-down toggle for direct booking on large screens with per-device persistence."
+  - date: '2026-05-11'
+    changes: "Added FR143-FR145 and Epic 32: Booker Avatars on Item Tiles & Stable Colleague Booking Layout. Adds booker avatars (with initials fallback and full-name tooltip) to booked item tiles in day and week modes, and stabilizes the 'Book for a colleague' layout so the colleague dropdown renders inline next to the radio group on wide viewports without pushing subsequent containers down."
+  - date: '2026-05-11'
+    changes: "Back-filled FR140-FR142 for Epic 31 (Live Updates, Favorites Rework & Areas Config Hint) into the Functional Requirements list and the FR Coverage Map; added epic-31.md to inputDocuments. No story content changed."
 ---
 
 # sithub - Epic Breakdown
@@ -423,6 +429,50 @@ floor plan bookings on that device. Acceptance: a checkbox/toggle labelled "Area
 drill-down" is visible beneath the room plan; toggling it changes click behavior on the
 floor plan accordingly; the choice survives reloads on the same device and is independent
 per device.
+FR140: Bookings and cancellations made by other users must propagate to all open clients
+in real time across the tile, weekly table, and floor plan views, without requiring an
+explicit page reload. Acceptance: when another user creates a booking that affects an
+item visible in the current view, the corresponding tile, table cell, or floor plan
+marker updates to its new busy state within a few seconds; when another user cancels such
+a booking, the same elements update to free within a few seconds; after a network outage
+the client reconciles state with the server on reconnection; multiple open tabs reflect
+the change consistently.
+FR141: The favorites feature must be reworked into a virtual "Favorites" room that
+contains only bookable items (desks) and behaves like any other room with respect to
+drill-down, free/busy indicators, and interaction model. Acceptance: with at least one
+favorite item, a "Favorites" tile appears as the first tile on the area/room overview;
+with no favorites the tile is not shown; favoriting an entire area or room is not
+supported; in the weekly table view, favorite item rows display a heart icon and no
+sorting or filtering by favorites is offered; on the floor plan, a heart icon is rendered
+with its center positioned exactly at the bottom-right corner of free favorite items, and
+no heart is rendered for busy items regardless of favorite status; clicking any heart
+icon (tile, table, floor plan) removes the item from favorites and the "Favorites" tile
+disappears once no favorites remain.
+FR142: The example configuration (`sithub.example.toml`) must clarify that the areas
+configuration file has to live inside `data_dir`, using wording consistent with the
+existing floor-plans-directory hint. Acceptance: the inline comment for the areas config
+setting includes the sentence "Must be inside data_dir."; the wording matches the
+existing hint used for the floor plans directory setting; the file remains valid TOML and
+follows the comment style described in `.claude/rules/toml.md`.
+FR143: On the item-groups view in day mode, every booked item tile must display the
+booker's avatar (or initials fallback when no avatar is available) in a circle, matching
+the avatar treatment used on the floor plan. Acceptance: a booked tile shows a circular
+avatar with the booker's full display name on hover (desktop) or tap (mobile); when the
+booker has no uploaded or synced avatar, initials derived from the display name are shown
+inside the circle; available tiles continue to show no avatar.
+FR144: On the item-groups view in week mode, each weekday cell that represents a booking
+must display the booker's avatar (or initials fallback) in a circle next to or above the
+existing booker name abbreviation; the full booker name is shown on hover (desktop) or
+tap (mobile). Acceptance: every booked weekday cell renders a circular avatar consistent
+with the day-mode and floor-plan presentation; tapping or hovering surfaces the full
+display name; free cells continue to render the existing free-state visuals only.
+FR145: When the user selects "Book for a colleague", the colleague-selection dropdown
+must render inline to the right of the radio group on viewports that have sufficient
+horizontal space, instead of wrapping onto a new line and pushing subsequent containers
+downward. Acceptance: switching between "Book for myself" and "Book for a colleague" on
+a wide viewport does not change the vertical position of the equipment filter or any
+booking tile beneath the controls; on narrow viewports where the inline dropdown does
+not fit, the dropdown wraps to the next line without any visual jitter mid-interaction.
 
 ### NonFunctional Requirements
 
@@ -647,6 +697,14 @@ FR138: Epic 30 - Floor plan editor image container grows vertically on zoom-in s
 horizontal scrolling is required
 FR139: Epic 30 - Floor plan booking view exposes an "Area drill-down" toggle (default off
 on large screens, on for small) persisted per device in local storage
+FR140: Epic 31 - Live updates for bookings and cancellations across tile, table, and
+floor plan views
+FR141: Epic 31 - Favorites reworked as a virtual "Favorites" room with consistent heart
+affordances across views
+FR142: Epic 31 - Areas config location hint in `sithub.example.toml`
+FR143: Epic 32 - Booker avatar on item tiles in day mode
+FR144: Epic 32 - Booker avatar on item tiles in week mode
+FR145: Epic 32 - Stable inline layout for "Book for a colleague" dropdown
 
 ## Epic List
 
@@ -829,6 +887,16 @@ across tile, table, and floor plan views. The favorites feature is reworked into
 across views. The example configuration clarifies that the areas config file must live
 inside `data_dir`.
 **FRs covered:** FR140, FR141, FR142
+
+### Epic 32: Booker Avatars on Item Tiles & Stable Colleague Booking Layout
+
+Show the booker's avatar (with initials fallback and full-name tooltip) on booked item
+tiles in both day and week modes so users can recognize who has reserved an item at a
+glance, matching the avatar presentation already used on the floor plan. Also stabilize
+the "Book for a colleague" layout so that selecting it does not push the equipment filter
+and tile grid down a line; the colleague-selection dropdown appears inline next to the
+radio group whenever the viewport has room.
+**FRs covered:** FR143, FR144, FR145
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -4319,3 +4387,119 @@ so that I do not waste time placing the file in an unsupported location.
 **When** the TOML linter or formatter runs
 **Then** the file remains valid TOML and follows the existing comment style described in
 `.claude/rules/toml.md`
+
+## Epic 32 Stories: Booker Avatars on Item Tiles & Stable Colleague Booking Layout
+
+Show booker avatars on booked item tiles in day and week modes so users can recognize who
+has reserved an item at a glance, matching the floor plan presentation. Stabilize the
+"Book for a colleague" layout so toggling it does not push subsequent containers down a
+line on viewports with enough horizontal space.
+**FRs covered:** FR143, FR144, FR145
+
+### Story 32.1: Booker Avatar on Day-Mode Item Tiles
+
+**FRs covered:** FR143
+
+As a user browsing the item-groups view in day mode,
+I want each booked item tile to show the booker's avatar with their name on hover or tap,
+so that I can recognize who has reserved a desk at a glance without opening details.
+
+**Acceptance Criteria:**
+
+**Given** I am viewing an item-groups page in day mode
+**When** a tile represents a booked item
+**Then** the tile displays a circular avatar of the booker
+**And** the avatar treatment matches the one used on the floor plan (size, shape, border)
+
+**Given** I hover over the avatar on a desktop viewport
+**When** the tooltip appears
+**Then** it shows the booker's full display name
+
+**Given** I tap the avatar on a mobile or touch viewport
+**When** the action is recognized
+**Then** the booker's full display name is shown without navigating away from the view
+
+**Given** the booker has no synced or uploaded avatar image
+**When** the tile renders
+**Then** a circular initials avatar is shown using the same derivation rule already used
+on the floor plan (per FR128)
+**And** the same hover/tap behavior surfaces the full display name
+
+**Given** a tile represents an available (not booked) item
+**When** the tile renders
+**Then** no booker avatar is shown
+
+### Story 32.2: Booker Avatar on Week-Mode Item Tiles
+
+**FRs covered:** FR144
+
+As a user browsing the item-groups view in week mode,
+I want each booked weekday cell on a tile to show the booker's avatar with their name on
+hover or tap,
+so that I can scan a whole week and immediately see who has booked which day.
+
+**Acceptance Criteria:**
+
+**Given** I switch the item-groups view to week mode
+**When** a weekday cell on a tile represents a booking
+**Then** the cell displays a circular avatar of that day's booker
+**And** the avatar treatment is visually consistent with day mode and the floor plan
+
+**Given** I hover over an avatar in a weekday cell on a desktop viewport
+**When** the tooltip appears
+**Then** it shows the booker's full display name
+
+**Given** I tap an avatar in a weekday cell on a touch viewport
+**When** the action is recognized
+**Then** the booker's full display name is shown without navigating away from the view
+
+**Given** the booker has no synced or uploaded avatar image
+**When** the weekday cell renders
+**Then** an initials-based circular avatar is shown using the same derivation rule used
+elsewhere (per FR128)
+
+**Given** a weekday cell is free
+**When** the tile renders
+**Then** the existing free-state visuals (checkbox, "frei" label) are shown unchanged
+**And** no avatar is rendered for that cell
+
+### Story 32.3: Stable Inline Layout for "Book for a Colleague" Dropdown
+
+**FRs covered:** FR145
+
+As a user with permission to book for a colleague,
+I want the colleague-selection dropdown to appear next to the radio button without
+pushing the rest of the form down,
+so that switching the booking target does not cause the UI to feel nervous.
+
+**Acceptance Criteria:**
+
+**Given** I am on the item-groups view with a wide desktop viewport
+**When** I select "Book for a colleague"
+**Then** the colleague-selection dropdown appears inline, to the right of the radio
+group, on the same line
+**And** the vertical position of the equipment filter and the tile grid below does not
+change compared to the "Book for myself" state
+
+**Given** I toggle back to "Book for myself"
+**When** the dropdown disappears
+**Then** the row containing the radio group keeps its height and no other element shifts
+vertically
+
+**Given** my viewport is narrow enough that the inline dropdown does not fit beside the
+radio group
+**When** I select "Book for a colleague"
+**Then** the dropdown wraps to its own line below the radio group
+**And** the transition does not produce additional intermediate layout jumps once the
+state has settled
+
+**Given** the layout adjusts between inline and wrapped modes when the viewport is
+resized
+**When** the breakpoint is crossed
+**Then** the form remains usable and no interactive element is hidden behind another
+
+**Given** I open the colleague-selection dropdown (inline or wrapped) and choose a
+colleague
+**When** the selection is applied
+**Then** the existing booking flow continues unchanged
+**And** the chosen colleague is used as the booker for the next booking action

@@ -279,6 +279,155 @@ describe('ItemsView', () => {
     expect(wrapper.find('[data-cy="item-booker"]').exists()).toBe(false);
   });
 
+  describe('day-mode booker avatar', () => {
+    it('renders the booker avatar image when booker_user_id is present', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          {
+            id: 'item-1',
+            type: 'items',
+            attributes: {
+              name: 'Item 1',
+              equipment: [],
+              availability: 'occupied',
+              booker_name: 'Alice Smith',
+              booker_user_id: 'user-alice'
+            }
+          }
+        ]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      const avatar = wrapper.find('[data-cy="item-booker-avatar"]');
+      expect(avatar.exists()).toBe(true);
+      const img = avatar.find('img');
+      expect(img.exists()).toBe(true);
+      expect(img.attributes('src')).toBe('/api/v1/avatars/user-alice');
+      expect(img.attributes('alt')).toBe('Alice Smith');
+    });
+
+    it('renders an initials fallback when no booker_user_id is present', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          {
+            id: 'item-1',
+            type: 'items',
+            attributes: {
+              name: 'Item 1',
+              equipment: [],
+              availability: 'occupied',
+              booker_name: 'Thorsten Kramm'
+            }
+          }
+        ]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      const avatar = wrapper.find('[data-cy="item-booker-avatar"]');
+      expect(avatar.exists()).toBe(true);
+      expect(avatar.find('img').exists()).toBe(false);
+      const initials = avatar.find('.tile-booker-initials');
+      expect(initials.exists()).toBe(true);
+      expect(initials.text()).toBe('TK');
+    });
+
+    it('falls back to initials after the avatar image errors', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          {
+            id: 'item-1',
+            type: 'items',
+            attributes: {
+              name: 'Item 1',
+              equipment: [],
+              availability: 'occupied',
+              booker_name: 'Alice Smith',
+              booker_user_id: 'user-alice'
+            }
+          }
+        ]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      let avatar = wrapper.find('[data-cy="item-booker-avatar"]');
+      expect(avatar.find('img').exists()).toBe(true);
+
+      const vm = wrapper.vm as unknown as { failedAvatars: Set<string> };
+      vm.failedAvatars.add('user-alice');
+      await nextTick();
+
+      avatar = wrapper.find('[data-cy="item-booker-avatar"]');
+      expect(avatar.find('img').exists()).toBe(false);
+      expect(avatar.find('.tile-booker-initials').text()).toBe('AS');
+    });
+
+    it('does not render the booker avatar for available items', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          {
+            id: 'item-1',
+            type: 'items',
+            attributes: {
+              name: 'Item 1',
+              equipment: [],
+              availability: 'available'
+            }
+          }
+        ]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="item-booker-avatar"]').exists()).toBe(false);
+    });
+  });
+
+  describe('booking-type row layout', () => {
+    it('keeps the colleague-select hidden in the "self" state', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      expect(wrapper.find('.booking-type-row').exists()).toBe(true);
+      expect(wrapper.find('.booking-type-row [data-cy="colleague-select"]').exists()).toBe(false);
+    });
+
+    it('renders the colleague-select as a sibling of the radio group when switched to colleague', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      (wrapper.vm as unknown as { bookingType: 'self' | 'colleague' }).bookingType = 'colleague';
+      await nextTick();
+
+      const row = wrapper.find('.booking-type-row');
+      expect(row.exists()).toBe(true);
+      expect(row.find('[data-cy="book-self-radio"]').exists()).toBe(true);
+      expect(row.find('[data-cy="book-colleague-radio"]').exists()).toBe(true);
+      // The dropdown lives inside the SAME row (not a sibling block below)
+      expect(row.find('[data-cy="colleague-select"]').exists()).toBe(true);
+    });
+
+    it('removes the colleague-select from the row when toggled back to self', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      const vm = wrapper.vm as unknown as { bookingType: 'self' | 'colleague' };
+      vm.bookingType = 'colleague';
+      await nextTick();
+      expect(wrapper.find('.booking-type-row [data-cy="colleague-select"]').exists()).toBe(true);
+
+      vm.bookingType = 'self';
+      await nextTick();
+      expect(wrapper.find('.booking-type-row [data-cy="colleague-select"]').exists()).toBe(false);
+    });
+  });
+
   it('shows a reserved badge and no booking actions for reserved day-mode items', async () => {
     fetchItemsMock.mockResolvedValue({
       data: [
@@ -734,6 +883,273 @@ describe('ItemsView', () => {
       const calls = fetchItemsMock.mock.calls;
       const weekCalls = calls.filter(c => c[0] === 'ig-1' && typeof c[1] === 'string');
       expect(weekCalls.length).toBeGreaterThanOrEqual(5);
+    });
+
+    describe('booker avatar on booked-by-other cells', () => {
+      const mondayAt = (date: string) =>
+        // A future-ish Monday so the week selector lands on it
+        new Date(`${date}T10:00:00`);
+
+      const occupiedWeekItem = (overrides: Partial<{
+        booker_user_id?: string;
+        booker_name: string;
+      }> = {}) => ({
+        id: 'item-1',
+        type: 'items' as const,
+        attributes: {
+          name: 'Desk A',
+          equipment: [] as string[],
+          availability: 'occupied' as const,
+          booker_name: overrides.booker_name ?? 'Bob Other',
+          booker_user_id: overrides.booker_user_id
+        }
+      });
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(mondayAt('2026-06-01'));
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('renders the avatar image when a weekday is booked by another user with an avatar', async () => {
+        fetchItemsMock.mockResolvedValue({
+          data: [occupiedWeekItem({ booker_user_id: 'user-bob', booker_name: 'Bob Other' })]
+        });
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        const anyAvatar = wrapper.find('[data-cy^="week-day-avatar-item-1-"]');
+        expect(anyAvatar.exists()).toBe(true);
+        const img = anyAvatar.find('img');
+        expect(img.exists()).toBe(true);
+        expect(img.attributes('src')).toBe('/api/v1/avatars/user-bob');
+      });
+
+      it('renders initials fallback when the weekday booker has no user id', async () => {
+        fetchItemsMock.mockResolvedValue({
+          data: [occupiedWeekItem({ booker_name: 'Carol Diaz' })]
+        });
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        const anyAvatar = wrapper.find('[data-cy^="week-day-avatar-item-1-"]');
+        expect(anyAvatar.exists()).toBe(true);
+        expect(anyAvatar.find('img').exists()).toBe(false);
+        expect(anyAvatar.find('.week-day-initials').text()).toBe('CD');
+      });
+
+      it('falls back to initials after the weekday avatar image errors', async () => {
+        fetchItemsMock.mockResolvedValue({
+          data: [occupiedWeekItem({ booker_user_id: 'user-bob', booker_name: 'Bob Other' })]
+        });
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        let anyAvatar = wrapper.find('[data-cy^="week-day-avatar-item-1-"]');
+        expect(anyAvatar.find('img').exists()).toBe(true);
+
+        const vm = wrapper.vm as unknown as { failedAvatars: Set<string> };
+        vm.failedAvatars.add('user-bob');
+        await nextTick();
+
+        anyAvatar = wrapper.find('[data-cy^="week-day-avatar-item-1-"]');
+        expect(anyAvatar.find('img').exists()).toBe(false);
+        expect(anyAvatar.find('.week-day-initials').text()).toBe('BO');
+      });
+
+      it('does not render the week avatar for free cells', async () => {
+        // All cells are 'available' for item-1
+        fetchItemsMock.mockResolvedValue({
+          data: [{
+            id: 'item-1',
+            type: 'items' as const,
+            attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+          }]
+        });
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy^="week-day-avatar-"]').exists()).toBe(false);
+      });
+
+      it('renders the avatar for a booked-by-me weekday cell', async () => {
+        fetchItemsMock.mockImplementation((_itemGroupId, date) => Promise.resolve({
+          data: [
+            date === '2026-06-01'
+              ? occupiedWeekItem({ booker_user_id: 'current-user', booker_name: 'Ada Lovelace' })
+              : {
+                  id: 'item-1',
+                  type: 'items' as const,
+                  attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+                }
+          ]
+        }) as never);
+        fetchMyBookingsMock.mockResolvedValue({
+          data: [{
+            id: 'booking-1',
+            type: 'bookings',
+            attributes: {
+              item_id: 'item-1',
+              item_name: 'Desk A',
+              booking_date: '2026-06-01',
+              user_id: 'current-user',
+              user_name: 'Ada Lovelace'
+            }
+          }]
+        } as never);
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        const avatar = wrapper.find('[data-cy="week-day-avatar-item-1-2026-06-01"]');
+        expect(avatar.exists()).toBe(true);
+        const img = avatar.find('img');
+        expect(img.exists()).toBe(true);
+        expect(img.attributes('src')).toBe('/api/v1/avatars/current-user');
+      });
+
+      it('uses the booker name from the API for a booked-by-me cell (not authStore name)', async () => {
+        // I (Ada Lovelace) booked for a colleague (Alexander). The booking
+        // appears in fetchMyBookings (owned by me) but the booker_name is
+        // the colleague's. The displayed name must be the colleague's.
+        fetchItemsMock.mockImplementation((_itemGroupId, date) => Promise.resolve({
+          data: [
+            date === '2026-06-01'
+              ? occupiedWeekItem({
+                  booker_user_id: 'alexander-id',
+                  booker_name: 'Alexander Seidemann-Klamant'
+                })
+              : {
+                  id: 'item-1',
+                  type: 'items' as const,
+                  attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+                }
+          ]
+        }) as never);
+        fetchMyBookingsMock.mockResolvedValue({
+          data: [{
+            id: 'booking-1',
+            type: 'bookings',
+            attributes: {
+              item_id: 'item-1',
+              item_name: 'Desk A',
+              booking_date: '2026-06-01',
+              user_id: 'alexander-id',
+              user_name: 'Alexander Seidemann-Klamant'
+            }
+          }]
+        } as never);
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        // Expand the tile so the name span renders next to the avatar.
+        (wrapper.vm as unknown as { expandedWeekTiles: Set<string> }).expandedWeekTiles = new Set(['item-1']);
+        await nextTick();
+
+        const expandedRow = wrapper.find('[data-cy-weekday="MO"]');
+        expect(expandedRow.exists()).toBe(true);
+        expect(expandedRow.text()).toContain('Alexander Seidemann-Klamant');
+        expect(expandedRow.text()).not.toContain('Ada Lovelace');
+      });
+
+      it('does not render a name text under the avatar in folded view', async () => {
+        fetchItemsMock.mockResolvedValue({
+          data: [occupiedWeekItem({ booker_user_id: 'user-bob', booker_name: 'Bob Other' })]
+        });
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        const avatar = wrapper.find('[data-cy^="week-day-avatar-item-1-"]');
+        expect(avatar.exists()).toBe(true);
+        // Folded layout: no `.week-day-status` span with the booker name; the
+        // name is shown only on hover via tooltip.
+        const slot = avatar.element.closest('.week-day-slot');
+        expect(slot).not.toBeNull();
+        const status = slot!.querySelectorAll('.week-day-status');
+        expect(status.length).toBe(0);
+      });
+
+      it('does not render the red cancel-X icon on booked-by-me cells', async () => {
+        fetchItemsMock.mockImplementation((_itemGroupId, date) => Promise.resolve({
+          data: [
+            date === '2026-06-01'
+              ? occupiedWeekItem({ booker_user_id: 'user-me', booker_name: 'Ada Lovelace' })
+              : {
+                  id: 'item-1',
+                  type: 'items' as const,
+                  attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+                }
+          ]
+        }) as never);
+        fetchMyBookingsMock.mockResolvedValue({
+          data: [{
+            id: 'booking-1',
+            type: 'bookings',
+            attributes: {
+              item_id: 'item-1',
+              item_name: 'Desk A',
+              booking_date: '2026-06-01',
+              user_id: 'user-me',
+              user_name: 'Ada Lovelace'
+            }
+          }]
+        } as never);
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="week-cancel-btn"]').exists()).toBe(false);
+      });
+
+      it('opens the cancel-confirmation dialog when the booked-by-me checkbox is toggled', async () => {
+        fetchItemsMock.mockImplementation((_itemGroupId, date) => Promise.resolve({
+          data: [
+            date === '2026-06-01'
+              ? occupiedWeekItem({ booker_user_id: 'user-me', booker_name: 'Ada Lovelace' })
+              : {
+                  id: 'item-1',
+                  type: 'items' as const,
+                  attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+                }
+          ]
+        }) as never);
+        fetchMyBookingsMock.mockResolvedValue({
+          data: [{
+            id: 'booking-1',
+            type: 'bookings',
+            attributes: {
+              item_id: 'item-1',
+              item_name: 'Desk A',
+              booking_date: '2026-06-01',
+              user_id: 'user-me',
+              user_name: 'Ada Lovelace'
+            }
+          }]
+        } as never);
+
+        const wrapper = mountView();
+        await flushPromises();
+
+        const mineCheckbox = wrapper.find('[data-cy="week-day-mine"] input[type="checkbox"]');
+        expect(mineCheckbox.exists()).toBe(true);
+        expect(mineCheckbox.attributes('disabled')).toBeUndefined();
+
+        await mineCheckbox.trigger('change');
+        await nextTick();
+
+        expect(
+          (wrapper.vm as unknown as { showWeekCancelDialog: boolean }).showWeekCancelDialog
+        ).toBe(true);
+      });
     });
   });
 

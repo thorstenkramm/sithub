@@ -35,6 +35,15 @@
 
 generated: 2026-02-14 17:30
 last_updated: 2026-05-11
+
+# Note: 2026-05-11 update — Epic 32 (Booker Avatars on Item Tiles & Stable
+# Colleague Booking Layout): all 3 stories done after a round-2 UX revision
+# (folded tile name-text removed; booker name now sourced from the API
+# record so on-behalf-of bookings show the colleague's identity; red
+# cancel-X removed; booked-by-me checkbox now interactive and triggers
+# the existing week-cancel-confirmation dialog). Tests: 430/430 pass.
+# Lint, type-check, build all clean.
+
 project: sithub
 project_key: sithub
 tracking_system: file-system
@@ -268,3 +277,9 @@ development_status:
   31-2-favorites-rework-as-virtual-room: done
   31-3-areas-config-location-hint-in-example-toml: done
   epic-31-retrospective: optional
+
+  epic-32: done
+  32-1-booker-avatar-on-day-mode-item-tiles: done
+  32-2-booker-avatar-on-week-mode-item-tiles: done
+  32-3-stable-colleague-booking-dropdown-layout: done
+  epic-32-retrospective: optional

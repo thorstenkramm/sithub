@@ -76,29 +76,33 @@
           </v-btn>
         </div>
 
-        <!-- Booking Type Selection -->
-        <v-radio-group v-model="bookingType" inline density="compact" class="mb-2" hide-details>
-          <v-radio :label="$t('items.bookForMyself')" value="self" data-cy="book-self-radio" />
-          <v-radio :label="$t('items.bookForColleague')" value="colleague" data-cy="book-colleague-radio" />
-        </v-radio-group>
-
-        <!-- Colleague Fields -->
-        <v-expand-transition>
-          <div v-if="bookingType === 'colleague'" class="mt-4">
-            <v-autocomplete
-              v-model="selectedColleagueId"
-              :items="usersList"
-              item-title="displayName"
-              item-value="id"
-              :label="$t('items.selectColleague')"
-              density="compact"
-              :loading="usersLoading"
-              clearable
-              data-cy="colleague-select"
-              style="max-width: 360px;"
-            />
-          </div>
-        </v-expand-transition>
+        <!-- Booking Type Selection + Colleague Dropdown (inline on wide viewports) -->
+        <div class="booking-type-row d-flex flex-wrap align-center ga-4 mb-2">
+          <v-radio-group
+            v-model="bookingType"
+            inline
+            density="compact"
+            hide-details
+            class="booking-type-radios ma-0"
+          >
+            <v-radio :label="$t('items.bookForMyself')" value="self" data-cy="book-self-radio" />
+            <v-radio :label="$t('items.bookForColleague')" value="colleague" data-cy="book-colleague-radio" />
+          </v-radio-group>
+          <v-autocomplete
+            v-if="bookingType === 'colleague'"
+            v-model="selectedColleagueId"
+            :items="usersList"
+            item-title="displayName"
+            item-value="id"
+            :label="$t('items.selectColleague')"
+            density="compact"
+            :loading="usersLoading"
+            clearable
+            hide-details
+            data-cy="colleague-select"
+            class="colleague-select-inline"
+          />
+        </div>
 
         <!-- Equipment Filter -->
         <div class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
@@ -312,14 +316,35 @@
             {{ entry.attributes.warning }}
           </v-alert>
 
-          <!-- Booker name -->
+          <!-- Booker avatar + name -->
           <div
             v-if="entry.attributes.availability === 'occupied' && entry.attributes.booker_name"
-            class="text-body-2 text-medium-emphasis mt-2"
+            class="d-flex align-center ga-2 mt-2 text-body-2 text-medium-emphasis"
             data-cy="item-booker"
           >
-            <v-icon size="14" class="mr-1">$user</v-icon>
-            {{ entry.attributes.booker_name }}
+            <v-tooltip location="top">
+              <template #activator="{ props: tooltipProps }">
+                <v-avatar
+                  v-bind="tooltipProps"
+                  size="32"
+                  class="tile-booker-avatar"
+                  data-cy="item-booker-avatar"
+                >
+                  <v-img
+                    v-if="entry.attributes.booker_user_id &&
+                          !failedAvatars.has(entry.attributes.booker_user_id)"
+                    :src="getAvatarUrl(entry.attributes.booker_user_id)"
+                    :alt="entry.attributes.booker_name"
+                    @error="failedAvatars.add(entry.attributes.booker_user_id!)"
+                  />
+                  <span v-else class="tile-booker-initials">
+                    {{ getInitials(entry.attributes.booker_name) }}
+                  </span>
+                </v-avatar>
+              </template>
+              {{ entry.attributes.booker_name }}
+            </v-tooltip>
+            <span>{{ entry.attributes.booker_name }}</span>
           </div>
 
           <!-- Booking note -->
@@ -536,9 +561,10 @@
                 hide-details
                 density="compact"
                 color="primary"
-                disabled
+                :disabled="isDateInPast(date)"
                 class="week-day-checkbox"
                 data-cy="week-day-mine"
+                @update:model-value="!isDateInPast(date) && requestWeekCancel(item.id, date)"
               />
               <v-checkbox
                 v-else
@@ -554,25 +580,29 @@
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
                 :class="['week-day-status', 'text-caption', isDateInPast(date) ? 'text-medium-emphasis' : 'text-success']"
               >{{ $t('items.free') }}</span>
-              <span
-                v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
-                :class="['week-day-status', 'text-caption', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >{{ authStore.userName || $t('items.me') }}</span>
-              <v-icon
-                v-if="getWeekDayStatus(item.id, date) === 'booked-by-me' && !isDateInPast(date)"
-                size="14"
-                color="error"
-                class="week-cancel-icon"
-                data-cy="week-cancel-btn"
-                @click.stop="requestWeekCancel(item.id, date)"
-              >$cancelCircle</v-icon>
-              <template v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'">
+              <template
+                v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me' ||
+                           getWeekDayStatus(item.id, date) === 'booked-by-other'"
+              >
                 <v-tooltip location="top">
                   <template #activator="{ props: tooltipProps }">
-                    <span
+                    <v-avatar
                       v-bind="tooltipProps"
-                      class="week-day-status text-caption text-error"
-                    >{{ getBookerInitials(item.id, date) }}</span>
+                      size="24"
+                      class="week-day-avatar"
+                      :data-cy="`week-day-avatar-${item.id}-${date}`"
+                    >
+                      <v-img
+                        v-if="getWeekDayBookerUserId(item.id, date) &&
+                              !failedAvatars.has(getWeekDayBookerUserId(item.id, date)!)"
+                        :src="getAvatarUrl(getWeekDayBookerUserId(item.id, date)!)"
+                        :alt="getWeekDayBooker(item.id, date)"
+                        @error="failedAvatars.add(getWeekDayBookerUserId(item.id, date)!)"
+                      />
+                      <span v-else class="week-day-initials">
+                        {{ getInitials(getWeekDayBooker(item.id, date)) }}
+                      </span>
+                    </v-avatar>
                   </template>
                   {{ getWeekDayBooker(item.id, date) }}
                 </v-tooltip>
@@ -604,9 +634,10 @@
                 hide-details
                 density="compact"
                 color="primary"
-                disabled
+                :disabled="isDateInPast(date)"
                 class="week-day-checkbox"
                 data-cy="week-day-mine"
+                @update:model-value="!isDateInPast(date) && requestWeekCancel(item.id, date)"
               />
               <v-checkbox
                 v-else
@@ -625,22 +656,38 @@
                 v-if="getWeekDayStatus(item.id, date) === 'free'"
                 :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-success']"
               >{{ $t('items.free') }}</span>
-              <span
-                v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me'"
-                :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-primary']"
-              >{{ authStore.userName || $t('items.me') }}</span>
-              <v-icon
-                v-if="getWeekDayStatus(item.id, date) === 'booked-by-me' && !isDateInPast(date)"
-                size="14"
-                color="error"
-                class="ml-1 week-cancel-icon"
-                data-cy="week-cancel-btn"
-                @click.stop="requestWeekCancel(item.id, date)"
-              >$cancelCircle</v-icon>
-              <span
-                v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-other'"
-                :class="['text-body-2', isDateInPast(date) ? 'text-medium-emphasis' : 'text-error']"
-              >{{ getWeekDayBooker(item.id, date) }}</span>
+              <template
+                v-else-if="getWeekDayStatus(item.id, date) === 'booked-by-me' ||
+                           getWeekDayStatus(item.id, date) === 'booked-by-other'"
+              >
+                <span class="d-inline-flex align-center">
+                  <v-avatar
+                    size="28"
+                    class="week-day-avatar ml-1"
+                    :data-cy="`week-day-avatar-expanded-${item.id}-${date}`"
+                  >
+                    <v-img
+                      v-if="getWeekDayBookerUserId(item.id, date) &&
+                            !failedAvatars.has(getWeekDayBookerUserId(item.id, date)!)"
+                      :src="getAvatarUrl(getWeekDayBookerUserId(item.id, date)!)"
+                      :alt="getWeekDayBooker(item.id, date)"
+                      @error="failedAvatars.add(getWeekDayBookerUserId(item.id, date)!)"
+                    />
+                    <span v-else class="week-day-initials">
+                      {{ getInitials(getWeekDayBooker(item.id, date)) }}
+                    </span>
+                  </v-avatar>
+                  <span
+                    :class="[
+                      'text-body-2',
+                      'ml-2',
+                      isDateInPast(date)
+                        ? 'text-medium-emphasis'
+                        : (getWeekDayStatus(item.id, date) === 'booked-by-me' ? 'text-primary' : 'text-error')
+                    ]"
+                  >{{ getWeekDayBooker(item.id, date) }}</span>
+                </span>
+              </template>
             </div>
             <!-- Equipment -->
             <div
@@ -918,7 +965,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
@@ -950,13 +997,15 @@ import { getSafeLocalStorage } from '../composables/storage';
 import { useWarningSuppression } from '../composables/useWarningSuppression';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
-import { middleTruncate } from '../utils/text';
+import { getInitials, middleTruncate } from '../utils/text';
+import { getAvatarUrl } from '../api/avatars';
 import { fetchSettings } from '../api/settings';
 import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const { t, locale } = useI18n();
 const authStore = useAuthStore();
+const failedAvatars = reactive(new Set<string>());
 const items = ref<JsonApiResource<ItemAttributes>[]>([]);
 const itemsErrorMessage = ref<string | null>(null);
 const errorSnackbarMessage = ref<string | null>(null);
@@ -1319,13 +1368,12 @@ const getWeekDayBooker = (itemId: string, date: string): string => {
   return item?.attributes.booker_name || t('common.booked');
 };
 
-const getBookerInitials = (itemId: string, date: string): string => {
-  const name = getWeekDayBooker(itemId, date);
-  const parts = name.split(' ');
-  if (parts.length >= 2 && parts[0] && parts[parts.length - 1]) {
-    return (parts[0].charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
+const getWeekDayBookerUserId = (
+  itemId: string,
+  date: string,
+): string | undefined => {
+  const dayItems = weekData.value[date];
+  return dayItems?.find(i => i.id === itemId)?.attributes.booker_user_id;
 };
 
 const isWeekDaySelected = (itemId: string, date: string) =>
@@ -2301,6 +2349,44 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
+.booking-type-row {
+  min-height: 40px;
+}
+
+.tile-booker-avatar {
+  flex-shrink: 0;
+}
+
+.tile-booker-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: white;
+  background: rgba(var(--v-theme-error), 0.85);
+  user-select: none;
+  line-height: 1;
+}
+
+.booking-type-radios {
+  flex: 0 0 auto;
+}
+
+.colleague-select-inline {
+  flex: 0 0 320px;
+  max-width: 360px;
+}
+
+@media (max-width: 600px) {
+  .colleague-select-inline {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
 .note-text {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2367,6 +2453,24 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.week-day-avatar {
+  flex-shrink: 0;
+}
+
+.week-day-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  background: rgba(var(--v-theme-error), 0.85);
+  line-height: 1;
+  user-select: none;
 }
 
 .week-day-status-truncated {
