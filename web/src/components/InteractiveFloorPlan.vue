@@ -205,6 +205,15 @@
                     @click="handleDeskClick(pos.itemId, pos.displayLabel)"
                   >
                     <span class="fp-item-label">{{ pos.displayLabel }}</span>
+                    <v-icon
+                      v-if="isFloorPlanItemFavorite(pos.itemId)"
+                      class="fp-favorite-heart"
+                      size="14"
+                      color="error"
+                      :data-cy="`fp-favorite-heart-${pos.itemId}`"
+                      :aria-label="$t('favorites.removeTooltip')"
+                      @click.stop="removeFloorPlanFavorite(pos.itemId, pos.displayLabel)"
+                    >$heart</v-icon>
                   </div>
                 </template>
               </template>
@@ -227,6 +236,15 @@
                         <span class="fp-item-label">{{
                           pos.displayLabel
                         }}</span>
+                        <v-icon
+                          v-if="isFloorPlanItemFavorite(pos.itemId)"
+                          class="fp-favorite-heart"
+                          size="14"
+                          color="error"
+                          :data-cy="`fp-favorite-heart-${pos.itemId}`"
+                          :aria-label="$t('favorites.removeTooltip')"
+                          @click.stop="removeFloorPlanFavorite(pos.itemId, pos.displayLabel)"
+                        >$heart</v-icon>
                       </div>
                     </template>
                   </v-tooltip>
@@ -519,6 +537,7 @@ import type { JsonApiResource } from "../api/types";
 import { getInitials } from "../utils/text";
 import { useAreaDrillDownPreference } from "../composables/useAreaDrillDownPreference";
 import { useLiveBookingRefresh } from "../composables/useLiveBookingRefresh";
+import { useFavorites } from "../composables/useFavorites";
 
 const props = defineProps<{
   floorPlan: string;
@@ -527,6 +546,8 @@ const props = defineProps<{
   weekDates: string[];
   itemGroupId: string;
   areaLevel?: boolean;
+  /** Required for favorites; uniquely scopes itemGroupId/itemId. */
+  areaId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -548,6 +569,30 @@ const showAvatars = ref(localStorage.getItem(AVATARS_KEY) !== "false");
 watch(showAvatars, (value) => localStorage.setItem(AVATARS_KEY, String(value)));
 
 const areaDrillDownPref = useAreaDrillDownPreference();
+const { isItemFavorite, toggleItemFavorite } = useFavorites();
+
+// Floor plan only renders the heart on free items (story 31.2 AC #5/#6).
+function isFloorPlanItemFavorite(itemId: string): boolean {
+  if (!props.areaId) return false;
+  const itemGroupId = itemToGroupMap.value.get(itemId) || props.itemGroupId;
+  return isItemFavorite(props.areaId, itemGroupId, itemId);
+}
+
+function removeFloorPlanFavorite(itemId: string, displayLabel: string) {
+  if (!props.areaId) return;
+  const itemGroupId = itemToGroupMap.value.get(itemId) || props.itemGroupId;
+  toggleItemFavorite({
+    areaId: props.areaId,
+    itemId,
+    itemName: displayLabel,
+    itemGroupId,
+    // The floor plan does not have the human-readable item-group name in
+    // scope; pass the id as a fallback. The favorites store stores the
+    // human-readable name only for display in the Favorites view, where
+    // it was originally set.
+    itemGroupName: itemGroupId,
+  });
+}
 const drillDownEnabled = computed({
   get: () => areaDrillDownPref.enabled.value,
   set: (value: boolean) => areaDrillDownPref.set(value),
@@ -1699,10 +1744,37 @@ onBeforeUnmount(() => {
   border-color: rgb(var(--v-theme-success));
   background-color: transparent;
   cursor: pointer;
+  /*
+   * Allow the favorite heart icon to overflow so its center can sit
+   * exactly on the bottom-right corner of the rectangle (story 31.2 AC #5).
+   * Without this, .fp-item's overflow:hidden would clip the heart.
+   */
+  overflow: visible;
 }
 
 .fp-item--free:hover {
   background-color: rgba(var(--v-theme-success), 0.12);
+}
+
+/*
+ * Heart icon for favorited items on the floor plan. Placed so its
+ * geometric center sits exactly on the bottom-right corner of the
+ * containing .fp-item--free rectangle: right:0/bottom:0 anchors the icon
+ * box to the corner, then translate(50%, 50%) shifts it outward by half
+ * its width/height so the icon's center lands on the corner.
+ */
+.fp-favorite-heart {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  transform: translate(50%, 50%);
+  background: rgb(var(--v-theme-surface));
+  border-radius: 50%;
+  padding: 1px;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 2;
+  line-height: 1;
 }
 
 .fp-item--busy {

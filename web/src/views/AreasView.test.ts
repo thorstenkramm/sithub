@@ -5,6 +5,7 @@ import { fetchAreas } from '../api/areas';
 import { fetchMe } from '../api/me';
 import { buildViewStubs, createFetchMeMocker, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { __resetLegacyPurgeForTests } from '../composables/useFavorites';
 
 const pushMock = vi.fn();
 
@@ -51,6 +52,8 @@ describe('AreasView', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     pushMock.mockReset();
+    localStorage.clear();
+    __resetLegacyPurgeForTests();
     mockFetchAreas(0);
   });
 
@@ -121,6 +124,52 @@ describe('AreasView', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Select');
+  });
+
+  it('shows the Favorites virtual tile when at least one favorite exists', async () => {
+    localStorage.setItem('sithub_favorite_items', JSON.stringify([{
+      areaId: 'area-1',
+      itemId: 'desk-1',
+      itemName: 'Desk 1',
+      itemGroupId: 'ig-1',
+      itemGroupName: 'Room 1'
+    }]));
+    mockFetchMe(false);
+    mockFetchAreas(1);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="favorites-tile"]').exists()).toBe(true);
+  });
+
+  it('shows the Favorites virtual tile even when no real areas exist', async () => {
+    localStorage.setItem('sithub_favorite_items', JSON.stringify([{
+      areaId: 'area-1',
+      itemId: 'desk-1',
+      itemName: 'Desk 1',
+      itemGroupId: 'ig-1',
+      itemGroupName: 'Room 1'
+    }]));
+    mockFetchMe(false);
+    mockFetchAreas(0);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="favorites-tile"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="areas-empty"]').exists()).toBe(false);
+  });
+
+  it('hides the Favorites virtual tile when no favorites exist', async () => {
+    localStorage.removeItem('sithub_favorite_items');
+    mockFetchMe(false);
+    mockFetchAreas(1);
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="favorites-tile"]').exists()).toBe(false);
   });
 
 });

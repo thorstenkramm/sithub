@@ -16,7 +16,7 @@
 
     <!-- Empty State -->
     <EmptyState
-      v-else-if="!areas.length"
+      v-else-if="!areas.length && favoriteItems.length === 0"
       :title="$t('areas.emptyTitle')"
       :message="$t('areas.emptyMessage')"
       icon="$area"
@@ -25,6 +25,38 @@
 
     <!-- Areas Grid -->
     <div v-else class="card-grid" data-cy="areas-list">
+      <!-- Virtual "Favorites" tile, prepended when the user has at least one favorite item. -->
+      <v-card
+        v-if="favoriteItems.length > 0"
+        class="card-hover"
+        role="button"
+        tabindex="0"
+        :aria-label="$t('favorites.areaName')"
+        data-cy="favorites-tile"
+        @click="goToFavorites()"
+        @keydown.enter="goToFavorites()"
+      >
+        <v-card-item>
+          <template #prepend>
+            <v-avatar color="error" variant="tonal" size="48">
+              <v-icon size="24">$heart</v-icon>
+            </v-avatar>
+          </template>
+          <v-card-title class="text-h6">{{ $t('favorites.areaName') }}</v-card-title>
+          <v-card-subtitle>{{ $t('favorites.areaSubtitle') }}</v-card-subtitle>
+        </v-card-item>
+        <v-card-actions class="px-4 pb-4">
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click.stop="goToFavorites()"
+          >
+            {{ $t('areas.select') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+
       <v-card
         v-for="area in areas"
         :key="area.id"
@@ -87,6 +119,7 @@ import type { AreaAttributes } from '../api/areas';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
+import { useFavorites } from '../composables/useFavorites';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { PageHeader, LoadingState, EmptyState } from '../components';
@@ -98,8 +131,14 @@ const router = useRouter();
 const { loading: areasLoading, error: areasError, run: runAreas } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
 
+const { favoriteItems } = useFavorites();
+
 const goToItemGroups = async (areaId: string) => {
   await router.push({ name: 'item-groups', params: { areaId } });
+};
+
+const goToFavorites = async () => {
+  await router.push({ name: 'favorites' });
 };
 
 onMounted(async () => {

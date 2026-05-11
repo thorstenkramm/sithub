@@ -142,90 +142,8 @@
 
     <!-- Item Groups Grid (Card View) -->
     <div v-else class="card-grid" data-cy="item-groups-list">
-      <!-- Third-level favorites promoted to this view -->
       <div
-        v-for="fav in sortedItemGroups.thirdLevelFavs"
-        :key="`fav-item-${fav.areaId}-${fav.itemGroupId}-${fav.itemId}`"
-        class="item-filter-wrapper"
-      >
-        <v-card
-          :class="['card-hover', { 'item-filtered-out': isItemGroupFilteredOut(fav.itemGroupId) }]"
-          role="button"
-          tabindex="0"
-          data-cy="favorite-item-tile"
-          @click="!isItemGroupFilteredOut(fav.itemGroupId) && goToItems(fav.itemGroupId)"
-        >
-          <div v-if="isItemGroupFilteredOut(fav.itemGroupId)" class="item-filtered-overlay">
-            <span class="text-body-2 text-medium-emphasis">{{ $t('itemGroups.equipmentNotAvailable') }}</span>
-          </div>
-          <v-card-item>
-            <template #prepend>
-              <v-avatar color="primary" variant="tonal" size="48">
-                <v-icon size="24">$desk</v-icon>
-              </v-avatar>
-            </template>
-            <v-card-title class="text-h6">{{ fav.itemName }}</v-card-title>
-            <v-card-subtitle>{{ fav.itemGroupName }}</v-card-subtitle>
-          </v-card-item>
-
-          <!-- Weekly Availability Indicators (from parent item group) -->
-          <v-card-text v-if="availabilityMap[fav.itemGroupId]" class="pt-0" data-cy="availability-indicators">
-            <div class="d-flex ga-2">
-              <span
-                v-for="day in availabilityMap[fav.itemGroupId]"
-                :key="day.date"
-                class="availability-indicator"
-                :class="day.available > 0 ? 'available' : 'fully-booked'"
-                :aria-label="formatAvailabilityAriaLabel(day)"
-                :data-cy-weekday="day.weekday"
-              >
-                <span
-                  class="indicator-dot"
-                  :class="day.available > 0 ? 'dot-available' : 'dot-booked'"
-                />
-                <span class="indicator-label text-caption">{{ localizeWeekday(day.weekday, t) }}</span>
-              </span>
-            </div>
-          </v-card-text>
-
-          <v-card-actions class="px-4 pb-4">
-            <v-btn
-              color="primary"
-              variant="tonal"
-              size="small"
-              @click.stop="goToItems(fav.itemGroupId)"
-            >
-              {{ $t('itemGroups.select') }}
-            </v-btn>
-            <v-btn
-              variant="text"
-              size="small"
-              :to="{
-                name: 'item-group-bookings',
-                params: { itemGroupId: fav.itemGroupId },
-                query: { areaId: route.params.areaId as string }
-              }"
-              @click.stop
-            >
-              {{ $t('itemGroups.viewBookings') }}
-            </v-btn>
-            <v-spacer />
-            <v-btn
-              icon
-              variant="text"
-              size="small"
-              data-cy="favorite-item-heart"
-              @click.stop="handleToggleItemFavorite(fav)"
-            >
-              <v-icon color="error">$heart</v-icon>
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </div>
-
-      <!-- Second-level favorites (sorted A-Z) then rest (YAML order) -->
-      <div
-        v-for="ig in [...sortedItemGroups.igFavs, ...sortedItemGroups.rest]"
+        v-for="ig in sortedItemGroups"
         :key="ig.id"
         class="item-filter-wrapper"
       >
@@ -294,18 +212,6 @@
           >
             {{ $t('itemGroups.viewBookings') }}
           </v-btn>
-          <v-spacer />
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            data-cy="ig-favorite-heart"
-            @click.stop="handleToggleItemGroupFavorite(ig.id, ig.attributes.name)"
-          >
-            <v-icon :color="isItemGroupFavorite(route.params.areaId as string, ig.id) ? 'error' : undefined">
-              {{ isItemGroupFavorite(route.params.areaId as string, ig.id) ? '$heart' : '$heartOutline' }}
-            </v-icon>
-          </v-btn>
         </v-card-actions>
       </v-card>
       </div>
@@ -327,6 +233,7 @@
             :week-dates="selectedWeekDates"
             item-group-id=""
             :area-level="true"
+            :area-id="route.params.areaId as string"
             @close="showFloorPlanDialog = false"
           />
         </v-card-text>
@@ -415,10 +322,11 @@ const itemGroupsErrorMessage = ref<string | null>(null);
 const route = useRoute();
 const router = useRouter();
 const { loading: itemGroupsLoading, run: runItemGroups } = useApi();
-const {
-  isItemGroupFavorite, toggleItemGroupFavorite,
-  favoriteItems, toggleItemFavorite
-} = useFavorites();
+// Favorites are no longer tied to item groups (story 31.2). The composable is
+// imported only for side effects: visiting an item-group view used to mark the
+// first-load purge of legacy item-group favorites; calling it here keeps that
+// behaviour deterministic.
+useFavorites();
 const successSnackbarMessage = ref<string | null>(null);
 const successSnackbarCy = ref('item-groups-success');
 const successSnackbarTimeout = ref(3000);
@@ -503,43 +411,10 @@ const breadcrumbs = computed(() => [
   { text: areaName.value || t('common.area') }
 ]);
 
-const sortedItemGroups = computed(() => {
-  const areaId = route.params.areaId as string;
-  // Third-level favorites for this area's item groups
-  const thirdLevelFavs = favoriteItems.value
-    .filter(f => f.areaId === areaId && itemGroups.value.some(ig => ig.id === f.itemGroupId))
-    .sort((a, b) => `${a.itemGroupName} ${a.itemName}`.localeCompare(`${b.itemGroupName} ${b.itemName}`));
-
-  // Second-level favorites sorted A-Z
-  const igFavs = itemGroups.value
-    .filter(ig => isItemGroupFavorite(areaId, ig.id))
-    .sort((a, b) => a.attributes.name.localeCompare(b.attributes.name));
-  const igFavIds = new Set(igFavs.map(ig => ig.id));
-
-  // Rest in YAML order, minus second-level favorites
-  const rest = itemGroups.value.filter(ig => !igFavIds.has(ig.id));
-
-  return { thirdLevelFavs, igFavs, rest, areaId };
-});
-
-const handleToggleItemGroupFavorite = (igId: string, igName: string) => {
-  const areaId = route.params.areaId as string;
-  const { added } = toggleItemGroupFavorite(areaId, igId);
-  showSuccessFeedback(
-    added ? t('itemGroups.savedAsFavorite', { name: igName }) : t('itemGroups.removedFromFavorites', { name: igName }),
-    'favorite-message'
-  );
-};
-
-const handleToggleItemFavorite = (fav: { itemId: string; itemName: string; itemGroupId: string; itemGroupName: string }) => {
-  const areaId = route.params.areaId as string;
-  const { added } = toggleItemFavorite({ ...fav, areaId });
-  const label = `${fav.itemGroupName} ${fav.itemName}`;
-  showSuccessFeedback(
-    added ? t('itemGroups.savedAsFavorite', { name: label }) : t('itemGroups.removedFromFavorites', { name: label }),
-    'favorite-message'
-  );
-};
+// Item groups render in YAML order. Per story 31.2 we no longer hoist
+// favorites to the top of this view — favorites live in the dedicated virtual
+// "Favorites" area accessed from the home overview.
+const sortedItemGroups = computed(() => itemGroups.value);
 
 const resolveIcon = (icon: string | undefined, fallback: string) => {
   return resolveConfiguredIcon(icon || areaIcon.value, fallback);

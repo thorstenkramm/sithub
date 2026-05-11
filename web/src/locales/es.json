@@ -304,6 +304,13 @@
     "person": "Persona",
     "desk": "Puesto"
   },
+  "favorites": {
+    "areaName": "Favoritos",
+    "areaSubtitle": "Tus puestos guardados",
+    "emptyTitle": "Aún no hay favoritos",
+    "emptyMessage": "Abre un puesto y toca el corazón para añadirlo a tus favoritos.",
+    "removeTooltip": "Quitar de favoritos"
+  },
   "weekdays": {
     "mo": "LU",
     "tu": "MA",

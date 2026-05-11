@@ -39,6 +39,9 @@
       :key="item.item_id"
       :item="item"
       :days="days"
+      :area-id="areaId"
+      :item-group-id="group.attributes.item_group_id"
+      :item-group-name="group.attributes.item_group_name"
       :current-user-id="currentUserId"
       :is-admin="isAdmin"
       :today="today"
@@ -54,6 +57,7 @@ import AreaWeeklyMatrixRow from './AreaWeeklyMatrixRow.vue';
 const props = defineProps<{
   group: JsonApiResource<ItemGroupMatrixAttributes>;
   days: MatrixDayMeta[];
+  areaId: string;
   collapsed: boolean;
   currentUserId: string;
   isAdmin: boolean;

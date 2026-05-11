@@ -304,6 +304,13 @@
     "person": "Person",
     "desk": "Platz"
   },
+  "favorites": {
+    "areaName": "Favoriten",
+    "areaSubtitle": "Ihre gespeicherten Plätze",
+    "emptyTitle": "Noch keine Favoriten",
+    "emptyMessage": "Öffnen Sie einen Platz und tippen Sie auf das Herz, um ihn zu Ihren Favoriten hinzuzufügen.",
+    "removeTooltip": "Aus Favoriten entfernen"
+  },
   "weekdays": {
     "mo": "MO",
     "tu": "DI",

@@ -18,6 +18,30 @@
           </template>
           <span data-cy="matrix-warning-tooltip">{{ item.warning }}</span>
         </v-tooltip>
+
+        <!--
+          Heart icon: rendered only when this item is a favorite.
+          Click removes the favorite. Adding to favorites still happens
+          via the day-mode item view, not the table (per story 31.2 AC #4).
+        -->
+        <v-tooltip v-if="isFavorite" location="right">
+          <template #activator="{ props: favProps }">
+            <v-icon
+              v-bind="favProps"
+              size="14"
+              color="error"
+              class="ml-1 matrix-favorite-heart"
+              :data-cy="`matrix-favorite-heart-${item.item_id}`"
+              role="button"
+              tabindex="0"
+              :aria-label="$t('favorites.removeTooltip')"
+              @click.stop="removeFavorite"
+              @keydown.enter.stop="removeFavorite"
+              @keydown.space.stop="removeFavorite"
+            >$heart</v-icon>
+          </template>
+          <span>{{ $t('favorites.removeTooltip') }}</span>
+        </v-tooltip>
       </span>
     </td>
 
@@ -36,16 +60,41 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { MatrixItem, MatrixDayMeta } from '../../api/itemGroupMatrix';
+import { useFavorites } from '../../composables/useFavorites';
 import AreaWeeklyMatrixCell from './AreaWeeklyMatrixCell.vue';
 
-defineProps<{
+const props = defineProps<{
   item: MatrixItem;
   days: MatrixDayMeta[];
+  areaId: string;
+  itemGroupId: string;
+  itemGroupName: string;
   currentUserId: string;
   isAdmin: boolean;
   today: string;
 }>();
+
+useI18n(); // expose $t in template
+
+const { isItemFavorite, toggleItemFavorite } = useFavorites();
+
+const isFavorite = computed(() =>
+  isItemFavorite(props.areaId, props.itemGroupId, props.item.item_id)
+);
+
+function removeFavorite() {
+  if (!isFavorite.value) return;
+  toggleItemFavorite({
+    areaId: props.areaId,
+    itemId: props.item.item_id,
+    itemName: props.item.item_name,
+    itemGroupId: props.itemGroupId,
+    itemGroupName: props.itemGroupName
+  });
+}
 </script>
 
 <style scoped>
@@ -67,5 +116,9 @@ defineProps<{
   cursor: default;
   display: inline-flex;
   align-items: center;
+}
+
+.matrix-favorite-heart {
+  cursor: pointer;
 }
 </style>

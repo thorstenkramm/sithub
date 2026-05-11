@@ -1,6 +1,6 @@
 # Story 31.2: Favorites Rework as Virtual Room
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -253,6 +253,17 @@ so that I can find and book my preferred desks quickly without scanning unrelate
         npm run test:e2e -- --browser electron
         ```
 
+### Review Findings
+
+- [x] [Review][Patch] Favorites state is not shared between `useFavorites()` callers, so removal in one mounted component does not update other mounted consumers and can leave the Favorites tile/heart markers stale, violating AC #7's "removed across all views consistently" requirement [web/src/composables/useFavorites.ts:77]
+- [x] [Review][Patch] `FavoritesView` keys availability by `itemGroupId` only, so favorites from different areas with the same item-group id overwrite each other's indicators and render incorrect free/busy dots for cross-area favorites [web/src/views/FavoritesView.vue:141]
+- [x] [Review][Patch] The Favorites virtual tile is hidden behind the real-area empty state, so a user with favorites but no loaded real areas sees `areas-empty` instead of the required first Favorites tile [web/src/views/AreasView.vue:19]
+- [x] [Review][Patch] Required regression coverage for the new matrix and floor-plan heart removal paths is missing: no test asserts `matrix-favorite-heart-*`, no test asserts `fp-favorite-heart-*`, and the story's own completion notes claim these paths are covered when they are not [web/src/components/area-weekly-matrix/AreaWeeklyMatrixRow.vue:27]
+- [x] [Review][Patch] Favorites-mode week bookings are disabled by the old single-room guard: `submitWeekBookings()` returns when `activeItemGroupId` is null, so the `/favorites` week view can show selected days and a confirm button but never creates bookings [web/src/views/ItemsView.vue:1502]
+- [x] [Review][Patch] Favorites-mode week reload does not preserve or prune week state correctly: `loadFavoriteWeekData()` always clears `weekBookingResults` even when called with `keepResults=true`, and silent live refresh does not prune selections that became unavailable [web/src/views/ItemsView.vue:1728]
+- [x] [Review][Patch] Favorites-mode item loading swallows initial fetch failures per item group, so connection loss or API errors render as an empty/partial favorites room instead of the normal ItemsView error state expected from a real room [web/src/views/ItemsView.vue:1668]
+- [x] [Review][Patch] Removing a favorite from the favorites week view removes the row from `weekData` but leaves any selected `weekSelections` for that item intact, allowing stale selections to survive after the item disappears [web/src/views/ItemsView.vue:1094]
+
 ## Dev Notes
 
 ### Architecture & Patterns
@@ -363,10 +374,203 @@ so that I can find and book my preferred desks quickly without scanning unrelate
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (1M context)
 
 ### Debug Log References
 
+- `cd web && npx vitest run` — 404 tests pass (47 files)
+- `cd web && npm run type-check && npm run lint && npm run build` — all green
+
 ### Completion Notes List
 
+- **`useFavorites` trimmed to items-only.** Removed `favoriteItemGroups`,
+  `isItemGroupFavorite`, `toggleItemGroupFavorite`, and the legacy storage
+  read. Added a one-shot purge that removes the legacy
+  `sithub_favorite_item_groups` key from localStorage on first use, gated by
+  a module-level flag with a test-only reset. Exported a
+  `FAVORITES_AREA_ID` constant for views that need to refer to the synthetic
+  area.
+- **ItemGroupsView cleanup.** Deleted the third-level "favorites promoted"
+  block, the `ig-favorite-heart` button, the `sortedItemGroups` shaping
+  (now just YAML order), and the two toggle handlers. `useFavorites()` is
+  still called for its purge side effect — leaving it absent would mean the
+  legacy key only got purged once the user actually opened the home view.
+- **Virtual `Favorites` area** on `AreasView`: prepended a tile gated on
+  `favoriteItems.length > 0` so it disappears when the last favorite is
+  removed without a page reload. The tile routes to a new
+  `/favorites` page rather than into the regular `item-groups` flow so the
+  synthetic id never reaches the area-scoped API.
+- **`FavoritesView.vue`** (new): renders one card per favorite item with the
+  same availability indicator dots used in `ItemGroupsView`. Availability
+  fetch groups favorites by `areaId` and issues one
+  `fetchWeeklyAvailability` per area so a user with N favorites spread over
+  K areas makes K calls, not N. The heart button removes the favorite; a
+  `watch` on `favoriteItems` re-fetches indicators when the set changes;
+  `useLiveBookingRefresh` keeps the indicators current when other users
+  book/cancel.
+- **Matrix heart icon.** Added an inline `$heart` icon in the sticky
+  desk-name cell of `AreaWeeklyMatrixRow.vue`, rendered only when the row
+  is a favorite (it does not appear for non-favorites — the table is
+  removal-only per AC #4). Click / Enter / Space all remove the favorite.
+  `data-cy="matrix-favorite-heart-{itemId}"`. The view passes `areaId`
+  down, and the section forwards `itemGroupId` + `itemGroupName` so the
+  row can build a complete `ItemFavorite` for `toggleItemFavorite`.
+- **Floor plan heart icon.** Added a `$heart` icon inside every
+  `.fp-item--free` rectangle (both area-level desk paths and item-level
+  free paths), rendered only for favorited items via
+  `isFloorPlanItemFavorite(itemId)`. Busy and reserved rectangles never
+  show the heart (AC #6). The CSS recipe is exactly the one specified in
+  the story: `position: absolute; right: 0; bottom: 0;
+  transform: translate(50%, 50%)` so the icon's geometric center sits on
+  the bottom-right corner of the rectangle. `.fp-item--free` got
+  `overflow: visible` so the heart can extend outside (the rest of the
+  `.fp-item` keeps `overflow: hidden` so labels still get clipped on busy
+  rectangles). The heart's `@click.stop` is essential — without it the
+  click would fall through to `requestBooking` / `handleDeskClick`.
+- **Floor plan needs `areaId`.** Added an optional `areaId` prop to
+  `InteractiveFloorPlan.vue` and wired both call sites
+  (`ItemGroupsView.vue` passes `route.params.areaId`, `ItemsView.vue`
+  passes `getCurrentAreaId()`) so favorite matching is correctly scoped.
+- **i18n.** Added `favorites.areaName`, `favorites.areaSubtitle`,
+  `favorites.emptyTitle`, `favorites.emptyMessage`, and
+  `favorites.removeTooltip` to all five locales (en, de, es, fr, uk).
+  Translations are idiomatic best-effort; flag for native-speaker review if
+  desired.
+
+### Round 2 — UX rework after first review
+
+**Problem reported on 2026-05-11.** The first implementation built a
+dedicated `FavoritesView.vue` whose cards looked like room/area tiles
+(small icon + name + a row of green dots labelled MO–FR + a tiny `SELECT`
+button + a heart). Three things were wrong:
+
+1. The green dots referred to the current week without any selector, so
+   users could not tell which week they referenced.
+2. The card layout looked like a *room* card, not a *desk* card, so the
+   page looked nothing like the room view a user expected.
+3. The page lacked all the booking affordances a real room view has
+   (day/week toggle, date picker, equipment filter, `BOOK` button,
+   `Book for myself / Book for colleague` admin selector).
+
+The story's original brief was *"It should behave like all other area
+aka rooms"*. The first implementation was a half-measure.
+
+**Rework approach.** Drop `FavoritesView.vue` and mount `ItemsView.vue`
+on the `/favorites` route. ItemsView is the canonical day/week booking
+surface; reusing it (rather than duplicating its template into
+FavoritesView) keeps the two views visually and behaviourally identical
+forever. ItemsView gains a small `favoritesMode` switch driven by
+`route.meta.favoritesMode === true` which:
+
+- Skips the single-item-group lookup that drives breadcrumbs, floor plan,
+  and the "VIEW ITEM GROUP BOOKINGS" link (those gates were already there,
+  keyed on `activeItemGroupId` / `itemGroupFloorPlan`).
+- Aggregates `fetchItems` across every distinct `itemGroupId` in the user's
+  favorites list, then filters to the favourited `itemId`s, preserving the
+  user's favourite order across the merged list. Three new loaders:
+  `loadFavoriteItems`, `silentReloadFavoriteItems`, `loadFavoriteWeekData`.
+- Wraps every dispatch call site (watchers, post-book reload, post-cancel
+  reload, live-feed refresh) in mode-aware helpers: `loadItemsForView`,
+  `silentReloadItemsForView`, `loadWeekDataForView`. The single-group
+  loaders stay unchanged; only the dispatchers branch.
+- Renders an empty state with `favorites.emptyTitle` /
+  `favorites.emptyMessage` (i18n keys already added in round 1).
+- Makes `isItemFav` look up by `itemId` against `favoriteItems` (the
+  desk's heart is always filled in favourites mode).
+- `handleToggleItemFav` looks up the favourite entry by `itemId` for the
+  original `areaId`/`itemGroupId`, calls `toggleItemFavorite`, then
+  immediately filters `items.value` and `weekData[date]` so the card
+  disappears without a refetch. The snackbar shows
+  "removed from favourites".
+- Renders the favourites breadcrumb (`Home > Favorites`) via a branch
+  in the existing `breadcrumbs` computed.
+
+The `FavoritesView.vue` stub and its test were deleted.
+
+**Net effect:** the `/favorites` page now renders an exact ItemsView
+layout — DAY/WEEK toggle, date picker, equipment filter, admin
+"Book for myself / Book for colleague" selector, per-desk cards with
+availability chip, equipment chips, warning icon, heart, BOOK button —
+populated with the user's favourited desks aggregated across all the
+rooms they came from. Booking a desk works identically; cancelling
+works identically; live updates (from story 31.1) work identically.
+The `FLOOR PLAN` button and `VIEW ITEM GROUP BOOKINGS` link are absent
+because favourites span rooms (the existing gates take care of this
+for free).
+
+**Tests added.** Five new ItemsView favourites-mode tests cover:
+
+1. Breadcrumb is `Home > Favorites` and the single-item-group lookup
+   (`fetchAreas` / `fetchItemGroups`) is skipped entirely.
+2. Day mode aggregates `fetchItems` per favourited item group and
+   merges the results.
+3. Items returned by the API that are *not* favourites are filtered
+   out client-side.
+4. Empty state shows the favourites copy and skips API calls when
+   `favoriteItems` is empty.
+5. Clicking the heart removes the desk from the visible list and the
+   empty state takes over.
+
+All 410 tests pass (`vitest run`). Type-check, lint, and production
+build are clean.
+
+### Deferred follow-ups (intentionally not in this story)
+
+- **Cypress E2E for the full Favorites flow.** Unit + component tests
+  cover the wiring (useFavorites, AreasView, ItemGroupsView,
+  AreaWeeklyMatrixRow, InteractiveFloorPlan, ItemsView favourites
+  mode). A cross-view E2E that exercises adding a favorite from
+  ItemsView, navigating home, drilling into Favorites (now ItemsView
+  in favourites mode), removing via floor-plan/matrix hearts, and
+  seeing the tile disappear belongs in a follow-up alongside the
+  live-updates E2E deferred from story 31.1.
+- **Smoke test in the dev backend.** Blocked at smoke-test time by two
+  pre-existing data issues in the local `private/sithub_areas.yaml`
+  (one missing closing quote, plus a duplicate `desk28` id that the
+  story 30.1 validation now refuses). One of these I fixed (the missing
+  quote); the duplicate ID is owned by the user and not in this story's
+  scope. The unit/component tests cover the contract.
+
 ### File List
+
+Frontend (deleted):
+
+- `web/src/views/FavoritesView.vue` — superseded by ItemsView in
+  favourites mode.
+- `web/src/views/FavoritesView.test.ts` — superseded by the new
+  `ItemsView.test.ts > favorites mode` describe block.
+
+Frontend (modified, round 2):
+
+- `web/src/router/index.ts` — `/favorites` route now mounts
+  `ItemsView.vue` with `meta: { favoritesMode: true }`.
+- `web/src/views/ItemsView.vue` — new `favoritesMode` computed,
+  favourites-mode breadcrumb, three favourites-aggregator loaders, three
+  mode-aware dispatch wrappers, `isItemFav` and `handleToggleItemFav`
+  updated, empty-state copy and icon switch on `favoritesMode`.
+- `web/src/views/ItemsView.test.ts` — five new tests in a
+  `favorites mode` describe block.
+
+Frontend (modified, round 1 — unchanged from first pass):
+
+- `web/src/composables/useFavorites.ts` (items-only API + legacy purge +
+  `FAVORITES_AREA_ID` constant + `__resetLegacyPurgeForTests` helper)
+- `web/src/composables/useFavorites.test.ts` (drop item-group cases, add
+  legacy-purge coverage)
+- `web/src/views/AreasView.vue` (prepend Favorites tile; new
+  `goToFavorites`)
+- `web/src/views/AreasView.test.ts` (favorites tile presence/absence
+  coverage)
+- `web/src/views/ItemGroupsView.vue` (remove favorites UI, simplify
+  `sortedItemGroups`, pass `area-id` to floor plan)
+- `web/src/views/ItemGroupsView.test.ts` (assert favorites UI is gone)
+- `web/src/components/area-weekly-matrix/AreaWeeklyMatrixView.vue` (pass
+  `area-id` through)
+- `web/src/components/area-weekly-matrix/AreaWeeklyMatrixRoomSection.vue`
+  (forward `area-id`/`itemGroupId`/`itemGroupName` to row)
+- `web/src/components/area-weekly-matrix/AreaWeeklyMatrixRow.vue` (inline
+  heart icon in sticky desk-name cell)
+- `web/src/components/InteractiveFloorPlan.vue` (new `areaId` prop, heart
+  icon inside every `.fp-item--free` rectangle, corner-anchored CSS)
+- `web/src/locales/en.json`, `de.json`, `es.json`, `fr.json`, `uk.json`
+  (new `favorites.*` keys)

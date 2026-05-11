@@ -153,16 +153,16 @@
     <!-- Empty State -->
     <EmptyState
       v-else-if="bookingMode === 'day' && !items.length"
-      :title="$t('items.emptyTitle')"
-      :message="$t('items.emptyMessage')"
-      icon="$desk"
+      :title="$t(favoritesMode ? 'favorites.emptyTitle' : 'items.emptyTitle')"
+      :message="$t(favoritesMode ? 'favorites.emptyMessage' : 'items.emptyMessage')"
+      :icon="favoritesMode ? '$heart' : '$desk'"
       data-cy="items-empty"
     />
     <EmptyState
       v-else-if="bookingMode === 'week' && !weekItems.length"
-      :title="$t('items.emptyTitle')"
-      :message="$t('items.emptyMessage')"
-      icon="$desk"
+      :title="$t(favoritesMode ? 'favorites.emptyTitle' : 'items.emptyTitle')"
+      :message="$t(favoritesMode ? 'favorites.emptyMessage' : 'items.emptyMessage')"
+      :icon="favoritesMode ? '$heart' : '$desk'"
       data-cy="items-empty"
     />
 
@@ -782,6 +782,7 @@
             :week-label="weekOptions.find(o => o.value === selectedWeek)?.label || ''"
             :week-dates="selectedWeekDates"
             :item-group-id="activeItemGroupId || ''"
+            :area-id="getCurrentAreaId()"
             @close="showItemGroupFloorPlanDialog = false"
           />
         </v-card-text>
@@ -990,6 +991,10 @@ const maxBookingDate = computed(() => {
   return formatDate(maxDate);
 });
 const route = useRoute();
+// Favorites mode: the /favorites route mounts this view with
+// meta.favoritesMode=true. In that mode, we aggregate items across the user's
+// favorited (areaId, itemGroupId) pairs and skip the single-room data flow.
+const favoritesMode = computed(() => route.meta?.favoritesMode === true);
 const { loading: itemsLoading, run: runItems } = useApi();
 const activeItemGroupId = ref<string | null>(null);
 const areaName = ref('');
@@ -1031,7 +1036,7 @@ const showItemGroupFloorPlanDialog = ref(false);
 const equipmentFilter = ref('');
 const showFilterHelp = ref(false);
 const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
-const { isItemFavorite, toggleItemFavorite } = useFavorites();
+const { isItemFavorite, toggleItemFavorite, favoriteItems } = useFavorites();
 const successSnackbarMessage = ref<string | null>(null);
 const successSnackbarCy = ref('items-success');
 const successSnackbarTimeout = ref(3000);
@@ -1065,15 +1070,45 @@ const showSuccessFeedback = (
 const handleSuccessSnackbarAction = () => {
   successSnackbarActionHandler.value?.();
 };
-const isItemFav = (itemId: string) =>
-  !!activeItemGroupId.value
-  && !!getCurrentAreaId()
-  && isItemFavorite(getCurrentAreaId(), activeItemGroupId.value, itemId);
+const isItemFav = (itemId: string) => {
+  if (favoritesMode.value) {
+    return favoriteItems.value.some(f => f.itemId === itemId);
+  }
+  return !!activeItemGroupId.value
+    && !!getCurrentAreaId()
+    && isItemFavorite(getCurrentAreaId(), activeItemGroupId.value, itemId);
+};
 const getDayNameLabel = (itemId: string, name: string) =>
   dayNameTruncatedMap.value[itemId] ? middleTruncate(name, 25) : name;
 const getWeekNameLabel = (itemId: string, name: string) =>
   weekNameTruncatedMap.value[itemId] ? middleTruncate(name, 25) : name;
 const handleToggleItemFav = (itemId: string, itemName: string) => {
+  if (favoritesMode.value) {
+    // In favorites mode the desk's heart is always filled; clicking it
+    // removes the desk from the user's favorites. Look up the original
+    // (areaId, itemGroupId) from the favorites entry so we toggle the
+    // correct stored record, then drop the desk from the visible lists
+    // immediately for instant feedback.
+    const fav = favoriteItems.value.find(f => f.itemId === itemId);
+    if (!fav) return;
+    toggleItemFavorite(fav);
+    items.value = items.value.filter(entry => entry.id !== itemId);
+    for (const date of Object.keys(weekData.value)) {
+      const dayItems = weekData.value[date];
+      if (dayItems) {
+        weekData.value[date] = dayItems.filter(entry => entry.id !== itemId);
+      }
+    }
+    weekSelections.value = new Set(
+      [...weekSelections.value].filter(key => !key.startsWith(`${itemId}::`))
+    );
+    showSuccessFeedback(
+      t('items.removedFromFavorites', { name: itemName }),
+      'item-favorite-message'
+    );
+    return;
+  }
+
   const areaId = getCurrentAreaId();
   const igName = itemGroupName.value || '';
   if (!activeItemGroupId.value || !areaId) {
@@ -1321,9 +1356,7 @@ const confirmWeekCancel = async () => {
   try {
     await cancelBooking(bookingId);
     showSuccessFeedback(t('items.bookingCancelledSuccessfully'), 'week-cancel-success');
-    if (activeItemGroupId.value) {
-      await loadWeekData(activeItemGroupId.value);
-    }
+    await loadWeekDataForView();
   } catch (err) {
     if (await handleAuthError(err)) return;
     errorSnackbarMessage.value =t('items.unableToCancel');
@@ -1469,7 +1502,7 @@ const isLimitError = (err: unknown): boolean => {
 };
 
 const submitWeekBookings = async () => {
-  if (!activeItemGroupId.value || weekSelections.value.size === 0) return;
+  if ((!favoritesMode.value && !activeItemGroupId.value) || weekSelections.value.size === 0) return;
 
   errorSnackbarMessage.value = null;
   if (bookingType.value === 'colleague') {
@@ -1534,9 +1567,7 @@ const submitWeekBookings = async () => {
   weekSelections.value = new Set();
 
   // Refresh week data (keep results visible)
-  if (activeItemGroupId.value) {
-    await loadWeekData(activeItemGroupId.value, true);
-  }
+  await loadWeekDataForView(true);
 
   weekBookingInProgress.value = false;
 };
@@ -1553,14 +1584,22 @@ const breadcrumbAreaId = computed(() =>
   resolvedAreaId.value ? resolvedAreaId.value : areaName.value ? undefined : queryAreaId.value
 );
 
-const breadcrumbs = computed(() => [
-  { text: t('common.home'), to: '/' },
-  {
-    text: areaName.value || t('common.area'),
-    to: breadcrumbAreaId.value ? `/areas/${breadcrumbAreaId.value}/item-groups` : undefined
-  },
-  { text: itemGroupName.value || t('common.itemGroup') }
-]);
+const breadcrumbs = computed(() => {
+  if (favoritesMode.value) {
+    return [
+      { text: t('common.home'), to: '/' },
+      { text: t('favorites.areaName') }
+    ];
+  }
+  return [
+    { text: t('common.home'), to: '/' },
+    {
+      text: areaName.value || t('common.area'),
+      to: breadcrumbAreaId.value ? `/areas/${breadcrumbAreaId.value}/item-groups` : undefined
+    },
+    { text: itemGroupName.value || t('common.itemGroup') }
+  ];
+});
 
 const { handleAuthError } = useAuthErrorHandler();
 
@@ -1615,6 +1654,167 @@ const silentReloadItems = async (itemGroupId: string, date: string) => {
     updateNameTruncation();
   } catch {
     // Silent on errors; keep last known state.
+  }
+};
+
+// Favorites-mode loaders. Each one aggregates fetchItems across the user's
+// favorited (areaId, itemGroupId) pairs and filters to favorited itemIds,
+// preserving the user's favorite order across the resulting list.
+async function fetchFavoriteItemsForDate(
+  date: string
+): Promise<JsonApiResource<ItemAttributes>[]> {
+  const favIds = new Set(favoriteItems.value.map(f => f.itemId));
+  const groupIds = Array.from(new Set(favoriteItems.value.map(f => f.itemGroupId)));
+  if (groupIds.length === 0) return [];
+
+  const results = await Promise.all(
+    groupIds.map(gid =>
+      fetchItems(gid, date)
+        .then(resp => resp.data)
+    )
+  );
+
+  const merged: JsonApiResource<ItemAttributes>[] = [];
+  for (const arr of results) {
+    for (const item of arr) {
+      if (favIds.has(item.id)) merged.push(item);
+    }
+  }
+  const order = new Map(favoriteItems.value.map((f, i) => [f.itemId, i]));
+  merged.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return merged;
+}
+
+const loadFavoriteItems = async (date: string) => {
+  itemsErrorMessage.value = null;
+  expandedDayTiles.value = new Set();
+  if (favoriteItems.value.length === 0) {
+    items.value = [];
+    return;
+  }
+  try {
+    const normalizedDate = ensureDate(date);
+    const merged = await runItems(() => fetchFavoriteItemsForDate(normalizedDate));
+    items.value = merged;
+    await nextTick();
+    updateNoteTruncation();
+    updateNameTruncation();
+  } catch (err) {
+    if (await handleAuthError(err)) {
+      return;
+    }
+    if (isConnectionError(err)) {
+      itemsErrorMessage.value = CONNECTION_LOST_MESSAGE;
+      return;
+    }
+    itemsErrorMessage.value = t('items.unableToLoad');
+  }
+};
+
+const silentReloadFavoriteItems = async (date: string) => {
+  if (favoriteItems.value.length === 0) {
+    items.value = [];
+    return;
+  }
+  try {
+    const normalizedDate = ensureDate(date);
+    items.value = await fetchFavoriteItemsForDate(normalizedDate);
+    await nextTick();
+    updateNoteTruncation();
+    updateNameTruncation();
+  } catch {
+    // Silent: keep last known state.
+  }
+};
+
+const loadFavoriteWeekData = async (keepResults = false, silent = false) => {
+  if (!silent) {
+    weekDataLoading.value = true;
+    weekSelections.value = new Set();
+    expandedWeekTiles.value = new Set();
+    itemsErrorMessage.value = null;
+  }
+  if (!keepResults && !silent) weekBookingResults.value = [];
+  try {
+    const dates = selectedWeekDates.value;
+    const favIds = new Set(favoriteItems.value.map(f => f.itemId));
+    const groupIds = Array.from(new Set(favoriteItems.value.map(f => f.itemGroupId)));
+    const order = new Map(favoriteItems.value.map((f, i) => [f.itemId, i]));
+
+    const data: Record<string, JsonApiResource<ItemAttributes>[]> = {};
+    for (const date of dates) data[date] = [];
+
+    if (groupIds.length > 0) {
+      const calls = dates.flatMap(date =>
+        groupIds.map(gid =>
+          fetchItems(gid, date)
+            .then(resp => ({ date, items: resp.data }))
+        )
+      );
+      const results = await Promise.all(calls);
+      for (const { date, items: dayItems } of results) {
+        const bucket = data[date];
+        if (!bucket) continue;
+        for (const item of dayItems) {
+          if (favIds.has(item.id)) bucket.push(item);
+        }
+      }
+      for (const date of dates) {
+        data[date]?.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+      }
+    }
+    weekData.value = data;
+
+    const bookingsResp = await fetchMyBookings().catch(() => ({ data: [] }));
+    const bookedMap = new Map<string, string>();
+    for (const booking of bookingsResp.data) {
+      const bookingDate = booking.attributes.booking_date;
+      if (dates.includes(bookingDate)) {
+        bookedMap.set(getWeekSelectionKey(booking.attributes.item_id, bookingDate), booking.id);
+      }
+    }
+    myWeekBookings.value = bookedMap;
+    pruneUnavailableWeekSelections();
+    await nextTick();
+    updateNameTruncation();
+  } catch (err) {
+    if (!silent) {
+      weekData.value = {};
+      myWeekBookings.value = new Map();
+      itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : t('items.unableToLoadWeekly');
+    }
+  } finally {
+    if (!silent) {
+      weekDataLoading.value = false;
+    }
+  }
+};
+
+// Mode-aware dispatchers used everywhere that the page needs to refetch
+// after a navigation, a booking, or a live-feed event. Per-mode branching
+// is centralized here so the rest of the file (watchers, booking handler,
+// live refresh) stays mode-agnostic.
+const loadItemsForView = async (date: string) => {
+  if (favoritesMode.value) {
+    await loadFavoriteItems(date);
+  } else if (activeItemGroupId.value) {
+    await loadItems(activeItemGroupId.value, date);
+  }
+};
+
+const silentReloadItemsForView = async (date: string) => {
+  if (favoritesMode.value) {
+    await silentReloadFavoriteItems(date);
+  } else if (activeItemGroupId.value) {
+    await silentReloadItems(activeItemGroupId.value, date);
+  }
+};
+
+const loadWeekDataForView = async (keepResults = false, silent = false) => {
+  if (favoritesMode.value) {
+    await loadFavoriteWeekData(keepResults, silent);
+  } else if (activeItemGroupId.value) {
+    await loadWeekData(activeItemGroupId.value, keepResults, silent);
   }
 };
 
@@ -1762,9 +1962,7 @@ const bookItem = async (itemId: string) => {
     }
 
     // Reload items to reflect updated availability (keep selected date)
-    if (activeItemGroupId.value) {
-      await loadItems(activeItemGroupId.value, selectedDate.value);
-    }
+    await loadItemsForView(selectedDate.value);
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
@@ -1778,16 +1976,12 @@ const bookItem = async (itemId: string) => {
       limitDialogMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
       showLimitDialog.value = true;
 
-      if (activeItemGroupId.value) {
-        await loadItems(activeItemGroupId.value, selectedDate.value);
-      }
+      await loadItemsForView(selectedDate.value);
     } else if (err instanceof ApiError && err.status === 409) {
       detail = localizeItemsBookingConflict(err);
 
       // Refresh item list so user sees updated availability
-      if (activeItemGroupId.value) {
-        await loadItems(activeItemGroupId.value, selectedDate.value);
-      }
+      await loadItemsForView(selectedDate.value);
       errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
     } else {
       if (err instanceof ApiError && err.status === 404) {
@@ -1810,9 +2004,7 @@ const adminCancelBooking = async (bookingId: string) => {
     showSuccessFeedback(t('items.bookingCancelledSuccessfully'), 'booking-success');
 
     // Reload items to reflect updated availability
-    if (activeItemGroupId.value) {
-      await loadItems(activeItemGroupId.value, selectedDate.value);
-    }
+    await loadItemsForView(selectedDate.value);
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
@@ -1842,9 +2034,7 @@ const saveNoteAfterBooking = async () => {
     showSuccessFeedback(formatBookingSuccessMessage(lastBookingDetails.value), 'booking-success');
     lastBookingId.value = null;
     lastBookingDetails.value = null;
-    if (activeItemGroupId.value) {
-      await loadItems(activeItemGroupId.value, selectedDate.value);
-    }
+    await loadItemsForView(selectedDate.value);
   } catch (err) {
     if (await handleAuthError(err)) {
       return;
@@ -1946,6 +2136,24 @@ onMounted(async () => {
   // Load users list for colleague dropdown (non-blocking)
   loadUsers();
 
+  if (favoritesMode.value) {
+    // Favorites mode skips the per-item-group lookup entirely. The
+    // aggregator loaders pull items across all favorited (areaId,
+    // itemGroupId) pairs based on `favoriteItems` from useFavorites().
+    activeItemGroupId.value = null;
+    areaName.value = '';
+    itemGroupName.value = '';
+    itemGroupFloorPlan.value = null;
+    inheritedIcon.value = null;
+    resolvedAreaId.value = null;
+    if (bookingMode.value === 'week') {
+      await loadFavoriteWeekData();
+    } else {
+      await loadFavoriteItems(selectedDate.value);
+    }
+    return;
+  }
+
   const itemGroupId = route.params.itemGroupId;
   if (typeof itemGroupId !== 'string' || itemGroupId.trim() === '') {
     itemsErrorMessage.value = t('items.notFound');
@@ -1988,10 +2196,9 @@ watch(
   selectedDate,
   async (value) => {
     setDay(value);
-    if (!activeItemGroupId.value || bookingMode.value !== 'day') {
-      return;
-    }
-    await loadItems(activeItemGroupId.value, value);
+    if (bookingMode.value !== 'day') return;
+    if (!favoritesMode.value && !activeItemGroupId.value) return;
+    await loadItemsForView(value);
   },
   { flush: 'post' }
 );
@@ -2000,21 +2207,22 @@ watch(bookingMode, async (mode) => {
   if (storage) {
     storage.setItem('sithub_booking_mode', mode);
   }
-  if (!activeItemGroupId.value) return;
+  if (!favoritesMode.value && !activeItemGroupId.value) return;
   if (mode === 'week') {
-    await loadWeekData(activeItemGroupId.value);
+    await loadWeekDataForView();
   } else {
     weekData.value = {};
     weekSelections.value = new Set();
     weekBookingResults.value = [];
-    await loadItems(activeItemGroupId.value, selectedDate.value);
+    await loadItemsForView(selectedDate.value);
   }
 });
 
 watch([selectedWeek, showWeekends], async ([week]) => {
   setWeek(week);
-  if (!activeItemGroupId.value || bookingMode.value !== 'week') return;
-  await loadWeekData(activeItemGroupId.value);
+  if (bookingMode.value !== 'week') return;
+  if (!favoritesMode.value && !activeItemGroupId.value) return;
+  await loadWeekDataForView();
 });
 
 onMounted(() => {
@@ -2027,11 +2235,11 @@ onBeforeUnmount(() => {
 
 useLiveBookingRefresh({
   refresh: async () => {
-    if (!activeItemGroupId.value) return;
+    if (!favoritesMode.value && !activeItemGroupId.value) return;
     if (bookingMode.value === 'week') {
-      await loadWeekData(activeItemGroupId.value, true, true);
+      await loadWeekDataForView(true, true);
     } else {
-      await silentReloadItems(activeItemGroupId.value, selectedDate.value);
+      await silentReloadItemsForView(selectedDate.value);
     }
   },
   isRelevant: (event) => {

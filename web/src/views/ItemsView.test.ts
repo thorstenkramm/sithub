@@ -10,6 +10,7 @@ import { fetchAreas } from '../api/areas';
 import { fetchColleagues } from '../api/users';
 import { createBooking, cancelBooking, updateBookingNote, fetchMyBookings } from '../api/bookings';
 import { useDateState } from '../composables/useDateState';
+import { __resetLegacyPurgeForTests } from '../composables/useFavorites';
 import { buildViewStubs, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { middleTruncate } from '../utils/text';
@@ -1606,5 +1607,276 @@ describe('ItemsView', () => {
   });
 
   defineAuthRedirectTests(fetchMeMock, () => mountView(), pushMock);
+
+  describe('favorites mode', () => {
+    const mountFavoritesView = () => {
+      // Simulate the /favorites route: ItemsView reads route.meta.favoritesMode
+      // and switches into multi-item-group aggregation.
+      (routeMock as unknown as { meta?: { favoritesMode: boolean } }).meta = { favoritesMode: true };
+      return mount(ItemsView, {
+        global: {
+          stubs,
+          plugins: [createPinia(), createTestI18n()]
+        }
+      });
+    };
+
+    beforeEach(() => {
+      (routeMock as unknown as { meta?: unknown }).meta = undefined;
+      // Each favorites test asserts call counts on the api mocks AND
+      // depends on a clean useFavorites singleton state — reset both so
+      // accumulated state from earlier tests does not leak in.
+      fetchItemsMock.mockClear();
+      fetchAreasMock.mockClear();
+      fetchItemGroupsMock.mockClear();
+      fetchMyBookingsMock.mockClear();
+      localStorage.removeItem('sithub_favorite_items');
+      __resetLegacyPurgeForTests();
+    });
+
+    const seedFavorites = (favs: Array<{
+      areaId: string;
+      itemGroupId: string;
+      itemId: string;
+      itemName?: string;
+      itemGroupName?: string;
+    }>) => {
+      localStorage.setItem('sithub_favorite_items', JSON.stringify(favs.map(f => ({
+        areaId: f.areaId,
+        itemId: f.itemId,
+        itemName: f.itemName ?? f.itemId,
+        itemGroupId: f.itemGroupId,
+        itemGroupName: f.itemGroupName ?? f.itemGroupId
+      }))));
+    };
+
+    const makeItem = (overrides: Partial<{
+      id: string;
+      name: string;
+      availability: 'available' | 'occupied';
+      bookerName: string | undefined;
+      equipment: string[];
+    }> = {}) => ({
+      id: overrides.id ?? 'desk-1',
+      type: 'items',
+      attributes: {
+        name: overrides.name ?? 'Desk 1',
+        equipment: overrides.equipment ?? [],
+        availability: overrides.availability ?? 'available',
+        booker_name: overrides.bookerName,
+        booked_by_me: false
+      }
+    });
+
+    it('renders the Favorites breadcrumb and skips the item-group lookup', async () => {
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1' }]);
+      fetchItemsMock.mockResolvedValue({ data: [makeItem()] } as never);
+
+      const wrapper = mountFavoritesView();
+      await flushPromises();
+
+      const header = wrapper.findComponent(PageHeader);
+      expect(header.props('breadcrumbs')).toEqual([
+        { text: 'Home', to: '/' },
+        { text: 'Favorites' }
+      ]);
+
+      // Favorites mode does not need the per-area itemGroup discovery.
+      expect(fetchAreasMock).not.toHaveBeenCalled();
+      expect(fetchItemGroupsMock).not.toHaveBeenCalled();
+
+      // VIEW ITEM GROUP BOOKINGS link is gated on activeItemGroupId — hidden.
+      expect(wrapper.find('[data-cy="view-item-group-bookings"]').exists()).toBe(false);
+    });
+
+    it('aggregates items across multiple favorited item groups in day mode', async () => {
+      seedFavorites([
+        { areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' },
+        { areaId: 'area-2', itemGroupId: 'ig-2', itemId: 'desk-2', itemName: 'Desk 2' }
+      ]);
+      fetchItemsMock.mockImplementation((itemGroupId: string) => {
+        if (itemGroupId === 'ig-1') {
+          return Promise.resolve({ data: [makeItem({ id: 'desk-1', name: 'Desk 1' })] }) as never;
+        }
+        if (itemGroupId === 'ig-2') {
+          return Promise.resolve({ data: [makeItem({ id: 'desk-2', name: 'Desk 2' })] }) as never;
+        }
+        return Promise.resolve({ data: [] }) as never;
+      });
+
+      const wrapper = mountFavoritesView();
+      await flushPromises();
+
+      expect(fetchItemsMock).toHaveBeenCalledWith('ig-1', expect.any(String));
+      expect(fetchItemsMock).toHaveBeenCalledWith('ig-2', expect.any(String));
+
+      const text = wrapper.text();
+      expect(text).toContain('Desk 1');
+      expect(text).toContain('Desk 2');
+    });
+
+    it('filters to only favorited items even when the API returns extras', async () => {
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1' }]);
+      fetchItemsMock.mockResolvedValue({
+        data: [
+          makeItem({ id: 'desk-1', name: 'Favorited' }),
+          makeItem({ id: 'desk-2', name: 'Not favorited' })
+        ]
+      } as never);
+
+      const wrapper = mountFavoritesView();
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Favorited');
+      expect(wrapper.text()).not.toContain('Not favorited');
+    });
+
+    it('shows the normal error state when loading favorite items fails', async () => {
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1' }]);
+      fetchItemsMock.mockRejectedValue(new ApiError('Network error', 0));
+
+      const wrapper = mountFavoritesView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="items-error"]').text()).toContain(CONNECTION_LOST_MESSAGE);
+      expect(wrapper.find('[data-cy="items-empty"]').exists()).toBe(false);
+    });
+
+    it('books selected favorite days in week mode and keeps the result visible', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      localStorage.setItem('sithub_booking_mode', 'week');
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' }]);
+      fetchItemsMock.mockResolvedValue({
+        data: [makeItem({ id: 'desk-1', name: 'Desk 1' })]
+      } as never);
+
+      try {
+        const wrapper = mountFavoritesView();
+        await flushPromises();
+
+        createBookingMock.mockClear();
+        await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+        await flushPromises();
+        await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+        await flushPromises();
+
+        expect(createBookingMock).toHaveBeenCalledWith('desk-1', '2026-05-11', undefined);
+        expect(wrapper.find('[data-cy="week-booking-results"]').exists()).toBe(true);
+      } finally {
+        localStorage.removeItem('sithub_booking_mode');
+        vi.useRealTimers();
+      }
+    });
+
+    it('prunes selected favorite days that become unavailable during live week refresh', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      localStorage.setItem('sithub_booking_mode', 'week');
+      const bookedDate = '2026-05-11';
+      let liveRefresh = false;
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' }]);
+      fetchItemsMock.mockImplementation((_itemGroupId, date) => Promise.resolve({
+        data: [
+          makeItem({
+            id: 'desk-1',
+            name: 'Desk 1',
+            availability: liveRefresh && date === bookedDate ? 'occupied' : 'available',
+            bookerName: liveRefresh && date === bookedDate ? 'Bob Smith' : undefined
+          })
+        ]
+      }) as never);
+
+      try {
+        const wrapper = mountFavoritesView();
+        await flushPromises();
+
+        await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+        await flushPromises();
+        expect(wrapper.find('[data-cy="week-confirm-section"]').exists()).toBe(true);
+
+        liveRefresh = true;
+        fetchItemsMock.mockClear();
+        expect(liveFeed.handler).toBeTypeOf('function');
+        liveFeed.handler!({
+          type: 'booking.created',
+          booking_id: 'booking-1',
+          item_id: 'desk-1',
+          user_id: 'other-user',
+          booking_date: bookedDate,
+          timestamp: '2026-05-10T12:00:00Z'
+        });
+        await vi.advanceTimersByTimeAsync(300);
+        await flushPromises();
+
+        expect(fetchItemsMock).toHaveBeenCalledWith('ig-1', bookedDate);
+        expect(wrapper.find('[data-cy="week-day-other"]').exists()).toBe(true);
+        expect(wrapper.find('[data-cy="week-confirm-section"]').exists()).toBe(false);
+      } finally {
+        localStorage.removeItem('sithub_booking_mode');
+        vi.useRealTimers();
+      }
+    });
+
+    it('clears selected week days when a favorite is removed in week mode', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      localStorage.setItem('sithub_booking_mode', 'week');
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' }]);
+      fetchItemsMock.mockResolvedValue({
+        data: [makeItem({ id: 'desk-1', name: 'Desk 1' })]
+      } as never);
+
+      try {
+        const wrapper = mountFavoritesView();
+        await flushPromises();
+
+        await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+        await flushPromises();
+        expect(wrapper.find('[data-cy="week-confirm-section"]').exists()).toBe(true);
+
+        await wrapper.get('[data-cy="week-item-favorite-heart"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="week-confirm-section"]').exists()).toBe(false);
+      } finally {
+        localStorage.removeItem('sithub_booking_mode');
+        vi.useRealTimers();
+      }
+    });
+
+    it('shows the empty state with favorites messaging when there are no favorites', async () => {
+      // No localStorage entry → empty favoriteItems → empty list rendered.
+      const wrapper = mountFavoritesView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="items-empty"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain('No favorites yet');
+      // No API calls because the favorites set is empty.
+      expect(fetchItemsMock).not.toHaveBeenCalled();
+    });
+
+    it('removes the desk from the list when the heart is clicked', async () => {
+      seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' }]);
+      fetchItemsMock.mockResolvedValue({
+        data: [makeItem({ id: 'desk-1', name: 'Desk 1' })]
+      } as never);
+
+      const wrapper = mountFavoritesView();
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="item-favorite-heart"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="items-list"]').exists()).toBe(true);
+
+      await wrapper.find('[data-cy="item-favorite-heart"]').trigger('click');
+      await flushPromises();
+
+      // The item card disappears and the empty state takes over. The
+      // snackbar's "removed from favorites" message still mentions the
+      // desk name, so we assert against the list element, not the full text.
+      expect(wrapper.find('[data-cy="items-list"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="items-empty"]').exists()).toBe(true);
+    });
+  });
 });
 /* jscpd:ignore-end */

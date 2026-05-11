@@ -1,8 +1,15 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { getSafeLocalStorage } from './storage';
 
-const STORAGE_KEY_IG = 'sithub_favorite_item_groups';
 const STORAGE_KEY_ITEMS = 'sithub_favorite_items';
+
+// Legacy key from the previous favorites implementation, where item groups
+// (rooms/areas) could also be favorited. Story 31.2 removes that feature; we
+// purge the key once on first load so stale data does not linger.
+const LEGACY_STORAGE_KEY_ITEM_GROUPS = 'sithub_favorite_item_groups';
+
+/** Synthetic area id for the virtual "Favorites" tile. */
+export const FAVORITES_AREA_ID = '__favorites__';
 
 export interface ItemFavorite {
   areaId: string;
@@ -12,17 +19,27 @@ export interface ItemFavorite {
   itemGroupName: string;
 }
 
-function loadSet(key: string): Set<string> {
+let legacyPurged = false;
+const favoriteItems = ref<ItemFavorite[]>([]);
+let favoritesLoaded = false;
+
+function purgeLegacyItemGroupFavorites() {
+  if (legacyPurged) return;
+  legacyPurged = true;
   const storage = getSafeLocalStorage();
-  if (!storage) return new Set();
+  if (!storage) return;
   try {
-    const raw = storage.getItem(key);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []);
+    storage.removeItem(LEGACY_STORAGE_KEY_ITEM_GROUPS);
   } catch {
-    return new Set();
+    // Storage may be unavailable; ignore.
   }
+}
+
+/** Reset the one-shot legacy-purge flag. Test-only. */
+export function __resetLegacyPurgeForTests() {
+  legacyPurged = false;
+  favoritesLoaded = false;
+  favoriteItems.value = [];
 }
 
 function loadItemFavorites(): ItemFavorite[] {
@@ -56,12 +73,6 @@ function loadItemFavorites(): ItemFavorite[] {
   }
 }
 
-function persistSet(key: string, set: Set<string>) {
-  const storage = getSafeLocalStorage();
-  if (!storage) return;
-  storage.setItem(key, JSON.stringify([...set]));
-}
-
 function persistItemFavorites(items: ItemFavorite[]) {
   const storage = getSafeLocalStorage();
   if (!storage) return;
@@ -69,48 +80,26 @@ function persistItemFavorites(items: ItemFavorite[]) {
 }
 
 export function useFavorites() {
-  const favoriteItemGroups = ref<Set<string>>(loadSet(STORAGE_KEY_IG));
-  const favoriteItems = ref<ItemFavorite[]>(loadItemFavorites());
+  purgeLegacyItemGroupFavorites();
 
-  const itemGroupKey = (areaId: string, igId: string) => `${areaId}::${igId}`;
-  const itemKey = (areaId: string, itemGroupId: string, itemId: string) =>
-    `${areaId}::${itemGroupId}::${itemId}`;
-
-  const isItemGroupFavorite = (areaId: string, igId: string) =>
-    favoriteItemGroups.value.has(itemGroupKey(areaId, igId))
-    || favoriteItemGroups.value.has(igId);
-
-  function toggleItemGroupFavorite(areaId: string, igId: string): { added: boolean } {
-    const next = new Set(favoriteItemGroups.value);
-    const scopedKey = itemGroupKey(areaId, igId);
-    const added = !next.has(scopedKey) && !next.has(igId);
-    if (added) {
-      next.add(scopedKey);
-    } else {
-      next.delete(scopedKey);
-      next.delete(igId);
-    }
-    favoriteItemGroups.value = next;
-    persistSet(STORAGE_KEY_IG, next);
-    return { added };
+  if (!favoritesLoaded) {
+    favoriteItems.value = loadItemFavorites();
+    favoritesLoaded = true;
   }
 
-  const isItemFavorite = (areaId: string, itemGroupId: string, itemId: string) =>
-    favoriteItems.value.some(f =>
-      f.itemId === itemId
-      && (
-        itemKey(f.areaId, f.itemGroupId, f.itemId) === itemKey(areaId, itemGroupId, itemId)
-        || (f.areaId === '' && f.itemGroupId === itemGroupId)
-      )
+  const sameItem = (a: ItemFavorite, b: { areaId: string; itemGroupId: string; itemId: string }) =>
+    a.itemId === b.itemId
+    && (
+      (a.areaId === b.areaId && a.itemGroupId === b.itemGroupId)
+      || (a.areaId === '' && a.itemGroupId === b.itemGroupId)
     );
+
+  const isItemFavorite = (areaId: string, itemGroupId: string, itemId: string) =>
+    favoriteItems.value.some(f => sameItem(f, { areaId, itemGroupId, itemId }));
 
   function toggleItemFavorite(fav: ItemFavorite): { added: boolean } {
     const existing = favoriteItems.value.findIndex(f =>
-      f.itemId === fav.itemId
-      && (
-        itemKey(f.areaId, f.itemGroupId, f.itemId) === itemKey(fav.areaId, fav.itemGroupId, fav.itemId)
-        || (f.areaId === '' && f.itemGroupId === fav.itemGroupId)
-      )
+      sameItem(f, { areaId: fav.areaId, itemGroupId: fav.itemGroupId, itemId: fav.itemId })
     );
     const added = existing === -1;
     if (added) {
@@ -122,17 +111,9 @@ export function useFavorites() {
     return { added };
   }
 
-  const favoriteItemsForArea = computed(() => {
-    return favoriteItems.value;
-  });
-
   return {
-    favoriteItemGroups,
     favoriteItems,
-    isItemGroupFavorite,
-    toggleItemGroupFavorite,
     isItemFavorite,
-    toggleItemFavorite,
-    favoriteItemsForArea
+    toggleItemFavorite
   };
 }

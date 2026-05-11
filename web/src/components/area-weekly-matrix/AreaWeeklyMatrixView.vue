@@ -31,6 +31,7 @@
             <AreaWeeklyMatrixRoomSection
               :group="group"
               :days="days"
+              :area-id="props.areaId"
               :collapsed="isCollapsed(group.id)"
               :current-user-id="currentUserId"
               :is-admin="isAdmin"

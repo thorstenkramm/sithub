@@ -304,6 +304,13 @@
     "person": "Person",
     "desk": "Desk"
   },
+  "favorites": {
+    "areaName": "Favorites",
+    "areaSubtitle": "Your saved desks",
+    "emptyTitle": "No favorites yet",
+    "emptyMessage": "Open a desk and tap the heart to add it to your favorites.",
+    "removeTooltip": "Remove from favorites"
+  },
   "weekdays": {
     "mo": "MO",
     "tu": "TU",

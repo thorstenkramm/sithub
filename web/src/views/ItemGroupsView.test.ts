@@ -356,7 +356,10 @@ describe('ItemGroupsView', () => {
     expect(dots[4].classes()).toContain('dot-available');
   });
 
-  it('renders promoted favorite tiles with subtitle and availability dots', async () => {
+  it('does not promote favorite tiles or show item-group heart icons (story 31.2)', async () => {
+    // Story 31.2 moved favorites to a dedicated virtual area accessed from
+    // the home overview. The item-groups view must no longer hoist
+    // favorites or expose any control to favorite a room.
     localStorage.setItem('sithub_favorite_items', JSON.stringify([{
       areaId: 'area-1',
       itemId: 'item-1',
@@ -372,13 +375,8 @@ describe('ItemGroupsView', () => {
 
     await flushPromises();
 
-    const favoriteTile = wrapper.get('[data-cy="favorite-item-tile"]');
-    expect(favoriteTile.text()).toContain('Desk 1');
-    expect(favoriteTile.text()).toContain('Item Group 1');
-
-    const dots = favoriteTile.findAll('.indicator-dot');
-    expect(dots).toHaveLength(5);
-    expect(dots[1]?.classes()).toContain('dot-booked');
+    expect(wrapper.find('[data-cy="favorite-item-tile"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="ig-favorite-heart"]').exists()).toBe(false);
   });
 
   it('handles availability fetch failure gracefully', async () => {

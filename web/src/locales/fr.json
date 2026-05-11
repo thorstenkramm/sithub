@@ -304,6 +304,13 @@
     "person": "Personne",
     "desk": "Poste"
   },
+  "favorites": {
+    "areaName": "Favoris",
+    "areaSubtitle": "Vos postes enregistrés",
+    "emptyTitle": "Aucun favori pour l'instant",
+    "emptyMessage": "Ouvrez un poste et appuyez sur le cœur pour l'ajouter à vos favoris.",
+    "removeTooltip": "Retirer des favoris"
+  },
   "weekdays": {
     "mo": "LU",
     "tu": "MA",

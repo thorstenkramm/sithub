@@ -11,6 +11,7 @@ import {
 } from "../../api/bookings";
 import { fetchItemGroups } from "../../api/itemGroups";
 import { fetchAreas } from "../../api/areas";
+import { __resetLegacyPurgeForTests } from "../../composables/useFavorites";
 
 const liveFeed = vi.hoisted(() => ({
   handler: null as ((event: unknown) => void) | null,
@@ -220,6 +221,7 @@ describe("InteractiveFloorPlan", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-08T10:00:00"));
     localStorage.clear();
+    __resetLegacyPurgeForTests();
     setViewport(1280, 900);
     fetchFloorPlanPositionsMock.mockResolvedValue({
       data: [basePosition()],
@@ -329,6 +331,59 @@ describe("InteractiveFloorPlan", () => {
 
     expect(fetchItemsMock).toHaveBeenCalledTimes(1);
     expect(fetchItemsMock).toHaveBeenCalledWith("ig-1", "2026-04-08");
+  });
+
+  it("renders a removable favorite heart on free floor-plan items", async () => {
+    localStorage.setItem("sithub_favorite_items", JSON.stringify([{
+      areaId: "area-1",
+      itemId: "item-1",
+      itemName: "Desk A",
+      itemGroupId: "ig-1",
+      itemGroupName: "Cube 1",
+    }]));
+
+    const wrapper = mountComponent({ areaId: "area-1" });
+    await flushPromises();
+
+    const heart = wrapper.get('[data-cy="fp-favorite-heart-item-1"]');
+    await heart.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-favorite-heart-item-1"]').exists()).toBe(false);
+    expect(localStorage.getItem("sithub_favorite_items")).toBe("[]");
+    expect(wrapper.find('[data-cy="fp-booking-dialog"]').exists()).toBe(false);
+  });
+
+  it("does not render a favorite heart on busy floor-plan items", async () => {
+    localStorage.setItem("sithub_favorite_items", JSON.stringify([{
+      areaId: "area-1",
+      itemId: "item-1",
+      itemName: "Desk A",
+      itemGroupId: "ig-1",
+      itemGroupName: "Cube 1",
+    }]));
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: "item-1",
+          type: "items",
+          attributes: {
+            name: "Desk A",
+            equipment: ["Monitor"],
+            availability: "occupied",
+            booker_name: "Alice Smith",
+            booker_user_id: "user-1",
+            booked_by_me: false,
+          },
+        },
+      ],
+    } as never);
+
+    const wrapper = mountComponent({ areaId: "area-1" });
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="fp-favorite-heart-item-1"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="fp-avatar-item-1"]').exists()).toBe(true);
   });
 
   it("drills into the detailed floor plan when a child floor plan exists", async () => {

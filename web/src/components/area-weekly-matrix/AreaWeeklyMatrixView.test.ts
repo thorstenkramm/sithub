@@ -4,6 +4,7 @@ import AreaWeeklyMatrixView from './AreaWeeklyMatrixView.vue';
 import { fetchWeeklyMatrix } from '../../api/itemGroupMatrix';
 import { createTestI18n } from '../../__tests__/helpers/i18n';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { __resetLegacyPurgeForTests } from '../../composables/useFavorites';
 
 vi.mock('../../api/itemGroupMatrix', () => ({ fetchWeeklyMatrix: vi.fn() }));
 const liveFeed = vi.hoisted(() => ({
@@ -239,6 +240,7 @@ describe('AreaWeeklyMatrixView', () => {
     setActivePinia(createPinia());
     fetchMatrixMock.mockReset();
     localStorage.clear();
+    __resetLegacyPurgeForTests();
     liveFeed.handler = null;
   });
 
@@ -487,6 +489,28 @@ describe('AreaWeeklyMatrixView', () => {
     // desk-1 has warning "Near window"
     expect(wrapper.find('[data-cy="matrix-warning-icon"]').exists()).toBe(true);
     expect(wrapper.find('[data-cy="matrix-warning-tooltip"]').text()).toBe('Near window');
+  });
+
+  it('renders a heart for favorite matrix rows and removes the favorite on click', async () => {
+    localStorage.setItem('sithub_favorite_items', JSON.stringify([{
+      areaId: 'area-1',
+      itemId: 'desk-1',
+      itemName: 'Desk 1',
+      itemGroupId: 'ig-1',
+      itemGroupName: 'Room 101'
+    }]));
+    fetchMatrixMock.mockResolvedValue(makeMatrixResponse());
+    const wrapper = mountMatrix();
+    await flushPromises();
+
+    const heart = wrapper.get('[data-cy="matrix-favorite-heart-desk-1"]');
+    expect(wrapper.find('[data-cy="matrix-favorite-heart-desk-2"]').exists()).toBe(false);
+
+    await heart.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="matrix-favorite-heart-desk-1"]').exists()).toBe(false);
+    expect(localStorage.getItem('sithub_favorite_items')).toBe('[]');
   });
 
   it('does not render equipment or warning icons when absent', async () => {

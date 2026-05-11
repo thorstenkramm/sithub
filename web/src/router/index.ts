@@ -23,6 +23,17 @@ const router = createRouter({
       component: () => import('../views/ItemGroupsView.vue')
     },
     {
+      // Favorites is a virtual room: it reuses ItemsView so users get the
+      // exact same day/week toggle, date picker, equipment filter, and
+      // booking flow as a real room. ItemsView branches on
+      // `route.meta.favoritesMode` to skip the per-item-group fetch and
+      // aggregate items across all favorited (areaId, itemGroupId) pairs.
+      path: '/favorites',
+      name: 'favorites',
+      component: () => import('../views/ItemsView.vue'),
+      meta: { favoritesMode: true }
+    },
+    {
       path: '/areas/:areaId/presence',
       name: 'area-presence',
       component: () => import('../views/AreaPresenceView.vue')
