@@ -1,6 +1,6 @@
 # Story 31.3: Areas Config Location Hint in Example TOML
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -118,10 +118,31 @@ description line, not added on its own line. Mirror that.
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (1M context)
 
 ### Debug Log References
 
+- `git diff sithub.example.toml` shows the single-sentence addition and
+  nothing else.
+- `go run ./cmd/sithub run --config ./sithub.example.toml --help` prints the
+  usage banner with no TOML parse error.
+
 ### Completion Notes List
 
+- Appended `Must be inside data_dir.` to the description line of
+  `[areas].config_file` in `sithub.example.toml`, mirroring the wording
+  already used for `[areas].floor_plans`. No new comment line introduced —
+  the constraint is appended to the existing description per the style
+  shown in `.claude/rules/toml.md` and the floor-plans precedent.
+- Did not touch the runtime validation. Story 18.2 already enforces "areas
+  config must live inside `data_dir`" at startup (spot-checked:
+  `internal/startup/server.go::loadAndValidateAreas` still wires through
+  `internal/areas.Load` which calls `EnsureInsideDataDir`).
+- No tests added — the change is a documentation comment only.
+
 ### File List
+
+Documentation (modified):
+
+- `sithub.example.toml` (one line: appended `Must be inside data_dir.` to
+  `[areas].config_file` description)

@@ -263,8 +263,8 @@ development_status:
   30-3-optional-area-drill-down-toggle-on-floor-plan-booking: done
   epic-30-retrospective: optional
 
-  epic-31: in-progress
+  epic-31: done
   31-1-live-updates-for-bookings-and-cancellations: done
   31-2-favorites-rework-as-virtual-room: done
-  31-3-areas-config-location-hint-in-example-toml: ready-for-dev
+  31-3-areas-config-location-hint-in-example-toml: done
   epic-31-retrospective: optional
