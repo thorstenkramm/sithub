@@ -8,6 +8,7 @@ export { default as ConfirmDialog } from './ConfirmDialog.vue';
 export { default as StatusChip } from './StatusChip.vue';
 export { default as DatePickerField } from './DatePickerField.vue';
 export { default as BookingCard } from './BookingCard.vue';
+export { default as FloorPlanButton } from './FloorPlanButton.vue';
 
 // Re-export types
 export type { BreadcrumbItem } from './PageHeader.vue';

@@ -195,6 +195,7 @@ function mountMatrix(props: Partial<{
   areaId: string;
   week: string;
   showWeekends: boolean;
+  parsedEquipmentFilter: { exact: string[]; keywords: string[] }[];
 }> = {}) {
   return mount(AreaWeeklyMatrixView, {
     props: {
@@ -605,5 +606,40 @@ describe('AreaWeeklyMatrixView', () => {
 
     expect(fetchMatrixMock).toHaveBeenCalledTimes(2);
     requestAnimationFrameSpy.mockRestore();
+  });
+
+  describe('equipment filter', () => {
+    it('does not mark any row as filtered when the parsed filter is empty', async () => {
+      fetchMatrixMock.mockResolvedValue(makeMatrixResponse());
+      const wrapper = mountMatrix({ parsedEquipmentFilter: [] });
+      await flushPromises();
+
+      expect(wrapper.findAll('.matrix-row--filtered-out')).toHaveLength(0);
+    });
+
+    it('dims rows whose items do not match the parsed filter', async () => {
+      fetchMatrixMock.mockResolvedValue(makeMatrixResponse());
+      const wrapper = mountMatrix({
+        parsedEquipmentFilter: [{ exact: [], keywords: ['monitor'] }]
+      });
+      await flushPromises();
+
+      // desk-1 has 'Dock', 'Monitor' → matches; desk-2 and desk-3 have [] → filtered out
+      expect(wrapper.find('[data-cy="matrix-row-desk-1"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="matrix-row-desk-2"]').classes()).toContain('matrix-row--filtered-out');
+      expect(wrapper.find('[data-cy="matrix-row-desk-3"]').classes()).toContain('matrix-row--filtered-out');
+      expect(wrapper.findAll('[data-filtered-cy="matrix-row-filtered-out"]')).toHaveLength(2);
+      expect(wrapper.findAll('.matrix-row--filtered-out')).toHaveLength(2);
+    });
+
+    it('marks all rows as filtered when no item matches', async () => {
+      fetchMatrixMock.mockResolvedValue(makeMatrixResponse());
+      const wrapper = mountMatrix({
+        parsedEquipmentFilter: [{ exact: [], keywords: ['nonexistent'] }]
+      });
+      await flushPromises();
+
+      expect(wrapper.findAll('.matrix-row--filtered-out')).toHaveLength(3);
+    });
   });
 });

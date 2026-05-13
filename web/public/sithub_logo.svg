@@ -1,0 +1,28 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconGrad" x1="350" y1="70" x2="850" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82FF"/>
+      <stop offset="1" stop-color="#3D4CFF"/>
+    </linearGradient>
+    <linearGradient id="hubGrad" x1="615" y1="560" x2="850" y2="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82FF"/>
+      <stop offset="1" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon background -->
+  <rect x="430" y="70" width="340" height="340" rx="78" fill="url(#iconGrad)"/>
+
+  <!-- Chair symbol -->
+  <rect x="540" y="138" width="120" height="120" rx="22" fill="white"/>
+  <path d="M495 252 C495 303 525 330 600 330 C675 330 705 303 705 252" stroke="white" stroke-width="28" stroke-linecap="round"/>
+  <path d="M600 330 V390" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M552 390 H648" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M568 390 L538 420" stroke="white" stroke-width="20" stroke-linecap="round"/>
+  <path d="M632 390 L662 420" stroke="white" stroke-width="20" stroke-linecap="round"/>
+
+  <!-- Wordmark -->
+  <text x="600" y="600" text-anchor="middle" font-family="Inter, Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="104" font-weight="600" letter-spacing="-3">
+    <tspan fill="#07122B">Sit</tspan><tspan fill="url(#hubGrad)">Hub</tspan>
+  </text>
+</svg>

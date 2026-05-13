@@ -5,13 +5,20 @@ describe('login', () => {
   });
 
   it('should show login form for unauthenticated users', () => {
+    cy.intercept('GET', '/api/v1/auth/providers').as('authProviders');
     cy.visit('/');
     cy.location('pathname').should('eq', '/login');
+    // Wait for the auth-providers gating to resolve so the layout is settled.
+    cy.wait('@authProviders');
     cy.get('[data-cy="login-form"]').should('exist');
     cy.get('[data-cy="login-email"]').should('exist');
     cy.get('[data-cy="login-password"]').should('exist');
     cy.get('[data-cy="login-submit"]').should('exist');
-    cy.get('[data-cy="login-entraid"]').should('exist');
+    // Per Story 33.6 AC #4: when the server does not configure Entra ID
+    // (the test backend doesn't), the Entra ID button and toggle link are
+    // not rendered, so users are not locked out.
+    cy.get('[data-cy="login-entraid"]').should('not.exist');
+    cy.get('[data-cy="login-toggle-local"]').should('not.exist');
   });
 
   it('should login with valid credentials and redirect to home', () => {

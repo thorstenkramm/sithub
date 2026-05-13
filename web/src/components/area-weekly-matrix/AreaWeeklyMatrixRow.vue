@@ -1,5 +1,10 @@
 <template>
-  <tr class="matrix-desk-row" :data-cy="`matrix-row-${item.item_id}`">
+  <tr
+    class="matrix-desk-row"
+    :class="{ 'matrix-row--filtered-out': isFilteredOut }"
+    :data-cy="`matrix-row-${item.item_id}`"
+    :data-filtered-cy="isFilteredOut ? 'matrix-row-filtered-out' : undefined"
+  >
     <!-- Sticky desk name column -->
     <td class="matrix-desk-name sticky-col">
       <span class="desk-label" :data-cy="`matrix-desk-label-${item.item_id}`">
@@ -63,6 +68,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { MatrixItem, MatrixDayMeta } from '../../api/itemGroupMatrix';
+import { matchesParsedFilter, type AndGroup } from '../../composables/useEquipmentFilter';
 import { useFavorites } from '../../composables/useFavorites';
 import AreaWeeklyMatrixCell from './AreaWeeklyMatrixCell.vue';
 
@@ -75,7 +81,14 @@ const props = defineProps<{
   currentUserId: string;
   isAdmin: boolean;
   today: string;
+  parsedEquipmentFilter?: AndGroup[];
 }>();
+
+const isFilteredOut = computed(() => {
+  const groups = props.parsedEquipmentFilter ?? [];
+  if (groups.length === 0) return false;
+  return !matchesParsedFilter(props.item.equipment ?? [], groups);
+});
 
 useI18n(); // expose $t in template
 
@@ -120,5 +133,11 @@ function removeFavorite() {
 
 .matrix-favorite-heart {
   cursor: pointer;
+}
+
+.matrix-row--filtered-out {
+  opacity: 0.35;
+  pointer-events: none;
+  filter: grayscale(0.3);
 }
 </style>

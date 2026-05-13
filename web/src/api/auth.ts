@@ -16,3 +16,12 @@ export async function logout(): Promise<void> {
     // Silently ignore network errors — the user is logging out regardless.
   }
 }
+
+export interface AuthProvidersAttributes {
+  entraid: boolean;
+  local: boolean;
+}
+
+export function fetchAuthProviders() {
+  return apiRequest<SingleResponse<AuthProvidersAttributes>>('/api/v1/auth/providers');
+}

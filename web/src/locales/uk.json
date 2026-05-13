@@ -54,6 +54,8 @@
     "password": "Пароль",
     "signIn": "Увійти",
     "signInWithEntraId": "Увійти через Entra ID",
+    "moreLoginOptions": "більше варіантів входу",
+    "lessLoginOptions": "менше варіантів входу",
     "requiredFields": "Електронна пошта та пароль є обов'язковими.",
     "invalidCredentials": "Невірна електронна пошта або пароль",
     "genericError": "Сталася помилка. Будь ласка, спробуйте ще раз."

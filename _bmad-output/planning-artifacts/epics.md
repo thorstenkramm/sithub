@@ -10,6 +10,7 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-30.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-31.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-32.md
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-33.md
 lastEdited: '2026-05-11'
 editHistory:
   - date: '2026-02-07'
@@ -48,6 +49,8 @@ editHistory:
     changes: "Added FR143-FR145 and Epic 32: Booker Avatars on Item Tiles & Stable Colleague Booking Layout. Adds booker avatars (with initials fallback and full-name tooltip) to booked item tiles in day and week modes, and stabilizes the 'Book for a colleague' layout so the colleague dropdown renders inline next to the radio group on wide viewports without pushing subsequent containers down."
   - date: '2026-05-11'
     changes: "Back-filled FR140-FR142 for Epic 31 (Live Updates, Favorites Rework & Areas Config Hint) into the Functional Requirements list and the FR Coverage Map; added epic-31.md to inputDocuments. No story content changed."
+  - date: '2026-05-11'
+    changes: "Added FR146-FR152 and Epic 33: Equipment Filter Fixes, Compact Booking Controls & Login Page Rebranding. Fixes equipment-filter reset and table-view filter, widens table-view cancel popover, replaces booking-type radio with single checkbox + always-on dropdown (supersedes Story 32.3 layout), collapses booking controls to a single row, promotes Entra ID to primary login with official icon and 'more options' toggle, and embeds the new SitHub brand logo for the login page and header."
 ---
 
 # sithub - Epic Breakdown
@@ -473,6 +476,64 @@ downward. Acceptance: switching between "Book for myself" and "Book for a collea
 a wide viewport does not change the vertical position of the equipment filter or any
 booking tile beneath the controls; on narrow viewports where the inline dropdown does
 not fit, the dropdown wraps to the next line without any visual jitter mid-interaction.
+FR146: Clearing the equipment filter input on the item-groups view (either by clicking
+the built-in clear "X" icon or by manually deleting all characters) must reset the
+active filter so every tile becomes interactive again. Acceptance: typing a non-matching
+keyword blurs/disables all tiles (existing behavior); subsequently clicking the input's
+clear icon or backspacing the input to empty restores all tiles to the unfiltered state
+without requiring a page reload; the same behavior applies in day mode and week mode.
+FR147: The equipment filter input on the weekly desktop table view must filter rows by
+the searched equipment. Acceptance: typing a keyword dims and disables every row whose
+item lacks at least one equipment entry matching the parsed filter (same matching
+semantics as the tile view, per `matchesParsedFilter`); clearing the input restores all
+rows to their normal state; the filter input is the same control already present at the
+top of the table view, not a new one.
+FR148: The booking-cancel popover that opens from the weekly table view when a user
+clicks one of their own booked cells must size its container so the "Cancel booking"
+button is fully visible without scrolling. Acceptance: opening the popover from any
+booked-by-me cell shows the Person, Platz, Datum lines and both the "Schliessen" and
+"Buchung stornieren" buttons inside the popover without any of them being clipped at
+the bottom edge; the popover remains anchored to the cell that opened it.
+FR149: The "Book for myself / Book for a colleague" radio group in the item-groups
+booking controls must be replaced by a single "Book for a colleague" checkbox
+(unchecked by default). The colleague-selection dropdown must always be rendered in
+the layout, in a disabled state when the checkbox is unchecked and enabled when it is
+checked. Acceptance: on first render the checkbox is unchecked and the colleague
+dropdown is present but disabled; checking the box enables the dropdown without any
+layout reflow; unchecking it disables the dropdown and clears the previously selected
+colleague; the previous Story 32.3 radio-group layout is removed entirely.
+FR150: The booking controls on the item-groups view must be laid out on a single line
+on wide viewports, containing in order: the day/week toggle, the date or week
+selector, the equipment filter input (with its info icon), the "Book for a colleague"
+checkbox, and the colleague-selection dropdown. On narrower viewports the row wraps
+naturally to multiple lines. Acceptance: on a wide viewport (desktop) all five
+controls are visible on one row without truncation; the booking-controls card is
+visibly shorter (less vertical height) than before; on viewports too narrow to fit
+the row the controls wrap to subsequent lines without overlapping; the same layout
+applies in day mode and week mode.
+FR151: The login page must promote Microsoft Entra ID as the primary authentication
+option. The Entra ID sign-in button must include the official Microsoft Entra ID
+color icon (SVG sourced from
+`https://upload.wikimedia.org/wikipedia/commons/8/8c/Microsoft_Entra_ID_color_icon.svg`,
+downloaded into the repository and embedded into the binary). The local
+username/password form must be hidden on first render and revealed by a clickable
+"more login options" link beneath the Entra ID button; revealing the form swaps the
+link text to "less login options" which collapses it again. Acceptance: an
+unauthenticated user landing on the login page sees only the brand logo, the Entra ID
+button (with the official Entra ID icon), and the "more login options" link; clicking
+the link expands the local credentials form and swaps the link to "less login
+options"; clicking again collapses the form. When Entra ID is not configured on the
+server, the local form is shown by default (no toggle link) so users are not locked
+out.
+FR152: The SitHub brand logo (`private/sithub_logo.svg`, to be downloaded into the
+repository and embedded into the binary) must replace the current text-only branding
+in two places: a full vertical layout on the login page (icon + "SitHub" wordmark
+stacked) and a compact horizontal layout in the application header (icon + "SitHub"
+wordmark side-by-side). Acceptance: the login page renders the full logo above the
+Entra ID button; the application header renders the compact horizontal variant in
+place of any current text-only branding; both variants are served from the embedded
+binary asset; the header variant fits within the existing app-bar height without
+clipping.
 
 ### NonFunctional Requirements
 
@@ -705,6 +766,15 @@ FR142: Epic 31 - Areas config location hint in `sithub.example.toml`
 FR143: Epic 32 - Booker avatar on item tiles in day mode
 FR144: Epic 32 - Booker avatar on item tiles in week mode
 FR145: Epic 32 - Stable inline layout for "Book for a colleague" dropdown
+FR146: Epic 33 - Equipment filter reset on item-groups view when input is cleared
+FR147: Epic 33 - Equipment filter on weekly desktop table view
+FR148: Epic 33 - Wider weekly-table booking-cancel popover (no clipping)
+FR149: Epic 33 - Replace booking-type radio with single colleague-checkbox and
+always-rendered dropdown
+FR150: Epic 33 - Single-line compact booking controls layout
+FR151: Epic 33 - Entra ID promoted to primary login with official icon and
+"more options" toggle for the local credentials form
+FR152: Epic 33 - SitHub brand logo embedded for login page (full) and header (compact)
 
 ## Epic List
 
@@ -897,6 +967,22 @@ the "Book for a colleague" layout so that selecting it does not push the equipme
 and tile grid down a line; the colleague-selection dropdown appears inline next to the
 radio group whenever the viewport has room.
 **FRs covered:** FR143, FR144, FR145
+
+### Epic 33: Equipment Filter Fixes, Compact Booking Controls & Login Page Rebranding
+
+Fix two equipment-filter bugs (the input on the item-groups view does not reset when
+cleared; the input on the weekly desktop table view is non-functional) and widen the
+weekly-table booking-cancel popover so the cancel button is no longer clipped.
+Replace the booking-type radio group introduced in Story 32.3 with a single
+"Book for a colleague" checkbox plus an always-rendered, conditionally-disabled
+colleague dropdown, and collapse the booking-controls card to a single line on wide
+viewports so it occupies less vertical space. Rebrand the login experience: promote
+Entra ID to the primary sign-in option with its official Microsoft icon, hide the
+local credentials form behind a "more login options" toggle, and adopt the new
+`private/sithub_logo.svg` as the SitHub brand logo on both the login page (full
+vertical) and the application header (compact horizontal). The SVG assets must be
+downloaded into the repository and embedded into the binary.
+**FRs covered:** FR146, FR147, FR148, FR149, FR150, FR151, FR152
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -4503,3 +4589,241 @@ colleague
 **When** the selection is applied
 **Then** the existing booking flow continues unchanged
 **And** the chosen colleague is used as the booker for the next booking action
+
+## Epic 33 Stories: Equipment Filter Fixes, Compact Booking Controls & Login Page Rebranding
+
+Fix the equipment-filter reset bug and the non-functional table-view filter, widen the
+table-view cancel popover, replace the booking-type radio group with a single checkbox
+plus always-rendered colleague dropdown, compact the booking controls to a single row,
+and rebrand the login page and application header with the new SitHub logo and an
+Entra-ID-primary sign-in flow.
+**FRs covered:** FR146, FR147, FR148, FR149, FR150, FR151, FR152
+
+### Story 33.1: Equipment Filter Resets on Item-Groups View
+
+**FRs covered:** FR146
+
+As a user filtering items by equipment,
+I want clearing the filter input to re-enable every tile,
+so that I can recover from a typo or a non-matching search without reloading the page.
+
+**Acceptance Criteria:**
+
+**Given** I am on an item-groups page in day mode and I type a keyword that no item's
+equipment matches
+**When** I press the input's built-in clear "X" icon
+**Then** every tile that was blurred / disabled by the filter returns to its normal
+interactive state without a page reload
+
+**Given** I am on the same page with a non-matching filter applied
+**When** I backspace the input until it is empty
+**Then** every tile returns to its normal interactive state immediately
+
+**Given** I am on the same page in week mode
+**When** I clear the filter via either method above
+**Then** every week tile returns to its normal interactive state
+
+**Given** the filter is empty
+**When** I view the page
+**Then** no tile is blurred or disabled by the equipment-filter logic, regardless of
+prior filter history
+
+### Story 33.2: Equipment Filter on Weekly Table View
+
+**FRs covered:** FR147
+
+As a user on the weekly desktop table view,
+I want the equipment filter at the top of the table to actually filter rows,
+so that I can find desks by equipment without leaving the table.
+
+**Acceptance Criteria:**
+
+**Given** I am on the weekly desktop table view and I type a keyword in the equipment
+filter input
+**When** the filter is applied
+**Then** every row whose item does not match the parsed filter is visually dimmed and
+its cells become non-interactive
+**And** rows whose items match remain at full opacity and remain interactive
+
+**Given** the filter is applied
+**When** I clear the input (via the clear icon or by backspacing)
+**Then** every row returns to its normal state
+
+**Given** the filter matches every item in the table
+**When** the filter is applied
+**Then** no row is dimmed
+
+**Given** the filter applies to the table view
+**When** I switch back and forth between the table and card views
+**Then** the filter input value is preserved within the same session per the existing
+saved-filters behavior
+
+### Story 33.3: Widen Weekly-Table Booking-Cancel Popover
+
+**FRs covered:** FR148
+
+As a user cancelling my own booking from the weekly table view,
+I want the cancel-confirmation popover to be tall and wide enough to show the cancel
+button fully,
+so that I can complete the action without scrolling inside the popover.
+
+**Acceptance Criteria:**
+
+**Given** I am on the weekly table view and I click one of my own booked cells
+**When** the booking-cancel popover opens
+**Then** the popover container is sized so that the Person, Platz, Datum lines and
+both the "Schliessen" and "Buchung stornieren" buttons are fully visible without any
+internal scrolling
+**And** the popover remains anchored to the cell that opened it
+
+**Given** the popover is open
+**When** the buttons render
+**Then** neither button is clipped at the bottom edge of the container
+
+### Story 33.4: Replace Booking-Type Radio With Single Checkbox and Always-On Dropdown
+
+**FRs covered:** FR149
+
+As a user booking an item,
+I want a single "Book for a colleague" checkbox alongside the colleague dropdown,
+so that the booking-type intent is expressed with one control and the colleague
+dropdown does not appear and disappear as I toggle modes.
+
+**Acceptance Criteria:**
+
+**Given** I open the item-groups view
+**When** the booking controls render
+**Then** I see a single "Book for a colleague" checkbox (unchecked by default) and
+a colleague-selection dropdown (rendered but disabled) — there is no "Book for
+myself / Book for a colleague" radio group
+
+**Given** the checkbox is unchecked
+**When** I look at the colleague dropdown
+**Then** it is visible, occupies the same space it would when enabled, and is
+disabled (cannot be opened or typed into)
+
+**Given** I check the "Book for a colleague" checkbox
+**When** the change is applied
+**Then** the colleague dropdown becomes enabled without any layout reflow
+**And** I can pick a colleague exactly as before
+
+**Given** I uncheck the box after having selected a colleague
+**When** the change is applied
+**Then** the dropdown becomes disabled again
+**And** the previously selected colleague is cleared so a stale value is not used
+when the box is rechecked
+
+**Given** a booking is being made
+**When** the box is unchecked
+**Then** the booking is made for the current user (the previous "Book for myself"
+behavior)
+
+**Given** the Story 32.3 flex-wrap radio-group layout existed before this story
+**When** this story ships
+**Then** that layout is removed entirely; this story supersedes Story 32.3 for the
+booking-type controls
+
+### Story 33.5: Single-Line Compact Booking Controls Layout
+
+**FRs covered:** FR150
+
+As a user on the item-groups view,
+I want all booking controls on a single line on a wide screen,
+so that the controls take less vertical space and leave more room for tiles.
+
+**Acceptance Criteria:**
+
+**Given** I am on the item-groups view on a wide desktop viewport
+**When** the booking-controls card renders
+**Then** the day/week toggle, date or week selector, equipment filter input (with
+its info icon), "Book for a colleague" checkbox, and colleague-selection dropdown
+all appear on a single horizontal row
+**And** none of them is truncated or hidden behind another
+
+**Given** the same wide viewport
+**When** I compare the new controls-card height to the previous (multi-row) layout
+**Then** the new card is visibly shorter
+
+**Given** I narrow the viewport progressively
+**When** the row no longer fits horizontally
+**Then** the controls wrap onto additional rows naturally (Vuetify flex-wrap), with
+no element overlapping another
+
+**Given** I switch between day mode and week mode
+**When** the controls re-render
+**Then** the single-line layout is preserved in both modes (the date picker swaps for
+the week selector but the rest stays in place)
+
+### Story 33.6: Entra ID Primary Login With Official Icon and "More Options" Toggle
+
+**FRs covered:** FR151
+
+As a corporate user landing on the login page,
+I want the Entra ID button to be the obvious primary action with the official Microsoft
+icon,
+so that I can sign in with one click without being distracted by the local-credentials
+form.
+
+**Acceptance Criteria:**
+
+**Given** Entra ID is configured on the server
+**When** I open the login page unauthenticated
+**Then** I see only the SitHub brand logo, the Entra ID sign-in button (showing the
+official Microsoft Entra ID color icon), and a clickable "more login options" link
+**And** the local username/password form is hidden by default
+
+**Given** I click "more login options"
+**When** the page updates
+**Then** the local credentials form expands into view
+**And** the link text changes to "less login options"
+
+**Given** the credentials form is expanded
+**When** I click "less login options"
+**Then** the form collapses again
+**And** the link text reverts to "more login options"
+
+**Given** Entra ID is NOT configured on the server
+**When** I open the login page
+**Then** the local credentials form is shown by default
+**And** the Entra ID button and toggle link are not rendered, so users are not locked
+out
+
+**Given** the Entra ID icon is rendered on the button
+**When** the page loads
+**Then** the icon SVG is served from the binary's embedded assets (no external
+network request to Wikimedia or any other host); the SVG source was downloaded from
+`https://upload.wikimedia.org/wikipedia/commons/8/8c/Microsoft_Entra_ID_color_icon.svg`
+and committed to the repository under the existing embedded-assets location
+
+### Story 33.7: SitHub Brand Logo for Login Page and Application Header
+
+**FRs covered:** FR152
+
+As a user of SitHub,
+I want a consistent visual brand on the login page and in the app header,
+so that the product feels finished and trustworthy.
+
+**Acceptance Criteria:**
+
+**Given** I open the login page
+**When** the page renders
+**Then** the SitHub logo (icon plus "SitHub" wordmark) is shown in a full vertical
+layout above the Entra ID button
+
+**Given** I am authenticated and viewing any page
+**When** the application header renders
+**Then** the SitHub logo is shown in a compact horizontal layout (icon plus
+"SitHub" wordmark side-by-side) in place of any prior text-only branding
+**And** the logo fits within the existing app-bar height without clipping
+
+**Given** the logo asset is loaded
+**When** any page renders
+**Then** the SVG is served from the binary's embedded assets, sourced from
+`private/sithub_logo.svg` committed to the repository at the project's existing
+embedded-assets location; either the same SVG is reused with CSS layout for both
+variants, or a dedicated horizontal variant is generated and embedded
+
+**Given** the logo has been adopted
+**When** any prior text-only "SitHub" branding element existed in the login page
+or header
+**Then** that element is removed so the logo is the single source of branding

@@ -111,7 +111,8 @@ import {
   mdiHeart,
   mdiHeartOutline,
   mdiDesktopClassic,
-  mdiTable
+  mdiTable,
+  mdiContentSave
 } from '@mdi/js';
 
 // Custom icon aliases for the app
@@ -162,7 +163,8 @@ const customAliases = {
   heart: mdiHeart,
   heartOutline: mdiHeartOutline,
   equipment: mdiDesktopClassic,
-  table: mdiTable
+  table: mdiTable,
+  save: mdiContentSave
 };
 
 // Light theme colors

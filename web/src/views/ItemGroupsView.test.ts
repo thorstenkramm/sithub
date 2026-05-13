@@ -87,8 +87,8 @@ describe('ItemGroupsView', () => {
       template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
     },
     'AreaWeeklyMatrixView': {
-      props: ['areaId', 'week', 'showWeekends'],
-      template: '<div data-cy="area-weekly-matrix" />'
+      props: ['areaId', 'week', 'showWeekends', 'parsedEquipmentFilter'],
+      template: '<div data-cy="area-weekly-matrix" :data-filter-count="parsedEquipmentFilter?.length ?? 0" :data-filter-keyword="parsedEquipmentFilter?.[0]?.keywords?.[0] ?? \'\'" />'
     }
   };
   const fetchMeMock = fetchMe as unknown as ReturnType<typeof vi.fn>;
@@ -555,6 +555,20 @@ describe('ItemGroupsView', () => {
     // Should show table view instead of card grid
     expect(wrapper.find('[data-cy="item-groups-list"]').exists()).toBe(false);
     expect(wrapper.find('[data-cy="area-weekly-matrix"]').exists()).toBe(true);
+  });
+
+  it('preserves and passes the equipment filter into table view', async () => {
+    localStorage.setItem('sithub_area_view', JSON.stringify({ 'area-1': 'table' }));
+    mockFetchItemGroups(1);
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="ig-equipment-filter"]').setValue('monitor');
+    await flushPromises();
+
+    const matrix = wrapper.get('[data-cy="area-weekly-matrix"]');
+    expect(matrix.attributes('data-filter-count')).toBe('1');
+    expect(matrix.attributes('data-filter-keyword')).toBe('monitor');
   });
 
   it('does not inherit table view from another area', async () => {

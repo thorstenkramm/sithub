@@ -105,4 +105,23 @@ describe('MatrixCancelPopover', () => {
 
     expect(cancelBookingMock).not.toHaveBeenCalled();
   });
+
+  it('sizes the popover to keep both action buttons fully visible', async () => {
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    // Both action buttons must be in the DOM (no clipping by an overflow:auto
+    // container collapsing them out of view).
+    expect(wrapper.find('[data-cy="matrix-cancel-close"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="matrix-cancel-confirm"]').exists()).toBe(true);
+
+    // The v-menu wrapper carries the explicit min-width set in Story 33.3.
+    // (The stub consumes max-width as a typed prop, so the kebab attribute
+    // isn't reflected to the DOM; checking min-width and max-height is
+    // enough to prove the size-constraint wiring is in place.)
+    const menu = wrapper.find('[data-cy="matrix-cancel-popover"]');
+    expect(menu.exists()).toBe(true);
+    expect(menu.attributes('min-width')).toBe('320');
+    expect(menu.attributes('max-height')).toBe('none');
+  });
 });

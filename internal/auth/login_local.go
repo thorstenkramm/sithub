@@ -64,7 +64,7 @@ func LocalLoginHandler(svc *Service) echo.HandlerFunc {
 			return fmt.Errorf("find user by email: %w", err)
 		}
 
-		if rec.UserSource != "internal" {
+		if rec.UserSource != userSourceInternal {
 			return jsonAPIError(c, http.StatusUnauthorized, "Unauthorized",
 				"This account uses Entra ID. Please sign in with Entra ID.", "wrong_auth_source")
 		}
@@ -85,7 +85,7 @@ func LocalLoginHandler(svc *Service) echo.HandlerFunc {
 			Email:       rec.Email,
 			IsAdmin:     rec.IsAdmin,
 			IsPermitted: true,
-			AuthSource:  "internal",
+			AuthSource:  userSourceInternal,
 		}
 
 		encodedUser, err := svc.EncodeUser(user)
@@ -101,14 +101,14 @@ func LocalLoginHandler(svc *Service) echo.HandlerFunc {
 
 		resp := api.SingleResponse{
 			Data: api.Resource{
-				Type: "users",
+				Type: resourceTypeUser,
 				ID:   user.ID,
 				Attributes: map[string]interface{}{
-					"display_name": user.Name,
-					"email":        user.Email,
-					"is_admin":     user.IsAdmin,
-					"auth_source":  user.AuthSource,
-					"role":         userRole(user),
+					attrDisplayName: user.Name,
+					attrEmail:       user.Email,
+					attrIsAdmin:     user.IsAdmin,
+					attrAuthSource:  user.AuthSource,
+					attrRole:        userRole(user),
 				},
 			},
 		}

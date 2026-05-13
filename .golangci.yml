@@ -10,6 +10,22 @@ linters:
   exclusions:
     paths:
       - web/node_modules
+    rules:
+      # Test files legitimately repeat fixture strings and grow long for
+      # readability; tests also don't need cookie security attributes.
+      - path: _test\.go
+        linters:
+          - goconst
+          - funlen
+          - dupl
+          - gosec
+      # The user/state cookies set Secure dynamically based on the request
+      # scheme so localhost-HTTP dev works while production-HTTPS gets the
+      # Secure flag. gosec G124 demands the literal `Secure: true`.
+      - path: internal/auth/(handlers|logout)\.go
+        linters:
+          - gosec
+        text: G124
   enable:
     # Bug detection & correctness
     - errcheck

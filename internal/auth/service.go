@@ -213,7 +213,7 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 		Email:       email,
 		IsPermitted: isPermitted,
 		IsAdmin:     isAdmin,
-		AuthSource:  "entraid",
+		AuthSource:  providerEntraID,
 	}
 
 	return user, nil
@@ -225,7 +225,7 @@ func (s *Service) RefreshPermissions(ctx context.Context, user *User) error {
 	if user == nil {
 		return nil
 	}
-	if user.AuthSource == "internal" {
+	if user.AuthSource == userSourceInternal {
 		return nil
 	}
 	if s.usersGroup == "" {

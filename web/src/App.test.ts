@@ -20,6 +20,16 @@ describe('App', () => {
   const menuStub = {
     template: '<div><slot name="activator" :props="{}" /><slot /></div>',
   };
+  const routerLinkStub = {
+    props: ['to'],
+    template: '<a><slot /></a>',
+  };
+  const decodeSvgAsset = (src: string) => {
+    if (src.startsWith('data:image/svg+xml;base64,')) {
+      return Buffer.from(src.split(',')[1] ?? '', 'base64').toString('utf8');
+    }
+    return src;
+  };
   let pinia: ReturnType<typeof createPinia>;
 
   function mountApp() {
@@ -55,7 +65,7 @@ describe('App', () => {
           'v-dialog': dialogStub,
           'v-img': vImgStub,
           'router-view': true,
-          'router-link': true,
+          'router-link': routerLinkStub,
         },
       },
     });
@@ -71,6 +81,23 @@ describe('App', () => {
   it('mounts with router and vuetify', () => {
     const wrapper = mountApp();
     expect(wrapper.find('router-view-stub').exists()).toBe(true);
+  });
+
+  it('renders the compact SitHub logo in the authenticated header', () => {
+    const authStore = useAuthStore(pinia);
+    authStore.setUser({
+      id: 'user-1',
+      display_name: 'Test User',
+      email: 'test@example.com',
+      is_admin: false,
+      auth_source: 'internal',
+    });
+
+    const wrapper = mountApp();
+
+    const logo = wrapper.get('img.logo-image');
+    expect(decodeSvgAsset(logo.attributes('src') ?? '')).toContain('viewBox="0 0 320 80"');
+    expect(logo.attributes('alt')).toBe('SitHub');
   });
 
   describe('consolidated profile menu', () => {

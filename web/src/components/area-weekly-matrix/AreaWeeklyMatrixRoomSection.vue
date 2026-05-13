@@ -45,6 +45,7 @@
       :current-user-id="currentUserId"
       :is-admin="isAdmin"
       :today="today"
+      :parsed-equipment-filter="parsedEquipmentFilter"
     />
   </template>
 </template>
@@ -52,6 +53,7 @@
 <script setup lang="ts">
 import type { ItemGroupMatrixAttributes, MatrixDayMeta } from '../../api/itemGroupMatrix';
 import type { JsonApiResource } from '../../api/types';
+import type { AndGroup } from '../../composables/useEquipmentFilter';
 import AreaWeeklyMatrixRow from './AreaWeeklyMatrixRow.vue';
 
 const props = defineProps<{
@@ -62,6 +64,7 @@ const props = defineProps<{
   currentUserId: string;
   isAdmin: boolean;
   today: string;
+  parsedEquipmentFilter?: AndGroup[];
 }>();
 
 defineEmits<{

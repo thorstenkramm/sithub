@@ -43,13 +43,23 @@ Cypress.Commands.add('login', (email?: string, password?: string) => {
     const loginEmail = email ?? testUserEmail;
     const loginPassword = password ?? testUserPassword;
 
-    return cy.request({
-      method: 'POST',
-      url: '/api/v1/auth/login',
-      body: { email: loginEmail, password: loginPassword }
-    }).then((response) => {
-      expect(response.status).to.eq(200);
-    });
+    // Cache the authenticated state across tests (and across spec files) so
+    // the suite does not exhaust the server's login rate limiter (60/min).
+    // The session id keys on both email and password so a password-change
+    // test using new credentials forces a fresh request.
+    return cy.session(
+      ['login', loginEmail, loginPassword],
+      () => {
+        cy.request({
+          method: 'POST',
+          url: '/api/v1/auth/login',
+          body: { email: loginEmail, password: loginPassword }
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+        });
+      },
+      { cacheAcrossSpecs: true }
+    );
   });
 });
 

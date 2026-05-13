@@ -4,7 +4,9 @@
     :activator="activatorEl"
     :close-on-content-click="false"
     location="bottom"
-    max-width="300"
+    min-width="320"
+    max-width="380"
+    max-height="none"
     data-cy="matrix-cancel-popover"
     @update:model-value="$emit('update:modelValue', $event)"
   >

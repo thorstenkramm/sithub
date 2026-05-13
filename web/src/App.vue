@@ -1,9 +1,9 @@
 <template>
   <v-app>
     <template v-if="authStore.isAuthenticated">
-      <v-app-bar color="primary" density="comfortable" elevation="0">
+      <v-app-bar color="surface" density="comfortable" elevation="1">
         <router-link to="/" class="d-flex align-center text-decoration-none ml-2">
-          <img src="/logo.svg" alt="SitHub" height="28" class="logo-image" />
+          <img src="/sithub_logo_horizontal.svg" alt="SitHub" height="40" class="logo-image" />
         </router-link>
 
         <v-spacer />
@@ -589,11 +589,11 @@ function closePasswordDialog() {
 
 <style scoped>
 .logo-image {
-  filter: brightness(0) invert(1);
+  display: block;
 }
 
 .nav-active {
-  background-color: rgba(255, 255, 255, 0.15) !important;
+  background-color: rgba(var(--v-theme-primary), 0.10) !important;
 }
 
 .nav-active::before {

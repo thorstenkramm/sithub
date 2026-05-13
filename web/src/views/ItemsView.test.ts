@@ -389,42 +389,69 @@ describe('ItemsView', () => {
     });
   });
 
-  describe('booking-type row layout', () => {
-    it('keeps the colleague-select hidden in the "self" state', async () => {
+  describe('compact booking controls row', () => {
+    it('renders day-mode controls inside a single .booking-controls-row container', async () => {
       const wrapper = mountView();
       await flushPromises();
 
-      expect(wrapper.find('.booking-type-row').exists()).toBe(true);
-      expect(wrapper.find('.booking-type-row [data-cy="colleague-select"]').exists()).toBe(false);
+      const row = wrapper.find('.booking-controls-row');
+      expect(row.exists()).toBe(true);
+      expect(row.find('[data-cy="booking-mode-toggle"]').exists()).toBe(true);
+      // DatePickerField's internal text field is rendered inside a v-menu
+      // activator slot which the test stub does not render; verify the
+      // DatePickerField component is mounted in the row instead.
+      expect(wrapper.findComponent({ name: 'DatePickerField' }).exists()).toBe(true);
+      expect(row.find('[data-cy="equipment-filter-input"]').exists()).toBe(true);
+      expect(row.find('[data-cy="colleague-select"]').exists()).toBe(true);
+      // No book-for-colleague checkbox per the round-2 UX feedback —
+      // selecting a colleague IS the trigger; empty means book for self.
+      expect(row.find('[data-cy="book-colleague-checkbox"]').exists()).toBe(false);
     });
 
-    it('renders the colleague-select as a sibling of the radio group when switched to colleague', async () => {
+    it('swaps date picker for week selector in week mode but keeps the row intact', async () => {
       const wrapper = mountView();
       await flushPromises();
 
-      (wrapper.vm as unknown as { bookingType: 'self' | 'colleague' }).bookingType = 'colleague';
+      (wrapper.vm as unknown as { bookingMode: 'day' | 'week' }).bookingMode = 'week';
       await nextTick();
 
-      const row = wrapper.find('.booking-type-row');
-      expect(row.exists()).toBe(true);
-      expect(row.find('[data-cy="book-self-radio"]').exists()).toBe(true);
-      expect(row.find('[data-cy="book-colleague-radio"]').exists()).toBe(true);
-      // The dropdown lives inside the SAME row (not a sibling block below)
+      const row = wrapper.find('.booking-controls-row');
+      expect(row.find('[data-cy="items-date"]').exists()).toBe(false);
+      expect(row.find('[data-cy="week-selector"]').exists()).toBe(true);
+      // Other controls stay on the same row.
+      expect(row.find('[data-cy="equipment-filter-input"]').exists()).toBe(true);
       expect(row.find('[data-cy="colleague-select"]').exists()).toBe(true);
     });
+  });
 
-    it('removes the colleague-select from the row when toggled back to self', async () => {
+  describe('colleague selection (no checkbox; always enabled)', () => {
+    it('renders the colleague-select unconditionally and never renders the radio group or checkbox', async () => {
       const wrapper = mountView();
       await flushPromises();
 
-      const vm = wrapper.vm as unknown as { bookingType: 'self' | 'colleague' };
-      vm.bookingType = 'colleague';
-      await nextTick();
-      expect(wrapper.find('.booking-type-row [data-cy="colleague-select"]').exists()).toBe(true);
+      const select = wrapper.find('[data-cy="colleague-select"]');
+      expect(select.exists()).toBe(true);
+      expect(wrapper.find('[data-cy="book-self-radio"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="book-colleague-radio"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="book-colleague-checkbox"]').exists()).toBe(false);
+    });
 
-      vm.bookingType = 'self';
+    it('tracks the selected colleague id without a separate flag', async () => {
+      const wrapper = mountView();
+      await flushPromises();
+
+      const vm = wrapper.vm as unknown as { selectedColleagueId: string | null };
+      expect(vm.selectedColleagueId).toBeNull();
+
+      vm.selectedColleagueId = 'u-1';
       await nextTick();
-      expect(wrapper.find('.booking-type-row [data-cy="colleague-select"]').exists()).toBe(false);
+      expect(vm.selectedColleagueId).toBe('u-1');
+
+      // Clearing the colleague returns the booking target to "myself" — the
+      // submit logic gates only on selectedColleagueId being truthy.
+      vm.selectedColleagueId = null;
+      await nextTick();
+      expect(vm.selectedColleagueId).toBeNull();
     });
   });
 
@@ -1153,14 +1180,15 @@ describe('ItemsView', () => {
     });
   });
 
-  it('renders colleague autocomplete when booking type is colleague', async () => {
+  it('renders colleague autocomplete (always enabled; no checkbox gate)', async () => {
     const wrapper = mountView();
     await flushPromises();
 
-    // Colleague fields hidden by default
-    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(false);
+    // The autocomplete is always rendered and always enabled per the
+    // round-2 UX feedback — selecting a colleague is the trigger.
+    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
 
-    (wrapper.vm as unknown as { bookingType: 'self' | 'colleague' }).bookingType = 'colleague';
+    (wrapper.vm as unknown as { selectedColleagueId: string | null }).selectedColleagueId = 'u-1';
     await nextTick();
 
     expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
@@ -1227,13 +1255,89 @@ describe('ItemsView', () => {
     expect(wrapper.text()).toContain('Desk A');
   });
 
-  it('does not render guest radio option', async () => {
+  it('books day-mode items for the selected colleague when the colleague dropdown has a value', async () => {
+    const storedDay = futureDay();
+    useDateState().setDay(storedDay);
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: 'Desk A',
+          equipment: [],
+          availability: 'available' as const
+        }
+      }]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    (wrapper.vm as unknown as { selectedColleagueId: string | null }).selectedColleagueId = 'u-1';
+    await nextTick();
+    createBookingMock.mockClear();
+
+    await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+    await flushPromises();
+
+    expect(createBookingMock).toHaveBeenCalledWith('item-1', storedDay, {
+      forUserId: 'u-1',
+      forUserName: 'Jane Doe'
+    });
+  });
+
+  it('books week-mode items for the selected colleague when the colleague dropdown has a value', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-06T10:00:00'));
+    localStorage.setItem('sithub_booking_mode', 'week');
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: {
+          name: 'Desk A',
+          equipment: [],
+          availability: 'available' as const
+        }
+      }]
+    });
+
+    try {
+      const wrapper = mountView();
+      await flushPromises();
+
+      (wrapper.vm as unknown as { selectedColleagueId: string | null }).selectedColleagueId = 'u-1';
+      await nextTick();
+      createBookingMock.mockClear();
+
+      await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+      await flushPromises();
+      await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(createBookingMock.mock.calls).toContainEqual([
+        'item-1',
+        expect.any(String),
+        {
+          forUserId: 'u-1',
+          forUserName: 'Jane Doe'
+        }
+      ]);
+    } finally {
+      localStorage.removeItem('sithub_booking_mode');
+      vi.useRealTimers();
+    }
+  });
+
+  it('renders the colleague-select only (no guest radio, no self/colleague radios, no checkbox)', async () => {
     const wrapper = mountView();
     await flushPromises();
 
     expect(wrapper.find('[data-cy="book-guest-radio"]').exists()).toBe(false);
-    expect(wrapper.find('[data-cy="book-self-radio"]').exists()).toBe(true);
-    expect(wrapper.find('[data-cy="book-colleague-radio"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="book-self-radio"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="book-colleague-radio"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="book-colleague-checkbox"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
   });
 
   it('does not render multi-day checkbox', async () => {
@@ -1394,6 +1498,34 @@ describe('ItemsView', () => {
       (wrapper.vm as unknown as { equipmentFilter: string }).equipmentFilter = '';
       await nextTick();
       expect(wrapper.findAll('[data-cy="equipment-not-available"]')).toHaveLength(0);
+    });
+
+    it('removes blur when filter is cleared via null (v-combobox clearable)', async () => {
+      // Regression for Epic 33 Story 33.1: the v-combobox `clearable` X-icon
+      // emits `null`, not `''`. Without the `?? ''` guard the parser threw
+      // and the previous filter result stayed stuck.
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: ['keyboard'], availability: 'available' as const }
+        }]
+      });
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      const vm = wrapper.vm as unknown as { equipmentFilter: string | null };
+      vm.equipmentFilter = 'foo';
+      await nextTick();
+      expect(wrapper.findAll('[data-cy="equipment-not-available"]')).toHaveLength(1);
+
+      vm.equipmentFilter = null;
+      await nextTick();
+      expect(wrapper.findAll('[data-cy="equipment-not-available"]')).toHaveLength(0);
+      // The defensive watcher coerces null back to '' so downstream consumers
+      // never observe null.
+      expect(vm.equipmentFilter).toBe('');
     });
 
     it('opens filter help dialog when the info button is clicked', async () => {

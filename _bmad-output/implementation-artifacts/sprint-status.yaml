@@ -283,3 +283,13 @@ development_status:
   32-2-booker-avatar-on-week-mode-item-tiles: done
   32-3-stable-colleague-booking-dropdown-layout: done
   epic-32-retrospective: optional
+
+  epic-33: done
+  33-1-equipment-filter-reset-on-item-groups-view: done
+  33-2-equipment-filter-on-weekly-table-view: done
+  33-3-widen-weekly-table-cancel-popover: done
+  33-4-single-checkbox-and-always-rendered-colleague-dropdown: done
+  33-5-single-line-compact-booking-controls: done
+  33-6-entra-id-primary-login-with-icon-and-toggle: done
+  33-7-sithub-brand-logo-for-login-and-header: done
+  epic-33-retrospective: optional

@@ -1,0 +1,31 @@
+<svg width="320" height="80" viewBox="0 0 320 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hIconGrad" x1="4" y1="4" x2="76" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82FF"/>
+      <stop offset="1" stop-color="#3D4CFF"/>
+    </linearGradient>
+    <linearGradient id="hHubGrad" x1="170" y1="40" x2="300" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82FF"/>
+      <stop offset="1" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon background -->
+  <rect x="4" y="4" width="72" height="72" rx="16" fill="url(#hIconGrad)"/>
+
+  <!-- Chair symbol (rescaled from 340x340 icon to 72x72) -->
+  <g transform="translate(4 4) scale(0.2118)">
+    <!-- Original chair glyph from sithub_logo.svg, translated to icon-local coords (430,70) → (0,0) -->
+    <rect x="110" y="68" width="120" height="120" rx="22" fill="white"/>
+    <path d="M65 182 C65 233 95 260 170 260 C245 260 275 233 275 182" stroke="white" stroke-width="28" stroke-linecap="round"/>
+    <path d="M170 260 V320" stroke="white" stroke-width="24" stroke-linecap="round"/>
+    <path d="M122 320 H218" stroke="white" stroke-width="24" stroke-linecap="round"/>
+    <path d="M138 320 L108 350" stroke="white" stroke-width="20" stroke-linecap="round"/>
+    <path d="M202 320 L232 350" stroke="white" stroke-width="20" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="92" y="54" font-family="Inter, Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="42" font-weight="600" letter-spacing="-1">
+    <tspan fill="#07122B">Sit</tspan><tspan fill="url(#hHubGrad)">Hub</tspan>
+  </text>
+</svg>

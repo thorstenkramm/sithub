@@ -18,6 +18,7 @@ import (
 const (
 	minPasswordLength  = 14
 	userSourceInternal = "internal"
+	resourceTypeUser   = "users"
 )
 
 // UserAttributes represents user resource attributes for JSON:API responses.
@@ -44,7 +45,7 @@ func ListHandler(store *sql.DB) echo.HandlerFunc {
 
 		resources := api.MapResources(records, func(rec Record) api.Resource {
 			return api.Resource{
-				Type:       "users",
+				Type:       resourceTypeUser,
 				ID:         rec.ID,
 				Attributes: recordToAttributes(&rec),
 			}
@@ -105,7 +106,7 @@ func GetHandler(store *sql.DB) echo.HandlerFunc {
 
 		resp := api.SingleResponse{
 			Data: api.Resource{
-				Type:       "users",
+				Type:       resourceTypeUser,
 				ID:         rec.ID,
 				Attributes: recordToAttributes(rec),
 			},
@@ -165,7 +166,7 @@ func CreateHandler(store *sql.DB) echo.HandlerFunc {
 
 		resp := api.SingleResponse{
 			Data: api.Resource{
-				Type:       "users",
+				Type:       resourceTypeUser,
 				ID:         rec.ID,
 				Attributes: recordToAttributes(rec),
 			},
@@ -281,7 +282,7 @@ func applyFieldUpdates(ctx context.Context, c echo.Context, store *sql.DB, userI
 func respondWithUpdatedUser(c echo.Context, rec *Record) error {
 	resp := api.SingleResponse{
 		Data: api.Resource{
-			Type:       "users",
+			Type:       resourceTypeUser,
 			ID:         rec.ID,
 			Attributes: recordToAttributes(rec),
 		},

@@ -8,8 +8,8 @@
     <!-- Toolbar -->
     <v-card class="mb-6" data-cy="week-selector-card">
       <v-card-text>
-        <!-- Row 1: Week selector, floor plan, view switch -->
-        <div class="d-flex flex-wrap align-center ga-4">
+        <!-- Single row: week selector, floor plan, view switch, equipment filter (with info icon adjacent) -->
+        <div class="ig-controls-row d-flex flex-wrap align-center ga-3">
           <v-select
             v-model="selectedWeek"
             :items="weekOptions"
@@ -19,18 +19,13 @@
             density="compact"
             hide-details
             data-cy="week-selector"
-            style="max-width: 320px;"
+            class="ig-week-selector"
           />
-          <v-btn
+          <FloorPlanButton
             v-if="areaFloorPlan"
-            variant="outlined"
-            density="default"
-            prepend-icon="$map"
             data-cy="area-floor-plan-btn"
             @click="showFloorPlanDialog = true"
-          >
-            {{ $t('itemGroups.floorPlan') }}
-          </v-btn>
+          />
 
           <!-- View switch: Tiles / Table -->
           <div class="d-flex align-center" data-cy="view-switch-container">
@@ -70,45 +65,54 @@
             />
             <span class="text-button ml-1" :class="activeView === 'table' ? 'text-primary font-weight-bold' : 'text-medium-emphasis'">{{ $t('itemGroups.viewTable') }}</span>
           </div>
-        </div>
 
-        <!-- Row 2: Equipment filter with info icon immediately after input -->
-        <div v-if="itemGroups.length > 0" class="d-flex align-center ga-1 mt-4" style="max-width: 480px;">
-          <v-combobox
-            v-model="equipmentFilter"
-            :items="savedFilterItems"
-            :label="$t('itemGroups.filterEquipment')"
-            density="compact"
-            hide-details
-            clearable
-            prepend-inner-icon="$filterOutline"
-            data-cy="ig-equipment-filter"
-          />
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            data-cy="ig-equipment-filter-info"
-            :aria-label="$t('itemGroups.equipmentFilterHelp')"
-            @click="showFilterHelp = true"
-          >
-            <v-icon>$info</v-icon>
-          </v-btn>
-          <v-tooltip v-if="equipmentFilter" :text="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')" location="top">
-            <template #activator="{ props: tooltipProps }">
-              <v-btn
-                v-bind="tooltipProps"
-                icon
-                variant="text"
-                size="small"
-                :data-cy="isCurrentFilterSaved ? 'ig-equipment-filter-delete' : 'ig-equipment-filter-save'"
-                :aria-label="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')"
-                @click="toggleSaveFilter"
-              >
-                <v-icon>{{ isCurrentFilterSaved ? '$delete' : 'mdi-content-save' }}</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
+          <!-- Equipment filter cluster (input → info icon adjacent → save/delete on demand) -->
+          <div v-if="itemGroups.length > 0" class="d-flex align-center ga-1 ig-equipment-filter-cluster">
+            <v-combobox
+              v-model="equipmentFilter"
+              :items="savedFilterItems"
+              :label="$t('itemGroups.filterEquipment')"
+              density="compact"
+              hide-details
+              clearable
+              prepend-inner-icon="$filterOutline"
+              data-cy="ig-equipment-filter"
+            />
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              data-cy="ig-equipment-filter-info"
+              :aria-label="$t('itemGroups.equipmentFilterHelp')"
+              @click="showFilterHelp = true"
+            >
+              <v-icon>$info</v-icon>
+            </v-btn>
+            <!-- Save/delete: always rendered to keep the cluster width stable
+                 regardless of filter content (no layout shift on type/clear). -->
+            <v-tooltip
+              :text="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')"
+              location="top"
+              :disabled="!equipmentFilter"
+            >
+              <template #activator="{ props: tooltipProps }">
+                <v-btn
+                  v-bind="tooltipProps"
+                  icon
+                  variant="text"
+                  size="small"
+                  :class="{ 'filter-action-placeholder': !equipmentFilter }"
+                  :data-cy="isCurrentFilterSaved ? 'ig-equipment-filter-delete' : 'ig-equipment-filter-save'"
+                  :aria-label="isCurrentFilterSaved ? $t('itemGroups.deleteSavedFilter') : $t('itemGroups.saveFilter')"
+                  :aria-hidden="!equipmentFilter ? 'true' : undefined"
+                  :tabindex="!equipmentFilter ? -1 : undefined"
+                  @click="equipmentFilter && toggleSaveFilter()"
+                >
+                  <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$save' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+          </div>
         </div>
       </v-card-text>
     </v-card>
@@ -138,6 +142,7 @@
       :area-id="route.params.areaId as string"
       :week="selectedWeek"
       :show-weekends="showWeekends"
+      :parsed-equipment-filter="parsedEquipmentFilter"
     />
 
     <!-- Item Groups Grid (Card View) -->
@@ -297,7 +302,7 @@ import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { fetchSettings } from '../api/settings';
-import { PageHeader, LoadingState, EmptyState } from '../components';
+import { PageHeader, LoadingState, EmptyState, FloorPlanButton } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 import AreaWeeklyMatrixView from '../components/area-weekly-matrix/AreaWeeklyMatrixView.vue';
 import { useAreaViewPreference } from '../composables/useAreaViewPreference';
@@ -352,7 +357,12 @@ const formatAvailabilityAriaLabel = (day: DayAvailability): string => {
   return `${weekday}: ${status}`;
 };
 
-const equipmentFilter = ref('');
+const equipmentFilter = ref<string | null>('');
+watch(equipmentFilter, (value) => {
+  if (value === null || value === undefined) {
+    equipmentFilter.value = '';
+  }
+});
 const showFilterHelp = ref(false);
 const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
 const isCurrentFilterSaved = computed(() => !!equipmentFilter.value && isSavedFilter(equipmentFilter.value));
@@ -377,7 +387,7 @@ const toggleSaveFilter = () => {
     }
   }
 };
-const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
+const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value ?? ''));
 const itemGroupEquipment = ref<Record<string, string[]>>({});
 
 const isRelevantLiveEvent = (event: { item_id: string; booking_date: string }): boolean => {
@@ -592,6 +602,35 @@ useLiveBookingRefresh({
 </script>
 
 <style scoped>
+.ig-controls-row {
+  min-height: 40px;
+}
+
+.ig-week-selector {
+  flex: 0 0 240px;
+  max-width: 240px;
+  min-width: 200px;
+}
+
+.ig-equipment-filter-cluster {
+  flex: 1 1 300px;
+  min-width: 240px;
+  max-width: 420px;
+}
+
+.filter-action-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .ig-week-selector,
+  .ig-equipment-filter-cluster {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
 .availability-indicator {
   display: flex;
   flex-direction: column;

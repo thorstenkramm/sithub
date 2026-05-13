@@ -1,0 +1,51 @@
+get:
+  summary: List configured authentication providers
+  description: |
+    Returns which authentication providers are available on this server so
+    the login page can render the correct affordances. Public (unauthenticated)
+    endpoint — callable before the user signs in.
+  operationId: listAuthProviders
+  security: []
+  responses:
+    '200':
+      description: Configured providers
+      content:
+        application/vnd.api+json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - auth-providers
+                  id:
+                    type: string
+                    enum:
+                      - current
+                  attributes:
+                    type: object
+                    properties:
+                      entraid:
+                        type: boolean
+                        description: True when Microsoft Entra ID OAuth is configured.
+                      local:
+                        type: boolean
+                        description: True when local username/password login is available. Always true today.
+                    required:
+                      - entraid
+                      - local
+                required:
+                  - type
+                  - id
+                  - attributes
+            required:
+              - data
+    default:
+      description: Unexpected error
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

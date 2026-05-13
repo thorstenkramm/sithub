@@ -87,7 +87,10 @@ type MyBookingAttributes struct {
 }
 
 // maxNoteLength is the maximum allowed length for a booking note.
-const maxNoteLength = 500
+const (
+	maxNoteLength       = 500
+	resourceTypeBooking = "bookings"
+)
 
 // PatchRequest represents a booking update JSON:API payload.
 type PatchRequest struct {
@@ -157,7 +160,7 @@ func parsePatchNote(c echo.Context, bookingID string) (string, error) {
 		api.WriteBadRequest(c, "Invalid request body")
 		return "", errResponseWritten
 	}
-	if req.Data.Type != "bookings" {
+	if req.Data.Type != resourceTypeBooking {
 		//nolint:errcheck // Error ignored; response already written
 		api.WriteBadRequest(c, "Resource type must be 'bookings'")
 		return "", errResponseWritten
@@ -232,7 +235,7 @@ func writePatchResponse(c echo.Context, booking *BookingRecord, note string) err
 
 	resp := api.SingleResponse{
 		Data: api.Resource{
-			Type:       "bookings",
+			Type:       resourceTypeBooking,
 			ID:         booking.ID,
 			Attributes: attrs,
 		},
@@ -448,7 +451,7 @@ func writeBookingsCollection(
 		}
 
 		resources = append(resources, api.Resource{
-			Type:       "bookings",
+			Type:       resourceTypeBooking,
 			ID:         rec.ID,
 			Attributes: attrs,
 		})
@@ -716,7 +719,7 @@ func parseCreateRequest(c echo.Context) (*CreateRequest, error) {
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		return nil, errBadRequest("Invalid request body")
 	}
-	if req.Data.Type != "bookings" {
+	if req.Data.Type != resourceTypeBooking {
 		return nil, errBadRequest("Resource type must be 'bookings'")
 	}
 	return &req, nil
@@ -1018,7 +1021,7 @@ func processMultiDayBooking(
 		}
 
 		created = append(created, api.Resource{
-			Type:       "bookings",
+			Type:       resourceTypeBooking,
 			ID:         booking.ID,
 			Attributes: attrs,
 		})
@@ -1055,7 +1058,7 @@ func writeBookingResponse(c echo.Context, booking *Booking) error {
 
 	resp := api.SingleResponse{
 		Data: api.Resource{
-			Type:       "bookings",
+			Type:       resourceTypeBooking,
 			ID:         booking.ID,
 			Attributes: attrs,
 		},

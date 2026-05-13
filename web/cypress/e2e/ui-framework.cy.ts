@@ -194,18 +194,17 @@ describe('Page-specific Vuetify Rendering', () => {
     cy.get('.v-field__prepend-inner .v-icon').should('exist');
   });
 
-  it('should render radio buttons as Vuetify components on items page', () => {
+  it('should render the colleague-select autocomplete as a Vuetify component on items page', () => {
     cy.intercept('GET', '/api/v1/item-groups/*/items*').as('listItems');
 
     cy.visit('/item-groups/test_room/items');
 
-    // Radio group should render as Vuetify component
-    cy.get('.v-radio-group').should('exist');
-    cy.get('.v-radio').should('have.length.at.least', 2);
-
-    // Labels should be visible
-    cy.contains('Book for myself').should('be.visible');
-    cy.contains('Book for colleague').should('be.visible');
+    // Round-2 UX feedback dropped the "Book for a colleague" checkbox — the
+    // dropdown alone is always rendered and always enabled. Selecting a
+    // colleague is the trigger; empty means book for self.
+    cy.get('[data-cy="colleague-select"]').should('exist');
+    cy.get('[data-cy="book-colleague-checkbox"]').should('not.exist');
+    cy.get('[data-cy="book-self-radio"]').should('not.exist');
   });
 
   it('should render status chips as Vuetify components', () => {

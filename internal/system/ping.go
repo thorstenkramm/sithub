@@ -10,12 +10,14 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 )
 
+const resourceTypePing = "ping"
+
 // Ping returns a JSON:API health check response.
 func Ping(c echo.Context) error {
 	resp := api.SingleResponse{
 		Data: api.Resource{
-			Type: "ping",
-			ID:   "ping",
+			Type: resourceTypePing,
+			ID:   resourceTypePing,
 			Attributes: map[string]string{
 				"status": "ok",
 			},

@@ -33,14 +33,14 @@ func MeHandler() echo.HandlerFunc {
 
 		resp := api.SingleResponse{
 			Data: api.Resource{
-				Type: "users",
+				Type: resourceTypeUser,
 				ID:   user.ID,
 				Attributes: map[string]interface{}{
-					"display_name": user.Name,
-					"email":        user.Email,
-					"is_admin":     user.IsAdmin,
-					"auth_source":  user.AuthSource,
-					"role":         userRole(user),
+					attrDisplayName: user.Name,
+					attrEmail:       user.Email,
+					attrIsAdmin:     user.IsAdmin,
+					attrAuthSource:  user.AuthSource,
+					attrRole:        userRole(user),
 				},
 			},
 		}
@@ -143,14 +143,14 @@ func validateAndUpdatePassword(c echo.Context, svc *Service, user *User, current
 func respondWithUserProfile(c echo.Context, user *User) error {
 	resp := api.SingleResponse{
 		Data: api.Resource{
-			Type: "users",
+			Type: resourceTypeUser,
 			ID:   user.ID,
 			Attributes: map[string]interface{}{
-				"display_name": user.Name,
-				"email":        user.Email,
-				"is_admin":     user.IsAdmin,
-				"auth_source":  user.AuthSource,
-				"role":         userRole(user),
+				attrDisplayName: user.Name,
+				attrEmail:       user.Email,
+				attrIsAdmin:     user.IsAdmin,
+				attrAuthSource:  user.AuthSource,
+				attrRole:        userRole(user),
 			},
 		},
 	}

@@ -11,6 +11,8 @@ import (
 	"github.com/thorstenkramm/sithub/internal/startup"
 )
 
+const runCommandName = "run"
+
 func main() {
 	opts := newRunOptions()
 
@@ -20,7 +22,7 @@ func main() {
 	}
 
 	runCmd := &cobra.Command{
-		Use:   "run",
+		Use:   runCommandName,
 		Short: "Run the SitHub server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.LoadWithOverrides(opts.configPath, opts.overrides(cmd))

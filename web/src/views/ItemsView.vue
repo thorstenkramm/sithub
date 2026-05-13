@@ -21,22 +21,21 @@
       </template>
     </PageHeader>
 
-    <!-- Date Selection & Booking Options -->
+    <!-- Date Selection & Booking Options (compact single-row layout) -->
     <v-card class="mb-6">
       <v-card-text>
-        <!-- Booking Mode Toggle -->
-        <v-btn-toggle
-          v-model="bookingMode"
-          mandatory
-          density="compact"
-          class="mb-4"
-          data-cy="booking-mode-toggle"
-        >
-          <v-btn value="day" data-cy="mode-day-btn">{{ $t('items.day') }}</v-btn>
-          <v-btn value="week" data-cy="mode-week-btn">{{ $t('items.week') }}</v-btn>
-        </v-btn-toggle>
+        <div class="booking-controls-row d-flex flex-wrap align-center ga-3">
+          <!-- Booking Mode Toggle -->
+          <v-btn-toggle
+            v-model="bookingMode"
+            mandatory
+            density="compact"
+            data-cy="booking-mode-toggle"
+          >
+            <v-btn value="day" data-cy="mode-day-btn">{{ $t('items.day') }}</v-btn>
+            <v-btn value="week" data-cy="mode-week-btn">{{ $t('items.week') }}</v-btn>
+          </v-btn-toggle>
 
-        <div class="d-flex flex-wrap align-end ga-4 mb-4">
           <!-- Day mode: date picker -->
           <DatePickerField
             v-if="bookingMode === 'day'"
@@ -47,7 +46,7 @@
             density="compact"
             hide-details
             data-cy="items-date"
-            style="max-width: 320px;"
+            class="booking-date-input"
           />
 
           <!-- Week mode: week selector -->
@@ -61,35 +60,68 @@
             density="compact"
             hide-details
             data-cy="week-selector"
-            style="max-width: 320px;"
+            class="booking-date-input"
           />
 
-          <v-btn
+          <!-- Floor plan button (shared component for consistent sizing across pages) -->
+          <FloorPlanButton
             v-if="itemGroupFloorPlan"
-            variant="outlined"
-            density="compact"
-            prepend-icon="$map"
             data-cy="item-group-floor-plan-btn"
             @click="showItemGroupFloorPlanDialog = true"
-          >
-            {{ $t('items.floorPlan') }}
-          </v-btn>
-        </div>
+          />
 
-        <!-- Booking Type Selection + Colleague Dropdown (inline on wide viewports) -->
-        <div class="booking-type-row d-flex flex-wrap align-center ga-4 mb-2">
-          <v-radio-group
-            v-model="bookingType"
-            inline
-            density="compact"
-            hide-details
-            class="booking-type-radios ma-0"
-          >
-            <v-radio :label="$t('items.bookForMyself')" value="self" data-cy="book-self-radio" />
-            <v-radio :label="$t('items.bookForColleague')" value="colleague" data-cy="book-colleague-radio" />
-          </v-radio-group>
+          <!-- Equipment Filter cluster: input → info icon (close) → save/delete (only when filter has content) -->
+          <div class="d-flex align-center ga-1 equipment-filter-cluster">
+            <v-combobox
+              v-model="equipmentFilter"
+              :items="savedFilterItems"
+              :label="$t('items.filterEquipment')"
+              density="compact"
+              hide-details
+              clearable
+              prepend-inner-icon="$filterOutline"
+              data-cy="equipment-filter-input"
+            />
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              data-cy="equipment-filter-info"
+              :aria-label="$t('items.equipmentFilterHelp')"
+              @click="showFilterHelp = true"
+            >
+              <v-icon>$info</v-icon>
+            </v-btn>
+            <!-- Save/delete: always rendered to keep the cluster width stable;
+                 visibility-hidden when no filter content so it can't be clicked
+                 but still reserves space (no layout shift on type/clear). -->
+            <v-tooltip
+              :text="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')"
+              location="top"
+              :disabled="!equipmentFilter"
+            >
+              <template #activator="{ props: tooltipProps }">
+                <v-btn
+                  v-bind="tooltipProps"
+                  icon
+                  variant="text"
+                  size="small"
+                  :class="{ 'filter-action-placeholder': !equipmentFilter }"
+                  :data-cy="isCurrentFilterSaved ? 'equipment-filter-delete' : 'equipment-filter-save'"
+                  :aria-label="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')"
+                  :aria-hidden="!equipmentFilter ? 'true' : undefined"
+                  :tabindex="!equipmentFilter ? -1 : undefined"
+                  @click="equipmentFilter && toggleSaveFilter()"
+                >
+                  <v-icon>{{ isCurrentFilterSaved ? '$delete' : '$save' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+          </div>
+
+          <!-- Colleague selection: always enabled. Selecting a colleague books on their
+               behalf; leaving it empty books for the current user. -->
           <v-autocomplete
-            v-if="bookingType === 'colleague'"
             v-model="selectedColleagueId"
             :items="usersList"
             item-title="displayName"
@@ -102,45 +134,6 @@
             data-cy="colleague-select"
             class="colleague-select-inline"
           />
-        </div>
-
-        <!-- Equipment Filter -->
-        <div class="d-flex align-center ga-2 mt-4" style="max-width: 420px;">
-          <v-combobox
-            v-model="equipmentFilter"
-            :items="savedFilterItems"
-            :label="$t('items.filterEquipment')"
-            density="compact"
-            hide-details
-            clearable
-            prepend-inner-icon="$filterOutline"
-            data-cy="equipment-filter-input"
-          />
-          <v-tooltip :text="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')" location="top">
-            <template #activator="{ props: tooltipProps }">
-              <v-btn
-                v-bind="tooltipProps"
-                icon
-                variant="text"
-                size="small"
-                :data-cy="isCurrentFilterSaved ? 'equipment-filter-delete' : 'equipment-filter-save'"
-                :aria-label="isCurrentFilterSaved ? $t('items.deleteSavedFilter') : $t('items.saveFilter')"
-                @click="toggleSaveFilter"
-              >
-                <v-icon>{{ isCurrentFilterSaved ? '$delete' : 'mdi-content-save' }}</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            data-cy="equipment-filter-info"
-            :aria-label="$t('items.equipmentFilterHelp')"
-            @click="showFilterHelp = true"
-          >
-            <v-icon>$info</v-icon>
-          </v-btn>
         </div>
 
       </v-card-text>
@@ -1000,7 +993,7 @@ import { resolveConfiguredIcon } from '../utils/icons';
 import { getInitials, middleTruncate } from '../utils/text';
 import { getAvatarUrl } from '../api/avatars';
 import { fetchSettings } from '../api/settings';
-import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog } from '../components';
+import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const { t, locale } = useI18n();
@@ -1048,7 +1041,6 @@ const { loading: itemsLoading, run: runItems } = useApi();
 const activeItemGroupId = ref<string | null>(null);
 const areaName = ref('');
 const itemGroupName = ref('');
-const bookingType = ref<'self' | 'colleague'>('self');
 const selectedColleagueId = ref<string | null>(null);
 const usersList = ref<Array<{ id: string; displayName: string }>>([]);
 const usersLoading = ref(false);
@@ -1082,7 +1074,12 @@ const resolveItemIcon = (itemIcon: string | undefined) => {
 };
 const showItemGroupFloorPlanDialog = ref(false);
 
-const equipmentFilter = ref('');
+const equipmentFilter = ref<string | null>('');
+watch(equipmentFilter, (value) => {
+  if (value === null || value === undefined) {
+    equipmentFilter.value = '';
+  }
+});
 const showFilterHelp = ref(false);
 const { comboboxItems: savedFilterItems, saveFilter, deleteFilter, isSavedFilter } = useSavedFilters();
 const { isItemFavorite, toggleItemFavorite, favoriteItems } = useFavorites();
@@ -1192,7 +1189,7 @@ const toggleSaveFilter = () => {
     }
   }
 };
-const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value));
+const parsedEquipmentFilter = computed(() => parseFilter(equipmentFilter.value ?? ''));
 
 const isItemFilteredOut = (equipment: string[]): boolean => {
   return !matchesParsedFilter(equipment, parsedEquipmentFilter.value);
@@ -1553,12 +1550,6 @@ const submitWeekBookings = async () => {
   if ((!favoritesMode.value && !activeItemGroupId.value) || weekSelections.value.size === 0) return;
 
   errorSnackbarMessage.value = null;
-  if (bookingType.value === 'colleague') {
-    if (!selectedColleagueId.value) {
-      errorSnackbarMessage.value =t('items.selectColleagueError');
-      return;
-    }
-  }
   weekBookingInProgress.value = true;
   weekBookingResults.value = [];
 
@@ -1570,10 +1561,11 @@ const submitWeekBookings = async () => {
     return { itemId, itemName, date };
   });
 
-  const onBehalf: BookOnBehalfOptions | undefined =
-    bookingType.value === 'colleague' && selectedColleagueId.value
-      ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
-      : undefined;
+  // A selected colleague means "book on their behalf"; no selection means
+  // "book for the current user".
+  const onBehalf: BookOnBehalfOptions | undefined = selectedColleagueId.value
+    ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
+    : undefined;
 
   const limitErrors: string[] = [];
   const promises = entries.map(async ({ itemId, itemName, date }) => {
@@ -1971,22 +1963,15 @@ const bookItem = async (itemId: string) => {
   errorSnackbarMessage.value = null;
   lastBookingDetails.value = null;
 
-  // Validate colleague selection
-  if (bookingType.value === 'colleague') {
-    if (!selectedColleagueId.value) {
-      errorSnackbarMessage.value =t('items.selectColleagueError');
-      return;
-    }
-  }
-
   bookingItemId.value = itemId;
   const bookingDate = selectedDate.value;
 
   try {
-    const onBehalf: BookOnBehalfOptions | undefined =
-      bookingType.value === 'colleague' && selectedColleagueId.value
-        ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
-        : undefined;
+    // A selected colleague means "book on their behalf"; no selection means
+    // "book for the current user".
+    const onBehalf: BookOnBehalfOptions | undefined = selectedColleagueId.value
+      ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
+      : undefined;
 
     const result = await createBooking(itemId, bookingDate, onBehalf);
     lastBookingId.value = result.data.id;
@@ -2003,11 +1988,8 @@ const bookItem = async (itemId: string) => {
       }
     );
 
-    // Reset booking type fields
-    if (bookingType.value === 'colleague') {
-      selectedColleagueId.value = null;
-      bookingType.value = 'self';
-    }
+    // Reset the colleague selection so the next booking defaults to "for me".
+    selectedColleagueId.value = null;
 
     // Reload items to reflect updated availability (keep selected date)
     await loadItemsForView(selectedDate.value);
@@ -2349,8 +2331,39 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-.booking-type-row {
+.booking-controls-row {
   min-height: 40px;
+}
+
+.booking-date-input {
+  flex: 0 0 240px;
+  max-width: 240px;
+  min-width: 200px;
+}
+
+.equipment-filter-cluster {
+  flex: 1 1 280px;
+  min-width: 240px;
+  max-width: 380px;
+}
+
+.filter-action-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.colleague-select-inline {
+  flex: 0 0 240px;
+  max-width: 280px;
+}
+
+@media (max-width: 600px) {
+  .booking-date-input,
+  .equipment-filter-cluster,
+  .colleague-select-inline {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
 }
 
 .tile-booker-avatar {
@@ -2369,22 +2382,6 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   background: rgba(var(--v-theme-error), 0.85);
   user-select: none;
   line-height: 1;
-}
-
-.booking-type-radios {
-  flex: 0 0 auto;
-}
-
-.colleague-select-inline {
-  flex: 0 0 320px;
-  max-width: 360px;
-}
-
-@media (max-width: 600px) {
-  .colleague-select-inline {
-    flex: 1 1 100%;
-    max-width: 100%;
-  }
 }
 
 .note-text {

@@ -128,6 +128,7 @@ func registerRoutes(
 	e.POST("/api/v1/auth/login", auth.LocalLoginHandler(authService),
 		middleware.RateLimit(loginLimiter))
 	e.POST("/api/v1/auth/logout", auth.LogoutHandler())
+	e.GET("/api/v1/auth/providers", auth.ProvidersHandler(authService))
 
 	// Public
 	e.GET("/api/v1/ping", system.Ping)

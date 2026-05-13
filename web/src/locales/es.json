@@ -54,6 +54,8 @@
     "password": "Contrasena",
     "signIn": "Iniciar sesion",
     "signInWithEntraId": "Iniciar sesion con Entra ID",
+    "moreLoginOptions": "mas opciones de inicio de sesion",
+    "lessLoginOptions": "menos opciones de inicio de sesion",
     "requiredFields": "El correo electronico y la contrasena son obligatorios.",
     "invalidCredentials": "Correo electronico o contrasena no validos",
     "genericError": "Se ha producido un error. Por favor, intentelo de nuevo."

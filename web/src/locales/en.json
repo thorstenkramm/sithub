@@ -54,6 +54,8 @@
     "password": "Password",
     "signIn": "Sign in",
     "signInWithEntraId": "Sign in with Entra ID",
+    "moreLoginOptions": "more login options",
+    "lessLoginOptions": "less login options",
     "requiredFields": "Email and password are required.",
     "invalidCredentials": "Invalid email or password",
     "genericError": "An error occurred. Please try again."

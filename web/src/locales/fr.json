@@ -54,6 +54,8 @@
     "password": "Mot de passe",
     "signIn": "Se connecter",
     "signInWithEntraId": "Se connecter avec Entra ID",
+    "moreLoginOptions": "plus d'options de connexion",
+    "lessLoginOptions": "moins d'options de connexion",
     "requiredFields": "L'e-mail et le mot de passe sont obligatoires.",
     "invalidCredentials": "E-mail ou mot de passe invalide",
     "genericError": "Une erreur est survenue. Veuillez réessayer."

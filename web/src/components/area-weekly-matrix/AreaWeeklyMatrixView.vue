@@ -36,6 +36,7 @@
               :current-user-id="currentUserId"
               :is-admin="isAdmin"
               :today="today"
+              :parsed-equipment-filter="props.parsedEquipmentFilter ?? []"
               @toggle-collapse="toggleCollapse(group.id)"
             />
           </template>
@@ -83,6 +84,7 @@ import { useI18n } from 'vue-i18n';
 import { fetchWeeklyMatrix } from '../../api/itemGroupMatrix';
 import type { ItemGroupMatrixAttributes, MatrixDayMeta, MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
 import type { JsonApiResource } from '../../api/types';
+import type { AndGroup } from '../../composables/useEquipmentFilter';
 import { localizeWeekday } from '../../composables/useWeekSelector';
 import { getSafeLocalStorage } from '../../composables/storage';
 import { useLiveBookingRefresh } from '../../composables/useLiveBookingRefresh';
@@ -97,6 +99,7 @@ const props = defineProps<{
   areaId: string;
   week: string;
   showWeekends: boolean;
+  parsedEquipmentFilter?: AndGroup[];
 }>();
 
 const { t } = useI18n();

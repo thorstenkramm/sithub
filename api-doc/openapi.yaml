@@ -40,6 +40,8 @@ paths:
     $ref: ./endpoints/auth-login.yaml
   /auth/logout:
     $ref: ./endpoints/auth-logout.yaml
+  /auth/providers:
+    $ref: ./endpoints/auth-providers.yaml
   /users:
     $ref: ./endpoints/users.yaml
   /users/{user_id}:
