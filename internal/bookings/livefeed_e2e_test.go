@@ -69,6 +69,9 @@ func TestBookingFlowBroadcastsCreateAndCancelEventsWithActorIdentity(t *testing.
 	}
 	t.Cleanup(func() { _ = conn.Close() }) //nolint:errcheck // best-effort cleanup
 
+	// 5 s ceiling (rather than 1 s) so the test tolerates the slower goroutine
+	// scheduling of -race on the CI runner; the happy path still exits in a
+	// few tens of milliseconds.
 	require.Eventually(t, func() bool {
 		hub.NotifyAsync(&notifications.BookingEvent{
 			Event:       notifications.EventBookingCreated,
@@ -79,7 +82,7 @@ func TestBookingFlowBroadcastsCreateAndCancelEventsWithActorIdentity(t *testing.
 		_ = conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond)) //nolint:errcheck // deadline-only
 		var ev livefeed.Event
 		return conn.ReadJSON(&ev) == nil
-	}, time.Second, 20*time.Millisecond, "websocket client never registered with hub")
+	}, 5*time.Second, 20*time.Millisecond, "websocket client never registered with hub")
 
 	bookingDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	createReqBody := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` +

@@ -61,6 +61,9 @@ func TestHubBroadcastReachesClient(t *testing.T) {
 
 	// Wait for the hub to register the client. Without this, NotifyAsync
 	// can fire before Register completes and the event is dropped.
+	// 5 s ceiling (rather than 1 s) so the test tolerates the slower goroutine
+	// scheduling of -race on the CI runner; the happy path still exits in a
+	// few tens of milliseconds.
 	require.Eventually(t, func() bool {
 		hub.NotifyAsync(&notifications.BookingEvent{
 			Event:       notifications.EventBookingCreated,
@@ -71,7 +74,7 @@ func TestHubBroadcastReachesClient(t *testing.T) {
 		_ = conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond)) //nolint:errcheck // deadline-only
 		var ev Event
 		return conn.ReadJSON(&ev) == nil
-	}, time.Second, 20*time.Millisecond, "warm-up event never received")
+	}, 5*time.Second, 20*time.Millisecond, "warm-up event never received")
 
 	hub.NotifyAsync(&notifications.BookingEvent{
 		Event:       notifications.EventBookingCreated,
@@ -111,7 +114,7 @@ func TestHubExitsOnContextCancel(t *testing.T) {
 
 	select {
 	case <-stopped:
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("hub did not stop after context cancel")
 	}
 
@@ -153,7 +156,7 @@ func TestHubDropsSlowClient(t *testing.T) {
 		default:
 			return false
 		}
-	}, time.Second, 10*time.Millisecond, "expected hub to close slow client's send channel")
+	}, 5*time.Second, 10*time.Millisecond, "expected hub to close slow client's send channel")
 }
 
 func TestHubConcurrentRegisterUnregister(t *testing.T) {

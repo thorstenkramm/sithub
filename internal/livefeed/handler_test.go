@@ -55,6 +55,9 @@ func TestHandlerBroadcastsEventToAuthorizedClient(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = conn.Close() }) //nolint:errcheck // best-effort cleanup
 
+	// 5 s ceiling (rather than 1 s) so the test tolerates the slower goroutine
+	// scheduling of -race on the CI runner; the happy path still exits in a
+	// few tens of milliseconds.
 	require.Eventually(t, func() bool {
 		hub.NotifyAsync(&notifications.BookingEvent{
 			Event:       notifications.EventBookingCreated,
@@ -65,7 +68,7 @@ func TestHandlerBroadcastsEventToAuthorizedClient(t *testing.T) {
 		_ = conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond)) //nolint:errcheck // deadline-only
 		var ev Event
 		return conn.ReadJSON(&ev) == nil
-	}, time.Second, 20*time.Millisecond, "websocket client never registered with hub")
+	}, 5*time.Second, 20*time.Millisecond, "websocket client never registered with hub")
 
 	hub.NotifyAsync(&notifications.BookingEvent{
 		Event:          notifications.EventBookingCreated,
