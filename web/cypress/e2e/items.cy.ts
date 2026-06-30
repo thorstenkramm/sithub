@@ -1,6 +1,7 @@
 import {
   createMockItem,
   createMockItemsResponse,
+  interceptBookingConflict,
   setupItemsPageIntercepts
 } from '../support/flows';
 
@@ -93,20 +94,7 @@ describe('items', () => {
     );
 
     // Mock a 409 Conflict response for booking
-    cy.intercept('POST', '/api/v1/bookings', {
-      statusCode: 409,
-      headers: { 'Content-Type': 'application/vnd.api+json' },
-      body: {
-        errors: [
-          {
-            status: '409',
-            title: 'Conflict',
-            detail: 'Item is already booked for this date',
-            code: 'conflict'
-          }
-        ]
-      }
-    }).as('createBookingConflict');
+    interceptBookingConflict('Item is already booked for this date', 'createBookingConflict');
 
     cy.visit('/item-groups/test_room/items');
 
@@ -169,20 +157,10 @@ describe('items', () => {
     );
 
     // Mock a 409 Conflict response for self-duplicate
-    cy.intercept('POST', '/api/v1/bookings', {
-      statusCode: 409,
-      headers: { 'Content-Type': 'application/vnd.api+json' },
-      body: {
-        errors: [
-          {
-            status: '409',
-            title: 'Conflict',
-            detail: 'You already have this item booked for this date',
-            code: 'conflict'
-          }
-        ]
-      }
-    }).as('createBookingSelfDuplicate');
+    interceptBookingConflict(
+      'You already have this item booked for this date',
+      'createBookingSelfDuplicate'
+    );
 
     cy.visit('/item-groups/test_room/items');
 

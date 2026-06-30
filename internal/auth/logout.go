@@ -9,17 +9,10 @@ import (
 const schemeHTTPS = "https"
 
 // LogoutHandler clears the authentication cookie and returns 204.
-func LogoutHandler() echo.HandlerFunc {
+func LogoutHandler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		cookie := &http.Cookie{
-			Name:     userCookieName,
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			HttpOnly: true,
-			Secure:   c.Scheme() == schemeHTTPS,
-			SameSite: http.SameSiteLaxMode,
-		}
+		cookie := svc.NewCookie(c, userCookieName, "")
+		cookie.MaxAge = -1
 		c.SetCookie(cookie)
 
 		return c.NoContent(http.StatusNoContent)

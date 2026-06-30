@@ -96,7 +96,7 @@ func LocalLoginHandler(svc *Service) echo.HandlerFunc {
 			)
 		}
 
-		userCookie := newCookie(userCookieName, encodedUser, c.Scheme() == schemeHTTPS)
+		userCookie := svc.NewCookie(c, userCookieName, encodedUser)
 		c.SetCookie(userCookie)
 
 		resp := api.SingleResponse{

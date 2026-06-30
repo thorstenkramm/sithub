@@ -81,3 +81,6 @@ notes*.md
 node_modules/
 img*.png
 /private/
+
+# Trivy DB cache (CI security scan)
+.trivycache/

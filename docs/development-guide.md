@@ -26,7 +26,7 @@
 - Format: `go fmt ./...`
 - Vet: `go vet ./...`
 - Lint: `golangci-lint run ./...` (v2.5.0)
-- Duplication check: `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1`
+- Duplication check: `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exit-code 1`
 - Tests: `go test -race ./...`
 - Coverage: `go test -covermode=atomic -coverprofile=coverage.out ./...`
 - Coverage report: `go tool cover -func=coverage.out`

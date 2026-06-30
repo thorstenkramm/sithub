@@ -26,7 +26,7 @@ func LoginHandler(svc *Service) echo.HandlerFunc {
 			return jsonAPIError(c, http.StatusInternalServerError, "Server Error", detail, "login_state")
 		}
 
-		cookie := newCookie(stateCookieName, encoded, c.Scheme() == schemeHTTPS)
+		cookie := svc.NewCookie(c, stateCookieName, encoded)
 		c.SetCookie(cookie)
 
 		authURL := svc.AuthCodeURL(state)
@@ -106,12 +106,24 @@ func newCookie(name, value string, secure bool) *http.Cookie {
 	}
 }
 
+// NewCookie builds a cookie for the current request. The Secure flag is set when
+// the request is served over HTTPS or when force_secure_cookies is enabled, which
+// covers deployments where a reverse proxy terminates TLS and forwards plain HTTP.
+func (s *Service) NewCookie(c echo.Context, name, value string) *http.Cookie {
+	return newCookie(name, value, s.cookieSecure(c))
+}
+
+// cookieSecure reports whether cookies should carry the Secure attribute.
+func (s *Service) cookieSecure(c echo.Context) bool {
+	return s.forceSecureCookies || c.Scheme() == schemeHTTPS
+}
+
 func setUserCookieAndRedirect(svc *Service, c echo.Context, user *User, location string) error {
 	encodedUser, err := svc.EncodeUser(user)
 	if err != nil {
 		return jsonAPIError(c, http.StatusInternalServerError, "Server Error", "Failed to store user", "user_store")
 	}
-	userCookie := newCookie(userCookieName, encodedUser, c.Scheme() == schemeHTTPS)
+	userCookie := svc.NewCookie(c, userCookieName, encodedUser)
 	c.SetCookie(userCookie)
 	if err := c.Redirect(http.StatusFound, location); err != nil {
 		return fmt.Errorf("redirect after login: %w", err)

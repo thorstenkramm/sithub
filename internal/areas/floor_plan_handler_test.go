@@ -113,15 +113,31 @@ func TestFloorPlanHandlerPathTraversal(t *testing.T) {
 
 	dir := t.TempDir()
 
+	for _, filename := range []string{"../etc/passwd", `..\windows\system32`, "sub/dir/file.png"} {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/floor-plans/x", http.NoBody)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("filename")
+		c.SetParamValues(filename)
+
+		h := FloorPlanHandler(dir)
+		require.NoError(t, h(c))
+
+		assert.Equal(t, http.StatusNotFound, rec.Code,
+			"traversal filename %q must return 404", filename)
+	}
+}
+
+func TestFloorPlanRouteEncodedPathTraversal(t *testing.T) {
+	t.Parallel()
+
 	e := echo.New()
+	e.GET("/api/v1/floor-plans/:filename", FloorPlanHandler(t.TempDir()))
+
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/floor-plans/..%2Fetc%2Fpasswd", http.NoBody)
 	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetParamNames("filename")
-	c.SetParamValues("../etc/passwd")
-
-	h := FloorPlanHandler(dir)
-	require.NoError(t, h(c))
+	e.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

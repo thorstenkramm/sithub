@@ -8,6 +8,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/thorstenkramm/sithub/internal/config"
 )
 
 func TestLogoutHandlerClearsCookie(t *testing.T) {
@@ -16,7 +18,8 @@ func TestLogoutHandlerClearsCookie(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	err := LogoutHandler()(c)
+	svc := newTestService(t, &config.Config{})
+	err := LogoutHandler(svc)(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 
@@ -44,7 +47,8 @@ func TestLogoutHandlerWithHTTPS(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	err := LogoutHandler()(c)
+	svc := newTestService(t, &config.Config{})
+	err := LogoutHandler(svc)(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 
@@ -54,6 +58,48 @@ func TestLogoutHandlerWithHTTPS(t *testing.T) {
 		if cookie.Name == userCookieName {
 			found = true
 			assert.True(t, cookie.Secure, "Expected Secure flag for HTTPS")
+		}
+	}
+	assert.True(t, found)
+}
+
+func TestLogoutHandlerForceSecureCookiesOverHTTP(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/api/v1/auth/logout", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	svc := newTestService(t, &config.Config{Main: config.MainConfig{ForceSecureCookies: true}})
+	err := LogoutHandler(svc)(c)
+	require.NoError(t, err)
+
+	cookies := rec.Result().Cookies()
+	var found bool
+	for _, cookie := range cookies {
+		if cookie.Name == userCookieName {
+			found = true
+			assert.True(t, cookie.Secure, "Expected Secure flag over HTTP when force_secure_cookies is enabled")
+		}
+	}
+	assert.True(t, found)
+}
+
+func TestLogoutHandlerDefaultOverHTTP(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/api/v1/auth/logout", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	svc := newTestService(t, &config.Config{})
+	err := LogoutHandler(svc)(c)
+	require.NoError(t, err)
+
+	cookies := rec.Result().Cookies()
+	var found bool
+	for _, cookie := range cookies {
+		if cookie.Name == userCookieName {
+			found = true
+			assert.False(t, cookie.Secure, "Expected no Secure flag over HTTP by default")
 		}
 	}
 	assert.True(t, found)

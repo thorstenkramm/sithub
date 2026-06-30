@@ -29,11 +29,12 @@ const (
 // Service handles authentication and cookie encoding.
 // Service is safe for concurrent use after construction.
 type Service struct {
-	oauthConfig *oauth2.Config
-	cookieCodec *securecookie.SecureCookie
-	store       *sql.DB
-	adminsGroup string
-	usersGroup  string
+	oauthConfig        *oauth2.Config
+	cookieCodec        *securecookie.SecureCookie
+	store              *sql.DB
+	adminsGroup        string
+	usersGroup         string
+	forceSecureCookies bool
 }
 
 // User represents an authenticated user.
@@ -87,11 +88,12 @@ func NewService(cfg *config.Config, store *sql.DB) (*Service, error) {
 	}
 
 	return &Service{
-		oauthConfig: oauthConfig,
-		cookieCodec: securecookie.New(hashKey, blockKey),
-		store:       store,
-		adminsGroup: cfg.EntraID.AdminsGroupID,
-		usersGroup:  cfg.EntraID.UsersGroupID,
+		oauthConfig:        oauthConfig,
+		cookieCodec:        securecookie.New(hashKey, blockKey),
+		store:              store,
+		adminsGroup:        cfg.EntraID.AdminsGroupID,
+		usersGroup:         cfg.EntraID.UsersGroupID,
+		forceSecureCookies: cfg.Main.ForceSecureCookies,
 	}, nil
 }
 

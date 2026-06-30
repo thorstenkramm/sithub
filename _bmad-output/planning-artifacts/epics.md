@@ -11,7 +11,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-31.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-32.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-33.md
-lastEdited: '2026-05-11'
+  - /Users/thorsten/projects/thorsten/sithub/private/security-report-claude.md
+lastEdited: '2026-06-29'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -51,6 +52,8 @@ editHistory:
     changes: "Back-filled FR140-FR142 for Epic 31 (Live Updates, Favorites Rework & Areas Config Hint) into the Functional Requirements list and the FR Coverage Map; added epic-31.md to inputDocuments. No story content changed."
   - date: '2026-05-11'
     changes: "Added FR146-FR152 and Epic 33: Equipment Filter Fixes, Compact Booking Controls & Login Page Rebranding. Fixes equipment-filter reset and table-view filter, widens table-view cancel popover, replaces booking-type radio with single checkbox + always-on dropdown (supersedes Story 32.3 layout), collapses booking controls to a single row, promotes Entra ID to primary login with official icon and 'more options' toggle, and embeds the new SitHub brand logo for the login page and header."
+  - date: '2026-06-29'
+    changes: "Extracted FR153-FR158 from the AI-assisted security review (private/security-report-claude.md) for Epic 34: Security Hardening. Covers HTTP security response headers (Echo Secure middleware), force_secure_cookies config for reverse-proxy deployments, pinned npm dependency versions + Dependabot, security regression test coverage, HTTP server slow-client timeouts, and a 2 MB request body limit. Excludes persistent audit log and access-token-at-rest encryption (accepted risk)."
 ---
 
 # sithub - Epic Breakdown
@@ -534,6 +537,39 @@ Entra ID button; the application header renders the compact horizontal variant i
 place of any current text-only branding; both variants are served from the embedded
 binary asset; the header variant fits within the existing app-bar height without
 clipping.
+FR153: The HTTP server must emit security response headers on every response via Echo
+`Secure` middleware registered before route registration in `internal/startup/server.go`.
+Headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Strict-Transport-Security` (max-age 31536000), `Referrer-Policy:
+strict-origin-when-cross-origin`, and a `Content-Security-Policy` allowing only self,
+`data:`/`blob:` images, and inline styles. Acceptance: every response carries these
+headers; SitHub cannot be rendered in a cross-origin iframe; the Vue SPA, Vuetify inline
+styles, avatars, and floor-plan images continue to load under the CSP.
+FR154: Operators can force the `Secure` flag on all session and OAuth-state cookies via a
+`[main] force_secure_cookies` boolean config option, independent of the connection scheme
+detected by Echo, to support TLS-terminating reverse-proxy deployments. Acceptance: with
+the flag enabled behind a proxy forwarding plain HTTP, every `Set-Cookie` includes
+`Secure`; with the flag disabled (default) behavior is unchanged; the HTTPS deployment
+requirement is documented.
+FR155: All frontend dependency versions must be pinned to explicit semver ranges instead
+of `"*"`. Acceptance: no `"*"` version remains in `web/package.json`; `package-lock.json`
+is regenerated; `npm ci`, build, and tests pass; a Dependabot configuration is committed
+to manage future updates.
+FR156: The security-critical paths must have regression test coverage for the gaps
+identified in the security review. Acceptance: tests exist and pass for — rate limiter
+returns 429 on the 61st login request within a minute; path traversal on the avatar and
+floor-plan endpoints returns 404; an expired session cookie is rejected; a booking note
+containing an XSS payload is stored and returned as escaped JSON; admin self-protection
+rules are verified; a cross-origin (CSRF) booking submission is blocked by SameSite=Lax.
+FR157: The HTTP server must defend against slow-client (Slowloris) connections by setting
+`ReadTimeout`, `WriteTimeout`, and `IdleTimeout` in addition to the existing
+`ReadHeaderTimeout` on the `http.Server` in `internal/startup/server.go`. Acceptance: all
+four timeouts are configured; a connection that stalls beyond the configured window is
+closed by the server.
+FR158: The server must reject oversized request bodies via Echo `BodyLimit` middleware set
+to 2 MB, without breaking the existing 4 MB avatar-upload path. Acceptance: a JSON request
+body exceeding 2 MB returns HTTP 413; normal booking requests and the 4 MB avatar upload
+continue to succeed.
 
 ### NonFunctional Requirements
 
@@ -775,6 +811,12 @@ FR150: Epic 33 - Single-line compact booking controls layout
 FR151: Epic 33 - Entra ID promoted to primary login with official icon and
 "more options" toggle for the local credentials form
 FR152: Epic 33 - SitHub brand logo embedded for login page (full) and header (compact)
+FR153: Epic 34 - HTTP security response headers via Echo Secure middleware
+FR154: Epic 34 - force_secure_cookies config for reverse-proxy deployments
+FR155: Epic 34 - Pinned npm dependency versions + Dependabot
+FR156: Epic 34 - Security regression test coverage for review gaps
+FR157: Epic 34 - HTTP server slow-client (Slowloris) timeouts
+FR158: Epic 34 - 2 MB request body size limit
 
 ## Epic List
 
@@ -983,6 +1025,19 @@ local credentials form behind a "more login options" toggle, and adopt the new
 vertical) and the application header (compact horizontal). The SVG assets must be
 downloaded into the repository and embedded into the binary.
 **FRs covered:** FR146, FR147, FR148, FR149, FR150, FR151, FR152
+
+### Epic 34: Security Hardening — Headers, Cookies, Dependencies & Regression Tests
+
+Harden SitHub against the gaps surfaced by the AI-assisted security review
+(`private/security-report-claude.md`). Add HTTP security response headers (clickjacking,
+MIME-sniffing, HSTS, referrer policy, and a Content-Security-Policy) via Echo `Secure`
+middleware; add a `[main] force_secure_cookies` config option so session and OAuth-state
+cookies always carry the `Secure` flag behind a TLS-terminating reverse proxy; pin all
+frontend dependency versions and enable Dependabot; add slow-client (Slowloris) server
+timeouts and a 2 MB request body limit; and close the security regression-test coverage
+gaps identified in the review. Excludes a persistent audit log and access-token-at-rest
+encryption, both deferred as accepted risk.
+**FRs covered:** FR153, FR154, FR155, FR156, FR157, FR158
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -4827,3 +4882,189 @@ variants, or a dedicated horizontal variant is generated and embedded
 **When** any prior text-only "SitHub" branding element existed in the login page
 or header
 **Then** that element is removed so the logo is the single source of branding
+
+## Epic 34 Stories: Security Hardening — Headers, Cookies, Dependencies & Regression Tests
+
+Harden SitHub against the gaps surfaced by the AI-assisted security review: add HTTP
+security response headers, guarantee the `Secure` cookie flag behind a TLS-terminating
+reverse proxy, add slow-client timeouts and a request body limit, pin frontend dependency
+versions with Dependabot, and close the security regression-test coverage gaps. Excludes a
+persistent audit log and access-token-at-rest encryption (deferred as accepted risk).
+**FRs covered:** FR153, FR154, FR155, FR156, FR157, FR158
+
+### Story 34.1: HTTP Security Response Headers
+
+**FRs covered:** FR153
+
+As an operator deploying SitHub,
+I want every HTTP response to carry standard security headers,
+so that the application is protected against clickjacking, MIME sniffing, and protocol
+downgrade without any per-handler work.
+
+**Acceptance Criteria:**
+
+**Given** the server is running
+**When** any HTTP response is returned (API, SPA, or static asset)
+**Then** the response includes `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Strict-Transport-Security` with `max-age=31536000`, and
+`Referrer-Policy: strict-origin-when-cross-origin`
+
+**Given** the Echo `Secure` middleware is registered in `internal/startup/server.go`
+**When** the middleware stack is assembled
+**Then** it is registered before route registration so it applies to every route
+
+**Given** an attacker hosts a page that loads SitHub in an `<iframe>`
+**When** a logged-in user opens that page
+**Then** the browser refuses to render SitHub in the frame (clickjacking blocked)
+
+**Given** a `Content-Security-Policy` is applied that permits only `self`, `data:`/`blob:`
+images, and inline styles
+**When** a user loads the Vue SPA, Vuetify-styled components, user avatars, and floor-plan
+images
+**Then** all assets render correctly with no CSP violations in the browser console
+
+**Given** the security headers are active
+**When** the existing unit and E2E test suites run
+**Then** they pass without regressions to authenticated flows
+
+### Story 34.2: Force-Secure Cookies Behind a Reverse Proxy
+
+**FRs covered:** FR154
+
+As an operator running SitHub behind a TLS-terminating reverse proxy,
+I want a configuration option that forces the `Secure` flag on all cookies,
+so that session and OAuth-state cookies are never transmitted over plain HTTP regardless
+of the scheme the backend observes.
+
+**Acceptance Criteria:**
+
+**Given** a new `[main] force_secure_cookies` boolean option exists in the TOML config and
+the example file documents it (mandatory/optional, override flag/env var, example,
+default `false`)
+**When** the server loads configuration
+**Then** the option is parsed and available to the auth handlers
+
+**Given** `force_secure_cookies = true` and the backend receives a request over plain HTTP
+from a TLS-terminating proxy
+**When** a session cookie or OAuth-state cookie is set
+**Then** the `Set-Cookie` header includes the `Secure` attribute
+
+**Given** `force_secure_cookies = false` (default)
+**When** cookies are set
+**Then** the existing scheme-based behavior (`Secure` when `c.Scheme()` is HTTPS) is
+unchanged
+
+**Given** the option is enabled
+**When** the documentation is reviewed
+**Then** the HTTPS-deployment requirement is stated so operators do not enable it for a
+plain-HTTP deployment
+
+**Given** the change is implemented
+**When** unit tests run
+**Then** tests cover both the enabled (Secure present) and disabled (existing behavior)
+cases for session and state cookies
+
+### Story 34.3: Slow-Client Timeouts and Request Body Limit
+
+**FRs covered:** FR157, FR158
+
+As an operator,
+I want the HTTP server to drop slow or oversized connections,
+so that a single malicious or misbehaving client cannot hold resources open or exhaust
+memory with a large body.
+
+**Acceptance Criteria:**
+
+**Given** the `http.Server` is constructed in `internal/startup/server.go`
+**When** the server is created
+**Then** `ReadTimeout`, `WriteTimeout`, and `IdleTimeout` are configured in addition to
+the existing `ReadHeaderTimeout`
+
+**Given** a client opens a connection and sends a request body slower than the configured
+`ReadTimeout`
+**When** the timeout window elapses
+**Then** the server closes the connection rather than holding it open indefinitely
+
+**Given** Echo `BodyLimit` middleware is registered with a 2 MB limit
+**When** a request arrives with a JSON body larger than 2 MB
+**Then** the server responds with HTTP 413 (Request Entity Too Large)
+
+**Given** the 2 MB body limit is active
+**When** a normal booking request and the existing 4 MB avatar upload are submitted
+**Then** both continue to succeed (the avatar path is not broken by the global limit)
+
+**Given** the timeouts and body limit are configured
+**When** the existing test suite runs
+**Then** it passes without regression to normal request handling
+
+### Story 34.4: Pin npm Dependency Versions and Enable Dependabot
+
+**FRs covered:** FR155
+
+As a developer,
+I want frontend dependencies pinned to explicit semver ranges with automated update
+management,
+so that fresh installs are deterministic and a malicious wildcard upgrade cannot be pulled
+in silently.
+
+**Acceptance Criteria:**
+
+**Given** `web/package.json` currently pins several dependencies to `"*"`
+**When** the file is updated
+**Then** no `"*"` version remains; every dependency uses an explicit semver range matching
+the versions currently resolved in the lock file
+
+**Given** the versions are pinned
+**When** `package-lock.json` is regenerated
+**Then** the lock file is committed and reflects the pinned ranges
+
+**Given** the pinned versions are in place
+**When** `npm ci`, `npm run build`, `npm run type-check`, and the unit/E2E tests run
+**Then** they all pass without behavior changes
+
+**Given** automated dependency management is desired
+**When** a Dependabot configuration file is added to the repository
+**Then** it is configured to monitor the npm ecosystem in `web/` and open update PRs on a
+defined schedule
+
+### Story 34.5: Security Regression Test Coverage
+
+**FRs covered:** FR156
+
+As a maintainer,
+I want regression tests for the security paths flagged as gaps in the review,
+so that existing mitigations are proven to work and future changes cannot silently break
+them.
+
+**Acceptance Criteria:**
+
+**Given** the login rate limiter allows 60 requests per minute
+**When** a test issues a 61st login request within the same minute from one IP
+**Then** the server responds with HTTP 429
+
+**Given** the avatar and floor-plan file-serving endpoints
+**When** a test requests a path containing traversal sequences (e.g. `../etc/passwd`)
+**Then** the server responds with HTTP 404 and never serves a file outside the configured
+root
+
+**Given** a session cookie whose expiry has passed
+**When** a test presents it to a protected route
+**Then** the request is rejected as unauthenticated (401)
+
+**Given** the booking-note field accepts free text
+**When** a test stores a note containing an XSS payload (e.g. `<script>alert(1)</script>`)
+and reads it back
+**Then** the value is returned as escaped JSON and is never interpreted as markup
+
+**Given** admin self-protection rules exist
+**When** a test exercises an admin acting against another admin account per the documented
+rule
+**Then** the protected operation behaves as specified (rejected/allowed) and is asserted
+
+**Given** SameSite=Lax is set on the session cookie
+**When** a test simulates a cross-origin (CSRF) booking submission
+**Then** the request is not authenticated and the booking is not created
+
+**Given** all the above tests are added
+**When** the CI pipeline runs
+**Then** every new test passes

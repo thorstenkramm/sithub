@@ -20,6 +20,16 @@
   ## Default: "." # Current directory
   #data_dir = "."
 
+  ## Force secure cookies, boolean, optional
+  ## When true, session and OAuth state cookies always get the Secure flag, even when the
+  ## backend is reached over plain HTTP. Enable this ONLY when a reverse proxy terminates TLS
+  ## and the site is actually served over HTTPS to clients.
+  ## Can be overridden with --force-secure-cookies flag or SITHUB_MAIN_FORCE_SECURE_COOKIES
+  ## environment variable
+  ## Example: true
+  ## Default: false
+  #force_secure_cookies = false
+
 [log]
   ## Log file, string, optional
   ## Can be overridden with --log-file flag or SITHUB_LOG_FILE environment variable.

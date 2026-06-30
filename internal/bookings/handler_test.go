@@ -1072,6 +1072,51 @@ func TestPatchHandlerSuccess(t *testing.T) {
 	assert.Equal(t, "Arriving after noon", booking.Note)
 }
 
+func TestPatchHandlerNoteXSSEscaped(t *testing.T) {
+	t.Parallel()
+
+	store := setupTestStore(t)
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	seedTestBooking(t, store, "booking-1", "desk-1", "user-1", tomorrow)
+
+	const payload = "<script>alert('xss')</script>"
+	body := `{"data":{"type":"bookings","id":"booking-1","attributes":{"note":"` + payload + `"}}}`
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/bookings/booking-1",
+		bytes.NewBufferString(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("booking-1")
+	c.Set("user", &auth.User{ID: "user-1", Name: "Test User"})
+
+	h := PatchHandler(store)
+	require.NoError(t, h(c))
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// The raw JSON must NOT contain unescaped markup; Go's encoder escapes < > &.
+	raw := rec.Body.String()
+	assert.NotContains(t, raw, "<script>", "response must not contain raw markup")
+	// The note must appear in its JSON-escaped form (computed here so the test
+	// has no literal escape sequence of its own).
+	encodedNote, err := json.Marshal(payload)
+	require.NoError(t, err)
+	assert.Contains(t, raw, strings.Trim(string(encodedNote), `"`),
+		"note must appear unicode-escaped in the JSON response")
+
+	// Round-trip: the decoded value equals the original string (stored verbatim).
+	var resp api.SingleResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	attrs, ok := resp.Data.Attributes.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, payload, attrs["note"])
+
+	booking, err := FindBookingByID(context.Background(), store, "booking-1")
+	require.NoError(t, err)
+	assert.Equal(t, payload, booking.Note)
+}
+
 func TestPatchHandlerNoteTooLong(t *testing.T) {
 	t.Parallel()
 

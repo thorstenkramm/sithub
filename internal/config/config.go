@@ -44,9 +44,10 @@ type BookingsConfig struct {
 
 // MainConfig contains main server settings.
 type MainConfig struct {
-	Listen  string `mapstructure:"listen"`
-	Port    int    `mapstructure:"port"`
-	DataDir string `mapstructure:"data_dir"`
+	Listen             string `mapstructure:"listen"`
+	Port               int    `mapstructure:"port"`
+	DataDir            string `mapstructure:"data_dir"`
+	ForceSecureCookies bool   `mapstructure:"force_secure_cookies"`
 }
 
 // LogConfig contains logging configuration.
@@ -95,6 +96,7 @@ func LoadWithOverrides(path string, overrides map[string]interface{}) (*Config, 
 	v.SetDefault("main.listen", "127.0.0.1")
 	v.SetDefault("main.port", 9900)
 	v.SetDefault("main.data_dir", ".")
+	v.SetDefault("main.force_secure_cookies", false)
 	v.SetDefault("log.file", "")
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "text")

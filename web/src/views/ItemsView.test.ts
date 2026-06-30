@@ -585,6 +585,8 @@ describe('ItemsView', () => {
   it('refreshes week-mode tiles from live booking events and removes stale selections', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+    useDateState().setDay('2026-05-11');
+    useDateState().setWeek('2026-W20');
     localStorage.setItem('sithub_booking_mode', 'week');
     const bookedDate = '2026-05-11';
     let liveRefresh = false;
@@ -935,6 +937,8 @@ describe('ItemsView', () => {
       beforeEach(() => {
         vi.useFakeTimers();
         vi.setSystemTime(mondayAt('2026-06-01'));
+        useDateState().setDay('2026-06-01');
+        useDateState().setWeek('2026-W23');
       });
 
       afterEach(() => {
@@ -2293,6 +2297,8 @@ describe('ItemsView', () => {
     it('books selected favorite days in week mode and keeps the result visible', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      useDateState().setDay('2026-05-11');
+      useDateState().setWeek('2026-W20');
       localStorage.setItem('sithub_booking_mode', 'week');
       seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' }]);
       fetchItemsMock.mockResolvedValue({
@@ -2320,6 +2326,8 @@ describe('ItemsView', () => {
     it('prunes selected favorite days that become unavailable during live week refresh', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      useDateState().setDay('2026-05-11');
+      useDateState().setWeek('2026-W20');
       localStorage.setItem('sithub_booking_mode', 'week');
       const bookedDate = '2026-05-11';
       let liveRefresh = false;
@@ -2369,6 +2377,8 @@ describe('ItemsView', () => {
     it('clears selected week days when a favorite is removed in week mode', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      useDateState().setDay('2026-05-11');
+      useDateState().setWeek('2026-W20');
       localStorage.setItem('sithub_booking_mode', 'week');
       seedFavorites([{ areaId: 'area-1', itemGroupId: 'ig-1', itemId: 'desk-1', itemName: 'Desk 1' }]);
       fetchItemsMock.mockResolvedValue({

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/thorstenkramm/sithub/assets"
 	"github.com/thorstenkramm/sithub/internal/areas"
@@ -36,6 +38,10 @@ import (
 func Run(ctx context.Context, cfg *config.Config) error {
 	e := echo.New()
 	e.HideBanner = true
+	e.Use(echomw.SecureWithConfig(secureConfig()))
+	e.Use(strictTransportSecurity())
+	e.Use(contentSecurityPolicy())
+	e.Use(echomw.BodyLimitWithConfig(bodyLimitConfig()))
 
 	store, err := db.Open(cfg.Main.DataDir)
 	if err != nil {
@@ -90,11 +96,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	registerSPAHandlers(e, webFS)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
-	server := &http.Server{
-		Addr:              addr,
-		Handler:           e,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	server := newHTTPServer(addr, e)
 
 	go func() {
 		<-ctx.Done()
@@ -109,6 +111,113 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("listen and serve: %w", err)
 	}
 	return nil
+}
+
+// avatarUploadPath is the one route whose body may exceed the global 2 MB limit;
+// it enforces its own 4 MB cap inside the handler.
+const avatarUploadPath = "/api/v1/me/avatar"
+const xFrameOptionsDeny = "DENY"
+
+type serverTimeouts struct {
+	ReadHeader time.Duration
+	Read       time.Duration
+	Write      time.Duration
+	Idle       time.Duration
+}
+
+var defaultServerTimeouts = serverTimeouts{
+	ReadHeader: 5 * time.Second,
+	Read:       30 * time.Second,
+	Write:      60 * time.Second,
+	Idle:       120 * time.Second,
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return newHTTPServerWithTimeouts(addr, handler, defaultServerTimeouts)
+}
+
+func newHTTPServerWithTimeouts(addr string, handler http.Handler, timeouts serverTimeouts) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: timeouts.ReadHeader,
+		ReadTimeout:       timeouts.Read,
+		WriteTimeout:      timeouts.Write,
+		IdleTimeout:       timeouts.Idle,
+	}
+}
+
+// bodyLimitConfig caps request bodies at 2 MB to prevent oversized-payload memory
+// pressure on JSON endpoints. The avatar upload route is skipped because it
+// accepts up to 4 MB and reports a friendly error from its handler.
+func bodyLimitConfig() echomw.BodyLimitConfig {
+	return echomw.BodyLimitConfig{
+		Limit: "2M",
+		Skipper: func(c echo.Context) bool {
+			return c.Request().Method == http.MethodPost && c.Path() == avatarUploadPath
+		},
+	}
+}
+
+// secureConfig returns the HTTP security header configuration applied to every
+// response. The Content-Security-Policy permits only same-origin resources plus
+// the Google Fonts hosts the SPA loads (fonts.googleapis.com for the stylesheet,
+// fonts.gstatic.com for the font files) and inline styles injected by Vuetify at
+// runtime. data:/blob: images cover avatars and floor-plan previews.
+func secureConfig() echomw.SecureConfig {
+	return echomw.SecureConfig{
+		XSSProtection:      "1; mode=block",
+		ContentTypeNosniff: "nosniff",
+		XFrameOptions:      xFrameOptionsDeny,
+		HSTSMaxAge:         31536000,
+		ReferrerPolicy:     "strict-origin-when-cross-origin",
+	}
+}
+
+func strictTransportSecurity() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set(echo.HeaderStrictTransportSecurity, "max-age=31536000")
+			return next(c)
+		}
+	}
+}
+
+func contentSecurityPolicy() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set(echo.HeaderContentSecurityPolicy, contentSecurityPolicyValue(c.Request()))
+			return next(c)
+		}
+	}
+}
+
+func contentSecurityPolicyValue(req *http.Request) string {
+	host := safeHostSource(req.Host)
+	connectSrc := "connect-src 'self'"
+	if host != "" {
+		connectSrc += " ws://" + host + " wss://" + host
+	}
+	return "default-src 'self'; script-src 'self'; img-src 'self' data: blob:; " +
+		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+		"font-src 'self' data: https://fonts.gstatic.com; " + connectSrc
+}
+
+func safeHostSource(host string) string {
+	if host == "" {
+		return ""
+	}
+	if h, p, err := net.SplitHostPort(host); err == nil {
+		host = net.JoinHostPort(h, p)
+	}
+	for _, r := range host {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '.' || r == '-' || r == ':' || r == '[' || r == ']' {
+			continue
+		}
+		return ""
+	}
+	return host
 }
 
 func registerRoutes(
@@ -127,7 +236,7 @@ func registerRoutes(
 	loginLimiter := middleware.NewRateLimiter(60, time.Minute)
 	e.POST("/api/v1/auth/login", auth.LocalLoginHandler(authService),
 		middleware.RateLimit(loginLimiter))
-	e.POST("/api/v1/auth/logout", auth.LogoutHandler())
+	e.POST("/api/v1/auth/logout", auth.LogoutHandler(authService))
 	e.GET("/api/v1/auth/providers", auth.ProvidersHandler(authService))
 
 	// Public
@@ -173,9 +282,9 @@ func registerRoutes(
 	// Avatar routes (authenticated)
 	e.GET("/api/v1/avatars/:user_id",
 		auth.ServeAvatarHandler(avatarsDir), requireAuth)
-	e.POST("/api/v1/me/avatar",
-		auth.UploadAvatarHandler(avatarsDir), requireAuth)
-	e.DELETE("/api/v1/me/avatar",
+	e.POST(avatarUploadPath,
+		auth.UploadAvatarHandler(avatarsDir), echomw.BodyLimit("4M"), requireAuth)
+	e.DELETE(avatarUploadPath,
 		auth.DeleteAvatarHandler(avatarsDir), requireAuth)
 
 	// Colleagues endpoint (all authenticated users)

@@ -70,3 +70,24 @@ export function createMockItemsResponse(items: ReturnType<typeof createMockItem>
     }
   };
 }
+
+/**
+ * Intercepts POST /api/v1/bookings with a 409 Conflict carrying the given detail
+ * message, aliased so the test can cy.wait on it.
+ */
+export function interceptBookingConflict(detail: string, alias: string) {
+  cy.intercept('POST', '/api/v1/bookings', {
+    statusCode: 409,
+    headers: { 'Content-Type': 'application/vnd.api+json' },
+    body: {
+      errors: [
+        {
+          status: '409',
+          title: 'Conflict',
+          detail,
+          code: 'conflict'
+        }
+      ]
+    }
+  }).as(alias);
+}

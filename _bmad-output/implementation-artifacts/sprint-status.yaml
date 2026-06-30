@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-05-11
+last_updated: 2026-06-29
 
 # Note: 2026-05-11 update — Epic 32 (Booker Avatars on Item Tiles & Stable
 # Colleague Booking Layout): all 3 stories done after a round-2 UX revision
@@ -293,3 +293,11 @@ development_status:
   33-6-entra-id-primary-login-with-icon-and-toggle: done
   33-7-sithub-brand-logo-for-login-and-header: done
   epic-33-retrospective: optional
+
+  epic-34: done
+  34-1-http-security-response-headers: done
+  34-2-force-secure-cookies-behind-reverse-proxy: done
+  34-3-slow-client-timeouts-and-request-body-limit: done
+  34-4-pin-npm-dependency-versions-and-enable-dependabot: done
+  34-5-security-regression-test-coverage: done
+  epic-34-retrospective: optional

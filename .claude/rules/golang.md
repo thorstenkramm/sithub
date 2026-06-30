@@ -230,7 +230,7 @@ func waitForServer(errCh <-chan error) { ... }
 - `golangci-lint run ./...` (v2.5.0) for linting; add linters to `.golangci.yml` if configuration is introduced
     (required after each task).
 - Search for code duplication with using [JSCPD](https://github.com/kucherenko/jscpd) and the command
-  `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exitCode 1`
+  `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exit-code 1`
 - `go fmt ./...` and `go vet ./...` to keep code idiomatic before committing.
 
 ## Quick Reference

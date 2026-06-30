@@ -56,6 +56,39 @@ func TestServeAvatarFound(t *testing.T) {
 	assert.Equal(t, "max-age=300", rec.Header().Get("Cache-Control"))
 }
 
+func TestServeAvatarPathTraversal(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	for _, userID := range []string{"../../../etc/passwd", "..%2f..%2fetc%2fpasswd", "../secret"} {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/avatars/x", http.NoBody)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("user_id")
+		c.SetParamValues(userID)
+
+		h := ServeAvatarHandler(dir)
+		require.NoError(t, h(c))
+
+		assert.Equal(t, http.StatusNotFound, rec.Code,
+			"traversal user_id %q must return 404, never serve a file outside the avatars dir", userID)
+	}
+}
+
+func TestServeAvatarRouteEncodedPathTraversal(t *testing.T) {
+	t.Parallel()
+
+	e := echo.New()
+	e.GET("/api/v1/avatars/:user_id", ServeAvatarHandler(t.TempDir()))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/avatars/..%2F..%2Fetc%2Fpasswd", http.NoBody)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func TestServeAvatarNotFound(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

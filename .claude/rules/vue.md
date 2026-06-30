@@ -52,7 +52,7 @@ Try to fix findings with `npm audit fix`. Never run `npm audit fix --force` as t
 # ESLint
 npm run lint
 # Code duplication check
-npx jscpd --pattern "**/*.ts" --ignore "**/node_modules/**" --threshold 0 --exitCode 1
+npx jscpd --pattern "**/*.ts" --ignore "**/node_modules/**" --threshold 0 --exit-code 1
 ```
 
 ### Unit Tests
@@ -65,7 +65,7 @@ npx vitest run
 Test coverage must always be 75% or higher. To get test coverage:
 
 ```bash
-npm i -D @vitest/coverage-v8@3.2.4
+npm i -D @vitest/coverage-v8@^3.2.6
 npx vitest run --coverage
 ```
 

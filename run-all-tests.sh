@@ -57,14 +57,14 @@ run_step "Install frontend deps" bash -c "cd \"${WEB_DIR}\" && npm ci"
 run_step "Frontend type-check" bash -c "cd \"${WEB_DIR}\" && npm run type-check"
 run_step "Frontend lint" bash -c "cd \"${WEB_DIR}\" && npm run lint"
 run_step "Code duplication (frontend)" bash -c \
-	"cd \"${WEB_DIR}\" && npx jscpd --pattern \"**/*.ts\" --ignore \"**/node_modules/**,**/*.test.ts\" --threshold 0 --exitCode 1"
+	"cd \"${WEB_DIR}\" && npx jscpd --pattern \"**/*.ts\" --ignore \"**/node_modules/**,**/*.test.ts\" --threshold 0 --exit-code 1"
 run_step "Frontend unit tests (coverage)" bash -c "cd \"${WEB_DIR}\" && npm run test:unit:coverage"
 run_step "Frontend build" bash -c "cd \"${WEB_DIR}\" && npm run build"
 
 # Security tests
 run_step "Frontend NPM Audit" bash -c "cd \"${WEB_DIR}\" && npm audit"
-run_step "Frontend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" aquasec/trivy:0.69.3 fs --include-dev-deps --disable-telemetry /src/web"
-run_step "Backend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" aquasec/trivy:0.69.3 fs --skip-dirs web --skip-dirs .codex --include-dev-deps /src"
+run_step "Frontend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ aquasec/trivy:0.69.3 fs --include-dev-deps --disable-telemetry /src/web --exit-code 1"
+run_step "Backend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ aquasec/trivy:0.69.3 fs --skip-dirs private --skip-dirs web --skip-dirs .codex --include-dev-deps /src --exit-code 1"
 
 # Cypress E2E tests require a running server
 log_step "Cypress E2E tests"

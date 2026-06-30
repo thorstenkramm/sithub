@@ -49,6 +49,7 @@ type runOptions struct {
 	listen               string
 	port                 int
 	dataDir              string
+	forceSecureCookies   bool
 	logFile              string
 	logLevel             string
 	logFormat            string
@@ -73,6 +74,8 @@ func (o *runOptions) bindFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.listen, "listen", "", "Server listen address")
 	cmd.Flags().IntVar(&o.port, "port", 0, "Server listen port")
 	cmd.Flags().StringVar(&o.dataDir, "data-dir", "", "Directory for the SQLite database and data files")
+	cmd.Flags().BoolVar(&o.forceSecureCookies, "force-secure-cookies", false,
+		"Always set the Secure flag on cookies (use behind a TLS-terminating reverse proxy)")
 	cmd.Flags().StringVar(&o.logFile, "log-file", "", "Log file path, or '-' for stdout")
 	cmd.Flags().StringVar(&o.logLevel, "log-level", "", "Log level (debug, info, warn, error)")
 	cmd.Flags().StringVar(&o.logFormat, "log-format", "", "Log format (text or json)")
@@ -98,6 +101,7 @@ func (o *runOptions) overrides(cmd *cobra.Command) map[string]interface{} {
 	set("listen", "main.listen", o.listen)
 	set("port", "main.port", o.port)
 	set("data-dir", "main.data_dir", o.dataDir)
+	set("force-secure-cookies", "main.force_secure_cookies", o.forceSecureCookies)
 	set("log-file", "log.file", o.logFile)
 	set("log-level", "log.level", o.logLevel)
 	set("log-format", "log.format", o.logFormat)
