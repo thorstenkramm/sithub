@@ -301,3 +301,11 @@ development_status:
   34-4-pin-npm-dependency-versions-and-enable-dependabot: done
   34-5-security-regression-test-coverage: done
   epic-34-retrospective: done
+
+  epic-35: backlog
+  35-1-shared-warning-presentation-component: backlog
+  35-2-floor-plan-warnings-for-free-items: backlog
+  35-3-weekly-table-view-warning-consistency: backlog
+  35-4-uniform-and-sequential-warning-confirmation: backlog
+  35-5-warning-text-keyed-dismissals: backlog
+  epic-35-retrospective: optional

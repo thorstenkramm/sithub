@@ -12,7 +12,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-32.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-33.md
   - /Users/thorsten/projects/thorsten/sithub/private/security-report-claude.md
-lastEdited: '2026-06-29'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-35.md
+lastEdited: '2026-07-04'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -54,6 +55,8 @@ editHistory:
     changes: "Added FR146-FR152 and Epic 33: Equipment Filter Fixes, Compact Booking Controls & Login Page Rebranding. Fixes equipment-filter reset and table-view filter, widens table-view cancel popover, replaces booking-type radio with single checkbox + always-on dropdown (supersedes Story 32.3 layout), collapses booking controls to a single row, promotes Entra ID to primary login with official icon and 'more options' toggle, and embeds the new SitHub brand logo for the login page and header."
   - date: '2026-06-29'
     changes: "Extracted FR153-FR158 from the AI-assisted security review (private/security-report-claude.md) for Epic 34: Security Hardening. Covers HTTP security response headers (Echo Secure middleware), force_secure_cookies config for reverse-proxy deployments, pinned npm dependency versions + Dependabot, security regression test coverage, HTTP server slow-client timeouts, and a 2 MB request body limit. Excludes persistent audit log and access-token-at-rest encryption (accepted risk)."
+  - date: '2026-07-04'
+    changes: "Added FR159-FR165 from private/epic-35.md for Epic 35: Consistent Warnings. Unifies the warning visual style across tiles, floor plan, and weekly table; adds floor-plan warning indicators (free items only) and confirmation; fixes the table-view hover style and duplicate in-cell warning; makes the confirmation dialog uniform from every view; generalizes sequential multi-item confirmations beyond week mode (extends FR105); re-shows dismissed warnings when the warning text changes (refines FR104 storage to item-id + text hash)."
 ---
 
 # sithub - Epic Breakdown
@@ -570,6 +573,40 @@ FR158: The server must reject oversized request bodies via Echo `BodyLimit` midd
 to 2 MB, without breaking the existing 4 MB avatar-upload path. Acceptance: a JSON request
 body exceeding 2 MB returns HTTP 413; normal booking requests and the 4 MB avatar upload
 continue to succeed.
+FR159: Item warnings must use a single shared visual style everywhere they appear: dark
+orange text on a light orange background, indicated by the orange circular info icon, as
+already used on day/week item tiles (the reference implementation). Acceptance: the warning
+icon and message presentation are visually identical on item tiles, the floor plan
+(top-level and drill-down), and the weekly desktop table view.
+FR160: Free items with a warning must show the warning icon on the floor plan, on both the
+top-level view and the drill-down view; hovering the icon shows the warning message in the
+shared style. Booked items show only the booker and never a warning. Acceptance: a free
+item with a warning displays the icon and the on-hover message on both floor-plan levels; a
+booked item with a warning displays booker information only.
+FR161: Booking a warned item from the floor plan (top-level or drill-down) must trigger the
+uniform warning confirmation before the booking completes. Acceptance: pressing book on a
+warned floor-plan item opens the confirmation dialog; confirming books the item; cancelling
+aborts without a booking.
+FR162: The weekly table view keeps its warning icon, but the on-hover message must adopt
+the shared style and correct position, and clicking a cell to initiate a booking must not
+display the warning a second time inside the cell (the uniform confirmation dialog is the
+only pre-booking warning). Acceptance: the table-view hover message matches the shared
+style and position; selecting a cell shows no duplicate in-cell warning.
+FR163: A uniform warning confirmation dialog must appear after the booking button is
+pressed, regardless of the originating view (tiles, floor plan, weekly table). The dialog
+shows the title "WARNING!", the item name, the warning text in the shared style, a "Don't
+show again" checkbox, and CANCEL/CONFIRM actions. Acceptance: initiating a booking of a
+warned item from any view opens this identical dialog.
+FR164: When a single booking action covers multiple items (e.g. two desks in week mode) and
+more than one item has a warning, the confirmations are shown one after another and the
+user must confirm each; cancelling any one aborts the entire booking. This generalizes the
+existing week-mode behavior (FR105) to all multi-item booking flows. Acceptance: booking
+N warned items shows N sequential confirmations; any cancel aborts all.
+FR165: A dismissed warning ("Don't show again") must reappear if the warning text changes.
+Dismissals are keyed on the item ID combined with the current warning text (e.g. an md5
+hash stored in localStorage), refining FR104's per-item-only storage. Acceptance: after
+dismissing a warning, changing the item's warning text causes the confirmation to be shown
+again on the next booking attempt.
 
 ### NonFunctional Requirements
 
@@ -817,6 +854,13 @@ FR155: Epic 34 - Pinned npm dependency versions + Dependabot
 FR156: Epic 34 - Security regression test coverage for review gaps
 FR157: Epic 34 - HTTP server slow-client (Slowloris) timeouts
 FR158: Epic 34 - 2 MB request body size limit
+FR159: Epic 35 - Shared warning visual style across all views
+FR160: Epic 35 - Floor-plan warning icon + hover message on free items only
+FR161: Epic 35 - Warning confirmation when booking from the floor plan
+FR162: Epic 35 - Table-view hover style fix and duplicate in-cell warning removal
+FR163: Epic 35 - Uniform warning confirmation dialog from every view
+FR164: Epic 35 - Sequential confirmations for all multi-item bookings (extends FR105)
+FR165: Epic 35 - Re-show dismissed warnings on text change (refines FR104)
 
 ## Epic List
 
@@ -1038,6 +1082,20 @@ timeouts and a 2 MB request body limit; and close the security regression-test c
 gaps identified in the review. Excludes a persistent audit log and access-token-at-rest
 encryption, both deferred as accepted risk.
 **FRs covered:** FR153, FR154, FR155, FR156, FR157, FR158
+
+### Epic 35: Consistent Warnings Across All Booking Views
+
+Unify the item-warning experience across every booking surface. Adopt the day/week tile
+warning as the single visual reference (orange circular info icon; dark orange text on
+light orange background) and apply it to the floor plan and the weekly table view. Free
+floor-plan items with warnings get the icon and an on-hover message on both the top-level
+and drill-down views (booked items show the booker only, never a warning); booking a warned
+item from the floor plan triggers the confirmation. The table view keeps its icon but gets
+the corrected hover style/position and loses the duplicate in-cell warning. One uniform
+confirmation dialog appears from every view; multi-item bookings show sequential
+confirmations for every warned item; and dismissed warnings reappear when the warning text
+changes (dismissals keyed on item ID + warning-text hash in localStorage).
+**FRs covered:** FR159, FR160, FR161, FR162, FR163, FR164, FR165
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -5068,3 +5126,150 @@ rule
 **Given** all the above tests are added
 **When** the CI pipeline runs
 **Then** every new test passes
+
+## Epic 35 Stories: Consistent Warnings Across All Booking Views
+
+Unify the item-warning experience: one shared visual style (tile reference), floor-plan
+warning indicators and confirmation for free items, a corrected table-view hover, one
+uniform confirmation dialog from every view with sequential multi-item confirmations, and
+text-keyed dismissal storage so changed warnings reappear.
+**FRs covered:** FR159, FR160, FR161, FR162, FR163, FR164, FR165
+
+### Story 35.1: Shared Warning Presentation Component
+
+**FRs covered:** FR159
+
+As a user encountering item warnings,
+I want the warning icon and message to look identical everywhere,
+so that I immediately recognize a warning regardless of which view I am in.
+
+**Acceptance Criteria:**
+
+**Given** the day/week tile warning presentation (orange circular info icon; dark orange
+text on a light orange background) is the visual reference
+**When** the warning presentation is extracted into a shared, reusable component (icon +
+message styling)
+**Then** the tiles render their warnings through the shared component with no visual change
+
+**Given** the shared component exists
+**When** later stories adopt it on the floor plan and the weekly table view
+**Then** no per-surface warning styling remains; the shared component is the single source
+of the warning look
+
+**Given** the warning message is displayed on any surface
+**When** its colors are inspected
+**Then** the text is dark orange on a light orange background and remains legible
+(sufficient contrast) in both light and dark themes
+
+### Story 35.2: Floor-Plan Warnings for Free Items
+
+**FRs covered:** FR160, FR161
+
+As a user booking from the floor plan,
+I want to see a warning indicator on free items and confirm the warning when booking,
+so that I am as well informed on the floor plan as I am on the tile views.
+
+**Acceptance Criteria:**
+
+**Given** a free item with a warning on the top-level floor plan
+**When** the floor plan renders
+**Then** the item shows the shared orange warning icon
+
+**Given** a free item with a warning on the drill-down floor plan
+**When** the floor plan renders
+**Then** the item shows the same shared warning icon
+
+**Given** the warning icon is visible on either floor-plan level
+**When** I hover the icon
+**Then** the warning message appears in the shared style (dark orange on light orange)
+
+**Given** a booked item that has a warning configured
+**When** the floor plan renders or I hover the item
+**Then** only the booker information is shown and no warning icon or message appears
+
+**Given** I initiate a booking of a free warned item from the floor plan
+**When** I press the booking button
+**Then** the warning confirmation dialog opens; confirming completes the booking and
+cancelling aborts without creating a booking
+
+### Story 35.3: Weekly Table-View Warning Consistency
+
+**FRs covered:** FR162
+
+As a user on the weekly desktop table view,
+I want the warning hover to match the shared style and not repeat itself when I select a
+cell,
+so that the table view feels consistent with the rest of the application.
+
+**Acceptance Criteria:**
+
+**Given** an item row with a warning in the weekly table view
+**When** I hover the existing warning icon
+**Then** the message appears in the shared style (dark orange text, light orange
+background) and is positioned correctly next to the icon
+
+**Given** a warned item in the weekly table view
+**When** I click a free cell to prepare a booking
+**Then** no additional warning is rendered inside the cell or popover; the uniform
+confirmation dialog on booking is the only pre-booking warning
+
+**Given** the hover message was corrected
+**When** I compare it with a tile warning message
+**Then** both are visually identical
+
+### Story 35.4: Uniform and Sequential Warning Confirmation
+
+**FRs covered:** FR163, FR164
+
+As a user booking warned items from any view,
+I want one identical confirmation dialog, shown once per warned item,
+so that the confirmation behavior is predictable no matter where I book.
+
+**Acceptance Criteria:**
+
+**Given** a warned item booked from the tiles, the floor plan, or the weekly table view
+**When** I press the booking button
+**Then** the same confirmation dialog opens: title "WARNING!", the item name, the warning
+text in the shared style, a "Don't show again" checkbox, and CANCEL/CONFIRM actions
+
+**Given** a single booking action covering multiple items of which two or more have
+warnings (e.g. desks 29 and 30 in week mode)
+**When** I press the booking button
+**Then** the confirmations are shown one after another, each identifying its item, and the
+booking is submitted only after every warning is confirmed
+
+**Given** sequential confirmations are being shown
+**When** I cancel any one of them
+**Then** the entire booking is aborted and no item is booked
+
+**Given** an item whose warning was previously dismissed via "Don't show again"
+**When** a booking action includes that item
+**Then** its confirmation is skipped while other warned items still show theirs
+
+### Story 35.5: Warning-Text-Keyed Dismissals
+
+**FRs covered:** FR165
+
+As a user who dismissed a warning,
+I want the warning to reappear if its text changes,
+so that I never miss new or updated warning information.
+
+**Acceptance Criteria:**
+
+**Given** I dismissed an item's warning via "Don't show again"
+**When** the operator changes that item's warning text and I book the item again
+**Then** the confirmation dialog is shown despite the earlier dismissal
+
+**Given** a dismissal is stored
+**When** localStorage is inspected
+**Then** the dismissal key is derived from the item ID combined with the current warning
+text (e.g. an md5 hash), not from the item ID alone
+
+**Given** existing dismissals stored under the old per-item scheme (FR104)
+**When** the new keying takes effect
+**Then** old entries no longer suppress warnings (a changed scheme invalidates them) and
+the dialog is shown once more, after which the new-format dismissal applies
+
+**Given** the warning text is unchanged
+**When** I book a previously dismissed item
+**Then** the confirmation stays suppressed exactly as before
