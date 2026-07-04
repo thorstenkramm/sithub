@@ -5,3 +5,15 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # Vuetify 3 -> 4 is a major breaking-change migration; handle it as a
+      # dedicated effort, not an automated bump.
+      - dependency-name: "vuetify"
+        update-types: ["version-update:semver-major"]
+      # vitest and its coverage provider must move together on the same major.
+      # Defer the vitest 4 migration; ignore majors for both so neither reopens
+      # a PR that fails the ERESOLVE peer check.
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/coverage-v8"
+        update-types: ["version-update:semver-major"]
