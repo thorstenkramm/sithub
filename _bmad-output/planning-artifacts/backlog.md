@@ -50,3 +50,17 @@ support.
 - Risks: new/stricter type errors project-wide; timing depends on external toolchain readiness.
 - Done when: `type-check` + `lint` + `build` are green on TypeScript 6, and the `typescript`
   major-ignore rule is removed from `.github/dependabot.yml`.
+
+## Candidate: ESLint 9 -> 10 Migration
+
+Dependabot's ESLint 10 bump (PR #13, closed) failed `npm ci` with ERESOLVE: `@vue/eslint-config-typescript`
+and `eslint-plugin-vue` still peer-require ESLint 9. Gated on upstream plugin support. Small, and
+closely related to the TypeScript 6 candidate (same toolchain), so the two could be tackled together.
+
+- Scope: wait for / confirm `@vue/eslint-config-typescript` and `eslint-plugin-vue` releases that
+  support ESLint 10; bump `eslint`; fix any new lint rule changes; verify `lint` passes with
+  `--max-warnings 0`.
+- Risks: new or changed lint rules may surface many findings; timing depends on external plugin
+  readiness.
+- Done when: `npm run lint` is green on ESLint 10, and the `eslint` major-ignore rule is removed from
+  `.github/dependabot.yml`.
