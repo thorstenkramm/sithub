@@ -1173,7 +1173,7 @@ const deskPositions = computed(() => {
         status: occupied ? ("busy" as const) : reserved ? ("reserved" as const) : ("free" as const),
         bookerUserId: item?.bookerUserId,
         bookerName: item?.bookerName,
-        warning: !occupied && !reserved ? item?.warning : undefined,
+        warning: !occupied && !reserved ? normalizeWarning(item?.warning) : undefined,
       };
     });
 });
@@ -1211,10 +1211,17 @@ const enrichedPositions = computed(() => {
       status: occupied ? "busy" : reserved ? "reserved" : ("free" as "free" | "busy" | "reserved"),
       bookerUserId: item?.bookerUserId,
       bookerName: item?.bookerName,
-      warning: !occupied && !reserved ? item?.warning : undefined,
+      warning: !occupied && !reserved ? normalizeWarning(item?.warning) : undefined,
     };
   });
 });
+
+// Treats a blank/whitespace-only warning as "no warning" so no icon, tooltip,
+// or confirmation dialog is shown for effectively-empty text.
+function normalizeWarning(warning: string | undefined): string | undefined {
+  const trimmed = warning?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 function rectStyle(pos: {
   x: number;

@@ -1,6 +1,6 @@
 # Story 35.4: Uniform and Sequential Warning Confirmation
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -48,6 +48,38 @@ so that the confirmation behavior is predictable no matter where I book.
         cancel-aborts-all, suppressed-skipped
   - [x] Keep `ItemsView.test.ts` week-mode warning tests green; add table + floor-plan confirmation
         cases
+
+### Review Findings
+
+Code review 2026-07-04 (Blind Hunter + Edge Case Hunter + Acceptance Auditor). All FR159–FR165
+verified met in source. Actionable:
+
+- [x] [Review][Patch] Stale Cypress E2E asserted the removed `matrix-booking-warning`
+      [web/cypress/e2e/matrix-booking.cy.ts] — RESOLVED: migrated to the new flow (click Book →
+      `warning-dialog` → `warning-message` → `warning-confirm-btn` → booking). Spec passes 5/5 in
+      Cypress (electron). High (was a CI blocker). (blind+auditor)
+- [x] [Review][Patch] Matrix popover close orphans the warning dialog — RESOLVED (concurrent fix):
+      the `watch(() => props.modelValue)` now calls `warningCancelAction()` when the menu closes with
+      the confirmation open. High. (blind+edge)
+- [x] [Review][Patch] Whitespace-only warning not trimmed — RESOLVED (concurrent fix): `present()`
+      now filters `i.warning.trim() !== ''`, the matrix row uses a `warningText` computed, and the
+      floor plan normalizes via `normalizeWarning()`. Medium. (edge)
+- [x] [Review][Patch] Long/multi-line warning could overflow the confirmation dialog — RESOLVED:
+      `.item-warning-inline` now uses `overflow-wrap: anywhere` + `max-height: 40vh; overflow-y: auto`,
+      so long tokens wrap and tall warnings scroll instead of pushing the buttons off-screen. Low. (edge)
+- [x] [Review][Defer] Plain warning icons (matrix + floor plan) are hover-only, not keyboard-focusable
+      — a11y gap; pre-existing pattern for the matrix, new for the floor plan. Broader a11y decision. (blind+edge)
+- [x] [Review][Defer] Possible double tooltip on free floor-plan items (item tooltip + warning-icon
+      tooltip) — verify visually against img_30. Low. (auditor)
+- [x] [Review][Defer] FR165 "text change re-shows through the shared dialog" lacks an integrated test
+      (unit-covered piecewise only). Low. (auditor)
+- [x] [Review][Defer] Matrix confirmation step shows no busy/loading feedback between Book and confirm. Low. (edge)
+
+Dismissed as noise (7): `present()` early-return guard (by design; the real risk is the matrix-close
+case above), floor-plan stale-capture silent abort (contained by persistent dialogs), checkbox
+`$event as boolean` cast, global `.warning-tooltip` style coupling (works as designed), `@click.stop`
+touch behavior (intended), 409-retry re-showing the warning (correct), expanded-tile visual change
+(spec-sanctioned by FR159).
 
 ## Dev Notes
 

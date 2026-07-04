@@ -1,6 +1,6 @@
 # Story 35.5: Warning-Text-Keyed Dismissals
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

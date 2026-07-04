@@ -14,6 +14,14 @@ describe('useWarningConfirmation', () => {
     expect(done).toHaveBeenCalledTimes(1);
   });
 
+  it('skips a whitespace-only warning and books directly', () => {
+    const wc = useWarningConfirmation();
+    const done = vi.fn();
+    wc.present([{ itemId: 'd1', itemName: 'Desk 1', warning: '   \n ' }], done);
+    expect(wc.show.value).toBe(false);
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a single confirmation and runs onConfirmed after confirm', () => {
     const wc = useWarningConfirmation();
     const done = vi.fn();

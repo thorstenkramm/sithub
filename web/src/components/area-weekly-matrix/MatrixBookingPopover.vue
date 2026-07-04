@@ -190,13 +190,18 @@ async function loadColleagues() {
   }
 }
 
-// Reset state when popover opens
+// Reset state when popover opens; abort any pending warning flow when it closes.
 watch(() => props.modelValue, (open) => {
   if (open) {
     bookingType.value = 'self';
     noteText.value = '';
     errorMessage.value = null;
     submitting.value = false;
+  } else if (warningShow.value) {
+    // The menu closed (outside click / Escape) while the confirmation dialog
+    // was open. Discard the queued flow so no orphaned dialog and no booking
+    // for a dismissed popover can occur.
+    warningCancelAction();
   }
 });
 

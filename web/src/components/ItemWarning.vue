@@ -12,7 +12,9 @@
  *
  * Presentation only — booking and suppression logic live elsewhere.
  */
-withDefaults(
+import { computed } from 'vue';
+
+const props = withDefaults(
   defineProps<{
     warning: string;
     mode?: 'icon' | 'inline';
@@ -28,10 +30,16 @@ withDefaults(
   }>(),
   { mode: 'icon', iconVariant: 'button', location: 'top', iconSize: 18, showIcon: true, dataCy: undefined },
 );
+
+// Blank/whitespace-only warnings render nothing at all, so no empty tooltip
+// icon or empty message block leaks through from upstream data.
+const trimmedWarning = computed(() => props.warning.trim());
 </script>
 
 <template>
-  <v-tooltip v-if="mode === 'icon'" :location="location" content-class="warning-tooltip">
+  <template v-if="trimmedWarning === ''" />
+
+  <v-tooltip v-else-if="mode === 'icon'" :location="location" content-class="warning-tooltip">
     <template #activator="{ props: tooltipProps }">
       <v-btn
         v-if="iconVariant === 'button'"
@@ -53,12 +61,12 @@ withDefaults(
         :data-cy="dataCy"
       >$warning</v-icon>
     </template>
-    {{ warning }}
+    {{ trimmedWarning }}
   </v-tooltip>
 
   <div v-else class="item-warning-inline" :data-cy="dataCy">
     <v-icon v-if="showIcon" size="18" class="item-warning-inline__icon mr-2">$warning</v-icon>
-    <span>{{ warning }}</span>
+    <span class="item-warning-inline__text">{{ trimmedWarning }}</span>
   </div>
 </template>
 
@@ -72,6 +80,15 @@ withDefaults(
   border-radius: 4px;
   padding: 8px 12px;
   white-space: pre-line;
+  /* Keep pathological warnings (very long tokens or many lines) from breaking
+     layout — long words wrap and the block scrolls instead of overflowing. */
+  overflow-wrap: anywhere;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.item-warning-inline__text {
+  min-width: 0;
 }
 
 .item-warning-inline :deep(.item-warning-inline__icon) {

@@ -302,10 +302,10 @@ development_status:
   34-5-security-regression-test-coverage: done
   epic-34-retrospective: done
 
-  epic-35: in-progress
-  35-1-shared-warning-presentation-component: review
-  35-2-floor-plan-warnings-for-free-items: review
-  35-3-weekly-table-view-warning-consistency: review
-  35-4-uniform-and-sequential-warning-confirmation: review
-  35-5-warning-text-keyed-dismissals: review
+  epic-35: done
+  35-1-shared-warning-presentation-component: done
+  35-2-floor-plan-warnings-for-free-items: done
+  35-3-weekly-table-view-warning-consistency: done
+  35-4-uniform-and-sequential-warning-confirmation: done
+  35-5-warning-text-keyed-dismissals: done
   epic-35-retrospective: optional

@@ -18,8 +18,8 @@
         </v-tooltip>
 
         <ItemWarning
-          v-if="item.warning"
-          :warning="item.warning"
+          v-if="warningText"
+          :warning="warningText"
           icon-variant="plain"
           location="right"
           :icon-size="14"
@@ -86,6 +86,12 @@ const props = defineProps<{
   today: string;
   parsedEquipmentFilter?: AndGroup[];
 }>();
+
+// Blank/whitespace-only warnings are treated as "no warning": no icon renders.
+const warningText = computed(() => {
+  const trimmed = props.item.warning?.trim();
+  return trimmed ? trimmed : '';
+});
 
 const isFilteredOut = computed(() => {
   const groups = props.parsedEquipmentFilter ?? [];

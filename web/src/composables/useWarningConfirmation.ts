@@ -54,7 +54,7 @@ export function useWarningConfirmation() {
   function present(items: WarnItem[], onConfirmed: () => void) {
     if (show.value) return;
     const pending = items.filter(
-      (i) => i.warning && !isWarningSuppressed(i.itemId, i.warning),
+      (i) => i.warning.trim() !== '' && !isWarningSuppressed(i.itemId, i.warning),
     );
     if (pending.length === 0) {
       onConfirmed();

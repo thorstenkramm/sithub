@@ -163,7 +163,7 @@ describe('matrix booking popover', () => {
     cy.get('[data-cy="matrix-booking-error"]').should('be.visible');
   });
 
-  it('should show inline warning for items with warnings', () => {
+  it('surfaces the uniform warning confirmation when booking a warned item', () => {
     const matrix = makeMatrixResponse([{
       id: 'desk-1',
       name: 'Window Desk',
@@ -172,8 +172,26 @@ describe('matrix booking popover', () => {
     }]);
     setupMatrixView(matrix);
 
+    cy.intercept('POST', '/api/v1/bookings', {
+      statusCode: 201,
+      headers: { 'Content-Type': 'application/vnd.api+json' },
+      body: {
+        data: { id: 'b-new', type: 'bookings', attributes: { item_id: 'desk-1', booking_date: '2099-06-02', note: '' } }
+      }
+    }).as('createBooking');
+
     cy.get('[data-cy="matrix-cell-free"]').first().click();
-    cy.get('[data-cy="matrix-booking-warning"]').should('contain', 'Near noisy area');
+    // The old inline in-popover warning is gone; warnings now use the uniform dialog.
+    cy.get('[data-cy="matrix-booking-warning"]').should('not.exist');
+
+    // Clicking Book surfaces the shared confirmation dialog before any booking.
+    cy.get('[data-cy="matrix-booking-confirm"]').click();
+    cy.get('[data-cy="warning-dialog"]').should('be.visible');
+    cy.get('[data-cy="warning-message"]').should('contain', 'Near noisy area');
+
+    // Confirming the warning proceeds with the booking.
+    cy.get('[data-cy="warning-confirm-btn"]').click();
+    cy.wait('@createBooking').its('response.statusCode').should('eq', 201);
   });
 });
 

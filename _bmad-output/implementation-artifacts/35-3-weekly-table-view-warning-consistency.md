@@ -1,6 +1,6 @@
 # Story 35.3: Weekly Table-View Warning Consistency
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

@@ -1,6 +1,6 @@
 # Story 35.2: Floor-Plan Warnings for Free Items
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

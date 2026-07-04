@@ -156,6 +156,26 @@ describe('MatrixBookingPopover', () => {
     expect(createBookingMock).toHaveBeenCalled();
   });
 
+  it('aborts the warning flow when the popover closes while the dialog is open', async () => {
+    localStorage.clear();
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    const itemWithWarning = { ...defaultItem, warning: 'Near window' };
+    const wrapper = mountPopover({ item: itemWithWarning });
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+
+    // The menu closes (outside click / Escape) while the confirmation is open.
+    await wrapper.setProps({ modelValue: false });
+    await flushPromises();
+
+    // No orphaned dialog remains and no booking was made for the dismissed popover.
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+    expect(createBookingMock).not.toHaveBeenCalled();
+  });
+
   it('books directly without a warning dialog when the item has no warning', async () => {
     createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
     const wrapper = mountPopover();
