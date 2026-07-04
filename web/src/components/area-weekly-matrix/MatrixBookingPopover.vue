@@ -13,27 +13,6 @@
         {{ item.item_name }} — {{ cell.date }}
       </v-card-title>
 
-      <!-- Warning inline -->
-      <v-alert
-        v-if="item.warning && !warningSuppressed"
-        type="warning"
-        density="compact"
-        class="mb-3"
-        data-cy="matrix-booking-warning"
-      >
-        {{ item.warning }}
-        <template #append>
-          <v-btn
-            variant="text"
-            size="x-small"
-            data-cy="matrix-booking-suppress-warning"
-            @click="doSuppressWarning"
-          >
-            {{ $t('items.warningDontShowAgain') }}
-          </v-btn>
-        </template>
-      </v-alert>
-
       <!-- Booking type radio -->
       <v-radio-group
         v-model="bookingType"
@@ -116,6 +95,15 @@
       </v-card-actions>
     </v-card>
   </v-menu>
+
+  <WarningConfirmDialog
+    v-model="warningShow"
+    v-model:dont-show-again="warningDontShowAgain"
+    :item-name="warningItemName"
+    :message="warningMessage"
+    @confirm="warningConfirmAction"
+    @cancel="warningCancelAction"
+  />
 </template>
 
 <script setup lang="ts">
@@ -125,8 +113,9 @@ import type { MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
 import { createBooking, type BookOnBehalfOptions } from '../../api/bookings';
 import { fetchColleagues } from '../../api/users';
 import { ApiError } from '../../api/client';
-import { useWarningSuppression } from '../../composables/useWarningSuppression';
+import { useWarningConfirmation } from '../../composables/useWarningConfirmation';
 import { getSafeLocalStorage } from '../../composables/storage';
+import WarningConfirmDialog from '../WarningConfirmDialog.vue';
 
 const LAST_COLLEAGUE_KEY = 'sithub_matrix_last_colleague';
 
@@ -144,7 +133,15 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const { isWarningSuppressed, suppressWarning } = useWarningSuppression();
+const {
+  show: warningShow,
+  itemName: warningItemName,
+  message: warningMessage,
+  dontShowAgain: warningDontShowAgain,
+  present: presentWarnings,
+  confirm: warningConfirmAction,
+  cancel: warningCancelAction,
+} = useWarningConfirmation();
 
 const bookingType = ref<'self' | 'colleague'>('self');
 const selectedColleagueId = ref<string | null>(null);
@@ -153,14 +150,6 @@ const colleaguesLoading = ref(false);
 const noteText = ref('');
 const errorMessage = ref<string | null>(null);
 const submitting = ref(false);
-const warningSuppressed = ref(false);
-
-function doSuppressWarning() {
-  if (props.item.warning) {
-    suppressWarning(props.item.item_id, props.item.warning);
-    warningSuppressed.value = true;
-  }
-}
 
 function loadLastColleague() {
   const storage = getSafeLocalStorage();
@@ -208,9 +197,6 @@ watch(() => props.modelValue, (open) => {
     noteText.value = '';
     errorMessage.value = null;
     submitting.value = false;
-    warningSuppressed.value = props.item.warning
-      ? isWarningSuppressed(props.item.item_id, props.item.warning)
-      : true;
   }
 });
 
@@ -226,7 +212,7 @@ function resolveColleagueName(id: string): string {
   return colleagueList.value.find(c => c.id === id)?.displayName ?? '';
 }
 
-async function submitBooking() {
+function submitBooking() {
   errorMessage.value = null;
 
   if (bookingType.value === 'colleague' && !selectedColleagueId.value) {
@@ -234,6 +220,14 @@ async function submitBooking() {
     return;
   }
 
+  // Uniform pre-booking warning confirmation (skipped/suppressed as needed).
+  const warnItems = props.item.warning
+    ? [{ itemId: props.item.item_id, itemName: props.item.item_name, warning: props.item.warning }]
+    : [];
+  presentWarnings(warnItems, () => void doBook());
+}
+
+async function doBook() {
   submitting.value = true;
   try {
     const onBehalf: BookOnBehalfOptions | undefined =

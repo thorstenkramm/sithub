@@ -54,7 +54,14 @@ const stubs = {
     props: ['modelValue', 'label', 'density', 'hideDetails'],
     emits: ['update:modelValue']
   },
-  'v-expand-transition': { template: '<div><slot /></div>' }
+  'v-expand-transition': { template: '<div><slot /></div>' },
+  WarningConfirmDialog: {
+    template: '<div v-if="modelValue" data-cy="warning-dialog">'
+      + '<span data-cy="warning-message">{{ message }}</span>'
+      + '<button data-cy="warning-confirm-btn" @click="$emit(\'confirm\')">confirm</button>'
+      + '<button data-cy="warning-cancel-btn" @click="$emit(\'cancel\')">cancel</button></div>',
+    props: ['modelValue', 'itemName', 'message', 'dontShowAgain']
+  }
 };
 
 function mountPopover(overrides: {
@@ -129,20 +136,36 @@ describe('MatrixBookingPopover', () => {
     expect(wrapper.find('[data-cy="matrix-booking-note"]').exists()).toBe(true);
   });
 
-  it('shows inline warning when item has warning and not suppressed', async () => {
+  it('shows the uniform warning confirmation on booking a warned item, before booking', async () => {
+    localStorage.clear();
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
     const itemWithWarning = { ...defaultItem, warning: 'Near window' };
     const wrapper = mountPopover({ item: itemWithWarning });
     await flushPromises();
 
-    expect(wrapper.find('[data-cy="matrix-booking-warning"]').exists()).toBe(true);
-    expect(wrapper.find('[data-cy="matrix-booking-warning"]').text()).toContain('Near window');
+    // No inline warning; clicking confirm opens the shared confirmation dialog.
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="warning-message"]').text()).toContain('Near window');
+    expect(createBookingMock).not.toHaveBeenCalled();
+
+    // Confirming the warning proceeds with the booking.
+    await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+    await flushPromises();
+    expect(createBookingMock).toHaveBeenCalled();
   });
 
-  it('does not show warning when item has no warning', async () => {
+  it('books directly without a warning dialog when the item has no warning', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
     const wrapper = mountPopover();
     await flushPromises();
 
-    expect(wrapper.find('[data-cy="matrix-booking-warning"]').exists()).toBe(false);
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+    expect(createBookingMock).toHaveBeenCalled();
   });
 
   it('calls createBooking on confirm with note', async () => {

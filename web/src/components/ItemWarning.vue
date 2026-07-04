@@ -21,10 +21,12 @@ withDefaults(
     /** Tooltip location for icon mode. */
     location?: 'top' | 'bottom' | 'start' | 'end' | 'left' | 'right';
     iconSize?: number | string;
+    /** inline mode only: render the leading icon. Off for the confirmation dialog. */
+    showIcon?: boolean;
     /** Optional data-cy applied to the icon (mode="icon") or block (mode="inline"). */
     dataCy?: string;
   }>(),
-  { mode: 'icon', iconVariant: 'button', location: 'top', iconSize: 18, dataCy: undefined },
+  { mode: 'icon', iconVariant: 'button', location: 'top', iconSize: 18, showIcon: true, dataCy: undefined },
 );
 </script>
 
@@ -55,7 +57,7 @@ withDefaults(
   </v-tooltip>
 
   <div v-else class="item-warning-inline" :data-cy="dataCy">
-    <v-icon size="18" class="item-warning-inline__icon mr-2">$warning</v-icon>
+    <v-icon v-if="showIcon" size="18" class="item-warning-inline__icon mr-2">$warning</v-icon>
     <span>{{ warning }}</span>
   </div>
 </template>

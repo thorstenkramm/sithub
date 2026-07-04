@@ -10,6 +10,7 @@ export { default as DatePickerField } from './DatePickerField.vue';
 export { default as BookingCard } from './BookingCard.vue';
 export { default as FloorPlanButton } from './FloorPlanButton.vue';
 export { default as ItemWarning } from './ItemWarning.vue';
+export { default as WarningConfirmDialog } from './WarningConfirmDialog.vue';
 
 // Re-export types
 export type { BreadcrumbItem } from './PageHeader.vue';
