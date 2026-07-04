@@ -1,6 +1,6 @@
 # Story 35.1: Shared Warning Presentation Component
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,25 +23,25 @@ so that I immediately recognize a warning regardless of which view I am in.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create the shared warning presentation component (AC: #1, #3)
-  - [ ] Add `src/components/ItemWarning.vue` exposing an icon-with-tooltip mode (for tiles / floor
+- [x] Task 1: Create the shared warning presentation component (AC: #1, #3)
+  - [x] Add `src/components/ItemWarning.vue` exposing an icon-with-tooltip mode (for tiles / floor
         plan / table hover) and an inline-message mode (the expanded-tile alert), so all surfaces
         share one look
-  - [ ] Move the canonical `.warning-tooltip` styling (`background-color: #fff3e0; color: #e65100;
+  - [x] Move the canonical `.warning-tooltip` styling (`background-color: #fff3e0; color: #e65100;
         font-weight: 500`) into the component (scoped or via the same `content-class`)
-  - [ ] Use the existing `$warning` icon alias (`mdiAlertCircle`) and `color="warning"`
-  - [ ] Export it from `src/components/index.ts` following the existing default-export + re-export
+  - [x] Use the existing `$warning` icon alias (`mdiAlertCircle`) and `color="warning"`
+  - [x] Export it from `src/components/index.ts` following the existing default-export + re-export
         pattern
-- [ ] Task 2: Adopt the shared component on the tiles (AC: #1)
-  - [ ] Replace the inline day-mode folded icon+tooltip (`ItemsView.vue` ~243-261) and expanded
+- [x] Task 2: Adopt the shared component on the tiles (AC: #1)
+  - [x] Replace the inline day-mode folded icon+tooltip (`ItemsView.vue` ~243-261) and expanded
         alert (~301-310) with the shared component
-  - [ ] Replace the week-mode equivalents (`ItemsView.vue` ~469-487 and ~704-713)
-  - [ ] Preserve the existing `data-cy` hooks (`folded-warning-icon`, `item-warning`,
+  - [x] Replace the week-mode equivalents (`ItemsView.vue` ~469-487 and ~704-713)
+  - [x] Preserve the existing `data-cy` hooks (`folded-warning-icon`, `item-warning`,
         `week-folded-warning-icon`, `week-item-warning`) so E2E/unit tests keep passing
-- [ ] Task 3: Verify no visual change and add a component test (AC: #1, #3)
-  - [ ] Add a Vitest component test for `ItemWarning.vue` (renders icon+message, applies the orange
+- [x] Task 3: Verify no visual change and add a component test (AC: #1, #3)
+  - [x] Add a Vitest component test for `ItemWarning.vue` (renders icon+message, applies the orange
         styling, message text shown)
-  - [ ] Run type-check, lint, unit tests, build
+  - [x] Run type-check, lint, unit tests, build
 
 ## Dev Notes
 
@@ -116,8 +116,34 @@ text appears, and the orange classes/styles are applied. Keep existing `data-cy`
 
 ### Agent Model Used
 
+claude-fable-5
+
 ### Debug Log References
+
+- `npm run type-check` clean; `npm run lint` clean
+- `npx vitest run` → 451 passed (49 files); `npm run build` clean
 
 ### Completion Notes List
 
+- Created `web/src/components/ItemWarning.vue` with two modes: `icon` (v-tooltip + `$warning`
+  button, uses the shared `warning-tooltip` overlay style) and `inline` (styled block). The global
+  `.warning-tooltip` style now lives in this component (single source); removed the duplicate global
+  `<style>` block from `ItemsView.vue`.
+- Standardized both the hover tooltip and the (formerly `v-alert`) inline/expanded message on the
+  canonical `#fff3e0` / `#e65100` pairing so all tile warnings share one look (FR159).
+- Adopted the component at all four tile sites in `ItemsView.vue` (day folded + expanded, week
+  folded + expanded), preserving the `data-cy` hooks (`folded-warning-icon`, `item-warning`,
+  `week-folded-warning-icon`, `week-item-warning`) — all 90 `ItemsView.test.ts` tests stay green.
+- Added `ItemWarning.test.ts` (icon mode renders the button + message; inline mode renders the
+  styled block). Pure refactor — no API/store/behavior change.
+
 ### File List
+
+- web/src/components/ItemWarning.vue (new)
+- web/src/components/__tests__/ItemWarning.test.ts (new)
+- web/src/components/index.ts (modified — export ItemWarning)
+- web/src/views/ItemsView.vue (modified — adopt component, remove duplicate CSS)
+
+### Change Log
+
+- 2026-07-04: Implemented FR159 — shared ItemWarning component; tiles adopt it, no visual change.

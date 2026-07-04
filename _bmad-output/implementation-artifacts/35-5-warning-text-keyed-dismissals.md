@@ -1,6 +1,6 @@
 # Story 35.5: Warning-Text-Keyed Dismissals
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -24,18 +24,19 @@ so that I never miss new or updated warning information.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Verify the current implementation already satisfies text-keyed dismissal (AC: #1, #2, #4)
-  - [ ] Confirm `useWarningSuppression` keys on `itemId::hash(warning)` and that changing the warning
+- [x] Task 1: Verify the current implementation already satisfies text-keyed dismissal (AC: #1, #2, #4)
+  - [x] Confirm `useWarningSuppression` keys on `itemId::hash(warning)` and that changing the warning
         text produces a different key (so the dialog reappears)
-- [ ] Task 2: Add regression tests (AC: #1, #2, #3, #4)
-  - [ ] Unit tests for `useWarningSuppression`: dismiss then same-text → suppressed; dismiss then
+- [x] Task 2: Add regression tests (AC: #1, #2, #3, #4)
+  - [x] Unit tests for `useWarningSuppression`: dismiss then same-text → suppressed; dismiss then
         changed-text → not suppressed; key format is `itemId::<hash>`; item-only legacy keys do not
         suppress
-- [ ] Task 3: Confirm behavior end-to-end through the shared confirmation (AC: #1, #4)
+- [ ] Task 3: Confirm behavior end-to-end through the shared confirmation (AC: #1, #4) — DEFERRED
+      to 35.4 (the shared confirmation does not exist yet); verified at the composable/unit level
   - [ ] With the shared confirmation from 35.4, verify a dismissed item stays suppressed and a
         text change re-shows the dialog (component/E2E level)
-- [ ] Task 4 (only if a change is required): make the key format explicit
-  - [ ] If the team wants the md5 form named in the brief, swap `hashWarning` for md5 — but this is
+- [x] Task 4 (only if a change is required): make the key format explicit
+  - [x] If the team wants the md5 form named in the brief, swap `hashWarning` for md5 — but this is
         OPTIONAL; the existing hash already meets FR165 (see Dev Notes). Do NOT add a crypto
         dependency unless the team explicitly chooses md5.
 
@@ -98,8 +99,30 @@ persistence round-trip. Run type-check, lint, vitest, build. [Source: .claude/ru
 
 ### Agent Model Used
 
+claude-fable-5
+
 ### Debug Log References
+
+- `npx vitest run src/composables/__tests__/useWarningSuppression.test.ts` → 5 passed
+- Full suite `npx vitest run` → 451 passed; type-check, lint, build clean
 
 ### Completion Notes List
 
+- Confirmed `useWarningSuppression` already satisfies FR165: dismissals are keyed on
+  `itemId::hash(warning)`, so a warning-text change yields a new key and the dialog reappears. No
+  production code change was required.
+- Added `useWarningSuppression.test.ts` (5 cases): same-text suppressed; changed-text NOT suppressed;
+  key format is `itemId::<hash>` (not bare item id); a legacy item-only key does not suppress;
+  persistence across composable instances.
+- Task 4 (md5): intentionally NOT done — the existing non-crypto hash meets the requirement and the
+  frontend has no crypto/md5 dependency; adding one would be gratuitous. Left as documented decision.
+- Task 3 (end-to-end through the shared confirmation dialog): DEFERRED to Story 35.4, which
+  introduces that shared dialog. Verified here only at the composable/unit level.
+
 ### File List
+
+- web/src/composables/__tests__/useWarningSuppression.test.ts (new)
+
+### Change Log
+
+- 2026-07-04: Verified FR165 (text-keyed dismissal already implemented) and added regression tests.

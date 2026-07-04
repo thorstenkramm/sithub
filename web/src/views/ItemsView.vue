@@ -240,25 +240,11 @@
                 {{ isItemFav(entry.id) ? '$heart' : '$heartOutline' }}
               </v-icon>
             </v-btn>
-            <v-tooltip
+            <ItemWarning
               v-if="entry.attributes.warning"
-              location="top"
-              content-class="warning-tooltip"
-            >
-              <template #activator="{ props: tooltipProps }">
-                <v-btn
-                  v-bind="tooltipProps"
-                  icon
-                  variant="text"
-                  size="x-small"
-                  color="warning"
-                  data-cy="folded-warning-icon"
-                >
-                  <v-icon size="18">$warning</v-icon>
-                </v-btn>
-              </template>
-              {{ entry.attributes.warning }}
-            </v-tooltip>
+              :warning="entry.attributes.warning"
+              data-cy="folded-warning-icon"
+            />
             <v-spacer />
             <v-btn
               icon
@@ -298,16 +284,13 @@
           </div>
 
           <!-- Warning (only shown when tile is expanded) -->
-          <v-alert
+          <ItemWarning
             v-if="entry.attributes.warning && expandedDayTiles.has(entry.id)"
-            type="warning"
-            variant="tonal"
-            density="compact"
+            mode="inline"
+            :warning="entry.attributes.warning"
             class="mt-2"
             data-cy="item-warning"
-          >
-            {{ entry.attributes.warning }}
-          </v-alert>
+          />
 
           <!-- Booker avatar + name -->
           <div
@@ -466,25 +449,11 @@
                 {{ isItemFav(item.id) ? '$heart' : '$heartOutline' }}
               </v-icon>
             </v-btn>
-            <v-tooltip
+            <ItemWarning
               v-if="getWeekItemAttributes(item.id).warning"
-              location="top"
-              content-class="warning-tooltip"
-            >
-              <template #activator="{ props: tooltipProps }">
-                <v-btn
-                  v-bind="tooltipProps"
-                  icon
-                  variant="text"
-                  size="x-small"
-                  color="warning"
-                  data-cy="week-folded-warning-icon"
-                >
-                  <v-icon size="18">$warning</v-icon>
-                </v-btn>
-              </template>
-              {{ getWeekItemAttributes(item.id).warning }}
-            </v-tooltip>
+              :warning="getWeekItemAttributes(item.id).warning!"
+              data-cy="week-folded-warning-icon"
+            />
             <v-spacer />
             <v-btn
               icon
@@ -701,16 +670,13 @@
               </div>
             </div>
             <!-- Warning -->
-            <v-alert
+            <ItemWarning
               v-if="getWeekItemAttributes(item.id).warning"
-              type="warning"
-              variant="tonal"
-              density="compact"
+              mode="inline"
+              :warning="getWeekItemAttributes(item.id).warning!"
               class="mt-2"
               data-cy="week-item-warning"
-            >
-              {{ getWeekItemAttributes(item.id).warning }}
-            </v-alert>
+            />
           </div>
         </v-card-text>
       </v-card>
@@ -993,7 +959,7 @@ import { resolveConfiguredIcon } from '../utils/icons';
 import { getInitials, middleTruncate } from '../utils/text';
 import { getAvatarUrl } from '../api/avatars';
 import { fetchSettings } from '../api/settings';
-import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton } from '../components';
+import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton, ItemWarning } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const { t, locale } = useI18n();
@@ -2530,13 +2496,5 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
 
 .floor-plan-dialog-body {
   height: 100%;
-}
-</style>
-
-<style>
-.warning-tooltip.v-overlay__content {
-  background-color: #fff3e0 !important;
-  color: #e65100 !important;
-  font-weight: 500;
 }
 </style>
