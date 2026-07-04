@@ -76,6 +76,17 @@ function setupMatrixView(matrixBody: ReturnType<typeof makeMatrixResponse>) {
   cy.get('[data-cy="area-weekly-matrix"]').should('exist');
 }
 
+/** Stubs a successful booking (201) aliased as `@createBooking`. */
+function interceptBookingSuccess() {
+  cy.intercept('POST', '/api/v1/bookings', {
+    statusCode: 201,
+    headers: { 'Content-Type': 'application/vnd.api+json' },
+    body: {
+      data: { id: 'b-new', type: 'bookings', attributes: { item_id: 'desk-1', booking_date: '2099-06-02', note: '' } }
+    }
+  }).as('createBooking');
+}
+
 describe('matrix booking popover', () => {
   beforeEach(() => {
     resetAndLogin();
@@ -93,13 +104,7 @@ describe('matrix booking popover', () => {
     setupMatrixView(matrix);
 
     // Mock successful booking
-    cy.intercept('POST', '/api/v1/bookings', {
-      statusCode: 201,
-      headers: { 'Content-Type': 'application/vnd.api+json' },
-      body: {
-        data: { id: 'b-new', type: 'bookings', attributes: { item_id: 'desk-1', booking_date: '2099-06-02', note: '' } }
-      }
-    }).as('createBooking');
+    interceptBookingSuccess();
 
     // Re-intercept matrix for the refresh after booking
     cy.intercept('GET', /\/api\/v1\/areas\/[^/]+\/item-groups\/matrix/, {
@@ -171,14 +176,7 @@ describe('matrix booking popover', () => {
       cells: [{ date: '2099-06-02', availability: 'free' }]
     }]);
     setupMatrixView(matrix);
-
-    cy.intercept('POST', '/api/v1/bookings', {
-      statusCode: 201,
-      headers: { 'Content-Type': 'application/vnd.api+json' },
-      body: {
-        data: { id: 'b-new', type: 'bookings', attributes: { item_id: 'desk-1', booking_date: '2099-06-02', note: '' } }
-      }
-    }).as('createBooking');
+    interceptBookingSuccess();
 
     cy.get('[data-cy="matrix-cell-free"]').first().click();
     // The old inline in-popover warning is gone; warnings now use the uniform dialog.
