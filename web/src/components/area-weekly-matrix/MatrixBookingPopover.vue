@@ -190,18 +190,18 @@ async function loadColleagues() {
   }
 }
 
-// Reset state when popover opens; abort any pending warning flow when it closes.
+// Reset state when the popover opens. The warning confirmation is an
+// independent persistent modal controlled solely by its own CANCEL/CONFIRM —
+// we must NOT abort it when the menu closes. Interacting with the dialog (e.g.
+// ticking "Don't show again", whose checkbox click propagates to the document)
+// closes the underlying v-menu; tying an abort to that close would wrongly
+// cancel the booking mid-confirmation.
 watch(() => props.modelValue, (open) => {
   if (open) {
     bookingType.value = 'self';
     noteText.value = '';
     errorMessage.value = null;
     submitting.value = false;
-  } else if (warningShow.value) {
-    // The menu closed (outside click / Escape) while the confirmation dialog
-    // was open. Discard the queued flow so no orphaned dialog and no booking
-    // for a dismissed popover can occur.
-    warningCancelAction();
   }
 });
 

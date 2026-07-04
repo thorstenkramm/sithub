@@ -156,7 +156,10 @@ describe('MatrixBookingPopover', () => {
     expect(createBookingMock).toHaveBeenCalled();
   });
 
-  it('aborts the warning flow when the popover closes while the dialog is open', async () => {
+  it('keeps the warning dialog open when the popover menu closes (controlled by CANCEL/CONFIRM only)', async () => {
+    // The v-menu closes on any interaction outside its content — including
+    // ticking "Don't show again" inside the confirmation dialog. Closing the
+    // menu must NOT abort the flow; the dialog stays until CANCEL/CONFIRM.
     localStorage.clear();
     createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
     const itemWithWarning = { ...defaultItem, warning: 'Near window' };
@@ -167,13 +170,18 @@ describe('MatrixBookingPopover', () => {
     await flushPromises();
     expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
 
-    // The menu closes (outside click / Escape) while the confirmation is open.
+    // The menu closes (e.g. the checkbox click propagates as an outside click).
     await wrapper.setProps({ modelValue: false });
     await flushPromises();
 
-    // No orphaned dialog remains and no booking was made for the dismissed popover.
-    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+    // The confirmation dialog persists; nothing was booked or aborted.
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
     expect(createBookingMock).not.toHaveBeenCalled();
+
+    // Confirming still completes the booking.
+    await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
+    await flushPromises();
+    expect(createBookingMock).toHaveBeenCalled();
   });
 
   it('books directly without a warning dialog when the item has no warning', async () => {
