@@ -17,3 +17,7 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitest/coverage-v8"
         update-types: ["version-update:semver-major"]
+      # TypeScript 6 is not yet supported by the toolchain (vue-tsc,
+      # @vue/eslint-config-typescript); type-check fails. Defer the major.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
