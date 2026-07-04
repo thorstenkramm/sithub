@@ -199,6 +199,15 @@ provide('matrixCellClick', (event: MatrixCellClickEvent) => {
   showBookPopover.value = false;
   showCancelPopover.value = false;
 
+  // Only one popover may be mounted at a time. Both popovers bind the shared
+  // `popoverActivator`; if the other type stays mounted, it re-binds to the
+  // newly clicked cell and re-opens, showing the booking and cancel popovers
+  // simultaneously. Clearing both pairs first guarantees a single popover.
+  activeBookItem.value = null;
+  activeBookCell.value = null;
+  activeCancelItem.value = null;
+  activeCancelCell.value = null;
+
   popoverActivator.value = event.el;
 
   if (event.type === 'book') {
@@ -217,18 +226,21 @@ provide('matrixCellClick', (event: MatrixCellClickEvent) => {
   }
 });
 
+// Refresh silently after a booking action: the table is already on screen, so
+// swapping it for the loading skeleton would recreate every booker avatar
+// (flicker) and reset the scroll position. A silent refresh patches in place.
 function onBooked() {
   showFeedback(t('matrix.bookingConfirmed'), 'success', 3000);
-  loadMatrix();
+  loadMatrix({ silent: true });
 }
 
 function onBookingConflict() {
-  loadMatrix();
+  loadMatrix({ silent: true });
 }
 
 function onCancelled() {
   showFeedback(t('matrix.cancelConfirmed'), 'success', 3000);
-  loadMatrix();
+  loadMatrix({ silent: true });
 }
 
 async function loadMatrix(opts: { silent?: boolean } = {}) {

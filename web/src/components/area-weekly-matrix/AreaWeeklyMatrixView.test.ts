@@ -608,6 +608,45 @@ describe('AreaWeeklyMatrixView', () => {
     requestAnimationFrameSpy.mockRestore();
   });
 
+  it('refreshes silently after a booking so the table is not remounted', async () => {
+    // A non-silent refresh swaps the table for the loading skeleton, recreating
+    // the scroll container (scroll jumps to top) and every booker avatar
+    // (images flicker). The post-booking refresh must keep the table mounted.
+    let resolveRefresh: ((value: ReturnType<typeof makeMatrixResponse>) => void) | undefined;
+    fetchMatrixMock
+      .mockResolvedValueOnce(makeMatrixResponse())
+      .mockImplementationOnce(() => new Promise(resolve => { resolveRefresh = resolve; }));
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+
+    const wrapper = mountMatrixWithStubs({
+      MatrixBookingPopover: {
+        template: '<button data-cy="matrix-booking-popover-stub" @click="$emit(\'booked\')" />',
+        emits: ['booked']
+      }
+    });
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-cell-free"]').trigger('click');
+    await flushPromises();
+    await wrapper.find('[data-cy="matrix-booking-popover-stub"]').trigger('click');
+    await flushPromises();
+
+    // Refresh is in-flight: the skeleton must NOT replace the mounted table.
+    expect(wrapper.find('[data-cy="matrix-loading"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="matrix-container"]').exists()).toBe(true);
+
+    resolveRefresh?.(makeMatrixResponse());
+    await flushPromises();
+    expect(wrapper.find('[data-cy="matrix-loading"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="matrix-container"]').exists()).toBe(true);
+    requestAnimationFrameSpy.mockRestore();
+  });
+
   describe('equipment filter', () => {
     it('does not mark any row as filtered when the parsed filter is empty', async () => {
       fetchMatrixMock.mockResolvedValue(makeMatrixResponse());

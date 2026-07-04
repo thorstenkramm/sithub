@@ -138,6 +138,41 @@ describe('matrix booking popover', () => {
     cy.get('[data-cy="matrix-snackbar"]').should('contain', 'Booking confirmed');
   });
 
+  it('should show only the cancel popover after switching from a free to an occupied cell', () => {
+    // Regression: both popovers shared one activator and the booking popover
+    // stayed mounted, so clicking an occupied cell showed the booking AND the
+    // cancel popover at once. Only one popover may ever be visible.
+    const matrix = makeMatrixResponse([
+      {
+        id: 'desk-1',
+        name: 'Free Desk',
+        cells: [{ date: '2099-06-02', availability: 'free' }]
+      },
+      {
+        id: 'desk-2',
+        name: 'My Desk',
+        cells: [{
+          date: '2099-06-02',
+          availability: 'occupied',
+          booker_name: 'Test User',
+          booker_user_id: 'me',
+          booked_by_me: true,
+          booking_id: 'b-mine'
+        }]
+      }
+    ]);
+    setupMatrixView(matrix);
+
+    // Open the booking popover on the free cell.
+    cy.get('[data-cy="matrix-cell-free"]').first().click();
+    cy.get('[data-cy="matrix-booking-card"]').should('be.visible');
+
+    // Switching to the occupied cell must swap to the cancel popover only.
+    cy.get('[data-cy="matrix-cell-occupied"]').first().click();
+    cy.get('[data-cy="matrix-cancel-card"]').should('be.visible');
+    cy.get('[data-cy="matrix-booking-card"]').should('not.exist');
+  });
+
   it('should show inline error on 409 conflict and keep popover open', () => {
     const matrix = makeMatrixResponse([{
       id: 'desk-1',

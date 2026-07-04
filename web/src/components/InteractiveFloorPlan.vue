@@ -205,16 +205,19 @@
                     @click="handleDeskClick(pos.itemId, pos.displayLabel)"
                   >
                     <span class="fp-item-label">{{ pos.displayLabel }}</span>
-                    <ItemWarning
+                    <span
                       v-if="pos.warning"
                       class="fp-warning-icon"
-                      mode="icon"
-                      icon-variant="plain"
-                      :warning="pos.warning"
-                      :icon-size="16"
-                      :data-cy="`fp-warning-${pos.itemId}`"
                       @click.stop
-                    />
+                    >
+                      <ItemWarning
+                        mode="icon"
+                        icon-variant="plain"
+                        :warning="pos.warning"
+                        :icon-size="16"
+                        :data-cy="`fp-warning-${pos.itemId}`"
+                      />
+                    </span>
                     <v-icon
                       v-if="isFloorPlanItemFavorite(pos.itemId)"
                       class="fp-favorite-heart"
@@ -246,16 +249,19 @@
                         <span class="fp-item-label">{{
                           pos.displayLabel
                         }}</span>
-                        <ItemWarning
+                        <span
                           v-if="pos.warning"
                           class="fp-warning-icon"
-                          mode="icon"
-                          icon-variant="plain"
-                          :warning="pos.warning"
-                          :icon-size="16"
-                          :data-cy="`fp-warning-${pos.itemId}`"
                           @click.stop
-                        />
+                        >
+                          <ItemWarning
+                            mode="icon"
+                            icon-variant="plain"
+                            :warning="pos.warning"
+                            :icon-size="16"
+                            :data-cy="`fp-warning-${pos.itemId}`"
+                          />
+                        </span>
                         <v-icon
                           v-if="isFloorPlanItemFavorite(pos.itemId)"
                           class="fp-favorite-heart"
@@ -1887,12 +1893,27 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* Warning icon overlay on free floor-plan items (top-left corner). */
+/* Warning badge centered exactly on the top-right corner of a free item,
+   mirroring the favorite heart on the bottom-right corner (white circular
+   background, straddling the corner). */
 .fp-warning-icon {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+  background: rgb(var(--v-theme-surface));
+  border-radius: 50%;
+  padding: 1px;
+  display: inline-flex;
   z-index: 2;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+/* The shared plain icon carries a left margin for inline (table) use; drop it
+   here so the badge is centered in its white background. */
+.fp-warning-icon :deep(.v-icon) {
+  margin-left: 0;
 }
 
 .fp-item-label,
