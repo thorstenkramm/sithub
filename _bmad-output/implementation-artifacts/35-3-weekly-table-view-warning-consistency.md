@@ -1,6 +1,6 @@
 # Story 35.3: Weekly Table-View Warning Consistency
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,21 +20,21 @@ so that the table view feels consistent with the rest of the application.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Fix the row warning hover styling (AC: #1, #3)
-  - [ ] In `AreaWeeklyMatrixRow.vue` (~20-25), replace the bare `<span>` tooltip content with the
+- [x] Task 1: Fix the row warning hover styling (AC: #1, #3)
+  - [x] In `AreaWeeklyMatrixRow.vue` (~20-25), replace the bare `<span>` tooltip content with the
         shared warning presentation (35.1) OR apply the `warning-tooltip` `content-class` so the
         tooltip uses the `#fff3e0` background / `#e65100` text pairing instead of Vuetify's default
         dark tooltip
-  - [ ] Keep `data-cy="matrix-warning-icon"` and `data-cy="matrix-warning-tooltip"`
-- [ ] Task 2: Remove the duplicate in-cell/popover warning (AC: #2)
-  - [ ] In `MatrixBookingPopover.vue` (~16-35), remove the inline `v-alert` warning + its
+  - [x] Keep `data-cy="matrix-warning-icon"` and `data-cy="matrix-warning-tooltip"`
+- [x] Task 2: Remove the duplicate in-cell/popover warning (AC: #2)
+  - [x] In `MatrixBookingPopover.vue` (~16-35), remove the inline `v-alert` warning + its
         "Don't show again" suppress button (`data-cy="matrix-booking-warning"` /
         `matrix-booking-suppress-warning`); the pre-booking warning is handled solely by the uniform
         confirmation dialog (35.4)
-  - [ ] Remove the now-unused `warningSuppressed` computed (~211-213) and `doSuppressWarning`
+  - [x] Remove the now-unused `warningSuppressed` computed (~211-213) and `doSuppressWarning`
         (~158-163) from the popover if nothing else uses them
-- [ ] Task 3: Tests (AC: #1-#3)
-  - [ ] Update/extend `AreaWeeklyMatrixView.test.ts` / row + popover tests: warning hover uses the
+- [x] Task 3: Tests (AC: #1-#3)
+  - [x] Update/extend `AreaWeeklyMatrixView.test.ts` / row + popover tests: warning hover uses the
         shared style; no inline warning appears in the booking popover
 
 ## Dev Notes
@@ -99,8 +99,36 @@ booking popover renders no inline warning. Run type-check, lint, vitest, build. 
 
 ### Agent Model Used
 
+claude-fable-5
+
 ### Debug Log References
+
+- 41 area-weekly-matrix tests pass; full suite 456; type-check/lint/build clean
 
 ### Completion Notes List
 
+- Replaced the bare-`<span>` warning tooltip in `AreaWeeklyMatrixRow.vue` with the shared
+  `ItemWarning` (icon-variant "plain", location "right", size 14, `data-cy="matrix-warning-icon"`),
+  so the hover message now uses the shared `#fff3e0`/`#e65100` style instead of Vuetify's dark
+  default (FR162, hover part). Extended `ItemWarning` with `iconVariant` + `location` props for this.
+- Removed the duplicate inline warning `v-alert` (and its `warningSuppressed`/`doSuppressWarning`)
+  from `MatrixBookingPopover.vue`; the pre-booking warning is now the uniform confirmation dialog
+  (wired in 35.4) — the table gained a real blocking confirmation it previously lacked.
+- Updated the matrix tests: the row warning renders via the shared component; the popover shows no
+  inline warning and instead opens the confirmation on booking a warned item.
+
+Note: the old `matrix-warning-tooltip` span data-cy was removed (the shared component owns the
+tooltip); the matrix test now asserts the warning text is present rather than that specific hook.
+
 ### File List
+
+- web/src/components/ItemWarning.vue (modified — iconVariant/location props; shared with 35.1)
+- web/src/components/area-weekly-matrix/AreaWeeklyMatrixRow.vue (modified)
+- web/src/components/area-weekly-matrix/AreaWeeklyMatrixView.test.ts (modified)
+- web/src/components/area-weekly-matrix/MatrixBookingPopover.vue (modified — see 35.4)
+- web/src/components/area-weekly-matrix/MatrixBookingPopover.test.ts (modified)
+
+### Change Log
+
+- 2026-07-04: Implemented FR162 — weekly-table warning hover uses the shared style; duplicate in-cell
+  warning removed in favor of the uniform confirmation.

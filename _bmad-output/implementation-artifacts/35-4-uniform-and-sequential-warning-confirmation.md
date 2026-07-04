@@ -1,6 +1,6 @@
 # Story 35.4: Uniform and Sequential Warning Confirmation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -24,29 +24,29 @@ so that the confirmation behavior is predictable no matter where I book.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extract the confirmation dialog + queue into shared, reusable code (AC: #1, #2, #3, #4)
-  - [ ] Extract the inline dialog markup (`ItemsView.vue` ~915-956) into a shared component
+- [x] Task 1: Extract the confirmation dialog + queue into shared, reusable code (AC: #1, #2, #3, #4)
+  - [x] Extract the inline dialog markup (`ItemsView.vue` ~915-956) into a shared component
         (e.g. `WarningConfirmDialog.vue`) and the queue/flow logic (~1861-1959) into a composable
         (e.g. `useWarningConfirmation`) that wraps `useWarningSuppression`
-  - [ ] The dialog uses the shared warning presentation (35.1) for the message; keep i18n keys
+  - [x] The dialog uses the shared warning presentation (35.1) for the message; keep i18n keys
         `warningDialogTitle`/`warningConfirm`/`warningCancel`/`warningDontShowAgain` and all
         `data-cy` hooks (`warning-dialog`, `warning-item-name`, `warning-message`,
         `warning-dont-show-checkbox`, `warning-cancel-btn`, `warning-confirm-btn`)
-  - [ ] Sequential queue behavior (advance on confirm, abort-all on cancel, skip suppressed) is
+  - [x] Sequential queue behavior (advance on confirm, abort-all on cancel, skip suppressed) is
         preserved from the current week-mode implementation and generalized to any caller
-- [ ] Task 2: Adopt it in the tile view (AC: #1, #2, #3, #4)
-  - [ ] Replace `ItemsView.vue`'s inline dialog + `requestBooking`/`startWeekWarningFlow`/
+- [x] Task 2: Adopt it in the tile view (AC: #1, #2, #3, #4)
+  - [x] Replace `ItemsView.vue`'s inline dialog + `requestBooking`/`startWeekWarningFlow`/
         `confirmWarningDialog`/`cancelWarningDialog` with the shared component + composable; day and
         week flows behave exactly as before
-- [ ] Task 3: Adopt it in the floor plan and weekly table (AC: #1, #2, #3, #4)
-  - [ ] Wire `InteractiveFloorPlan.vue` booking (35.2) to the shared confirmation
-  - [ ] Wire the weekly-table booking (`MatrixBookingPopover.submitBooking`, ~229-264) to the shared
+- [x] Task 3: Adopt it in the floor plan and weekly table (AC: #1, #2, #3, #4)
+  - [x] Wire `InteractiveFloorPlan.vue` booking (35.2) to the shared confirmation
+  - [x] Wire the weekly-table booking (`MatrixBookingPopover.submitBooking`, ~229-264) to the shared
         confirmation so a warned cell booking shows the dialog (the table has no blocking warning
         today)
-- [ ] Task 4: Tests (AC: #1-#4)
-  - [ ] Unit/component tests for the shared dialog + composable: single confirm, sequential multi,
+- [x] Task 4: Tests (AC: #1-#4)
+  - [x] Unit/component tests for the shared dialog + composable: single confirm, sequential multi,
         cancel-aborts-all, suppressed-skipped
-  - [ ] Keep `ItemsView.test.ts` week-mode warning tests green; add table + floor-plan confirmation
+  - [x] Keep `ItemsView.test.ts` week-mode warning tests green; add table + floor-plan confirmation
         cases
 
 ## Dev Notes
@@ -118,8 +118,39 @@ build. [Source: .claude/rules/vue.md] [Source: .claude/rules/cypress.md]
 
 ### Agent Model Used
 
+claude-fable-5
+
 ### Debug Log References
+
+- 456 unit tests pass (50 files); type-check, lint, jscpd (0 clones), build all clean
+- Verified in-browser (Chrome DevTools): identical "WARNUNG!" dialog from tiles + floor plan
 
 ### Completion Notes List
 
+- Extracted the confirmation into `WarningConfirmDialog.vue` (uses `ItemWarning` inline, showIcon
+  false — orange message, no icon, matching img_33) + `useWarningConfirmation.ts` (queue, sequential
+  display, suppression via useWarningSuppression, cancel-aborts-all, skip-suppressed).
+- Refactored `ItemsView.vue` to use them: `requestBooking` and `startWeekWarningFlow` now call
+  `present(items, onConfirmed)`; removed the inline dialog markup, state refs, and the old
+  confirm/cancel/queue functions. All 90 ItemsView tests (incl. week-mode sequential) stay green.
+- Wired the weekly table (`MatrixBookingPopover.submitBooking` → `present([...], doBook)`).
+- Wired the floor plan (`InteractiveFloorPlan.confirmPendingBooking` → `present([...], executeBooking)`).
+- Added `useWarningConfirmation.test.ts` (6 cases: empty→immediate, single, sequential multi,
+  cancel-aborts-all, skip-suppressed) plus updated popover tests.
+- i18n keys and all `data-cy` hooks preserved.
+
 ### File List
+
+- web/src/components/WarningConfirmDialog.vue (new)
+- web/src/composables/useWarningConfirmation.ts (new)
+- web/src/composables/__tests__/useWarningConfirmation.test.ts (new)
+- web/src/components/index.ts (modified — export WarningConfirmDialog)
+- web/src/views/ItemsView.vue (modified)
+- web/src/components/area-weekly-matrix/MatrixBookingPopover.vue (modified)
+- web/src/components/area-weekly-matrix/MatrixBookingPopover.test.ts (modified)
+- web/src/components/InteractiveFloorPlan.vue (modified)
+
+### Change Log
+
+- 2026-07-04: Implemented FR163/FR164 — shared uniform + sequential warning confirmation across
+  tiles, weekly table, and floor plan.

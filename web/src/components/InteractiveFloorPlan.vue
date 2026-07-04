@@ -205,6 +205,16 @@
                     @click="handleDeskClick(pos.itemId, pos.displayLabel)"
                   >
                     <span class="fp-item-label">{{ pos.displayLabel }}</span>
+                    <ItemWarning
+                      v-if="pos.warning"
+                      class="fp-warning-icon"
+                      mode="icon"
+                      icon-variant="plain"
+                      :warning="pos.warning"
+                      :icon-size="16"
+                      :data-cy="`fp-warning-${pos.itemId}`"
+                      @click.stop
+                    />
                     <v-icon
                       v-if="isFloorPlanItemFavorite(pos.itemId)"
                       class="fp-favorite-heart"
@@ -236,6 +246,16 @@
                         <span class="fp-item-label">{{
                           pos.displayLabel
                         }}</span>
+                        <ItemWarning
+                          v-if="pos.warning"
+                          class="fp-warning-icon"
+                          mode="icon"
+                          icon-variant="plain"
+                          :warning="pos.warning"
+                          :icon-size="16"
+                          :data-cy="`fp-warning-${pos.itemId}`"
+                          @click.stop
+                        />
                         <v-icon
                           v-if="isFloorPlanItemFavorite(pos.itemId)"
                           class="fp-favorite-heart"
@@ -439,17 +459,6 @@
             </div>
           </div>
 
-          <v-alert
-            v-if="bookingItemWarning"
-            type="warning"
-            variant="tonal"
-            density="compact"
-            class="mt-2"
-            data-cy="fp-booking-warning"
-          >
-            {{ bookingItemWarning }}
-          </v-alert>
-
           <div
             v-if="selectedBookingDates.length === 0"
             class="text-body-2 text-error mt-3"
@@ -515,6 +524,15 @@
     >
       {{ errorSnackbarText }}
     </v-snackbar>
+
+    <WarningConfirmDialog
+      v-model="warningShow"
+      v-model:dont-show-again="warningDontShowAgain"
+      :item-name="warningItemName"
+      :message="warningMessage"
+      @confirm="warningConfirmAction"
+      @cancel="warningCancelAction"
+    />
   </div>
 </template>
 
@@ -538,6 +556,9 @@ import { getInitials } from "../utils/text";
 import { useAreaDrillDownPreference } from "../composables/useAreaDrillDownPreference";
 import { useLiveBookingRefresh } from "../composables/useLiveBookingRefresh";
 import { useFavorites } from "../composables/useFavorites";
+import { useWarningConfirmation } from "../composables/useWarningConfirmation";
+import ItemWarning from "./ItemWarning.vue";
+import WarningConfirmDialog from "./WarningConfirmDialog.vue";
 
 const props = defineProps<{
   floorPlan: string;
@@ -735,6 +756,15 @@ const bookingDaySelections = ref<Record<string, boolean>>({});
 const bookingDayInfoMap = ref<Map<string, BookingDayInfo>>(new Map());
 const bookingItemEquipment = ref<string[]>([]);
 const bookingItemWarning = ref<string | undefined>();
+const {
+  show: warningShow,
+  itemName: warningItemName,
+  message: warningMessage,
+  dontShowAgain: warningDontShowAgain,
+  present: presentWarnings,
+  confirm: warningConfirmAction,
+  cancel: warningCancelAction,
+} = useWarningConfirmation();
 const bookingDayAvailabilityLoading = ref(false);
 
 const showBookingSnackbar = ref(false);
@@ -1143,6 +1173,7 @@ const deskPositions = computed(() => {
         status: occupied ? ("busy" as const) : reserved ? ("reserved" as const) : ("free" as const),
         bookerUserId: item?.bookerUserId,
         bookerName: item?.bookerName,
+        warning: !occupied && !reserved ? item?.warning : undefined,
       };
     });
 });
@@ -1167,9 +1198,8 @@ const enrichedPositions = computed(() => {
     if (equipmentText) {
       tooltipParts.push(equipmentText);
     }
-    if (item?.warning) {
-      tooltipParts.push(item.warning.trim());
-    }
+    // Warnings are shown via the dedicated warning icon on free items only
+    // (FR160); booked items show booker info only, never a warning.
 
     const occupied = item?.availability === "occupied";
     const reserved = item?.reserved === true;
@@ -1181,6 +1211,7 @@ const enrichedPositions = computed(() => {
       status: occupied ? "busy" : reserved ? "reserved" : ("free" as "free" | "busy" | "reserved"),
       bookerUserId: item?.bookerUserId,
       bookerName: item?.bookerName,
+      warning: !occupied && !reserved ? item?.warning : undefined,
     };
   });
 });
@@ -1471,7 +1502,7 @@ function formatBookingError(err: unknown, multiDay: boolean) {
   return t("floorPlan.bookingCouldNotBeCompleted");
 }
 
-async function confirmPendingBooking() {
+function confirmPendingBooking() {
   if (!pendingBooking.value || bookingInProgress.value) {
     return;
   }
@@ -1480,6 +1511,22 @@ async function confirmPendingBooking() {
   if (bookingDates.length === 0) {
     errorSnackbarText.value = t("floorPlan.selectAtLeastOneDay");
     showErrorSnackbar.value = true;
+    return;
+  }
+
+  // Uniform pre-booking warning confirmation before committing the booking.
+  const warnItems = bookingItemWarning.value
+    ? [{
+      itemId: pendingBooking.value.itemId,
+      itemName: pendingBooking.value.label,
+      warning: bookingItemWarning.value,
+    }]
+    : [];
+  presentWarnings(warnItems, () => void executeBooking(bookingDates));
+}
+
+async function executeBooking(bookingDates: string[]) {
+  if (!pendingBooking.value) {
     return;
   }
 
@@ -1831,6 +1878,14 @@ onBeforeUnmount(() => {
   z-index: 1;
   color: rgb(var(--v-theme-on-surface));
   pointer-events: none;
+}
+
+/* Warning icon overlay on free floor-plan items (top-left corner). */
+.fp-warning-icon {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 2;
 }
 
 .fp-item-label,
