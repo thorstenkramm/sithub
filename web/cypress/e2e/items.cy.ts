@@ -1,7 +1,10 @@
 import {
+  confirmWarningAndExpectBooking,
   createMockItem,
   createMockItemsResponse,
   interceptBookingConflict,
+  interceptBookingSuccess,
+  interceptWarnedItemsList,
   setupItemsPageIntercepts
 } from '../support/flows';
 
@@ -115,6 +118,40 @@ describe('items', () => {
 
     // Item list should be refreshed
     cy.wait('@listItems');
+  });
+
+  function openWarnedItemBooking() {
+    cy.visit('/item-groups/test_room/items');
+    cy.wait('@listItems');
+    cy.get('[data-cy="item-entry"][data-cy-availability="available"]')
+      .first()
+      .find('[data-cy="book-item-btn"]')
+      .click();
+  }
+
+  it('should show the warning confirmation before booking a warned item and book on confirm', () => {
+    interceptWarnedItemsList();
+    interceptBookingSuccess();
+
+    openWarnedItemBooking();
+
+    // The shared warning dialog appears before any booking is created.
+    confirmWarningAndExpectBooking();
+    cy.get('[data-cy="booking-success-text"]').should('contain', 'Window Desk');
+  });
+
+  it('should abort the booking when the warning confirmation is cancelled', () => {
+    interceptWarnedItemsList();
+    cy.intercept('POST', '/api/v1/bookings', { statusCode: 201, body: {} }).as('createBooking');
+
+    openWarnedItemBooking();
+    cy.get('[data-cy="warning-dialog"]').should('be.visible');
+
+    cy.get('[data-cy="warning-cancel-btn"]').click();
+
+    cy.get('[data-cy="warning-dialog"]').should('not.exist');
+    cy.get('[data-cy="booking-success-text"]').should('not.exist');
+    cy.get('@createBooking.all').should('have.length', 0);
   });
 
   it('should show booker name on occupied items', () => {

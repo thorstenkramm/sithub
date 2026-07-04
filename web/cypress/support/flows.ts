@@ -91,3 +91,48 @@ export function interceptBookingConflict(detail: string, alias: string) {
     }
   }).as(alias);
 }
+
+/** A free item carrying a warning, for exercising the pre-booking warning confirmation. */
+export const WARNED_ITEM = {
+  id: 'item-warned-1',
+  type: 'items',
+  attributes: {
+    name: 'Window Desk',
+    equipment: ['Monitor'],
+    availability: 'available',
+    booked_by_me: false,
+    warning: 'Near noisy area'
+  }
+};
+
+/** Intercepts the items list to return a single free, warned item, aliased `@listItems`. */
+export function interceptWarnedItemsList() {
+  cy.intercept('GET', '/api/v1/item-groups/*/items*', {
+    statusCode: 200,
+    body: { data: [WARNED_ITEM] }
+  }).as('listItems');
+}
+
+/** Stubs a successful booking (201) aliased `@createBooking`. */
+export function interceptBookingSuccess(itemId = 'item-warned-1') {
+  cy.intercept('POST', '/api/v1/bookings', {
+    statusCode: 201,
+    headers: { 'Content-Type': 'application/vnd.api+json' },
+    body: { data: { id: 'booking-1', type: 'bookings', attributes: { item_id: itemId } } }
+  }).as('createBooking');
+}
+
+/**
+ * Asserts the shared warning dialog is shown (with no booking created yet) and
+ * confirms it, expecting the booking POST to fire for `itemId`.
+ */
+export function confirmWarningAndExpectBooking(itemId = 'item-warned-1') {
+  cy.get('[data-cy="warning-dialog"]').should('be.visible');
+  cy.get('[data-cy="warning-message"]').should('contain', 'Near noisy area');
+  cy.get('@createBooking.all').should('have.length', 0);
+  cy.get('[data-cy="warning-confirm-btn"]').click();
+  cy.wait('@createBooking').then((interception) => {
+    expect(interception.response?.statusCode).to.eq(201);
+    expect(interception.request.body.data.attributes.item_id).to.eq(itemId);
+  });
+}

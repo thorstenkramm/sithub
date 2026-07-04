@@ -184,6 +184,23 @@ describe('MatrixBookingPopover', () => {
     expect(createBookingMock).toHaveBeenCalled();
   });
 
+  it('aborts the booking when the warning confirmation is cancelled', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    const itemWithWarning = { ...defaultItem, warning: 'Near window' };
+    const wrapper = mountPopover({ item: itemWithWarning });
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+
+    // Cancelling the warning must abort: no booking is created and the dialog closes.
+    await wrapper.find('[data-cy="warning-cancel-btn"]').trigger('click');
+    await flushPromises();
+    expect(createBookingMock).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+  });
+
   it('books directly without a warning dialog when the item has no warning', async () => {
     createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
     const wrapper = mountPopover();

@@ -281,6 +281,80 @@ describe("InteractiveFloorPlan", () => {
     );
   });
 
+  it("shows the warning confirmation before booking a warned free item, then books on confirm", async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: "item-1",
+          type: "items",
+          attributes: {
+            name: "Desk A",
+            equipment: ["Monitor"],
+            availability: "available",
+            booked_by_me: false,
+            warning: "Standing desk",
+          },
+        },
+      ],
+    } as never);
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
+    await flushPromises();
+
+    // Confirming the date selection must surface the shared warning dialog
+    // before any booking is created.
+    await wrapper.get('[data-cy="fp-booking-confirm"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="warning-message"]').text()).toContain(
+      "Standing desk",
+    );
+    expect(createBookingMock).not.toHaveBeenCalled();
+
+    // Confirming the warning proceeds with the single-day booking.
+    await wrapper.get('[data-cy="warning-confirm-btn"]').trigger("click");
+    await flushPromises();
+    expect(createBookingMock).toHaveBeenCalledWith("item-1", "2026-04-08");
+  });
+
+  it("aborts the floor-plan booking when the warning confirmation is cancelled", async () => {
+    // The suite's beforeEach re-sets the resolved value but does not clear call
+    // history, so reset it explicitly for the not-called assertion below.
+    createBookingMock.mockClear();
+    fetchItemsMock.mockResolvedValue({
+      data: [
+        {
+          id: "item-1",
+          type: "items",
+          attributes: {
+            name: "Desk A",
+            equipment: [],
+            availability: "available",
+            booked_by_me: false,
+            warning: "Standing desk",
+          },
+        },
+      ],
+    } as never);
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-cy="fp-booking-confirm"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
+
+    await wrapper.get('[data-cy="warning-cancel-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(createBookingMock).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
+  });
+
   it("creates a multi-day booking from the selected week", async () => {
     const wrapper = mountComponent();
     await flushPromises();
