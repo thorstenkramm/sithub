@@ -305,7 +305,7 @@ development_status:
   epic-35: in-progress
   35-1-shared-warning-presentation-component: review
   35-2-floor-plan-warnings-for-free-items: ready-for-dev
-  35-3-weekly-table-view-warning-consistency: ready-for-dev
+  35-3-weekly-table-view-warning-consistency: in-progress
   35-4-uniform-and-sequential-warning-confirmation: ready-for-dev
   35-5-warning-text-keyed-dismissals: review
   epic-35-retrospective: optional

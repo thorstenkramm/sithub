@@ -5,7 +5,8 @@
  * orange circular info icon.
  *
  * - mode="icon" (default): the warning icon with an on-hover tooltip. Use on
- *   tiles, floor-plan items, and the weekly-table rows.
+ *   tiles (iconVariant="button"), floor-plan items, and weekly-table rows
+ *   (iconVariant="plain").
  * - mode="inline": a styled message block. Use where the warning text is shown
  *   directly (e.g. an expanded tile).
  *
@@ -15,18 +16,23 @@ withDefaults(
   defineProps<{
     warning: string;
     mode?: 'icon' | 'inline';
+    /** 'button' matches the tile icon; 'plain' is a bare inline icon (table rows). */
+    iconVariant?: 'button' | 'plain';
+    /** Tooltip location for icon mode. */
+    location?: 'top' | 'bottom' | 'start' | 'end' | 'left' | 'right';
     iconSize?: number | string;
-    /** Optional data-cy applied to the icon button (mode="icon") or block (mode="inline"). */
+    /** Optional data-cy applied to the icon (mode="icon") or block (mode="inline"). */
     dataCy?: string;
   }>(),
-  { mode: 'icon', iconSize: 18, dataCy: undefined },
+  { mode: 'icon', iconVariant: 'button', location: 'top', iconSize: 18, dataCy: undefined },
 );
 </script>
 
 <template>
-  <v-tooltip v-if="mode === 'icon'" location="top" content-class="warning-tooltip">
+  <v-tooltip v-if="mode === 'icon'" :location="location" content-class="warning-tooltip">
     <template #activator="{ props: tooltipProps }">
       <v-btn
+        v-if="iconVariant === 'button'"
         v-bind="tooltipProps"
         icon
         variant="text"
@@ -36,6 +42,14 @@ withDefaults(
       >
         <v-icon :size="iconSize">$warning</v-icon>
       </v-btn>
+      <v-icon
+        v-else
+        v-bind="tooltipProps"
+        :size="iconSize"
+        color="warning"
+        class="ml-1"
+        :data-cy="dataCy"
+      >$warning</v-icon>
     </template>
     {{ warning }}
   </v-tooltip>

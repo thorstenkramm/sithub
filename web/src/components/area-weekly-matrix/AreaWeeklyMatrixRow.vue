@@ -17,12 +17,14 @@
           <span data-cy="matrix-equipment-tooltip">{{ item.equipment.join(', ') }}</span>
         </v-tooltip>
 
-        <v-tooltip v-if="item.warning" location="right">
-          <template #activator="{ props: warnProps }">
-            <v-icon v-bind="warnProps" size="14" color="warning" class="ml-1" data-cy="matrix-warning-icon">$warning</v-icon>
-          </template>
-          <span data-cy="matrix-warning-tooltip">{{ item.warning }}</span>
-        </v-tooltip>
+        <ItemWarning
+          v-if="item.warning"
+          :warning="item.warning"
+          icon-variant="plain"
+          location="right"
+          :icon-size="14"
+          data-cy="matrix-warning-icon"
+        />
 
         <!--
           Heart icon: rendered only when this item is a favorite.
@@ -71,6 +73,7 @@ import type { MatrixItem, MatrixDayMeta } from '../../api/itemGroupMatrix';
 import { matchesParsedFilter, type AndGroup } from '../../composables/useEquipmentFilter';
 import { useFavorites } from '../../composables/useFavorites';
 import AreaWeeklyMatrixCell from './AreaWeeklyMatrixCell.vue';
+import ItemWarning from '../ItemWarning.vue';
 
 const props = defineProps<{
   item: MatrixItem;

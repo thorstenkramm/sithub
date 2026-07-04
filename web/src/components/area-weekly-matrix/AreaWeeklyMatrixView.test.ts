@@ -487,9 +487,9 @@ describe('AreaWeeklyMatrixView', () => {
     const wrapper = mountMatrix();
     await flushPromises();
 
-    // desk-1 has warning "Near window"
+    // desk-1 has warning "Near window" — rendered via the shared ItemWarning component
     expect(wrapper.find('[data-cy="matrix-warning-icon"]').exists()).toBe(true);
-    expect(wrapper.find('[data-cy="matrix-warning-tooltip"]').text()).toBe('Near window');
+    expect(wrapper.text()).toContain('Near window');
   });
 
   it('renders a heart for favorite matrix rows and removes the favorite on click', async () => {
