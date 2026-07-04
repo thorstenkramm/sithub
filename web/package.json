@@ -37,7 +37,7 @@
     "cypress": "^15.12.0",
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "^10.9.2",
-    "jiti": "^2.6.1",
+    "jiti": "^2.7.0",
     "jsdom": "^29.1.1",
     "typescript": "^5.9.3",
     "vite": "^8.1.3",
