@@ -13,7 +13,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/epic-33.md
   - /Users/thorsten/projects/thorsten/sithub/private/security-report-claude.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-35.md
-lastEdited: '2026-07-04'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-36.md
+lastEdited: '2026-07-08'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -57,6 +58,8 @@ editHistory:
     changes: "Extracted FR153-FR158 from the AI-assisted security review (private/security-report-claude.md) for Epic 34: Security Hardening. Covers HTTP security response headers (Echo Secure middleware), force_secure_cookies config for reverse-proxy deployments, pinned npm dependency versions + Dependabot, security regression test coverage, HTTP server slow-client timeouts, and a 2 MB request body limit. Excludes persistent audit log and access-token-at-rest encryption (accepted risk)."
   - date: '2026-07-04'
     changes: "Added FR159-FR165 from private/epic-35.md for Epic 35: Consistent Warnings. Unifies the warning visual style across tiles, floor plan, and weekly table; adds floor-plan warning indicators (free items only) and confirmation; fixes the table-view hover style and duplicate in-cell warning; makes the confirmation dialog uniform from every view; generalizes sequential multi-item confirmations beyond week mode (extends FR105); re-shows dismissed warnings when the warning text changes (refines FR104 storage to item-id + text hash)."
+  - date: '2026-07-08'
+    changes: "Added FR166-FR178 from private/epic-36.md for Epic 36: User Feedback — Persistent Sessions, Versioning & Booking UX. Persistent sessions across server restarts (persistent cookie-signing keys); desktop My Bookings table/tile toggle (table default, localStorage) with named on-behalf bookings; end-to-end version reporting (sithub version CLI, release-tag ldflags injection, API endpoint, settings UI); centered/filled presence avatars; floor plan opens for the tile-selected day/week; unified colleague booking via the shared confirmation dialog (removes tile dropdown, adds floor-plan multi-day on-behalf); full-width weekly-table booker names (truncate from back); and a guard dialog against multiple bookings per area/day. Nine stories 36.1-36.9; no baseline FR coverage changed."
 ---
 
 # sithub - Epic Breakdown
@@ -607,6 +610,50 @@ Dismissals are keyed on the item ID combined with the current warning text (e.g.
 hash stored in localStorage), refining FR104's per-item-only storage. Acceptance: after
 dismissing a warning, changing the item's warning text causes the confirmation to be shown
 again on the next booking attempt.
+FR166: After a server restart, previously authenticated users remain logged in — their
+session/auth cookie stays valid. The cookie-signing (securecookie) keys must be persistent
+across restarts (loaded from config/data, not regenerated randomly per start). Acceptance:
+restart the server; an existing session continues without a re-login prompt.
+FR167: The "My Bookings" view offers a tile/table view toggle on desktop; table view is the
+default on desktop and tile view on mobile/narrow viewports. The chosen view persists in
+localStorage. Acceptance: on desktop the table shows by default; switching to tiles and
+reloading keeps tiles.
+FR168: Bookings made on behalf of a colleague display "On behalf of <first name> <last name>"
+(the colleague's full name) instead of a bare "On behalf" hint. Acceptance: a colleague
+booking on "My Bookings" names the colleague.
+FR169: The CLI prints the running version via `sithub version`. Acceptance: running the
+command outputs the version string and exits 0.
+FR170: The release GitHub workflow injects the release tag as the build version (e.g. via Go
+ldflags) so the binary reports the released version. Acceptance: a tagged release binary
+reports that tag as its version.
+FR171: The API exposes the running version via an endpoint. Acceptance: a request returns the
+current version string.
+FR172: The UI displays the running version in the user settings view. Acceptance: the settings
+view shows the version served by the API.
+FR173: Presence avatar images on "Today's presence" are centered and fill the entire circle
+(object-fit cover, no off-center or clipped rendering). Acceptance: avatars of varying aspect
+ratios render centered and fully cover the circular frame.
+FR174: Opening the floor plan from the tile view opens it for the day (day mode) or week (week
+mode) currently selected in the tile view, not defaulting to today. Acceptance: select a future
+day on tiles, open the floor plan — it shows that day's availability.
+FR175: Colleague booking is unified through the shared booking confirmation dialog. The separate
+"book for a colleague" dropdown is removed from the tile view; clicking "Book" opens the unified
+confirmation where a colleague may be selected. Acceptance: tile-view booking no longer shows the
+inline colleague dropdown; the confirmation dialog offers colleague selection.
+FR176: The floor-plan booking dialog also offers booking for a colleague; when a colleague is
+selected, all selected days are booked on that colleague's behalf. Acceptance: selecting a
+colleague and multiple days in the floor-plan dialog creates on-behalf bookings for every
+selected day.
+FR177: In the weekly table view, booker-name cells use the maximum available cell width (with
+decent padding) and show the full first and last name; when the name does not fit it is truncated
+from the end so the first name stays visible (the previous 60px max-width cap is removed).
+Acceptance: long names fill the cell width and truncate from the back with the first name always
+visible.
+FR178: Booking an item in an area on a day where the user already holds a booking in the same area
+opens a confirmation: "You already booked <ITEM> on <DATE>. Multiple bookings per area and day are
+not allowed. Do you want to cancel <ITEM> and book <NEW-ITEM> instead?" Confirming cancels the
+existing booking and creates the new one. Acceptance: a second same-area same-day booking shows the
+dialog; confirming swaps the booking, cancelling leaves the original.
 
 ### NonFunctional Requirements
 
@@ -861,6 +908,19 @@ FR162: Epic 35 - Table-view hover style fix and duplicate in-cell warning remova
 FR163: Epic 35 - Uniform warning confirmation dialog from every view
 FR164: Epic 35 - Sequential confirmations for all multi-item bookings (extends FR105)
 FR165: Epic 35 - Re-show dismissed warnings on text change (refines FR104)
+FR166: Epic 36 - Persistent auth/session across server restarts
+FR167: Epic 36 - My Bookings desktop table/tile toggle (table default, persisted)
+FR168: Epic 36 - "On behalf of <first> <last>" on My Bookings
+FR169: Epic 36 - `sithub version` CLI command
+FR170: Epic 36 - Release workflow injects version at build (ldflags)
+FR171: Epic 36 - API exposes running version
+FR172: Epic 36 - UI shows version in user settings
+FR173: Epic 36 - Presence avatars centered & filling the circle
+FR174: Epic 36 - Floor plan opens for the tile-view-selected day/week
+FR175: Epic 36 - Unified colleague selection via confirmation dialog (remove tile dropdown)
+FR176: Epic 36 - Floor-plan dialog: colleague booking across all selected days
+FR177: Epic 36 - Table view: full-width booker names, truncate from the back
+FR178: Epic 36 - Guard dialog for multiple bookings per area/day
 
 ## Epic List
 
@@ -1096,6 +1156,21 @@ confirmation dialog appears from every view; multi-item bookings show sequential
 confirmations for every warned item; and dismissed warnings reappear when the warning text
 changes (dismissals keyed on item ID + warning-text hash in localStorage).
 **FRs covered:** FR159, FR160, FR161, FR162, FR163, FR164, FR165
+
+### Epic 36: User Feedback — Persistent Sessions, Versioning & Booking UX
+
+Address the latest round of user feedback across auth, My Bookings, versioning, and the booking
+flow. Keep users logged in across server restarts via persistent cookie-signing keys. On desktop,
+"My Bookings" offers a tile/table toggle with table as the default (persisted in localStorage) and
+shows the colleague's full name for on-behalf bookings. Surface the running version end to end: a
+`sithub version` CLI command, the release tag injected at build time, an API that reports it, and
+the settings view that displays it. Center and fill presence avatars in their circles. Opening the
+floor plan from the tile view honors the day/week selected there. Unify colleague booking through
+the shared confirmation dialog (removing the inline tile dropdown) and offer it in the floor-plan
+dialog for all selected days. Use the full cell width for booker names in the weekly table
+(truncating from the back). Finally, guard against accidental multiple bookings per area and day
+with a confirmation to swap.
+**FRs covered:** FR166, FR167, FR168, FR169, FR170, FR171, FR172, FR173, FR174, FR175, FR176, FR177, FR178
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -5273,3 +5348,238 @@ the dialog is shown once more, after which the new-format dismissal applies
 **Given** the warning text is unchanged
 **When** I book a previously dismissed item
 **Then** the confirmation stays suppressed exactly as before
+
+## Epic 36 Stories: User Feedback — Persistent Sessions, Versioning & Booking UX
+
+Address the latest user feedback across auth, My Bookings, versioning, presence, and the
+booking flow: persistent sessions across restarts, a comprehensive desktop My Bookings table
+with named on-behalf bookings, end-to-end version reporting, centered/filled presence avatars,
+floor plan honoring the selected day/week, unified colleague booking, full-width table names,
+and a guard against multiple bookings per area and day.
+**FRs covered:** FR166, FR167, FR168, FR169, FR170, FR171, FR172, FR173, FR174, FR175, FR176, FR177, FR178
+
+### Story 36.1: Persistent Sessions Across Server Restarts
+
+**FRs covered:** FR166
+
+As a returning user,
+I want to stay logged in after the server restarts,
+so that routine restarts and deployments do not force me to sign in again.
+
+**Acceptance Criteria:**
+
+**Given** the securecookie signing keys are loaded from a persistent source (a config value
+or a file in `data_dir`) instead of being generated randomly at startup
+**When** the server is restarted
+**Then** existing session cookies remain valid and users are not redirected to login
+
+**Given** no persistent key exists yet
+**When** the server starts for the first time
+**Then** it generates a key, persists it (e.g. in `data_dir`), and reuses it on later starts
+
+**Given** a user with an active session
+**When** the server restarts and the user makes the next request
+**Then** the request succeeds without re-authentication and the user identity is unchanged
+
+**Given** the persistent key is removed or rotated
+**When** the server restarts
+**Then** existing sessions are invalidated (documented behavior)
+
+### Story 36.2: Desktop Table View for My Bookings
+
+**FRs covered:** FR167
+
+As a desktop user,
+I want a comprehensive table view of My Bookings with a toggle to tiles,
+so that I can scan my bookings efficiently on a large screen.
+
+**Acceptance Criteria:**
+
+**Given** I open "My Bookings" on a desktop viewport
+**When** the page loads and I have not chosen a view before
+**Then** the table view is shown by default
+
+**Given** I open "My Bookings" on a mobile/narrow viewport
+**When** the page loads and I have not chosen a view before
+**Then** the tile view is shown by default
+
+**Given** a tile/table toggle is present
+**When** I switch views
+**Then** my choice is stored in localStorage and restored on my next visit, overriding the
+viewport default
+
+**Given** the table view is active
+**When** my bookings are listed
+**Then** it presents a scannable layout with the relevant columns (date, area/item, status,
+and any on-behalf information)
+
+### Story 36.3: Named On-Behalf Bookings in My Bookings
+
+**FRs covered:** FR168
+
+As a user who books for colleagues,
+I want My Bookings to show for whom I booked,
+so that I can tell my on-behalf bookings apart.
+
+**Acceptance Criteria:**
+
+**Given** a booking I made on behalf of a colleague
+**When** it appears in My Bookings (tile or table view)
+**Then** it shows "On behalf of \<first name\> \<last name\>" using the colleague's full name
+
+**Given** a booking I made for myself
+**When** it appears in My Bookings
+**Then** no "on behalf" hint is shown
+
+**Given** the colleague name is available from the booking record
+**When** the booking is rendered in either view
+**Then** the full name is shown consistently
+
+### Story 36.4: Application Version Reporting
+
+**FRs covered:** FR169, FR170, FR171, FR172
+
+As an operator and user,
+I want to know which SitHub version is running,
+so that I can verify deployments and report issues accurately.
+
+**Acceptance Criteria:**
+
+**Given** the CLI
+**When** I run `sithub version`
+**Then** it prints the version string and exits with code 0
+
+**Given** a tagged release built by the GitHub release workflow
+**When** the binary is compiled
+**Then** the release tag is injected as the version (e.g. via Go ldflags), and a non-release
+build reports a sensible fallback such as "dev"
+
+**Given** the API
+**When** the version is requested
+**Then** it returns the running version in a JSON:API-consistent response
+
+**Given** the user settings view
+**When** it loads
+**Then** it displays the version reported by the API
+
+### Story 36.5: Centered, Filled Presence Avatars
+
+**FRs covered:** FR173
+
+As a user viewing Today's presence,
+I want avatars centered and filling their circles,
+so that the presence view looks clean and consistent.
+
+**Acceptance Criteria:**
+
+**Given** presence avatar photos of varying aspect ratios
+**When** they render in the circular frame
+**Then** each image is centered and covers the entire circle (object-fit: cover) with no
+off-center offset or clipped-corner gaps
+
+**Given** a user without a photo
+**When** the initials fallback renders
+**Then** it is centered and fills the circle consistently with photo avatars
+
+### Story 36.6: Floor Plan Opens for the Selected Day/Week
+
+**FRs covered:** FR174
+
+As a user booking from the tile view,
+I want the floor plan to open for the day or week I selected on the tiles,
+so that I book the correct day.
+
+**Acceptance Criteria:**
+
+**Given** day mode with a non-today day selected on the tile view
+**When** I open the floor plan
+**Then** the floor plan shows availability for that selected day
+
+**Given** week mode with a selected week
+**When** I open the floor plan
+**Then** it opens on that week (and its selected/first bookable day), not the current week
+
+**Given** I change the selected day/week and reopen the floor plan
+**When** it opens
+**Then** it reflects the latest selection
+
+### Story 36.7: Unified Colleague Booking via Confirmation Dialog
+
+**FRs covered:** FR175, FR176
+
+As a user booking for a colleague,
+I want one consistent way to pick a colleague across all views,
+so that the booking flow is predictable.
+
+**Acceptance Criteria:**
+
+**Given** the tile view
+**When** I click "Book"
+**Then** the shared booking confirmation dialog opens and offers colleague selection, and the
+previous inline colleague dropdown is no longer present on the tile view
+
+**Given** the confirmation dialog with a colleague selected
+**When** I confirm
+**Then** the booking is created on that colleague's behalf
+
+**Given** the floor-plan booking dialog
+**When** I open it
+**Then** it also offers colleague selection
+
+**Given** a colleague and multiple days selected in the floor-plan dialog
+**When** I confirm
+**Then** every selected day is booked on that colleague's behalf
+
+**Given** no colleague is selected
+**When** I confirm
+**Then** the booking is created for myself (unchanged default)
+
+### Story 36.8: Full-Width Booker Names in the Weekly Table
+
+**FRs covered:** FR177
+
+As a user reading the weekly table,
+I want colleagues' names shown as fully as the cell allows,
+so that I can recognize people by their first names.
+
+**Acceptance Criteria:**
+
+**Given** the weekly table booker-name cells
+**When** they render
+**Then** they use the maximum available cell width with decent padding, and the previous 60px
+max-width cap is removed
+
+**Given** a name that fits the cell
+**When** it renders
+**Then** the full first and last name is shown
+
+**Given** a name too long for the cell
+**When** it renders
+**Then** it is truncated from the end (ellipsis) so the first name stays visible
+
+### Story 36.9: Guard Against Multiple Bookings per Area and Day
+
+**FRs covered:** FR178
+
+As a user,
+I want to be warned when I already have a booking in an area on a day,
+so that I don't unknowingly block multiple slots.
+
+**Acceptance Criteria:**
+
+**Given** I already have a booking for an item in an area on a given day
+**When** I try to book another item in the same area on the same day
+**Then** a dialog appears: "You already booked \<ITEM\> on \<DATE\>. Multiple bookings per area
+and day are not allowed. Do you want to cancel \<ITEM\> and book \<NEW-ITEM\> instead?"
+
+**Given** that dialog
+**When** I confirm
+**Then** my existing booking for that area and day is cancelled and the new booking is created
+
+**Given** that dialog
+**When** I cancel
+**Then** no change is made — the original booking remains and the new one is not created
+
+**Given** the guard
+**When** a booking is attempted from the tile, table, or floor-plan flow
+**Then** it applies consistently and is scoped to the same area and the same day
