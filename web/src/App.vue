@@ -143,6 +143,11 @@
               </template>
               <v-list-item-title>{{ $t('app.userMenu.signOut') }}</v-list-item-title>
             </v-list-item>
+            <v-list-item v-if="appVersion">
+              <v-list-item-subtitle class="text-caption text-medium-emphasis" data-cy="app-version">
+                {{ $t('app.userMenu.version') }} {{ appVersion }}
+              </v-list-item-subtitle>
+            </v-list-item>
           </v-list>
         </v-menu>
 
@@ -262,6 +267,11 @@
               <v-icon>$logout</v-icon>
             </template>
             <v-list-item-title>{{ $t('app.userMenu.signOut') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item v-if="appVersion">
+            <v-list-item-subtitle class="text-caption text-medium-emphasis" data-cy="mobile-app-version">
+              {{ $t('app.userMenu.version') }} {{ appVersion }}
+            </v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </v-navigation-drawer>
@@ -397,6 +407,7 @@ import { useAuthStore } from './stores/useAuthStore';
 import { useLiveFeedStore } from './stores/useLiveFeedStore';
 import { getAvatarUrl, uploadAvatar, deleteAvatar } from './api/avatars';
 import { logout } from './api/auth';
+import { fetchVersion } from './api/version';
 import { changePassword } from './api/me';
 import { ApiError } from './api/client';
 import { useI18n } from 'vue-i18n';
@@ -423,12 +434,24 @@ const router = useRouter();
 const authStore = useAuthStore();
 const liveFeedStore = useLiveFeedStore();
 const mobileDrawer = ref(false);
+const appVersion = ref('');
+
+async function loadVersion() {
+  if (appVersion.value) return;
+  try {
+    const response = await fetchVersion();
+    appVersion.value = response.data.attributes.version;
+  } catch {
+    // Version is non-critical; leave empty so the line stays hidden.
+  }
+}
 
 watch(
   () => authStore.isAuthenticated,
   (authed) => {
     if (authed) {
       liveFeedStore.start();
+      void loadVersion();
     } else {
       liveFeedStore.stop();
     }

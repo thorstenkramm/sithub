@@ -81,6 +81,8 @@ describe('week booking mode', () => {
 
     cy.get('[data-cy="week-day-checkbox"]').first().click();
     cy.get('[data-cy="week-confirm-btn"]').click();
+    // Week booking now routes through the shared tile booking dialog.
+    cy.get('[data-cy="tile-booking-confirm"]').click();
     cy.wait('@createBooking');
 
     cy.get('[data-cy="week-booking-results"]', { timeout: 10000 }).should('be.visible');

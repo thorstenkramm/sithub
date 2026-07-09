@@ -1,6 +1,6 @@
 # Story 36.3: Named On-Behalf Bookings in My Bookings
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,57 +21,34 @@ so that I can tell my on-behalf bookings apart.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Expose the colleague's full name on the My Bookings API (AC: #1, #3)
-  - [ ] In `writeBookingsCollection` (`internal/bookings/handler.go:393-459`), the current logic only
-        resolves a display name for `rec.BookedByUserID` (the booker). For an on-behalf booking made
-        BY the current user, `rec.UserID` is the colleague and `rec.BookedByUserID` is the current
-        user — so the colleague's name is never looked up today. Add the colleague's user ID
-        (`rec.UserID`, when it differs from the current user) to the `userIDSet` collected at
-        `handler.go:398-403` so `users.FindDisplayNames` (`internal/users/store.go:322`) resolves it.
-  - [ ] Add a new attribute `for_user_name` (snake_case per JSON:API) to `MyBookingAttributes`
-        (`internal/bookings/handler.go:72-87`), e.g. `ForUserName string
-        \`json:"for_user_name,omitempty"\``. Populate it in the resource loop
-        (`handler.go:436-446`) ONLY for the on-behalf-by-me case: when
-        `rec.BookedByUserID == currentUserID && rec.UserID != currentUserID`, set
-        `attrs.ForUserName = displayNames[rec.UserID]`. Do not set it for self-bookings or for
-        bookings made FOR the current user (`booked_for_me`).
-  - [ ] Leave the existing `booked_by_user_name` / `booked_for_me` behaviour unchanged — that path
-        (`handler.go:437-446`) serves the reverse case (someone booked FOR me) and is out of scope.
-- [ ] Task 2: Add the field to the frontend booking type (AC: #1, #3)
-  - [ ] Add `for_user_name?: string;` to `MyBookingAttributes` in `web/src/api/bookings.ts:12-28`,
-        keeping the snake_case name aligned with the API attribute.
-- [ ] Task 3: Render the named on-behalf hint in the tile view (AC: #1, #2, #3)
-  - [ ] In `BookingCard.vue`, the on-behalf chip at `web/src/components/BookingCard.vue:27-32`
-        currently renders a bare "On behalf" `StatusChip` with no name. Show the colleague's full
-        name. Prefer adding a caption line (mirroring the existing `booked_by`
-        block at `BookingCard.vue:39-46`) that renders
-        `t('bookings.onBehalfOf', { name: booking.attributes.for_user_name })` when
-        `booking.attributes.booked_by_user_id && !booking.attributes.booked_for_me &&
-        booking.attributes.for_user_name`. Keep it consistent with the `booked-for-me` caption
-        pattern; add a `data-cy` such as `on-behalf-of` for testability.
-  - [ ] Add the `bookings.onBehalfOf` key ("On behalf of {name}") to all five locale files
-        (`web/src/locales/{en,de,fr,es,uk}.json` — `bookings` section, near `bookedBy` at
-        `en.json:183`). Existing bare `status.onBehalf` (`en.json:283`) stays for the chip label.
-  - [ ] A self-booking (no `booked_by_user_id`, `booked_for_me = false`) shows neither the chip nor
-        the caption — verify the existing `v-else-if` at `BookingCard.vue:27-28` already guards this.
-- [ ] Task 4: Render the named on-behalf hint in the table view (AC: #1, #3)
-  - [ ] Story 36.2 (`36-2-desktop-table-view-for-my-bookings`, still backlog) introduces the My
-        Bookings table with a status / on-behalf column. In that table's on-behalf cell, render the
-        same "On behalf of {name}" text driven by `for_user_name`, reusing the
-        `bookings.onBehalfOf` key so both views read identically (AC #3).
-  - [ ] If 36.2 has not landed when this story is implemented, coordinate sequencing: the backend
-        field (Task 1) and shared i18n key (Task 3) are prerequisites the table view will consume;
-        the tile view (Task 3) is fully implementable independently.
-- [ ] Task 5: Tests (AC: #1, #2, #3)
-  - [ ] Go: extend the list/collection handler tests to assert `for_user_name` is present with the
-        colleague's display name for an on-behalf-by-me booking, and absent for a self-booking and
-        for a `booked_for_me` booking. Reuse `seedTestUser` / `seedTestBookingFull`
-        (`internal/bookings/testhelpers_test.go:33-65`); see the existing on-behalf coverage
-        `TestCreateHandlerBookOnBehalf` (`internal/bookings/handler_test.go:635`) and the
-        `booked_by_user_name` assertions at `handler_test.go:900-908`.
-  - [ ] Frontend: component test for `BookingCard.vue` — on-behalf booking (with `for_user_name`)
-        shows "On behalf of <name>"; self-booking shows no hint. Follow the existing stub/assertion
-        pattern in `web/src/views/MyBookingsView.test.ts:55-82`.
+- [x] Task 1: Expose the colleague's full name on the My Bookings API (AC: #1, #3)
+  - [x] In `writeBookingsCollection`, added `rec.UserID` (when it differs from the current user) to
+        the `userIDSet` so `users.FindDisplayNames` resolves the colleague's display name.
+  - [x] Added a new `for_user_name` (`json:"for_user_name,omitempty"`) attribute to
+        `MyBookingAttributes`. Populated only for the on-behalf-by-me case
+        (`rec.BookedByUserID == currentUserID && rec.UserID != currentUserID`) via a new helper
+        `buildMyBookingAttributes` (extracted to keep gocognit within threshold).
+  - [x] Left the existing `booked_by_user_name` / `booked_for_me` behaviour unchanged.
+- [x] Task 2: Add the field to the frontend booking type (AC: #1, #3)
+  - [x] Added `for_user_name?: string;` to `MyBookingAttributes` in `web/src/api/bookings.ts`.
+- [x] Task 3: Render the named on-behalf hint in the tile view (AC: #1, #2, #3)
+  - [x] In `BookingCard.vue`, added a caption line rendering
+        `t('bookings.onBehalfOf', { name: for_user_name })` guarded by
+        `booked_by_user_id && !booked_for_me && for_user_name`, with `data-cy="on-behalf-of"`.
+  - [x] Added the `bookings.onBehalfOf` key ("On behalf of {name}") to all five locale files;
+        the bare `status.onBehalf` chip label is unchanged.
+  - [x] Self-bookings show neither the chip (existing `v-else-if` guard) nor the caption.
+- [x] Task 4: Render the named on-behalf hint in the table view (AC: #1, #3)
+  - [x] Story 36.2 landed in the same change; the table's For/Guest cell renders the same
+        "On behalf of {name}" text via `for_user_name` + `bookings.onBehalfOf`, so both views read
+        identically.
+- [x] Task 5: Tests (AC: #1, #2, #3)
+  - [x] Go: added `TestListHandlerIncludesForUserNameForOnBehalfByMe` asserting `for_user_name` is
+        present with the colleague's display name for on-behalf-by-me, and absent for both a
+        self-booking and a `booked_for_me` booking.
+  - [x] Frontend: added `web/src/components/BookingCard.test.ts` (on-behalf shows the name,
+        self-booking shows no hint, booked-for-me shows no on-behalf caption) plus a table-view
+        assertion in `MyBookingsView.test.ts`.
 
 ## Dev Notes
 
@@ -174,8 +151,42 @@ existing on-behalf bookings are **displayed** in My Bookings, not how they are c
 
 ### Agent Model Used
 
+claude-opus-4-8
+
 ### Debug Log References
+
+- Go gate: `go test ./...` (incl. new `TestListHandlerIncludesForUserNameForOnBehalfByMe`),
+  `go vet ./...`, `gofmt -l`, `golangci-lint run ./...` — all clean.
+- golangci-lint initially flagged gocognit 28 on `writeBookingsCollection` after the new branch;
+  resolved by extracting `buildMyBookingAttributes`.
+- Frontend gate: `npm run type-check`, `npm run lint`, `npx vitest run` (485 tests pass),
+  `npm run build` — all clean.
 
 ### Completion Notes List
 
+- The API change is the crux: the colleague (`rec.UserID`) was never resolved before, so
+  `for_user_name` is a genuinely new attribute, emitted only for on-behalf-by-me bookings via
+  `omitempty`. Self-bookings and booked-for-me bookings emit no field.
+- Attribute name `for_user_name` matches the existing create-request attribute and JSON:API
+  snake_case rules; the app stores a single `display_name` (full name), which satisfies FR168.
+- Tile and table views share the `bookings.onBehalfOf` key so wording is identical across views.
+- Implemented sequentially after Story 36.2; the table cell wires the same field, so no rework was
+  needed.
+
 ### File List
+
+- `internal/bookings/handler.go` (modified — `ForUserName` attribute, colleague lookup, extracted
+  `buildMyBookingAttributes` helper)
+- `internal/bookings/handler_test.go` (modified — `TestListHandlerIncludesForUserNameForOnBehalfByMe`)
+- `web/src/api/bookings.ts` (modified — `for_user_name?` on `MyBookingAttributes`)
+- `web/src/components/BookingCard.vue` (modified — on-behalf-of caption)
+- `web/src/components/BookingCard.test.ts` (new)
+- `web/src/views/MyBookingsView.vue` (table For/Guest cell renders `onBehalfOf`; shared with 36.2)
+- `web/src/views/MyBookingsView.test.ts` (table on-behalf-name assertion)
+- `web/src/locales/{en,de,es,fr,uk}.json` (modified — `bookings.onBehalfOf`)
+
+### Change Log
+
+- 2026-07-09: Added the `for_user_name` API attribute for on-behalf-by-me bookings (FR168) and
+  rendered "On behalf of {name}" in both the tile (`BookingCard`) and table (36.2) views, with Go
+  handler tests and a `BookingCard` component test.

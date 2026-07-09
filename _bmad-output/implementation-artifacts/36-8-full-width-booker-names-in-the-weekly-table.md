@@ -1,6 +1,6 @@
 # Story 36.8: Full-Width Booker Names in the Weekly Table
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,41 +20,41 @@ so that I can recognize people by their first names.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Show the full booker name (first + last) in the occupied cell (AC: #2)
-  - [ ] In `AreaWeeklyMatrixCell.vue`, the occupied cell currently renders `shortName`
+- [x] Task 1: Show the full booker name (first + last) in the occupied cell (AC: #2)
+  - [x] In `AreaWeeklyMatrixCell.vue`, the occupied cell currently renders `shortName`
         (`{{ shortName }}` at template ~57), which is `getShortName(cell.booker_name)` (~87). That
         helper abbreviates the first name to an initial ("Ada Lovelace" -> "A. Lovelace",
         `utils/text.ts:20-26`) and hard-caps length at 14. That conflicts with AC #2 ("full first
         and last name"). Replace the displayed value with the full `cell.booker_name` so the first
         name is shown in full; let CSS width + ellipsis (Task 2) handle overflow instead of the
         helper's length cap.
-  - [ ] Keep `initials` (used only in the past-day branch, template ~10 / ~86) unchanged — AC #2/#3
+  - [x] Keep `initials` (used only in the past-day branch, template ~10 / ~86) unchanged — AC #2/#3
         are about the interactive occupied cell, not the muted past-day pill.
-  - [ ] `booker_name` is the full display name already present on the cell (`itemGroupMatrix.ts:13`,
+  - [x] `booker_name` is the full display name already present on the cell (`itemGroupMatrix.ts:13`,
         `booker_name?: string`) — no API or type change and no new prop threading is required.
-- [ ] Task 2: Remove the 60px cap, use available width + padding, truncate from the END (AC: #1, #3)
-  - [ ] In `AreaWeeklyMatrixCell.vue` `<style scoped>`, edit the `.cell-short-name` selector
+- [x] Task 2: Remove the 60px cap, use available width + padding, truncate from the END (AC: #1, #3)
+  - [x] In `AreaWeeklyMatrixCell.vue` `<style scoped>`, edit the `.cell-short-name` selector
         (~199-207): delete `max-width: 60px;` (~206). The `<td>.matrix-cell` already sets
         `min-width: 80px` and `padding: 4px` (~118-119) and `.cell-content` adds `padding: 2px 4px`
         (~132), so the name now uses the full cell width with decent padding.
-  - [ ] Keep `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` (~203-205). With no
+  - [x] Keep `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` (~203-205). With no
         `max-width` and the default LTR text direction, `text-overflow: ellipsis` truncates from the
         END, so the last name is dropped first and the first name stays visible (AC #3). Do NOT add
         `direction: rtl` — that would truncate from the front.
-  - [ ] Add `min-width: 0;` to `.cell-short-name` if needed so the span can shrink inside the
+  - [x] Add `min-width: 0;` to `.cell-short-name` if needed so the span can shrink inside the
         flex `.cell-content` (~125-133) and actually ellipsis instead of overflowing; verify in the
         browser (see visual notes).
-  - [ ] Leave the avatar branch (`.cell-avatar`, template ~46-56) as-is; when an avatar is shown the
+  - [x] Leave the avatar branch (`.cell-avatar`, template ~46-56) as-is; when an avatar is shown the
         name sits beside it and must still ellipsis within the remaining width.
-- [ ] Task 3: Tests (AC: #1, #2, #3)
-  - [ ] Update the existing Vitest expectation in `AreaWeeklyMatrixView.test.ts:471` — the
+- [x] Task 3: Tests (AC: #1, #2, #3)
+  - [x] Update the existing Vitest expectation in `AreaWeeklyMatrixView.test.ts:471` — the
         occupied-cell test asserts `matrix-cell-initials` text equals `'A. Lovelace'`; after Task 1
         it must equal the full name `'Ada Lovelace'`. The tooltip assertion (~472,
         `matrix-cell-tooltip` == `'Ada Lovelace'`) stays unchanged.
-  - [ ] Add a case: a long booker name (e.g. `'Alexander Seidemann-Klamant'`) renders in full in the
+  - [x] Add a case: a long booker name (e.g. `'Alexander Seidemann-Klamant'`) renders in full in the
         `matrix-cell-initials` span text (JSDOM does not compute pixel truncation, so assert the raw
         text is the full name and rely on the CSS class for visual truncation).
-  - [ ] Run `npm run type-check`, `npm run lint`, `npx vitest run`, and `npm run build`.
+  - [x] Run `npm run type-check`, `npm run lint`, `npx vitest run`, and `npm run build`.
 
 ## Dev Notes
 
@@ -156,8 +156,40 @@ ellipsis with the first name still readable. Screenshot before/after for the cha
 
 ### Agent Model Used
 
+claude-opus-4-8
+
 ### Debug Log References
+
+- `cd web && npm run type-check` — clean (vue-tsc --noEmit, no errors).
+- `cd web && npm run lint` — clean (eslint --max-warnings 0). Removed the now-unused `getShortName`
+  import and `shortName` computed to keep lint green.
+- `cd web && npx vitest run src/components/area-weekly-matrix` — 3 files, 45 tests passed.
+- `cd web && npm run build` — built successfully.
 
 ### Completion Notes List
 
+- Occupied-cell name span now renders the full `cell.booker_name` instead of the abbreviated
+  `getShortName(...)` output, satisfying AC #2 (full first + last name).
+- Removed `max-width: 60px` from `.cell-short-name` and added `min-width: 0` so the span shrinks
+  inside the flex `.cell-content` and truncates with the existing LTR `text-overflow: ellipsis`
+  (drops the last name first, keeps the first name visible — AC #1, #3). No `direction: rtl` added.
+- `getShortName` import and the `shortName` computed became unused after the template change and were
+  removed; `getInitials`/`initials` remain for the past-day pill (unchanged, per Task 1).
+- No API/type change: `booker_name?: string` already carries the full name on `MatrixCell`.
+- Updated the existing occupied-cell test expectation from `'A. Lovelace'` to `'Ada Lovelace'`
+  (tooltip assertion unchanged) and added a long-name case (`'Alexander Seidemann-Klamant'`) that
+  asserts the full text renders and the span carries the `cell-short-name` class for visual
+  truncation (JSDOM does not compute pixel layout).
+
 ### File List
+
+- `web/src/components/area-weekly-matrix/AreaWeeklyMatrixCell.vue` (modified)
+- `web/src/components/area-weekly-matrix/AreaWeeklyMatrixView.test.ts` (modified)
+
+## Change Log
+
+- 2026-07-09: Story 36.8 (FR177) implemented. Weekly-table booker-name cell now shows the full
+  `booker_name` at full available cell width; removed the 60px cap and added `min-width: 0` so the
+  name truncates from the end (last name first) via the existing ellipsis. Dropped the unused
+  `getShortName` usage in this cell. Updated Vitest expectation to the full name and added a
+  long-name rendering case. Gates (type-check, lint, matrix vitest, build) all pass.

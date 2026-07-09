@@ -34,6 +34,7 @@ jobs:
             --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:/src" \
             -v "${{ github.workspace }}/.trivycache:/cache" \
+            -w /src \
             aquasec/trivy:0.69.3 fs \
             --cache-dir /cache \
             --scanners vuln \
@@ -49,6 +50,7 @@ jobs:
             --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:/src" \
             -v "${{ github.workspace }}/.trivycache:/cache" \
+            -w /src \
             aquasec/trivy:0.69.3 fs \
             --cache-dir /cache \
             --skip-db-update \

@@ -858,7 +858,40 @@ func TestListHandlerIncludesGuestBookings(t *testing.T) {
 	attrs, ok := resp.Data[0].Attributes.(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, true, attrs["is_guest"])
+	assert.Equal(t, "John Visitor", attrs["guest_name"])
 	assert.Equal(t, "visitor@example.com", attrs["guest_email"])
+}
+
+func TestListHandlerOmitsGuestNameForNonGuestBooking(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	store := setupTestStore(t)
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+
+	// Regular (non-guest) booking made by user-1 for themselves
+	seedTestBookingFull(t, store, "b1", "desk-1", "user-1", "user-1", tomorrow)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "User One"})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 1)
+
+	attrs, ok := resp.Data[0].Attributes.(map[string]interface{})
+	require.True(t, ok)
+	_, hasGuestName := attrs["guest_name"]
+	assert.False(t, hasGuestName, "guest_name must be omitted for non-guest bookings")
 }
 
 func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {
@@ -910,6 +943,65 @@ func TestListHandlerIncludesBookingsMadeForUser(t *testing.T) {
 		}
 	}
 	assert.True(t, foundBookedForMe, "booking made for user should be in list")
+}
+
+func TestListHandlerIncludesForUserNameForOnBehalfByMe(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	store := setupTestStore(t)
+
+	// Seed the colleague so the display name lookup resolves.
+	seedTestUser(t, store, "colleague", "Colleague Person")
+	seedTestUser(t, store, "booker", "Booker Person")
+
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	dayAfter := time.Now().UTC().AddDate(0, 0, 2).Format(time.DateOnly)
+	dayThree := time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)
+
+	// Self-booking by user-1 (no for_user_name expected).
+	seedTestBookingFull(t, store, "self", "desk-1", "user-1", "user-1", tomorrow)
+	// On-behalf booking made BY user-1 FOR colleague (for_user_name expected).
+	seedTestBookingFull(t, store, "onbehalf", "desk-2", "colleague", "user-1", dayAfter)
+	// Booking made FOR user-1 by someone else (booked_for_me, no for_user_name).
+	seedTestBookingFull(t, store, "forme", "desk-1", "user-1", "booker", dayThree)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookings", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "user-1", Name: "User One"})
+
+	h := ListHandler(cfg, store)
+	require.NoError(t, h(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp api.CollectionResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 3)
+
+	byID := make(map[string]map[string]interface{}, len(resp.Data))
+	for _, res := range resp.Data {
+		attrs, ok := res.Attributes.(map[string]interface{})
+		require.True(t, ok)
+		byID[res.ID] = attrs
+	}
+
+	// On-behalf-by-me booking exposes the colleague's id and full name.
+	assert.Equal(t, "Colleague Person", byID["onbehalf"]["for_user_name"])
+	assert.Equal(t, "colleague", byID["onbehalf"]["for_user_id"])
+	// Self-booking has no for_user_name/for_user_id (omitempty).
+	_, selfHas := byID["self"]["for_user_name"]
+	assert.False(t, selfHas, "self-booking must not include for_user_name")
+	_, selfHasID := byID["self"]["for_user_id"]
+	assert.False(t, selfHasID, "self-booking must not include for_user_id")
+	// booked_for_me booking has no for_user_name/for_user_id.
+	_, forMeHas := byID["forme"]["for_user_name"]
+	assert.False(t, forMeHas, "booked-for-me booking must not include for_user_name")
+	_, forMeHasID := byID["forme"]["for_user_id"]
+	assert.False(t, forMeHasID, "booked-for-me booking must not include for_user_id")
+	assert.Equal(t, true, byID["forme"]["booked_for_me"])
 }
 
 func TestDeleteHandlerOnBehalfBookingCancellation(t *testing.T) {

@@ -63,8 +63,8 @@ run_step "Frontend build" bash -c "cd \"${WEB_DIR}\" && npm run build"
 
 # Security tests
 run_step "Frontend NPM Audit" bash -c "cd \"${WEB_DIR}\" && npm audit"
-run_step "Frontend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ aquasec/trivy:0.69.3 fs --include-dev-deps --disable-telemetry /src/web --exit-code 1"
-run_step "Backend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ aquasec/trivy:0.69.3 fs --skip-dirs private --skip-dirs web --skip-dirs .codex --include-dev-deps /src --exit-code 1"
+run_step "Frontend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ -w /src aquasec/trivy:0.69.3 fs --include-dev-deps --disable-telemetry /src/web --exit-code 1"
+run_step "Backend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ -w /src aquasec/trivy:0.69.3 fs --skip-dirs private --skip-dirs web --skip-dirs .codex --include-dev-deps /src --exit-code 1"
 
 # Cypress E2E tests require a running server
 log_step "Cypress E2E tests"

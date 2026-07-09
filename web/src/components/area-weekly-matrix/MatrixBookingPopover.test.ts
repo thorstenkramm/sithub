@@ -1,14 +1,16 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import MatrixBookingPopover from './MatrixBookingPopover.vue';
-import { createBooking } from '../../api/bookings';
+import { createBooking, cancelBooking, fetchMyBookings } from '../../api/bookings';
 import { fetchColleagues } from '../../api/users';
 import { ApiError } from '../../api/client';
 import { createTestI18n } from '../../__tests__/helpers/i18n';
 import { popoverStubs } from './testHelpers';
 
 vi.mock('../../api/bookings', () => ({
-  createBooking: vi.fn()
+  createBooking: vi.fn(),
+  cancelBooking: vi.fn(),
+  fetchMyBookings: vi.fn()
 }));
 
 vi.mock('../../api/users', () => ({
@@ -16,6 +18,8 @@ vi.mock('../../api/users', () => ({
 }));
 
 const createBookingMock = createBooking as unknown as ReturnType<typeof vi.fn>;
+const cancelBookingMock = cancelBooking as unknown as ReturnType<typeof vi.fn>;
+const fetchMyBookingsMock = fetchMyBookings as unknown as ReturnType<typeof vi.fn>;
 const fetchColleaguesMock = fetchColleagues as unknown as ReturnType<typeof vi.fn>;
 
 const defaultItem = {
@@ -61,6 +65,13 @@ const stubs = {
       + '<button data-cy="warning-confirm-btn" @click="$emit(\'confirm\')">confirm</button>'
       + '<button data-cy="warning-cancel-btn" @click="$emit(\'cancel\')">cancel</button></div>',
     props: ['modelValue', 'itemName', 'message', 'dontShowAgain']
+  },
+  ConfirmDialog: {
+    template: '<div v-if="modelValue" data-cy="confirm-dialog">'
+      + '<span data-cy="confirm-dialog-message">{{ message }}</span>'
+      + '<button data-cy="confirm-dialog-confirm" @click="$emit(\'confirm\')">confirm</button>'
+      + '<button data-cy="confirm-dialog-cancel" @click="$emit(\'update:modelValue\', false); $emit(\'cancel\')">cancel</button></div>',
+    props: ['modelValue', 'title', 'message', 'confirmText', 'confirmColor', 'loading']
   }
 };
 
@@ -74,7 +85,8 @@ function mountPopover(overrides: {
       modelValue: overrides.modelValue ?? true,
       activatorEl: document.createElement('td'),
       item: overrides.item ?? { ...defaultItem },
-      cell: overrides.cell ?? { ...defaultCell }
+      cell: overrides.cell ?? { ...defaultCell },
+      areaId: 'area-1'
     },
     global: {
       stubs,
@@ -87,6 +99,10 @@ describe('MatrixBookingPopover', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     createBookingMock.mockReset();
+    cancelBookingMock.mockReset();
+    cancelBookingMock.mockResolvedValue(undefined);
+    fetchMyBookingsMock.mockReset();
+    fetchMyBookingsMock.mockResolvedValue({ data: [] });
     fetchColleaguesMock.mockReset();
     fetchColleaguesMock.mockResolvedValue({ data: [] });
     localStorage.clear();
@@ -154,6 +170,238 @@ describe('MatrixBookingPopover', () => {
     await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
     await flushPromises();
     expect(createBookingMock).toHaveBeenCalled();
+  });
+
+  it('prompts to swap an existing same area/day booking, then books on confirm (story 36.9)', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    fetchMyBookingsMock.mockResolvedValue({
+      data: [{
+        id: 'existing-1',
+        type: 'bookings',
+        attributes: {
+          item_id: 'other-desk',
+          item_name: 'Desk Z',
+          item_group_id: 'ig',
+          item_group_name: 'IG',
+          area_id: 'area-1',
+          area_name: 'Area',
+          booking_date: defaultCell.date,
+          created_at: '',
+          booked_by_user_id: 'me',
+          booked_by_user_name: 'Me',
+          booked_for_me: true,
+          note: ''
+        }
+      }]
+    });
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="confirm-dialog"]').exists()).toBe(true);
+    expect(createBookingMock).not.toHaveBeenCalled();
+
+    await wrapper.find('[data-cy="confirm-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    // Create-then-cancel: the new booking is created BEFORE the old one is
+    // cancelled (story 36.9 D2).
+    expect(createBookingMock).toHaveBeenCalled();
+    expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
+    const createOrder = createBookingMock.mock.invocationCallOrder[0]!;
+    const cancelOrder = cancelBookingMock.mock.invocationCallOrder[0]!;
+    expect(createOrder).toBeLessThan(cancelOrder);
+  });
+
+  it('keeps the new booking and warns when the post-create cancel fails (story 36.9)', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    cancelBookingMock.mockRejectedValueOnce(new Error('cancel failed'));
+    fetchMyBookingsMock.mockResolvedValue({
+      data: [{
+        id: 'existing-1',
+        type: 'bookings',
+        attributes: {
+          item_id: 'other-desk',
+          item_name: 'Desk Z',
+          item_group_id: 'ig',
+          item_group_name: 'IG',
+          area_id: 'area-1',
+          area_name: 'Area',
+          booking_date: defaultCell.date,
+          created_at: '',
+          booked_by_user_id: 'me',
+          booked_by_user_name: 'Me',
+          booked_for_me: true,
+          note: ''
+        }
+      }]
+    });
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+    await wrapper.find('[data-cy="confirm-dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(createBookingMock).toHaveBeenCalled();
+    expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
+    // 'booked' still emitted since the new booking succeeded.
+    expect(wrapper.emitted('booked')).toBeTruthy();
+  });
+
+  it('ignores an on-behalf booking in the same area/day (self-scoped guard, story 36.9)', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    // for_user_name set: made for a colleague; must not be swapped.
+    fetchMyBookingsMock.mockResolvedValue({
+      data: [{
+        id: 'existing-1',
+        type: 'bookings',
+        attributes: {
+          item_id: 'other-desk',
+          item_name: 'Desk Z',
+          item_group_id: 'ig',
+          item_group_name: 'IG',
+          area_id: 'area-1',
+          area_name: 'Area',
+          booking_date: defaultCell.date,
+          created_at: '',
+          booked_by_user_id: 'me',
+          booked_by_user_name: 'Me',
+          booked_for_me: false,
+          for_user_name: 'Colleague',
+          note: ''
+        }
+      }]
+    });
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    // No swap prompt; books directly without cancelling the colleague's seat.
+    expect(wrapper.find('[data-cy="confirm-dialog"]').exists()).toBe(false);
+    expect(cancelBookingMock).not.toHaveBeenCalled();
+    expect(createBookingMock).toHaveBeenCalled();
+  });
+
+  it('does not prompt for a colleague booking when only the user has a conflict (story 36.9)', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    // The user has an own conflicting booking, but the NEW booking is for a
+    // colleague — it never occupies the user's own seat, so no guard prompt.
+    fetchMyBookingsMock.mockResolvedValue({
+      data: [{
+        id: 'existing-1',
+        type: 'bookings',
+        attributes: {
+          item_id: 'other-desk',
+          item_name: 'Desk Z',
+          item_group_id: 'ig',
+          item_group_name: 'IG',
+          area_id: 'area-1',
+          area_name: 'Area',
+          booking_date: defaultCell.date,
+          created_at: '',
+          note: ''
+        }
+      }]
+    });
+    const wrapper = mountPopover();
+    await flushPromises();
+    const vm = wrapper.vm as unknown as { bookingType: string; selectedColleagueId: string | null };
+    vm.bookingType = 'colleague';
+    vm.selectedColleagueId = 'u-1';
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(false);
+    expect(cancelBookingMock).not.toHaveBeenCalled();
+    expect(createBookingMock).toHaveBeenCalled();
+  });
+
+  it('prompts when the colleague already has a booking in the same area/day (story 36.9)', async () => {
+    createBookingMock.mockResolvedValue({ data: { id: 'b-1', type: 'bookings', attributes: {} } });
+    cancelBookingMock.mockResolvedValue(undefined);
+    // The user already booked Desk Z for colleague u-1 on the same area/day.
+    fetchMyBookingsMock.mockResolvedValue({
+      data: [{
+        id: 'existing-1',
+        type: 'bookings',
+        attributes: {
+          item_id: 'other-desk',
+          item_name: 'Desk Z',
+          item_group_id: 'ig',
+          item_group_name: 'IG',
+          area_id: 'area-1',
+          area_name: 'Area',
+          booking_date: defaultCell.date,
+          created_at: '',
+          booked_by_user_id: 'me',
+          for_user_id: 'u-1',
+          for_user_name: 'Jane Doe',
+          note: ''
+        }
+      }]
+    });
+    const wrapper = mountPopover();
+    await flushPromises();
+    const vm = wrapper.vm as unknown as { bookingType: string; selectedColleagueId: string | null };
+    vm.bookingType = 'colleague';
+    vm.selectedColleagueId = 'u-1';
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    // The colleague-variant swap prompt names the colleague; nothing created yet.
+    const dialog = wrapper.find('[data-cy="confirm-dialog-confirm"]');
+    expect(dialog.exists()).toBe(true);
+    expect(wrapper.text()).toContain('Jane Doe');
+    expect(createBookingMock).not.toHaveBeenCalled();
+
+    // Confirming swaps: create the new booking first, then cancel the old one.
+    await dialog.trigger('click');
+    await flushPromises();
+    expect(createBookingMock).toHaveBeenCalled();
+    expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
+  });
+
+  it('does not book when the swap prompt is cancelled (story 36.9)', async () => {
+    fetchMyBookingsMock.mockResolvedValue({
+      data: [{
+        id: 'existing-1',
+        type: 'bookings',
+        attributes: {
+          item_id: 'other-desk',
+          item_name: 'Desk Z',
+          item_group_id: 'ig',
+          item_group_name: 'IG',
+          area_id: 'area-1',
+          area_name: 'Area',
+          booking_date: defaultCell.date,
+          created_at: '',
+          booked_by_user_id: 'me',
+          booked_by_user_name: 'Me',
+          booked_for_me: true,
+          note: ''
+        }
+      }]
+    });
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+    await wrapper.find('[data-cy="confirm-dialog-cancel"]').trigger('click');
+    await flushPromises();
+
+    expect(cancelBookingMock).not.toHaveBeenCalled();
+    expect(createBookingMock).not.toHaveBeenCalled();
   });
 
   it('keeps the warning dialog open when the popover menu closes (controlled by CANCEL/CONFIRM only)', async () => {

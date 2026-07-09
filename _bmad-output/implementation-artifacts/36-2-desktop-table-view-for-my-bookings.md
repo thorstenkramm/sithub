@@ -1,6 +1,6 @@
 # Story 36.2: Desktop Table View for My Bookings
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,74 +21,50 @@ so that I can scan my bookings efficiently on a large screen.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add a per-view persistence composable for My Bookings (AC: #1, #2, #3)
-  - [ ] Create `web/src/composables/useMyBookingsViewPreference.ts` modeled on
-        `useAreaViewPreference.ts` (`web/src/composables/useAreaViewPreference.ts:1-60`) but with a
-        SINGLE global preference (no per-area keying). Use a flat storage key
-        `sithub_my_bookings_view` via `getSafeLocalStorage()`
-        (`web/src/composables/storage.ts:1-10`).
-  - [ ] `load(isDesktop: boolean)`: when `!isDesktop` return `'cards'` (AC #2); on desktop read the
-        stored value and return `'table'` or `'cards'`, defaulting to `'table'` when NOTHING is
-        stored (AC #1) — this is the key difference from `useAreaViewPreference`, whose desktop
-        default is `'cards'`. A stored value wins over the viewport default (AC #3).
-  - [ ] `save(view: AreaView)`: persist `'table'`/`'cards'` to the flat key so it is restored on next
-        visit (AC #3). Reuse the `AreaView` type (`'cards' | 'table'`) from
-        `useAreaViewPreference.ts:6` (export/import it — do not redefine).
-  - [ ] Add a Vitest spec `useMyBookingsViewPreference.test.ts` mirroring
-        `web/src/composables/useAreaViewPreference.test.ts` (SSR-safe no-storage path, corrupted-JSON
+- [x] Task 1: Add a per-view persistence composable for My Bookings (AC: #1, #2, #3)
+  - [x] Create `web/src/composables/useMyBookingsViewPreference.ts` modeled on
+        `useAreaViewPreference.ts` with a SINGLE global preference and flat key
+        `sithub_my_bookings_view` via `getSafeLocalStorage()`.
+  - [x] `load(isDesktop: boolean)`: mobile returns `'cards'`; desktop reads the stored value,
+        defaulting to `'table'` when nothing is stored; a stored value wins over the viewport default.
+  - [x] `save(view: AreaView)`: persists `'table'`/`'cards'` to the flat key. Reuses the imported
+        `AreaView` type from `useAreaViewPreference.ts`.
+  - [x] Added Vitest spec `useMyBookingsViewPreference.test.ts` (no-storage/SSR path, corrupted-data
         path, mobile forces cards, desktop-empty defaults to table, stored value overrides).
-- [ ] Task 2: Add viewport detection + view-switch toggle to `MyBookingsView.vue` (AC: #1, #2, #3)
-  - [ ] Add `isCompactViewport` ref and an `updateViewport()` using `window.matchMedia('(max-width:
-        768px)')`, mirroring `web/src/views/ItemGroupsView.vue:465-476`; register/cleanup a `resize`
-        listener (`onMounted`/`onUnmounted`) as in `ItemGroupsView.vue:482-485`.
-  - [ ] Wire `useMyBookingsViewPreference` — destructure `{ activeView, load, save }` and add a
-        `toggleView(val: boolean | null)` that calls `save(val ? 'table' : 'cards')`, mirroring
-        `ItemGroupsView.vue:318-324` (minus the areaId param).
-  - [ ] In `onMounted`, call `updateViewport()` then `load(!isCompactViewport.value)` BEFORE (or after)
-        the existing `fetchMe`/`loadBookings` flow (`MyBookingsView.vue:148-165`), matching
-        `ItemGroupsView.vue:482-484`.
-  - [ ] Render the Tiles/Table `v-switch` cluster from `ItemGroupsView.vue:30-67` verbatim in
-        pattern: label spans bound to `activeView`, a disabled+tooltip switch when `isCompactViewport`
-        (tooltip text `bookings.viewTableDesktopOnly`) and an enabled switch otherwise bound to
-        `toggleView`. Place it in the page header area, above the bookings list
-        (`MyBookingsView.vue:2-52`). Keep `data-cy="view-switch"` and
-        `data-cy="view-switch-container"`.
-- [ ] Task 3: Render the table view (AC: #4)
-  - [ ] Show the existing tile grid (`MyBookingsView.vue:41-52`) only when `activeView === 'cards'`;
-        render a table when `activeView === 'table'`. Use a Vuetify `v-data-table` (self-contained,
-        no new component needed) over a hand-rolled table.
-  - [ ] Columns grounded in `MyBookingAttributes` (`web/src/api/bookings.ts:12-28`): Date
-        (`booking_date`, formatted like `BookingHistoryView.vue:81` / `BookingCard` `formattedDate`),
-        Item (`item_name`), Area/Group (`area_name` + `item_group_name`), Status, and an
-        On-behalf/Guest column. Keep it scannable — one row per booking.
-  - [ ] Status column: reuse `StatusChip.vue` with the same status derivation used by `BookingCard`
-        (`web/src/components/BookingCard.vue:15-32`): `is_guest` -> `guest`; else `booked_for_me` ->
-        `booked-for-me`; else `booked_by_user_id && !booked_for_me` -> `on-behalf`. Valid statuses are
-        in `StatusChip.vue:16`.
-  - [ ] On-behalf/Guest column: surface `guest_name` (`bookings.guest`) and, for on-behalf, the
-        `booked_by_user_name` (`bookings.bookedBy`). NOTE: the "On behalf of <first> <last>" wording
-        (FR168) is delivered by Story 36.3 — here just wire the existing data/labels so the column
-        exists; 36.3 refines the text in both tile and table views.
-  - [ ] Provide a cancel affordance per row (error-colored button, `data-cy="cancel-btn"`) that emits
-        into the SAME `handleCancelBooking` flow already used by the tiles
-        (`MyBookingsView.vue:115-146`) so the confirm dialog + snackbar behavior is unchanged.
-  - [ ] Add i18n keys for column headers under the `bookings` block in all five locales
-        (`web/src/locales/{en,de,fr,es,uk}.json`, `bookings` block at en.json:171-192). Reuse the
-        existing shared `itemGroups.viewTiles`/`viewTable`/`viewTableDesktopOnly` keys
-        (`en.json:95-97`) for the toggle labels — do not duplicate them.
-- [ ] Task 4: Tests (AC: #1-#4)
-  - [ ] Extend `web/src/views/MyBookingsView.test.ts` (structure at lines 16-116): default view is
-        table on desktop with empty storage (stub `matchMedia` to non-matching); default is tiles on
-        narrow viewport (matching `max-width: 768px`); toggling persists to `localStorage` and is
-        restored on remount overriding the viewport default; table renders the expected columns and a
-        StatusChip; cancel from a table row runs the existing confirm+snackbar path
-        (`MyBookingsView.test.ts:188-204`).
-  - [ ] Add/adjust a Cypress E2E under `web/cypress/e2e` covering the AC user journey (login -> My
-        Bookings shows table on desktop, toggle to tiles persists) using `cy.login()` and network
-        waits per `.claude/rules/cypress.md`.
-  - [ ] Run `npm run type-check`, `npm run lint`, `npx vitest run`, `npm run build`; keep
-        `npx jscpd --pattern "**/*.ts"` at threshold 0 (factor the composable to avoid duplicating
-        `useAreaViewPreference`).
+- [x] Task 2: Add viewport detection + view-switch toggle to `MyBookingsView.vue` (AC: #1, #2, #3)
+  - [x] Added `isCompactViewport` ref and `updateViewport()` using
+        `window.matchMedia('(max-width: 768px)')` with SSR guard; resize listener registered in
+        `onMounted` and removed in `onUnmounted`.
+  - [x] Wired `useMyBookingsViewPreference` — `{ activeView, load, save }` plus a
+        `toggleView(val: boolean | null)` calling `save(val ? 'table' : 'cards')`.
+  - [x] In `onMounted`, calls `updateViewport()` then `load(!isCompactViewport.value)` before the
+        existing `fetchMe`/`loadBookings` flow.
+  - [x] Rendered the Tiles/Table `v-switch` cluster (label spans, disabled+tooltip switch when
+        compact using `bookings.viewTableDesktopOnly`, enabled switch bound to `toggleView`) above the
+        list, keeping `data-cy="view-switch"` and `data-cy="view-switch-container"`.
+- [x] Task 3: Render the table view (AC: #4)
+  - [x] Tile grid shown only when `activeView === 'cards'`; a Vuetify `v-data-table` renders when
+        `activeView === 'table'`.
+  - [x] Columns: Date (formatted via a shared `formatBookingDate`), Item (`item_name`),
+        Area/Group (`item_group_name` + `area_name`), Status, For/Guest, Actions.
+  - [x] Status column reuses `StatusChip.vue` with the same derivation as `BookingCard`
+        (`guest` / `booked-for-me` / `on-behalf`).
+  - [x] For/Guest column surfaces `guest_name` and `booked_by_user_name`; the "On behalf of {name}"
+        wording (FR168) is delivered alongside 36.3 via `for_user_name` + `bookings.onBehalfOf`.
+  - [x] Per-row cancel button (`data-cy="cancel-btn"`) calls the same `handleCancelBooking` flow,
+        leaving the confirm dialog + snackbar behaviour unchanged.
+  - [x] Added column-header i18n keys (`colDate`/`colItem`/`colArea`/`colStatus`/`colOnBehalf`/
+        `colActions`) plus `viewTableDesktopOnly` under the `bookings` block in all five locales;
+        reused shared `itemGroups.viewTiles`/`viewTable` for the toggle labels.
+- [x] Task 4: Tests (AC: #1-#4)
+  - [x] Extended `MyBookingsView.test.ts`: desktop-empty defaults to table; narrow viewport defaults
+        to tiles; stored preference overrides the viewport default; table renders a StatusChip and the
+        on-behalf name; cancel from a table row runs the confirm+snackbar path. All 14 tests pass.
+  - [x] Added Cypress E2E `web/cypress/e2e/my-bookings-view-toggle.cy.ts` covering login -> table on
+        desktop -> toggle to tiles -> reload persists, using `cy.login()` and `cy.wait('@listBookings')`.
+  - [x] `npm run type-check`, `npm run lint`, `npx vitest run` (485 pass), `npm run build` all clean;
+        new composable/test files introduce no jscpd clones (repo has a pre-existing 4.06% TS baseline
+        of shared view-test boilerplate).
 
 ## Dev Notes
 
@@ -123,7 +99,7 @@ Everything else (SSR guard via `getSafeLocalStorage`, corrupted-data fallthrough
 The toggle UI and wiring live in `web/src/views/ItemGroupsView.vue`:
 
 - Template: Tiles label + disabled/tooltip switch when compact + enabled switch bound to `toggleView`
-  + Table label (lines 30-67); `data-cy="view-switch-container"` and `data-cy="view-switch"`.
+  - Table label (lines 30-67); `data-cy="view-switch-container"` and `data-cy="view-switch"`.
 - Script: `const { activeView, load, save } = useAreaViewPreference()` and
   `toggleView` (lines 318-324).
 - Conditional render: matrix shown `v-else-if="activeView === 'table'"` (line 141), cards otherwise.
@@ -194,8 +170,39 @@ the AC journey using `cy.login()` and network-based waits, no fixed `cy.wait(ms)
 
 ### Agent Model Used
 
+claude-opus-4-8
+
 ### Debug Log References
+
+- Go gate: `go test ./...`, `go vet ./...`, `gofmt -l`, `golangci-lint run ./...` — all clean.
+- Frontend gate: `npm run type-check`, `npm run lint`, `npx vitest run` (485 tests pass),
+  `npm run build` — all clean.
+- After extracting `buildMyBookingAttributes` (shared with 36.3), golangci-lint gocognit stayed
+  within the 20 threshold.
 
 ### Completion Notes List
 
+- New global composable `useMyBookingsViewPreference` reuses the `AreaView` type and
+  `getSafeLocalStorage` from the Areas precedent; the only behavioural difference is the flat storage
+  key and the `'table'` desktop default.
+- The view switch and viewport detection mirror `ItemGroupsView.vue`; `matchMedia('(max-width: 768px)')`
+  is used rather than Vuetify `useDisplay`, consistent with existing views.
+- The table uses a Vuetify `v-data-table` with a For/Guest column. The on-behalf label wording is
+  shared with Story 36.3 (`for_user_name` + `bookings.onBehalfOf`) so both views read identically.
+- Cypress E2E spec authored and linted; it was not executed here as it requires the live dev-server
+  - seeded DB stack. Unit tests fully cover the toggle/persistence and label behaviour.
+
 ### File List
+
+- `web/src/composables/useMyBookingsViewPreference.ts` (new)
+- `web/src/composables/useMyBookingsViewPreference.test.ts` (new)
+- `web/src/views/MyBookingsView.vue` (modified — toggle, viewport detection, table view)
+- `web/src/views/MyBookingsView.test.ts` (modified — table/tile toggle + persistence + cancel tests)
+- `web/cypress/e2e/my-bookings-view-toggle.cy.ts` (new)
+- `web/src/locales/{en,de,es,fr,uk}.json` (modified — column headers + `viewTableDesktopOnly`)
+
+### Change Log
+
+- 2026-07-09: Implemented the desktop table view with a persisted tile/table toggle for My Bookings
+  (FR167). Added the `useMyBookingsViewPreference` composable, a `v-data-table` view, viewport-based
+  defaulting, i18n column headers in all locales, unit tests, and a Cypress E2E.

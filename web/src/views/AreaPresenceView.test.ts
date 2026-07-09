@@ -37,6 +37,10 @@ describe('AreaPresenceView', () => {
     'v-spacer',
     'router-link'
   ]);
+  // Render the #prepend slot (avatar) in addition to the default slot.
+  stubs['v-list-item'] = {
+    template: '<div><slot name="prepend" /><slot /></div>'
+  };
 
   const fetchAreaPresenceMock = vi.mocked(fetchAreaPresence);
   const fetchAreasMock = vi.mocked(fetchAreas);
@@ -82,6 +86,63 @@ describe('AreaPresenceView', () => {
     expect(wrapper.text()).toContain('Alice Smith');
     expect(wrapper.text()).toContain('Room One');
     expect(wrapper.text()).toContain('Desk 1');
+  });
+
+  it('renders the avatar image and no initials for a user with a photo', async () => {
+    fetchAreaPresenceMock.mockResolvedValue({
+      data: [
+        {
+          id: 'booking-1',
+          type: 'presence',
+          attributes: {
+            user_id: 'user-1',
+            user_name: 'Alice Smith',
+            item_id: 'item-1',
+            item_name: 'Desk 1',
+            item_group_id: 'ig-1',
+            item_group_name: 'Room One'
+          }
+        }
+      ]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const img = wrapper.find('img.presence-avatar-img');
+    expect(img.exists()).toBe(true);
+    expect(img.attributes('src')).toContain('user-1');
+    expect(wrapper.find('.presence-avatar-initials').exists()).toBe(false);
+  });
+
+  it('falls back to centered initials and hides the image after a photo load error', async () => {
+    fetchAreaPresenceMock.mockResolvedValue({
+      data: [
+        {
+          id: 'booking-1',
+          type: 'presence',
+          attributes: {
+            user_id: 'user-1',
+            user_name: 'Alice Smith',
+            item_id: 'item-1',
+            item_name: 'Desk 1',
+            item_group_id: 'ig-1',
+            item_group_name: 'Room One'
+          }
+        }
+      ]
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.find('img.presence-avatar-img').trigger('error');
+    await flushPromises();
+
+    expect(wrapper.find('img.presence-avatar-img').exists()).toBe(false);
+    const initials = wrapper.find('.presence-avatar-initials');
+    expect(initials.exists()).toBe(true);
+    expect(initials.text()).toBe('AS');
   });
 
   it('shows empty state when no one is present', async () => {

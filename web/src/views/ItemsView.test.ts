@@ -143,6 +143,16 @@ describe('ItemsView', () => {
       }
     });
 
+  // Story 36.7: day-mode Book now opens the tile booking confirmation dialog.
+  // Confirming it runs the warning flow, then the create. This helper clicks
+  // Book then confirms the dialog for tests that only care about the create.
+  const bookViaDialog = async (wrapper: ReturnType<typeof mountView>) => {
+    await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+    await flushPromises();
+    await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+    await flushPromises();
+  };
+
   const setElementWidth = (
     element: Element,
     dimensions: { clientWidth?: number; scrollWidth?: number }
@@ -402,9 +412,9 @@ describe('ItemsView', () => {
       // DatePickerField component is mounted in the row instead.
       expect(wrapper.findComponent({ name: 'DatePickerField' }).exists()).toBe(true);
       expect(row.find('[data-cy="equipment-filter-input"]').exists()).toBe(true);
-      expect(row.find('[data-cy="colleague-select"]').exists()).toBe(true);
-      // No book-for-colleague checkbox per the round-2 UX feedback —
-      // selecting a colleague IS the trigger; empty means book for self.
+      // Story 36.7: the inline colleague dropdown was removed from the row;
+      // colleague selection now lives in the booking confirmation dialog.
+      expect(row.find('[data-cy="colleague-select"]').exists()).toBe(false);
       expect(row.find('[data-cy="book-colleague-checkbox"]').exists()).toBe(false);
     });
 
@@ -418,40 +428,51 @@ describe('ItemsView', () => {
       const row = wrapper.find('.booking-controls-row');
       expect(row.find('[data-cy="items-date"]').exists()).toBe(false);
       expect(row.find('[data-cy="week-selector"]').exists()).toBe(true);
-      // Other controls stay on the same row.
+      // Other controls stay on the same row; the colleague dropdown is gone.
       expect(row.find('[data-cy="equipment-filter-input"]').exists()).toBe(true);
-      expect(row.find('[data-cy="colleague-select"]').exists()).toBe(true);
+      expect(row.find('[data-cy="colleague-select"]').exists()).toBe(false);
     });
   });
 
-  describe('colleague selection (no checkbox; always enabled)', () => {
-    it('renders the colleague-select unconditionally and never renders the radio group or checkbox', async () => {
+  describe('colleague selection (via booking confirmation dialog)', () => {
+    it('has no inline colleague dropdown and opens the dialog with the shared fragment on Book', async () => {
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
       const wrapper = mountView();
       await flushPromises();
 
-      const select = wrapper.find('[data-cy="colleague-select"]');
-      expect(select.exists()).toBe(true);
-      expect(wrapper.find('[data-cy="book-self-radio"]').exists()).toBe(false);
-      expect(wrapper.find('[data-cy="book-colleague-radio"]').exists()).toBe(false);
-      expect(wrapper.find('[data-cy="book-colleague-checkbox"]').exists()).toBe(false);
+      // Inline dropdown removed.
+      expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(false);
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+
+      // Dialog opens with the shared colleague fragment (self by default).
+      expect(wrapper.find('[data-cy="tile-booking-dialog"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="tile-colleague-select"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="tile-book-self-radio"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="tile-book-colleague-radio"]').exists()).toBe(true);
     });
 
-    it('tracks the selected colleague id without a separate flag', async () => {
+    it('tracks the dialog colleague id, defaulting to null (for myself)', async () => {
       const wrapper = mountView();
       await flushPromises();
 
-      const vm = wrapper.vm as unknown as { selectedColleagueId: string | null };
-      expect(vm.selectedColleagueId).toBeNull();
+      const vm = wrapper.vm as unknown as { dialogColleagueId: string | null };
+      expect(vm.dialogColleagueId).toBeNull();
 
-      vm.selectedColleagueId = 'u-1';
+      vm.dialogColleagueId = 'u-1';
       await nextTick();
-      expect(vm.selectedColleagueId).toBe('u-1');
+      expect(vm.dialogColleagueId).toBe('u-1');
 
-      // Clearing the colleague returns the booking target to "myself" — the
-      // submit logic gates only on selectedColleagueId being truthy.
-      vm.selectedColleagueId = null;
+      vm.dialogColleagueId = null;
       await nextTick();
-      expect(vm.selectedColleagueId).toBeNull();
+      expect(vm.dialogColleagueId).toBeNull();
     });
   });
 
@@ -1184,18 +1205,27 @@ describe('ItemsView', () => {
     });
   });
 
-  it('renders colleague autocomplete (always enabled; no checkbox gate)', async () => {
+  it('exposes the colleague autocomplete inside the booking dialog only', async () => {
+    fetchItemsMock.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+      }]
+    });
     const wrapper = mountView();
     await flushPromises();
 
-    // The autocomplete is always rendered and always enabled per the
-    // round-2 UX feedback — selecting a colleague is the trigger.
-    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
+    // Not rendered inline anymore.
+    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(false);
 
-    (wrapper.vm as unknown as { selectedColleagueId: string | null }).selectedColleagueId = 'u-1';
-    await nextTick();
+    await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+    await flushPromises();
 
-    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
+    // The shared colleague fragment with self/colleague radios is present.
+    expect(wrapper.find('[data-cy="tile-colleague-select"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="tile-book-self-radio"]').exists()).toBe(true);
+    expect(wrapper.find('[data-cy="tile-book-colleague-radio"]').exists()).toBe(true);
 
     // No old-style text fields anywhere in DOM
     expect(wrapper.find('[data-cy="colleague-id-input"]').exists()).toBe(false);
@@ -1251,6 +1281,8 @@ describe('ItemsView', () => {
 
     await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
     await flushPromises();
+    await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+    await flushPromises();
 
     expect(createBookingMock).toHaveBeenCalledWith('item-1', storedDay, undefined);
     expect(sessionStorage.getItem('sithub_selected_day')).toBe(storedDay);
@@ -1277,11 +1309,14 @@ describe('ItemsView', () => {
     const wrapper = mountView();
     await flushPromises();
 
-    (wrapper.vm as unknown as { selectedColleagueId: string | null }).selectedColleagueId = 'u-1';
-    await nextTick();
     createBookingMock.mockClear();
 
     await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+    await flushPromises();
+    // Pick a colleague in the dialog, then confirm.
+    (wrapper.vm as unknown as { dialogColleagueId: string | null }).dialogColleagueId = 'u-1';
+    await nextTick();
+    await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
     await flushPromises();
 
     expect(createBookingMock).toHaveBeenCalledWith('item-1', storedDay, {
@@ -1310,13 +1345,16 @@ describe('ItemsView', () => {
       const wrapper = mountView();
       await flushPromises();
 
-      (wrapper.vm as unknown as { selectedColleagueId: string | null }).selectedColleagueId = 'u-1';
-      await nextTick();
       createBookingMock.mockClear();
 
       await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
       await flushPromises();
       await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+      await flushPromises();
+      // Pick a colleague in the dialog, then confirm.
+      (wrapper.vm as unknown as { dialogColleagueId: string | null }).dialogColleagueId = 'u-1';
+      await nextTick();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
       await flushPromises();
 
       expect(createBookingMock.mock.calls).toContainEqual([
@@ -1333,15 +1371,302 @@ describe('ItemsView', () => {
     }
   });
 
-  it('renders the colleague-select only (no guest radio, no self/colleague radios, no checkbox)', async () => {
+  describe('area/day booking guard (story 36.9)', () => {
+    const existingBooking = {
+      id: 'existing-1',
+      type: 'bookings' as const,
+      attributes: {
+        item_id: 'other-item',
+        item_name: 'Desk Z',
+        item_group_id: 'ig-1',
+        item_group_name: 'Test Group',
+        area_id: 'area-1',
+        area_name: 'Test Area',
+        booking_date: futureDay(),
+        created_at: '',
+        booked_by_user_id: 'me',
+        booked_by_user_name: 'Me',
+        booked_for_me: true,
+        note: ''
+      }
+    };
+
+    beforeEach(() => {
+      useDateState().setDay(futureDay());
+      fetchItemsMock.mockResolvedValue({
+        data: [{
+          id: 'item-1',
+          type: 'items',
+          attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+        }]
+      });
+    });
+
+    it('swaps the existing booking on confirm (create new first, then cancel old)', async () => {
+      fetchMyBookingsMock.mockResolvedValue({ data: [existingBooking] } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+      cancelBookingMock.mockClear();
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      // Swap dialog appears; no create yet.
+      expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(true);
+      expect(createBookingMock).not.toHaveBeenCalled();
+
+      await wrapper.get('[data-cy="confirm-dialog-confirm"]').trigger('click');
+      await flushPromises();
+
+      expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
+      expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), undefined);
+      // Create-then-cancel: the new booking is created BEFORE the old one is
+      // cancelled (story 36.9 D2).
+      const createOrder = createBookingMock.mock.invocationCallOrder[0]!;
+      const cancelOrder = cancelBookingMock.mock.invocationCallOrder[0]!;
+      expect(createOrder).toBeLessThan(cancelOrder);
+    });
+
+    it('keeps the old booking and shows a warning when the post-create cancel fails', async () => {
+      fetchMyBookingsMock.mockResolvedValue({ data: [existingBooking] } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+      cancelBookingMock.mockClear();
+      createBookingMock.mockResolvedValue({ data: { id: 'new-1' } } as never);
+      cancelBookingMock.mockRejectedValueOnce(new Error('cancel failed'));
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="confirm-dialog-confirm"]').trigger('click');
+      await flushPromises();
+
+      // New booking is kept; the failed cancel surfaces a non-blocking warning.
+      expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), undefined);
+      expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
+      expect(wrapper.get('[data-cy="booking-error-text"]').text()).toBe(
+        'Booked, but your previous booking in this area could not be cancelled.'
+      );
+    });
+
+    it('ignores a same area/day booking made on a colleague\'s behalf (self-scoped guard)', async () => {
+      // for_user_id set: the current user made this on a colleague's behalf.
+      // for_user_name may be missing when display-name lookup misses; the guard
+      // still must NOT offer to cancel it (story 36.9 D1).
+      fetchMyBookingsMock.mockResolvedValue({
+        data: [{
+          ...existingBooking,
+          attributes: { ...existingBooking.attributes, booked_for_me: false, for_user_id: 'u-1' }
+        }]
+      } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+      cancelBookingMock.mockClear();
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      // No swap dialog: the colleague's booking is not the user's own.
+      expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(false);
+      expect(cancelBookingMock).not.toHaveBeenCalled();
+      expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), undefined);
+    });
+
+    it('does not cancel the old week-mode booking when the replacement create fails', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-04-06T10:00:00'));
+      localStorage.setItem('sithub_booking_mode', 'week');
+      fetchMyBookingsMock.mockResolvedValue({
+        data: [{
+          ...existingBooking,
+          attributes: { ...existingBooking.attributes, booking_date: '2026-04-06' }
+        }]
+      } as never);
+
+      try {
+        const wrapper = mountView();
+        await flushPromises();
+        createBookingMock.mockClear();
+        cancelBookingMock.mockClear();
+        createBookingMock.mockRejectedValueOnce(new Error('create failed'));
+
+        await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+        await flushPromises();
+        await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+        await flushPromises();
+        await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(true);
+        await wrapper.get('[data-cy="confirm-dialog-confirm"]').trigger('click');
+        await flushPromises();
+
+        expect(createBookingMock).toHaveBeenCalledWith('item-1', '2026-04-06', undefined);
+        expect(cancelBookingMock).not.toHaveBeenCalled();
+      } finally {
+        localStorage.removeItem('sithub_booking_mode');
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not prompt for a colleague booking when only the user has a conflict', async () => {
+      // The user has an own conflicting booking, but the NEW booking is for a
+      // colleague — it never occupies the user's own seat, so no guard dialog.
+      fetchMyBookingsMock.mockResolvedValue({ data: [existingBooking] } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+      cancelBookingMock.mockClear();
+      fetchMyBookingsMock.mockClear();
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      (wrapper.vm as unknown as { dialogColleagueId: string | null }).dialogColleagueId = 'u-1';
+      await nextTick();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(false);
+      expect(cancelBookingMock).not.toHaveBeenCalled();
+      expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), {
+        forUserId: 'u-1',
+        forUserName: 'Jane Doe'
+      });
+    });
+
+    it('prompts when the colleague already has a booking in the same area/day', async () => {
+      // The user already booked Desk Z for colleague u-1 in the same area/day.
+      fetchMyBookingsMock.mockResolvedValue({
+        data: [{
+          ...existingBooking,
+          attributes: {
+            ...existingBooking.attributes,
+            booked_for_me: false,
+            for_user_id: 'u-1',
+            for_user_name: 'Jane Doe'
+          }
+        }]
+      } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+      cancelBookingMock.mockClear();
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      (wrapper.vm as unknown as { dialogColleagueId: string | null }).dialogColleagueId = 'u-1';
+      await nextTick();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      // The colleague-variant swap prompt names the colleague; nothing created yet.
+      const dialog = wrapper.find('[data-cy="confirm-dialog-confirm"]');
+      expect(dialog.exists()).toBe(true);
+      expect(wrapper.text()).toContain('Jane Doe');
+      expect(createBookingMock).not.toHaveBeenCalled();
+
+      // Confirming swaps: create the new booking for the colleague first,
+      // then cancel the colleague's old one.
+      await dialog.trigger('click');
+      await flushPromises();
+      expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), {
+        forUserId: 'u-1',
+        forUserName: 'Jane Doe'
+      });
+      expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
+    });
+
+    it('does not prompt in week mode for a colleague booking when only the user has a conflict', async () => {
+      vi.useFakeTimers();
+      // A fixed Monday guarantees bookable weekday checkboxes in week mode.
+      vi.setSystemTime(new Date('2026-04-06T10:00:00'));
+      localStorage.setItem('sithub_booking_mode', 'week');
+      fetchMyBookingsMock.mockResolvedValue({ data: [existingBooking] } as never);
+      try {
+        const wrapper = mountView();
+        await flushPromises();
+        createBookingMock.mockClear();
+        cancelBookingMock.mockClear();
+        fetchMyBookingsMock.mockClear();
+
+        await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+        await flushPromises();
+        await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+        await flushPromises();
+        (wrapper.vm as unknown as { dialogColleagueId: string | null }).dialogColleagueId = 'u-1';
+        await nextTick();
+        await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
+
+        // No guard prompt despite the conflicting own booking: the new booking
+        // is the colleague's seat, not the user's own. (fetchMyBookings still
+        // runs for the week grid's booked-cell markers, so only the dialog and
+        // cancel behavior are asserted.)
+        expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(false);
+        expect(cancelBookingMock).not.toHaveBeenCalled();
+        expect(createBookingMock.mock.calls).toContainEqual([
+          'item-1',
+          expect.any(String),
+          { forUserId: 'u-1', forUserName: 'Jane Doe' }
+        ]);
+      } finally {
+        localStorage.removeItem('sithub_booking_mode');
+        vi.useRealTimers();
+      }
+    });
+
+    it('leaves the original booking and does not book when cancelled', async () => {
+      fetchMyBookingsMock.mockResolvedValue({ data: [existingBooking] } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+      cancelBookingMock.mockClear();
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.get('[data-cy="confirm-dialog-cancel"]').trigger('click');
+      await flushPromises();
+
+      expect(cancelBookingMock).not.toHaveBeenCalled();
+      expect(createBookingMock).not.toHaveBeenCalled();
+    });
+
+    it('books directly with no guard dialog when no same area/day booking exists', async () => {
+      fetchMyBookingsMock.mockResolvedValue({ data: [] } as never);
+      const wrapper = mountView();
+      await flushPromises();
+      createBookingMock.mockClear();
+
+      await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(false);
+      expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), undefined);
+    });
+  });
+
+  it('has no inline colleague controls (moved into the booking dialog)', async () => {
     const wrapper = mountView();
     await flushPromises();
 
     expect(wrapper.find('[data-cy="book-guest-radio"]').exists()).toBe(false);
-    expect(wrapper.find('[data-cy="book-self-radio"]').exists()).toBe(false);
-    expect(wrapper.find('[data-cy="book-colleague-radio"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(false);
     expect(wrapper.find('[data-cy="book-colleague-checkbox"]').exists()).toBe(false);
-    expect(wrapper.find('[data-cy="colleague-select"]').exists()).toBe(true);
+    // The self/colleague radios exist only inside the (closed) dialog.
+    expect(wrapper.find('[data-cy="tile-book-self-radio"]').exists()).toBe(false);
   });
 
   it('does not render multi-day checkbox', async () => {
@@ -1681,8 +2006,7 @@ describe('ItemsView', () => {
         new ApiError('Conflict', 409, 'booking limit exceeded: you have reached the maximum of 3 active bookings')
       );
 
-      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
-      await flushPromises();
+      await bookViaDialog(wrapper);
 
       expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="booking-limit-text"]').text()).toContain('3');
@@ -1718,6 +2042,8 @@ describe('ItemsView', () => {
       if (confirmBtn.exists()) {
         await confirmBtn.trigger('click');
         await flushPromises();
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
       }
 
       expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
@@ -1741,8 +2067,7 @@ describe('ItemsView', () => {
         new ApiError('Conflict', 409, 'booking limit exceeded: you have reached the maximum of 3 active bookings')
       );
 
-      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
-      await flushPromises();
+      await bookViaDialog(wrapper);
 
       expect(wrapper.find('[data-cy="booking-limit-dialog"]').exists()).toBe(true);
 
@@ -1797,6 +2122,8 @@ describe('ItemsView', () => {
 
       await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
       await flushPromises();
+      await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
 
       expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="warning-item-name"]').text()).toBe('Workspace 1');
@@ -1811,6 +2138,8 @@ describe('ItemsView', () => {
       createBookingMock.mockClear();
 
       await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
       await flushPromises();
 
       await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
@@ -1828,6 +2157,8 @@ describe('ItemsView', () => {
 
       await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
       await flushPromises();
+      await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
 
       await wrapper.find('[data-cy="warning-cancel-btn"]').trigger('click');
       await flushPromises();
@@ -1842,6 +2173,8 @@ describe('ItemsView', () => {
       await flushPromises();
 
       await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
       await flushPromises();
 
       const checkbox = wrapper.find('[data-cy="warning-dont-show-checkbox"] input');
@@ -1863,6 +2196,8 @@ describe('ItemsView', () => {
       await flushPromises();
       await setup.find('[data-cy="book-item-btn"]').trigger('click');
       await flushPromises();
+      await setup.find('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
       await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
       await flushPromises();
       await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
@@ -1875,21 +2210,19 @@ describe('ItemsView', () => {
       await flushPromises();
       createBookingMock.mockClear();
 
-      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
-      await flushPromises();
+      await bookViaDialog(wrapper);
 
       expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
       expect(createBookingMock).toHaveBeenCalled();
     });
 
-    it('books directly without dialog for item without warning', async () => {
+    it('books without a warning dialog (item has no warning) after confirming', async () => {
       fetchItemsMock.mockResolvedValue({ data: [itemNoWarning] });
       const wrapper = mountView();
       await flushPromises();
       createBookingMock.mockClear();
 
-      await wrapper.find('[data-cy="book-item-btn"]').trigger('click');
-      await flushPromises();
+      await bookViaDialog(wrapper);
 
       expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
       expect(createBookingMock).toHaveBeenCalled();
@@ -1984,6 +2317,10 @@ describe('ItemsView', () => {
         if (!confirmBtn.exists()) return;
         await confirmBtn.trigger('click');
         await flushPromises();
+        // Story 36.7: week confirm opens the booking dialog; confirm it to run
+        // the warning flow + submit.
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
 
         // First warning dialog shown
         expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(true);
@@ -2020,6 +2357,10 @@ describe('ItemsView', () => {
         if (!confirmBtn.exists()) return;
         await confirmBtn.trigger('click');
         await flushPromises();
+        // Story 36.7: week confirm opens the booking dialog; confirm it to run
+        // the warning flow + submit.
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
 
         // Cancel on first warning
         await wrapper.find('[data-cy="warning-cancel-btn"]').trigger('click');
@@ -2041,6 +2382,10 @@ describe('ItemsView', () => {
         if (!confirmBtn.exists()) return;
         await confirmBtn.trigger('click');
         await flushPromises();
+        // Story 36.7: week confirm opens the booking dialog; confirm it to run
+        // the warning flow + submit.
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
 
         // Confirm first warning
         await wrapper.find('[data-cy="warning-confirm-btn"]').trigger('click');
@@ -2061,6 +2406,8 @@ describe('ItemsView', () => {
         await flushPromises();
         await setup.find('[data-cy="book-item-btn"]').trigger('click');
         await flushPromises();
+        await setup.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
         await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
         await flushPromises();
         await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
@@ -2078,6 +2425,10 @@ describe('ItemsView', () => {
         const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
         if (!confirmBtn.exists()) return;
         await confirmBtn.trigger('click');
+        await flushPromises();
+        // Story 36.7: week confirm opens the booking dialog; confirm it to run
+        // the warning flow + submit.
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
         await flushPromises();
 
         // Only warn-b dialog should appear (warn-a is suppressed)
@@ -2097,6 +2448,8 @@ describe('ItemsView', () => {
         await flushPromises();
         await setup.find('[data-cy="book-item-btn"]').trigger('click');
         await flushPromises();
+        await setup.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
         await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
         await flushPromises();
         await setup.find('[data-cy="warning-confirm-btn"]').trigger('click');
@@ -2107,6 +2460,8 @@ describe('ItemsView', () => {
         setup = mountView();
         await flushPromises();
         await setup.find('[data-cy="book-item-btn"]').trigger('click');
+        await flushPromises();
+        await setup.find('[data-cy="tile-booking-confirm"]').trigger('click');
         await flushPromises();
         await setup.find('[data-cy="warning-dont-show-checkbox"] input').setValue(true);
         await flushPromises();
@@ -2126,6 +2481,10 @@ describe('ItemsView', () => {
         if (!confirmBtn.exists()) return;
         await confirmBtn.trigger('click');
         await flushPromises();
+        // Story 36.7: week confirm opens the booking dialog; confirm it to run
+        // the warning flow + submit.
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
 
         // No dialog — proceeds directly
         expect(wrapper.find('[data-cy="warning-dialog"]').exists()).toBe(false);
@@ -2143,6 +2502,10 @@ describe('ItemsView', () => {
         const confirmBtn = wrapper.find('[data-cy="week-confirm-btn"]');
         if (!confirmBtn.exists()) return;
         await confirmBtn.trigger('click');
+        await flushPromises();
+        // Story 36.7: week confirm opens the booking dialog; confirm it to run
+        // the warning flow + submit.
+        await wrapper.find('[data-cy="tile-booking-confirm"]').trigger('click');
         await flushPromises();
 
         // Only warn-a dialog
@@ -2314,9 +2677,73 @@ describe('ItemsView', () => {
         await flushPromises();
         await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
         await flushPromises();
+        await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
 
         expect(createBookingMock).toHaveBeenCalledWith('desk-1', '2026-05-11', undefined);
         expect(wrapper.find('[data-cy="week-booking-results"]').exists()).toBe(true);
+      } finally {
+        localStorage.removeItem('sithub_booking_mode');
+        vi.useRealTimers();
+      }
+    });
+
+    it('guards each favorite by its OWN area/day and swaps on confirm (story 36.9 D3)', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-05-11T10:00:00'));
+      useDateState().setDay('2026-05-11');
+      useDateState().setWeek('2026-W20');
+      localStorage.setItem('sithub_booking_mode', 'week');
+      // The favorite lives in area-2; an existing OWN booking on the same day
+      // in area-2 must be swapped even though favorites aggregate across areas.
+      seedFavorites([{ areaId: 'area-2', itemGroupId: 'ig-2', itemId: 'desk-2', itemName: 'Desk 2' }]);
+      fetchItemsMock.mockResolvedValue({
+        data: [makeItem({ id: 'desk-2', name: 'Desk 2' })]
+      } as never);
+      fetchMyBookingsMock.mockResolvedValue({
+        data: [{
+          id: 'existing-2',
+          type: 'bookings',
+          attributes: {
+            item_id: 'other-desk',
+            item_name: 'Desk Z',
+            item_group_id: 'ig-2',
+            item_group_name: 'IG 2',
+            area_id: 'area-2',
+            area_name: 'Area 2',
+            booking_date: '2026-05-11',
+            created_at: '',
+            booked_by_user_id: 'me',
+            booked_by_user_name: 'Me',
+            booked_for_me: true,
+            note: ''
+          }
+        }]
+      } as never);
+
+      try {
+        const wrapper = mountFavoritesView();
+        await flushPromises();
+
+        createBookingMock.mockClear();
+        cancelBookingMock.mockClear();
+        await wrapper.find('[data-cy="week-day-checkbox"] input').setValue(true);
+        await flushPromises();
+        await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+        await flushPromises();
+        await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+        await flushPromises();
+
+        // The guard runs using the favorite's own area (area-2): swap prompt.
+        expect(wrapper.find('[data-cy="confirm-dialog-confirm"]').exists()).toBe(true);
+        expect(createBookingMock).not.toHaveBeenCalled();
+
+        await wrapper.get('[data-cy="confirm-dialog-confirm"]').trigger('click');
+        await flushPromises();
+
+        // Create-then-cancel across the favorite's own area.
+        expect(createBookingMock).toHaveBeenCalledWith('desk-2', '2026-05-11', undefined);
+        expect(cancelBookingMock).toHaveBeenCalledWith('existing-2');
       } finally {
         localStorage.removeItem('sithub_booking_mode');
         vi.useRealTimers();

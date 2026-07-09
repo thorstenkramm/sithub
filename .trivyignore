@@ -1,0 +1,7 @@
+# Accepted Trivy findings.
+#
+# GO-2026-5932: golang.org/x/crypto/openpgp is unmaintained ("unsafe by design").
+# SitHub imports ONLY golang.org/x/crypto/bcrypt (internal/users/store.go) for password
+# hashing; the openpgp subpackage is never imported (verified: no `x/crypto/openpgp`
+# import anywhere in the tree). No fixed version exists (deprecated package). Not applicable.
+GO-2026-5932

@@ -54,7 +54,7 @@
                 @error="avatarFailed = true"
               />
             </v-avatar>
-            <span class="cell-short-name text-caption" data-cy="matrix-cell-initials">{{ shortName }}</span>
+            <span class="cell-short-name text-caption" data-cy="matrix-cell-initials">{{ cell.booker_name }}</span>
           </div>
         </template>
         <span data-cy="matrix-cell-tooltip">{{ cell.booker_name }}</span>
@@ -67,7 +67,7 @@
 import { computed, inject, ref } from 'vue';
 import type { MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
 import { getAvatarUrl } from '../../api/avatars';
-import { getInitials, getShortName } from '../../utils/text';
+import { getInitials } from '../../utils/text';
 import type { MatrixCellClickHandler } from './matrixTypes';
 
 const props = defineProps<{
@@ -84,7 +84,6 @@ const onCellClick = inject<MatrixCellClickHandler>('matrixCellClick');
 const avatarFailed = ref(false);
 
 const initials = computed(() => getInitials(props.cell.booker_name));
-const shortName = computed(() => getShortName(props.cell.booker_name));
 const avatarUrl = computed(() =>
   props.cell.booker_user_id ? getAvatarUrl(props.cell.booker_user_id) : ''
 );
@@ -203,7 +202,7 @@ function handleOccupiedClick(event: MouseEvent) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 60px;
+  min-width: 0;
 }
 
 </style>

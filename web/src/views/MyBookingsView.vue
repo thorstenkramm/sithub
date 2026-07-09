@@ -18,6 +18,53 @@
       {{ cancelErrorMessage }}
     </v-alert>
 
+    <!-- View switch: Tiles / Table -->
+    <div class="d-flex justify-end mb-4" data-cy="view-switch-container">
+      <div class="d-flex align-center">
+        <span
+          class="text-button mr-1"
+          :class="activeView === 'cards' ? 'text-primary font-weight-bold' : 'text-medium-emphasis'"
+        >{{ $t('itemGroups.viewTiles') }}</span>
+        <v-tooltip v-if="isCompactViewport" location="top">
+          <template #activator="{ props: tooltipProps }">
+            <div v-bind="tooltipProps" data-cy="view-switch-disabled-wrapper">
+              <v-switch
+                :model-value="activeView === 'table'"
+                :disabled="true"
+                hide-details
+                inline
+                inset
+                density="compact"
+                color="primary"
+                base-color="primary"
+                data-cy="view-switch"
+                class="view-switch"
+              />
+            </div>
+          </template>
+          <span data-cy="view-switch-tooltip">{{ $t('bookings.viewTableDesktopOnly') }}</span>
+        </v-tooltip>
+        <v-switch
+          v-else
+          :model-value="activeView === 'table'"
+          :disabled="false"
+          hide-details
+          inline
+          inset
+          density="compact"
+          color="primary"
+          base-color="primary"
+          data-cy="view-switch"
+          class="view-switch"
+          @update:model-value="toggleView"
+        />
+        <span
+          class="text-button ml-1"
+          :class="activeView === 'table' ? 'text-primary font-weight-bold' : 'text-medium-emphasis'"
+        >{{ $t('itemGroups.viewTable') }}</span>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <LoadingState v-if="bookingsLoading" type="cards" :count="3" data-cy="bookings-loading" />
 
@@ -37,8 +84,8 @@
       data-cy="bookings-empty"
     />
 
-    <!-- Bookings Grid -->
-    <div v-else class="card-grid" data-cy="bookings-list">
+    <!-- Bookings Grid (tiles) -->
+    <div v-else-if="activeView === 'cards'" class="card-grid" data-cy="bookings-list">
       <BookingCard
         v-for="booking in bookings"
         :key="booking.id"
@@ -50,6 +97,50 @@
         @note-updated="handleNoteUpdated"
       />
     </div>
+
+    <!-- Bookings Table -->
+    <v-data-table
+      v-else
+      :headers="tableHeaders"
+      :items="tableItems"
+      item-value="id"
+      density="comfortable"
+      class="elevation-1"
+      data-cy="bookings-table"
+    >
+      <template #[`item.status`]="{ item }">
+        <StatusChip
+          v-if="item.status"
+          :status="item.status"
+          size="x-small"
+          :data-cy="`status-chip-${item.id}`"
+        />
+      </template>
+      <template #[`item.onBehalf`]="{ item }">
+        <span v-if="item.guestName" data-cy="table-guest">
+          {{ $t('bookings.guest', { name: item.guestName }) }}
+        </span>
+        <span v-else-if="item.forUserName" data-cy="table-on-behalf-of">
+          {{ $t('bookings.onBehalfOf', { name: item.forUserName }) }}
+        </span>
+        <span v-else-if="item.bookedForMe && item.bookedByUserName" data-cy="table-booked-by">
+          {{ $t('bookings.bookedBy', { name: item.bookedByUserName }) }}
+        </span>
+      </template>
+      <template #[`item.actions`]="{ item }">
+        <v-btn
+          color="error"
+          variant="tonal"
+          size="small"
+          :loading="cancellingBookingId === item.id"
+          :disabled="cancellingBookingId === item.id"
+          data-cy="cancel-btn"
+          @click="handleCancelBooking(item.id)"
+        >
+          {{ $t('bookings.cancelBooking') }}
+        </v-btn>
+      </template>
+    </v-data-table>
 
     <!-- Confirm Cancel Dialog -->
     <ConfirmDialog
@@ -68,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
@@ -76,12 +167,65 @@ import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
+import { useMyBookingsViewPreference } from '../composables/useMyBookingsViewPreference';
+import { deriveBookingStatus } from '../utils/bookingStatus';
 import { useAuthStore } from '../stores/useAuthStore';
-import { PageHeader, LoadingState, EmptyState, BookingCard, ConfirmDialog } from '../components';
+import { PageHeader, LoadingState, EmptyState, BookingCard, ConfirmDialog, StatusChip } from '../components';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const authStore = useAuthStore();
 const bookings = ref<JsonApiResource<MyBookingAttributes>[]>([]);
+const { activeView, load: loadViewPref, save: saveViewPref } = useMyBookingsViewPreference();
+const isCompactViewport = ref(false);
+
+const updateViewport = () => {
+  if (typeof window.matchMedia !== 'function') {
+    isCompactViewport.value = false;
+    return;
+  }
+  isCompactViewport.value = window.matchMedia('(max-width: 768px)').matches;
+};
+
+const handleResize = () => {
+  updateViewport();
+};
+
+const toggleView = (val: boolean | null) => {
+  saveViewPref(val ? 'table' : 'cards');
+};
+
+const formatBookingDate = (bookingDate: string): string => {
+  const date = new Date(bookingDate + 'T00:00:00');
+  return date.toLocaleDateString(locale.value || undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
+const tableHeaders = computed(() => [
+  { title: t('bookings.colDate'), key: 'date', sortable: true },
+  { title: t('bookings.colItem'), key: 'itemName', sortable: true },
+  { title: t('bookings.colArea'), key: 'area', sortable: true },
+  { title: t('bookings.colStatus'), key: 'status', sortable: false },
+  { title: t('bookings.colOnBehalf'), key: 'onBehalf', sortable: false },
+  { title: t('bookings.colActions'), key: 'actions', sortable: false, align: 'end' as const }
+]);
+
+const tableItems = computed(() =>
+  bookings.value.map((b) => ({
+    id: b.id,
+    date: formatBookingDate(b.attributes.booking_date),
+    itemName: b.attributes.item_name,
+    area: `${b.attributes.item_group_name} · ${b.attributes.area_name}`,
+    status: deriveBookingStatus(b.attributes),
+    forUserName: b.attributes.for_user_name ?? '',
+    bookedForMe: b.attributes.booked_for_me,
+    bookedByUserName: b.attributes.booked_by_user_name,
+    guestName: b.attributes.guest_name ?? ''
+  }))
+);
 const cancelSuccessMessage = ref<string | null>(null);
 const showCancelSuccess = computed({
   get: () => cancelSuccessMessage.value !== null,
@@ -146,6 +290,10 @@ const confirmCancelBooking = async () => {
 };
 
 onMounted(async () => {
+  updateViewport();
+  loadViewPref(!isCompactViewport.value);
+  window.addEventListener('resize', handleResize);
+
   try {
     const resp = await fetchMe();
     authStore.userName = resp.data.attributes.display_name;
@@ -162,5 +310,9 @@ onMounted(async () => {
   }
 
   await loadBookings();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>

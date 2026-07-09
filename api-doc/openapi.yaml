@@ -504,9 +504,22 @@ components:
             True if this booking was made on behalf of the current user
             by someone else. False for self-bookings or bookings the
             current user made for others.
+        for_user_id:
+          type: string
+          description: >
+            ID of the colleague this booking was made for. Present only on
+            bookings the current user made on a colleague's behalf.
+        for_user_name:
+          type: string
+          description: >
+            Display name of the colleague this booking was made for. Present
+            only on bookings the current user made on a colleague's behalf.
         is_guest:
           type: boolean
           description: Whether this is a guest booking
+        guest_name:
+          type: string
+          description: Display name for guest bookings
         guest_email:
           type: string
           description: Contact email for guest bookings

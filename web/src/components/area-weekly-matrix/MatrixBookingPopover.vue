@@ -104,18 +104,32 @@
     @confirm="warningConfirmAction"
     @cancel="warningCancelAction"
   />
+
+  <ConfirmDialog
+    v-model="showAreaGuard"
+    :title="$t('items.areaDayGuardTitle')"
+    :message="areaGuardMessage"
+    :confirm-text="$t('items.areaDayGuardConfirm')"
+    :loading="guardLoading"
+    confirm-color="error"
+    @confirm="confirmAreaGuard"
+    @cancel="cancelAreaGuard"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
-import { createBooking, type BookOnBehalfOptions } from '../../api/bookings';
+import { createBooking, cancelBooking, type BookOnBehalfOptions } from '../../api/bookings';
 import { fetchColleagues } from '../../api/users';
 import { ApiError } from '../../api/client';
 import { useWarningConfirmation } from '../../composables/useWarningConfirmation';
+import { useAreaDayGuard } from '../../composables/useAreaDayGuard';
 import { getSafeLocalStorage } from '../../composables/storage';
+import { formatShortDate } from '../../utils/date';
 import WarningConfirmDialog from '../WarningConfirmDialog.vue';
+import ConfirmDialog from '../ConfirmDialog.vue';
 
 const LAST_COLLEAGUE_KEY = 'sithub_matrix_last_colleague';
 
@@ -124,6 +138,8 @@ const props = defineProps<{
   activatorEl: HTMLElement | undefined;
   item: MatrixItem;
   cell: MatrixCell;
+  /** Area of the item group, for the area/day booking guard (story 36.9). */
+  areaId: string;
 }>();
 
 const emit = defineEmits<{
@@ -132,7 +148,7 @@ const emit = defineEmits<{
   bookingConflict: [];
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const {
   show: warningShow,
   itemName: warningItemName,
@@ -142,6 +158,29 @@ const {
   confirm: warningConfirmAction,
   cancel: warningCancelAction,
 } = useWarningConfirmation();
+
+const {
+  show: showAreaGuard,
+  existingItemName: guardExistingItemName,
+  existingDate: guardExistingDate,
+  newItemName: guardNewItemName,
+  conflictForUserName: guardConflictForUserName,
+  loading: guardLoading,
+  guard: guardAreaDay,
+  confirm: confirmAreaGuard,
+  cancel: cancelAreaGuard,
+} = useAreaDayGuard();
+
+const areaGuardMessage = computed(() => {
+  const params = {
+    existingItem: guardExistingItemName.value,
+    date: formatShortDate(guardExistingDate.value, locale.value),
+    newItem: guardNewItemName.value,
+  };
+  return guardConflictForUserName.value
+    ? t('items.areaDayGuardColleagueMessage', { ...params, name: guardConflictForUserName.value })
+    : t('items.areaDayGuardMessage', params);
+});
 
 const bookingType = ref<'self' | 'colleague'>('self');
 const selectedColleagueId = ref<string | null>(null);
@@ -225,14 +264,39 @@ function submitBooking() {
     return;
   }
 
-  // Uniform pre-booking warning confirmation (skipped/suppressed as needed).
+  // Uniform pre-booking warning confirmation (skipped/suppressed as needed),
+  // then the area/day swap guard (story 36.9), then the create.
   const warnItems = props.item.warning
     ? [{ itemId: props.item.item_id, itemName: props.item.item_name, warning: props.item.warning }]
     : [];
-  presentWarnings(warnItems, () => void doBook());
+  presentWarnings(warnItems, () => {
+    // A colleague selection scopes the guard to the COLLEAGUE's seat: it
+    // prompts only when the user already booked something for that colleague
+    // in the same area on the same day (story 36.9 / FR178).
+    const colleagueId = bookingType.value === 'colleague' ? selectedColleagueId.value : null;
+    guardAreaDay({
+      areaId: props.areaId,
+      date: props.cell.date,
+      newItemId: props.item.item_id,
+      newItemName: props.item.item_name,
+      forUserId: colleagueId || undefined,
+      forUserName: colleagueId ? resolveColleagueName(colleagueId) || undefined : undefined,
+    })
+      .then((decision) => {
+        if (decision.proceed) void doBook(decision.existingBookingId);
+      })
+      .catch(() => {
+        errorMessage.value = t('items.unableToBook');
+      });
+  });
 }
 
-async function doBook() {
+// doBook creates the new booking FIRST, then (only on success) cancels the
+// conflicting existing booking id resolved by the guard. This create-then-
+// cancel order keeps the swap safe: a failed create leaves the old booking
+// intact. A failed post-create cancel keeps the new booking and surfaces a
+// non-blocking warning (story 36.9 D2).
+async function doBook(existingBookingId?: string) {
   submitting.value = true;
   try {
     const onBehalf: BookOnBehalfOptions | undefined =
@@ -243,6 +307,16 @@ async function doBook() {
     const note = noteText.value.trim() || undefined;
 
     await createBooking(props.item.item_id, props.cell.date, onBehalf, undefined, note);
+
+    if (existingBookingId) {
+      try {
+        await cancelBooking(existingBookingId);
+      } catch {
+        // New booking succeeded; the old one could not be cancelled. Keep the
+        // new booking and warn without blocking (story 36.9 D2).
+        errorMessage.value = t('items.areaDayGuardCancelFailed');
+      }
+    }
 
     if (bookingType.value === 'colleague' && selectedColleagueId.value) {
       saveLastColleague(selectedColleagueId.value);

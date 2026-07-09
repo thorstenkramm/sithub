@@ -23,6 +23,7 @@ import {
   VCol,
   VCombobox,
   VContainer,
+  VDataTable,
   VDatePicker,
   VDialog,
   VDivider,
@@ -54,8 +55,8 @@ import {
 const appComponents = {
   VAlert, VApp, VAppBar, VAppBarNavIcon, VAutocomplete, VAvatar, VBottomSheet,
   VBtn, VBtnToggle, VCard, VCardActions, VCardItem, VCardSubtitle, VCardText,
-  VCardTitle, VCheckbox, VChip, VCol, VCombobox, VContainer, VDatePicker,
-  VDialog, VDivider, VExpandTransition, VForm, VIcon, VImg, VList, VListItem,
+  VCardTitle, VCheckbox, VChip, VCol, VCombobox, VContainer, VDataTable,
+  VDatePicker, VDialog, VDivider, VExpandTransition, VForm, VIcon, VImg, VList, VListItem,
   VListItemSubtitle, VListItemTitle, VMain, VMenu, VNavigationDrawer, VRadio,
   VRadioGroup, VRow, VSelect, VSkeletonLoader, VSnackbar, VSpacer, VSwitch,
   VTextField, VTextarea, VTooltip,

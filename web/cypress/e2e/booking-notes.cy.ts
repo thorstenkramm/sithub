@@ -33,6 +33,8 @@ function bookFirstAvailableItem() {
     .first()
     .find('[data-cy="book-item-btn"]')
     .click();
+  // The tile booking dialog opens first; confirming it creates the booking.
+  cy.get('[data-cy="tile-booking-confirm"]').click();
 }
 
 describe('booking notes', () => {
@@ -148,6 +150,9 @@ describe('booking notes', () => {
     cy.visit('/my-bookings');
     cy.wait('@listBookings');
 
+    // Notes live on the tile/card view; desktop now defaults to the table, so switch.
+    cy.get('[data-cy="view-switch"]').click();
+
     // Note should be displayed
     cy.get('[data-cy="booking-note"]').should('contain', 'Will arrive late');
 
@@ -194,6 +199,9 @@ describe('booking notes', () => {
 
     cy.visit('/my-bookings');
     cy.wait('@listBookings');
+
+    // Notes live on the tile/card view; desktop now defaults to the table, so switch.
+    cy.get('[data-cy="view-switch"]').click();
 
     // No note should be displayed
     cy.get('[data-cy="booking-note"]').should('not.exist');

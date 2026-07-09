@@ -22,7 +22,8 @@
       "languageDe": "Deutsch",
       "languageEs": "Espanol",
       "languageFr": "Francais",
-      "languageUk": "Ukrainska"
+      "languageUk": "Ukrainska",
+      "version": "Version"
     },
     "admin": "Admin",
     "passwordDialog": {
@@ -104,6 +105,12 @@
     "bookForMyself": "Réserver pour moi",
     "bookForColleague": "Réserver pour un collègue",
     "selectColleague": "Sélectionner un collègue",
+    "confirmBookingFor": "Confirmer la réservation pour {name}",
+    "areaDayGuardTitle": "Déjà réservé dans cette zone",
+    "areaDayGuardMessage": "Vous avez déjà réservé {existingItem} le {date}. Plusieurs réservations par zone et par jour ne sont pas autorisées. Voulez-vous annuler {existingItem} et réserver {newItem} à la place ?",
+    "areaDayGuardColleagueMessage": "{name} a déjà réservé {existingItem} le {date}. Plusieurs réservations par zone et par jour ne sont pas autorisées. Voulez-vous annuler {existingItem} et réserver {newItem} à la place ?",
+    "areaDayGuardConfirm": "Annuler et réserver à la place",
+    "areaDayGuardCancelFailed": "Réservé, mais votre réservation précédente dans cette zone n'a pas pu être annulée.",
     "floorPlan": "Plan d'étage",
     "filterEquipment": "Filtrer l'équipement",
     "deleteSavedFilter": "Supprimer le filtre enregistré",
@@ -188,7 +195,15 @@
     "addNoteTitle": "Ajouter une note",
     "editNoteTitle": "Modifier la note",
     "noteLabel": "Note",
-    "cancelBooking": "Annuler la réservation"
+    "cancelBooking": "Annuler la réservation",
+    "onBehalfOf": "Au nom de {name}",
+    "viewTableDesktopOnly": "La vue tableau est disponible uniquement sur ordinateur.",
+    "colDate": "Date",
+    "colItem": "Article",
+    "colArea": "Zone",
+    "colStatus": "Statut",
+    "colOnBehalf": "Pour / Invité",
+    "colActions": "Actions"
   },
   "history": {
     "title": "Historique des réservations",

@@ -468,8 +468,37 @@ describe('AreaWeeklyMatrixView', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-cy="matrix-cell-occupied"]').exists()).toBe(true);
-    expect(wrapper.find('[data-cy="matrix-cell-initials"]').text()).toBe('A. Lovelace');
+    expect(wrapper.find('[data-cy="matrix-cell-initials"]').text()).toBe('Ada Lovelace');
     expect(wrapper.find('[data-cy="matrix-cell-tooltip"]').text()).toBe('Ada Lovelace');
+  });
+
+  it('renders a long booker name in full (CSS ellipsis handles overflow)', async () => {
+    const resp = makeMatrixResponse({
+      groups: [{
+        id: 'ig-1',
+        name: 'Room',
+        items: [{
+          id: 'desk-1',
+          name: 'Desk',
+          cells: [{
+            date: '2099-04-13',
+            availability: 'occupied',
+            booker_name: 'Alexander Seidemann-Klamant',
+            booker_user_id: 'user-1',
+            booked_by_me: false
+          }]
+        }]
+      }],
+      days: [{ date: '2099-04-13', weekday: 'MO' }]
+    });
+    fetchMatrixMock.mockResolvedValue(resp);
+    const wrapper = mountMatrix();
+    await flushPromises();
+
+    // JSDOM does not compute pixel truncation; assert the full name is rendered
+    // and rely on the .cell-short-name CSS class for the visual end-truncation.
+    expect(wrapper.find('[data-cy="matrix-cell-initials"]').text()).toBe('Alexander Seidemann-Klamant');
+    expect(wrapper.find('[data-cy="matrix-cell-initials"]').classes()).toContain('cell-short-name');
   });
 
   it('renders separate equipment icon with tooltip on desk label', async () => {

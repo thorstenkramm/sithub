@@ -9,6 +9,8 @@ dependency migration deliberately deferred; a matching `ignore` rule for its `se
 exists in `.github/dependabot.yml` and must be removed when the migration is done so future majors
 flow again.
 
+Planned for Epic 36.
+
 ## Candidate: Vuetify 3 -> 4 Migration
 
 Major, breaking upgrade of the core UI framework (Dependabot PR #4, closed; currently on 3.11.6).

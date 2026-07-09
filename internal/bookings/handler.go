@@ -81,7 +81,10 @@ type MyBookingAttributes struct {
 	BookedByUserID   string `json:"booked_by_user_id,omitempty"`
 	BookedByUserName string `json:"booked_by_user_name,omitempty"`
 	BookedForMe      bool   `json:"booked_for_me,omitempty"`
+	ForUserID        string `json:"for_user_id,omitempty"`
+	ForUserName      string `json:"for_user_name,omitempty"`
 	IsGuest          bool   `json:"is_guest,omitempty"`
+	GuestName        string `json:"guest_name,omitempty"`
 	GuestEmail       string `json:"guest_email,omitempty"`
 	Note             string `json:"note"`
 }
@@ -394,11 +397,16 @@ func writeBookingsCollection(
 	ctx context.Context, c echo.Context, cfg *areas.Config, store *sql.DB,
 	currentUserID string, records []BookingRecord,
 ) error {
-	// Collect unique user IDs for display name lookup
+	// Collect unique user IDs for display name lookup. This includes the booker
+	// (BookedByUserID) as well as the colleague a booking was made FOR (UserID),
+	// so on-behalf-by-me bookings can surface the colleague's name (FR168).
 	userIDSet := make(map[string]struct{})
 	for i := range records {
 		if records[i].BookedByUserID != "" {
 			userIDSet[records[i].BookedByUserID] = struct{}{}
+		}
+		if records[i].UserID != "" && records[i].UserID != currentUserID {
+			userIDSet[records[i].UserID] = struct{}{}
 		}
 	}
 	userIDs := make([]string, 0, len(userIDSet))
@@ -421,39 +429,10 @@ func writeBookingsCollection(
 			continue
 		}
 
-		attrs := MyBookingAttributes{
-			ItemID:        rec.ItemID,
-			ItemName:      loc.Item.Name,
-			ItemGroupID:   loc.ItemGroup.ID,
-			ItemGroupName: loc.ItemGroup.Name,
-			AreaID:        loc.Area.ID,
-			AreaName:      loc.Area.Name,
-			BookingDate:   rec.BookingDate,
-			CreatedAt:     rec.CreatedAt,
-			Note:          rec.Note,
-		}
-
-		// Include booked_by info if different from user_id
-		if rec.BookedByUserID != "" && rec.BookedByUserID != rec.UserID {
-			attrs.BookedByUserID = rec.BookedByUserID
-			if name, ok := displayNames[rec.BookedByUserID]; ok {
-				attrs.BookedByUserName = name
-			}
-		}
-		// Mark if this booking was made for the current user by someone else
-		if rec.UserID == currentUserID && rec.BookedByUserID != "" && rec.BookedByUserID != currentUserID {
-			attrs.BookedForMe = true
-		}
-		// Include guest info
-		if rec.IsGuest {
-			attrs.IsGuest = true
-			attrs.GuestEmail = rec.GuestEmail
-		}
-
 		resources = append(resources, api.Resource{
 			Type:       resourceTypeBooking,
 			ID:         rec.ID,
-			Attributes: attrs,
+			Attributes: buildMyBookingAttributes(rec, loc, currentUserID, displayNames),
 		})
 	}
 
@@ -461,6 +440,56 @@ func writeBookingsCollection(
 	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
 	//nolint:wrapcheck // Terminal response
 	return c.JSON(http.StatusOK, resp)
+}
+
+// buildMyBookingAttributes maps a booking record and its resolved item location into the
+// JSON:API attributes for the My Bookings collection. currentUserID identifies the requesting
+// user so on-behalf and booked-for-me relationships can be derived; displayNames resolves the
+// booker and colleague names.
+func buildMyBookingAttributes(
+	rec *BookingRecord, loc *areas.ItemLocation,
+	currentUserID string, displayNames map[string]string,
+) MyBookingAttributes {
+	attrs := MyBookingAttributes{
+		ItemID:        rec.ItemID,
+		ItemName:      loc.Item.Name,
+		ItemGroupID:   loc.ItemGroup.ID,
+		ItemGroupName: loc.ItemGroup.Name,
+		AreaID:        loc.Area.ID,
+		AreaName:      loc.Area.Name,
+		BookingDate:   rec.BookingDate,
+		CreatedAt:     rec.CreatedAt,
+		Note:          rec.Note,
+	}
+
+	// Include booked_by info if different from user_id
+	if rec.BookedByUserID != "" && rec.BookedByUserID != rec.UserID {
+		attrs.BookedByUserID = rec.BookedByUserID
+		if name, ok := displayNames[rec.BookedByUserID]; ok {
+			attrs.BookedByUserName = name
+		}
+	}
+	// Mark if this booking was made for the current user by someone else
+	if rec.UserID == currentUserID && rec.BookedByUserID != "" && rec.BookedByUserID != currentUserID {
+		attrs.BookedForMe = true
+	}
+	// For an on-behalf booking made BY the current user, surface the colleague's
+	// id and name (rec.UserID) so the UI can render "On behalf of <name>" (FR168)
+	// and detect same area/day conflicts for that colleague (FR178).
+	if rec.BookedByUserID == currentUserID && rec.UserID != currentUserID {
+		attrs.ForUserID = rec.UserID
+		if name, ok := displayNames[rec.UserID]; ok {
+			attrs.ForUserName = name
+		}
+	}
+	// Include guest info
+	if rec.IsGuest {
+		attrs.IsGuest = true
+		attrs.GuestName = rec.GuestName
+		attrs.GuestEmail = rec.GuestEmail
+	}
+
+	return attrs
 }
 
 // CreateHandler returns a handler for creating bookings.

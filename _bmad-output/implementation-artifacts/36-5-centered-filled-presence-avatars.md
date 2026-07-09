@@ -1,6 +1,6 @@
 # Story 36.5: Centered, Filled Presence Avatars
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,35 +20,35 @@ so that the presence view looks clean and consistent.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Fix the presence avatar markup so photo and initials never stack (AC: #1, #2)
-  - [ ] In `web/src/views/AreaPresenceView.vue` (~48-55), the `<v-avatar>` currently renders BOTH
+- [x] Task 1: Fix the presence avatar markup so photo and initials never stack (AC: #1, #2)
+  - [x] In `web/src/views/AreaPresenceView.vue` (~48-55), the `<v-avatar>` currently renders BOTH
         the `<v-img>` and the initials `<span>` unconditionally, so the fallback text sits under
         every photo. Gate them: render `<v-img>` only when a photo can load, and the initials
         `<span>` as the `v-else` — mirror the working precedent in `ItemsView.vue:303-319` and
         `App.vue:48-55`.
-  - [ ] Add an `@error` handler + a `failedAvatars` set (reactive) so a missing/failed photo falls
+  - [x] Add an `@error` handler + a `failedAvatars` set (reactive) so a missing/failed photo falls
         back to initials, exactly as `ItemsView.vue:314` (`@error="failedAvatars.add(...)"`) and
         `App.vue:52` (`@error="avatarLoadFailed = true"`) do. Key the set on `user_id`.
-- [ ] Task 2: Center + cover the photo and fill the circle with initials (AC: #1, #2)
-  - [ ] Ensure the `<v-img>` covers the circle. Vuetify's `v-img` defaults to `cover`, but make it
+- [x] Task 2: Center + cover the photo and fill the circle with initials (AC: #1, #2)
+  - [x] Ensure the `<v-img>` covers the circle. Vuetify's `v-img` defaults to `cover`, but make it
         explicit and robust for odd aspect ratios: `object-fit: cover; object-position: center;
         width: 100%; height: 100%` on the image, matching the `.fp-item-avatar` precedent
         (`InteractiveFloorPlan.vue:1863-1870`).
-  - [ ] Give the initials `<span>` a full-fill, flex-centered style so it fills the circle like a
+  - [x] Give the initials `<span>` a full-fill, flex-centered style so it fills the circle like a
         photo: `width: 100%; height: 100%; display: (inline-)flex; align-items: center;
         justify-content: center; line-height: 1`. Copy the `.tile-booker-initials` precedent
         (`ItemsView.vue:2243-2255`) or `.fp-item-initials`
         (`InteractiveFloorPlan.vue:1872-1885`). Keep the existing `v-avatar` `color`/`variant` so
         the initials background/tone is unchanged.
-  - [ ] Keep `border-radius: 50%` implicit via `<v-avatar>` (the avatar clips to a circle already);
+  - [x] Keep `border-radius: 50%` implicit via `<v-avatar>` (the avatar clips to a circle already);
         do not add a square radius. The `<v-img>`/`<span>` just need to fill it.
-- [ ] Task 3: Tests (AC: #1, #2)
-  - [ ] Vitest (`web/src/views/AreaPresenceView.test.ts`): add a case that an entry WITH a photo
+- [x] Task 3: Tests (AC: #1, #2)
+  - [x] Vitest (`web/src/views/AreaPresenceView.test.ts`): add a case that an entry WITH a photo
         renders the `<v-img>` and NOT the initials span; an entry WITHOUT a photo (or after an
         image error) renders the initials span and NOT the `<v-img>`. Assert the initials span
         carries the fill/centering class.
   - [ ] Cypress (nice-to-have): visual check on `/areas/:areaId/presence` that avatars are circular
-        and centered for both photo and initials rows.
+        and centered for both photo and initials rows. (Not done — nice-to-have, out of scope.)
 
 ## Dev Notes
 
@@ -167,8 +167,38 @@ shows initials and no image. Run `npm run type-check`, `npm run lint`, `npx vite
 
 ### Agent Model Used
 
+claude-opus-4-8
+
 ### Debug Log References
+
+- `npx vitest run src/views/AreaPresenceView.test.ts` — 9 passed.
+- While writing tests, discovered the default `v-list-item` stub in `buildViewStubs` only renders
+  the default slot, so the `#prepend` avatar slot was never mounted. Overrode the `v-list-item`
+  stub in the test to render both the `prepend` and default slots.
+- Gate: `npm run type-check`, `npm run lint`, `npm run build` all clean.
 
 ### Completion Notes List
 
+- Gated the avatar: `<v-img v-if="user_id && !failedAvatars.has(user_id)" ... @error=...>` with the
+  initials `<span v-else>`, so photo and initials never stack. `failedAvatars` is a reactive
+  `Set<string>` keyed on `user_id`; a failed/missing photo now falls back cleanly to initials.
+- Added scoped CSS `.presence-avatar-img` (`object-fit: cover; object-position: center;
+  width/height: 100%`) and `.presence-avatar-initials` (inline-flex, centered, full-fill,
+  `line-height: 1`). Kept the existing `color="primary" variant="tonal"` tone — no background
+  override on the initials, matching the current look.
+- Added two Vitest cases: photo row renders the `<v-img>` and no initials span; after an image
+  `error` event the img is removed and the centered `.presence-avatar-initials` span (text "AS")
+  renders instead.
+- Cypress visual check was a nice-to-have and left out of scope.
+
 ### File List
+
+- `web/src/views/AreaPresenceView.vue` (modified: avatar markup gate, `failedAvatars` ref, scoped
+  CSS)
+- `web/src/views/AreaPresenceView.test.ts` (modified: `v-list-item` prepend-slot stub, two new
+  avatar rendering tests)
+
+### Change Log
+
+- 2026-07-09: Implemented FR173 — gated presence avatar photo vs initials with `@error` fallback
+  and added cover/centered fill CSS; added Vitest coverage. Status set to review.

@@ -22,7 +22,8 @@
       "languageDe": "Deutsch",
       "languageEs": "Espanol",
       "languageFr": "Francais",
-      "languageUk": "Ukrainska"
+      "languageUk": "Ukrainska",
+      "version": "Versión"
     },
     "admin": "Admin",
     "passwordDialog": {
@@ -104,6 +105,12 @@
     "bookForMyself": "Reservar para mi",
     "bookForColleague": "Reservar para un companero",
     "selectColleague": "Seleccionar companero",
+    "confirmBookingFor": "Confirmar reserva para {name}",
+    "areaDayGuardTitle": "Ya tiene una reserva en esta area",
+    "areaDayGuardMessage": "Ya reservo {existingItem} el {date}. No se permiten varias reservas por area y dia. Desea cancelar {existingItem} y reservar {newItem} en su lugar?",
+    "areaDayGuardColleagueMessage": "{name} ya reservo {existingItem} el {date}. No se permiten varias reservas por area y dia. Desea cancelar {existingItem} y reservar {newItem} en su lugar?",
+    "areaDayGuardConfirm": "Cancelar y reservar en su lugar",
+    "areaDayGuardCancelFailed": "Reservado, pero no se pudo cancelar su reserva anterior en esta area.",
     "floorPlan": "Plano de planta",
     "filterEquipment": "Filtrar equipamiento",
     "deleteSavedFilter": "Eliminar filtro guardado",
@@ -188,7 +195,15 @@
     "addNoteTitle": "Anadir nota",
     "editNoteTitle": "Editar nota",
     "noteLabel": "Nota",
-    "cancelBooking": "Cancelar reserva"
+    "cancelBooking": "Cancelar reserva",
+    "onBehalfOf": "En nombre de {name}",
+    "viewTableDesktopOnly": "La vista de tabla solo esta disponible en el escritorio.",
+    "colDate": "Fecha",
+    "colItem": "Elemento",
+    "colArea": "Area",
+    "colStatus": "Estado",
+    "colOnBehalf": "Para / Invitado",
+    "colActions": "Acciones"
   },
   "history": {
     "title": "Historial de reservas",

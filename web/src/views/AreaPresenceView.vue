@@ -47,8 +47,14 @@
         >
           <template #prepend>
             <v-avatar color="primary" variant="tonal" size="40">
-              <v-img :src="getAvatarUrl(entry.attributes.user_id)" />
-              <span class="text-body-2 font-weight-medium">
+              <v-img
+                v-if="entry.attributes.user_id && !failedAvatars.has(entry.attributes.user_id)"
+                class="presence-avatar-img"
+                :src="getAvatarUrl(entry.attributes.user_id)"
+                :alt="entry.attributes.user_name"
+                @error="failedAvatars.add(entry.attributes.user_id)"
+              />
+              <span v-else class="presence-avatar-initials text-body-2 font-weight-medium">
                 {{ getInitials(entry.attributes.user_name) }}
               </span>
             </v-avatar>
@@ -141,6 +147,7 @@ const route = useRoute();
 const { loading, run } = useApi();
 const { handleAuthError } = useAuthErrorHandler();
 const activeAreaId = ref<string | null>(null);
+const failedAvatars = ref(new Set<string>());
 const expandedNote = ref('');
 const noteTruncatedMap = ref<Record<string, boolean>>({});
 const noteElements = new Map<string, HTMLElement>();
@@ -291,6 +298,23 @@ function formatDate(date: Date) {
 </script>
 
 <style scoped>
+.presence-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.presence-avatar-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+  user-select: none;
+}
+
 .note-text {
   overflow: hidden;
   text-overflow: ellipsis;

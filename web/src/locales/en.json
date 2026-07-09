@@ -22,7 +22,8 @@
       "languageDe": "Deutsch",
       "languageEs": "Espanol",
       "languageFr": "Francais",
-      "languageUk": "Ukrainska"
+      "languageUk": "Ukrainska",
+      "version": "Version"
     },
     "admin": "Admin",
     "passwordDialog": {
@@ -104,6 +105,12 @@
     "bookForMyself": "Book for myself",
     "bookForColleague": "Book for colleague",
     "selectColleague": "Select colleague",
+    "confirmBookingFor": "Confirm booking for {name}",
+    "areaDayGuardTitle": "Already booked in this area",
+    "areaDayGuardMessage": "You already booked {existingItem} on {date}. Multiple bookings per area and day are not allowed. Do you want to cancel {existingItem} and book {newItem} instead?",
+    "areaDayGuardColleagueMessage": "{name} has already booked {existingItem} on {date}. Multiple bookings per area and day are not allowed. Do you want to cancel {existingItem} and book {newItem} instead?",
+    "areaDayGuardConfirm": "Cancel and book instead",
+    "areaDayGuardCancelFailed": "Booked, but your previous booking in this area could not be cancelled.",
     "floorPlan": "Floor plan",
     "filterEquipment": "Filter equipment",
     "deleteSavedFilter": "Delete saved filter",
@@ -188,7 +195,15 @@
     "addNoteTitle": "Add Note",
     "editNoteTitle": "Edit Note",
     "noteLabel": "Note",
-    "cancelBooking": "Cancel Booking"
+    "cancelBooking": "Cancel Booking",
+    "onBehalfOf": "On behalf of {name}",
+    "viewTableDesktopOnly": "Table view is available on desktop only.",
+    "colDate": "Date",
+    "colItem": "Item",
+    "colArea": "Area",
+    "colStatus": "Status",
+    "colOnBehalf": "For / Guest",
+    "colActions": "Actions"
   },
   "history": {
     "title": "Booking History",

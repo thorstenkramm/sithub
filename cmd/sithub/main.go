@@ -13,6 +13,10 @@ import (
 
 const runCommandName = "run"
 
+// version is set at build time via ldflags (-X main.version=...); "dev" for non-release builds.
+// GoReleaser's default ldflags target main.version, so this exact variable name and package matter.
+var version = "dev"
+
 func main() {
 	opts := newRunOptions()
 
@@ -29,7 +33,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			if err := startup.Run(cmd.Context(), cfg); err != nil {
+			if err := startup.Run(cmd.Context(), cfg, version); err != nil {
 				return fmt.Errorf("run server: %w", err)
 			}
 			return nil
@@ -38,9 +42,22 @@ func main() {
 
 	opts.bindFlags(runCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(newVersionCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
+	}
+}
+
+// newVersionCmd builds the "version" subcommand, which prints the build version
+// and exits 0 (cobra returns 0 when Run does not error).
+func newVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the SitHub version",
+		Run: func(cmd *cobra.Command, _ []string) {
+			cmd.Println(version)
+		},
 	}
 }
 

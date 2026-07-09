@@ -11,6 +11,7 @@ export { default as BookingCard } from './BookingCard.vue';
 export { default as FloorPlanButton } from './FloorPlanButton.vue';
 export { default as ItemWarning } from './ItemWarning.vue';
 export { default as WarningConfirmDialog } from './WarningConfirmDialog.vue';
+export { default as ColleagueSelect } from './ColleagueSelect.vue';
 
 // Re-export types
 export type { BreadcrumbItem } from './PageHeader.vue';

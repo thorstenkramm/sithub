@@ -194,17 +194,21 @@ describe('Page-specific Vuetify Rendering', () => {
     cy.get('.v-field__prepend-inner .v-icon').should('exist');
   });
 
-  it('should render the colleague-select autocomplete as a Vuetify component on items page', () => {
+  it('should render the colleague-select autocomplete as a Vuetify component in the booking dialog', () => {
     cy.intercept('GET', '/api/v1/item-groups/*/items*').as('listItems');
 
     cy.visit('/item-groups/test_room/items');
+    cy.wait('@listItems');
 
-    // Round-2 UX feedback dropped the "Book for a colleague" checkbox — the
-    // dropdown alone is always rendered and always enabled. Selecting a
-    // colleague is the trigger; empty means book for self.
-    cy.get('[data-cy="colleague-select"]').should('exist');
-    cy.get('[data-cy="book-colleague-checkbox"]').should('not.exist');
-    cy.get('[data-cy="book-self-radio"]').should('not.exist');
+    // Story 36.7 unified colleague booking into the shared confirmation dialog;
+    // the inline dropdown was removed from the items page. Open the dialog first.
+    cy.get('[data-cy="item-entry"][data-cy-availability="available"]')
+      .first()
+      .find('[data-cy="book-item-btn"]')
+      .click();
+    cy.get('[data-cy="tile-booking-dialog"]').should('be.visible');
+    cy.get('[data-cy="tile-colleague-select"]').should('exist');
+    cy.get('[data-cy="tile-book-self-radio"]').should('exist');
   });
 
   it('should render status chips as Vuetify components', () => {

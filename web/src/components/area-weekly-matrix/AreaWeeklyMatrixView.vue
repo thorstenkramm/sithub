@@ -51,6 +51,7 @@
       :activator-el="popoverActivator"
       :item="activeBookItem"
       :cell="activeBookCell"
+      :area-id="props.areaId"
       @booked="onBooked"
       @booking-conflict="onBookingConflict"
     />

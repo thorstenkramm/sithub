@@ -22,7 +22,8 @@
       "languageDe": "Deutsch",
       "languageEs": "Español",
       "languageFr": "Francais",
-      "languageUk": "Ukrainska"
+      "languageUk": "Ukrainska",
+      "version": "Version"
     },
     "admin": "Admin",
     "passwordDialog": {
@@ -104,6 +105,12 @@
     "bookForMyself": "Für mich buchen",
     "bookForColleague": "Für Kollegen buchen",
     "selectColleague": "Kollegen auswählen",
+    "confirmBookingFor": "Buchung für {name} bestätigen",
+    "areaDayGuardTitle": "Bereits in diesem Bereich gebucht",
+    "areaDayGuardMessage": "Sie haben bereits {existingItem} am {date} gebucht. Mehrere Buchungen pro Bereich und Tag sind nicht erlaubt. Möchten Sie {existingItem} stornieren und stattdessen {newItem} buchen?",
+    "areaDayGuardColleagueMessage": "{name} hat bereits {existingItem} am {date} gebucht. Mehrere Buchungen pro Bereich und Tag sind nicht erlaubt. Möchten Sie {existingItem} stornieren und stattdessen {newItem} buchen?",
+    "areaDayGuardConfirm": "Stornieren und stattdessen buchen",
+    "areaDayGuardCancelFailed": "Gebucht, aber Ihre vorherige Buchung in diesem Bereich konnte nicht storniert werden.",
     "floorPlan": "Raumplan",
     "filterEquipment": "Ausstattung filtern",
     "deleteSavedFilter": "Gespeicherten Filter löschen",
@@ -188,7 +195,15 @@
     "addNoteTitle": "Notiz hinzufügen",
     "editNoteTitle": "Notiz bearbeiten",
     "noteLabel": "Notiz",
-    "cancelBooking": "Buchung stornieren"
+    "cancelBooking": "Buchung stornieren",
+    "onBehalfOf": "Im Auftrag von {name}",
+    "viewTableDesktopOnly": "Die Tabellenansicht ist nur auf dem Desktop verfügbar.",
+    "colDate": "Datum",
+    "colItem": "Objekt",
+    "colArea": "Bereich",
+    "colStatus": "Status",
+    "colOnBehalf": "Für / Gast",
+    "colActions": "Aktionen"
   },
   "history": {
     "title": "Buchungsverlauf",

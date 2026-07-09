@@ -74,11 +74,12 @@ describe('items', () => {
     cy.wait('@listItems');
     cy.location('pathname').should('match', /\/item-groups\/.*\/items/);
 
-    // Click book button on the available item
+    // Click book button on the available item, then confirm in the tile dialog.
     cy.get('[data-cy="item-entry"][data-cy-availability="available"]')
       .first()
       .find('[data-cy="book-item-btn"]')
       .click();
+    cy.get('[data-cy="tile-booking-confirm"]').click();
 
     cy.wait('@createBooking').then((interception) => {
       expect(interception.response?.statusCode).to.eq(201);
@@ -89,32 +90,33 @@ describe('items', () => {
     cy.get('[data-cy="booking-success-text"]').should('contain', 'Available Item');
   });
 
-  it('should show conflict message with prompt when item is already booked', () => {
-    // Mock items response with an available item
-    const mockItem = createMockItem('item-mock-1', 'Mock Item 1');
-    cy.intercept('GET', '/api/v1/item-groups/*/items*', createMockItemsResponse([mockItem])).as(
-      'listItems'
-    );
-
-    // Mock a 409 Conflict response for booking
-    interceptBookingConflict('Item is already booked for this date', 'createBookingConflict');
+  // Books the first available item through the tile dialog against a mocked 409
+  // and asserts the error banner shows the item name + backend detail.
+  function bookItemExpectingConflict(itemId: string, itemName: string, detail: string, alias: string) {
+    const mockItem = createMockItem(itemId, itemName);
+    cy.intercept('GET', '/api/v1/item-groups/*/items*', createMockItemsResponse([mockItem])).as('listItems');
+    interceptBookingConflict(detail, alias);
 
     cy.visit('/item-groups/test_room/items');
-
     cy.wait('@listItems');
 
-    // Click book on an available item
     cy.get('[data-cy="item-entry"][data-cy-availability="available"]')
       .first()
       .find('[data-cy="book-item-btn"]')
       .click();
+    cy.get('[data-cy="tile-booking-confirm"]').click();
 
-    cy.wait('@createBookingConflict');
+    cy.wait(`@${alias}`);
+    cy.get('[data-cy="booking-error-text"]').should('contain', itemName).and('contain', detail);
+  }
 
-    // Error message should show backend detail + prompt
-    cy.get('[data-cy="booking-error-text"]')
-      .should('contain', 'Mock Item 1')
-      .and('contain', 'Item is already booked for this date');
+  it('should show conflict message with prompt when item is already booked', () => {
+    bookItemExpectingConflict(
+      'item-mock-1',
+      'Mock Item 1',
+      'Item is already booked for this date',
+      'createBookingConflict'
+    );
 
     // Item list should be refreshed
     cy.wait('@listItems');
@@ -127,6 +129,8 @@ describe('items', () => {
       .first()
       .find('[data-cy="book-item-btn"]')
       .click();
+    // The tile booking dialog opens first; confirming it runs the warning flow.
+    cy.get('[data-cy="tile-booking-confirm"]').click();
   }
 
   it('should show the warning confirmation before booking a warned item and book on confirm', () => {
@@ -187,33 +191,12 @@ describe('items', () => {
   });
 
   it('should show self-duplicate message when user already has booking', () => {
-    // Mock items response with an available item
-    const mockItem = createMockItem('item-mock-2', 'Mock Item 2');
-    cy.intercept('GET', '/api/v1/item-groups/*/items*', createMockItemsResponse([mockItem])).as(
-      'listItems'
-    );
-
-    // Mock a 409 Conflict response for self-duplicate
-    interceptBookingConflict(
+    bookItemExpectingConflict(
+      'item-mock-2',
+      'Mock Item 2',
       'You already have this item booked for this date',
       'createBookingSelfDuplicate'
     );
-
-    cy.visit('/item-groups/test_room/items');
-
-    cy.wait('@listItems');
-
-    cy.get('[data-cy="item-entry"][data-cy-availability="available"]')
-      .first()
-      .find('[data-cy="book-item-btn"]')
-      .click();
-
-    cy.wait('@createBookingSelfDuplicate');
-
-    // Error message should show the self-duplicate message
-    cy.get('[data-cy="booking-error-text"]')
-      .should('contain', 'Mock Item 2')
-      .and('contain', 'You already have this item booked for this date');
   });
 
   it('should open filter help and blur non-matching items in day mode', () => {

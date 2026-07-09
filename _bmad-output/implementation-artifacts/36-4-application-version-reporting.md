@@ -1,6 +1,6 @@
 # Story 36.4: Application Version Reporting
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,55 +20,45 @@ so that I can verify deployments and report issues accurately.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add a package-level `version` variable and a `version` CLI command (AC: #1, #2)
-  - [ ] In `cmd/sithub/main.go`, declare a package-level `var version = "dev"` (default fallback).
+- [x] Task 1: Add a package-level `version` variable and a `version` CLI command (AC: #1, #2)
+  - [x] In `cmd/sithub/main.go`, declare a package-level `var version = "dev"` (default fallback).
         GoReleaser's default ldflags target `main.version`, so this exact variable name and package
         (`package main`) matter — see Dev Notes.
-  - [ ] Register a `versionCmd` (`cobra.Command`, `Use: "version"`) alongside the existing `runCmd`
-        via `rootCmd.AddCommand(...)`. Its `Run`/`RunE` prints the version to stdout and returns nil
-        (cobra exits 0 on nil). Mirror the construction style of `runCmd` (main.go:24-40).
-  - [ ] Print exactly the version string (e.g. `cmd.Println(version)` so tests can capture output),
-        no decorative prefix required by the AC — keep it a bare, parseable string.
-- [ ] Task 2: Confirm/adjust release-tag ldflags injection (AC: #2)
-  - [ ] Verify `.goreleaser.yml` relies on GoReleaser's default ldflags (it currently defines no
-        `ldflags:` under `builds:`, so the default `-X main.version={{.Version}} ...` applies). If a
-        custom `ldflags:` block is later added, it MUST keep `-X main.version={{.Version}}`.
-  - [ ] No change to `.github/workflows/release.yml` is expected — it already runs
-        `goreleaser release --clean` on a `[0-9]+.[0-9]+.[0-9]+` tag push (release.yml:1-6,41-45),
-        and `fetch-depth: 0` (release.yml:18-19) gives GoReleaser the tag it needs.
-  - [ ] Optionally set `version` in `build.sh` for local dev builds, but the `"dev"` default already
-        satisfies the fallback requirement; do not over-engineer.
-- [ ] Task 3: Expose the version via the API (AC: #3)
-  - [ ] Add a `Version(version string) echo.HandlerFunc` (closure that captures the injected version)
-        in the `system` package, following `SettingsHandler` (settings.go:16-35) exactly: type
-        `VersionAttributes struct { Version string \`json:"version"\` }`, resource `Type: "version"`,
-        `ID: "version"`, wrapped in `api.SingleResponse`, JSON:API content type header, `c.JSON`.
-  - [ ] Register the route in `internal/startup/server.go` next to the other authenticated system
-        routes (near settings at server.go:251). Decide auth: the UI shows it in the user menu (logged
-        in), so gate it with `requireAuth`. Path: `GET /api/v1/version`.
-  - [ ] Thread the `version` value from `main` into `startup.Run` -> the server builder so the handler
-        can report it. Inspect the current `startup.Run` signature and its config/wiring; if adding a
-        parameter is intrusive, pass it through the existing config struct. Prefer the least-invasive
-        wiring consistent with how `weeksInAdvanced` reaches `SettingsHandler`.
-- [ ] Task 4: Show the version in the user settings menu (AC: #4)
-  - [ ] Add `web/src/api/version.ts` mirroring `api/settings.ts` (settings.ts:1-10):
-        `VersionAttributes { version: string }` and `fetchVersion()` calling
-        `apiRequest<SingleResponse<VersionAttributes>>('/api/v1/version')`.
-  - [ ] In `App.vue`, fetch the version once (e.g. on mount, after auth) into a `ref`, and render it
-        as a small, low-emphasis line in BOTH the desktop user `v-menu` (App.vue:40-147, e.g. just
-        above or below the logout item ~139-145) AND the mobile drawer (App.vue:158-267, matching
-        placement ~260-266). Add a `data-cy="app-version"` attribute for testability.
-  - [ ] Add an i18n key (e.g. `app.userMenu.version` -> "Version") to all five locale files
-        (`web/src/locales/{en,de,es,fr,uk}.json`) under `app.userMenu`; render as
-        `{{ $t('app.userMenu.version') }} {{ appVersion }}`.
-- [ ] Task 5: Tests (AC: #1-#4)
-  - [ ] Go: unit test the `version` command output (execute the command, assert stdout contains the
-        version and no error). Unit test `system.Version` handler mirroring `ping_test.go` (status 200,
-        JSON:API content type, `data.type == "version"`, attribute equals the injected value).
-  - [ ] Frontend: Vitest for `fetchVersion()` (mirror `api/settings.test.ts`) and an `App.vue` test
-        asserting the version line renders `data-cy="app-version"` from a mocked fetch.
-  - [ ] Optional Cypress: open the user menu after `cy.login()` and assert `[data-cy="app-version"]`
-        shows a non-empty version.
+  - [x] Register a `versionCmd` (`cobra.Command`, `Use: "version"`) alongside the existing `runCmd`
+        via `rootCmd.AddCommand(...)`. Its `Run` prints the version to stdout and returns nil
+        (cobra exits 0). Extracted into `newVersionCmd()` for testability.
+  - [x] Print exactly the version string via `cmd.Println(version)` — a bare, parseable string.
+- [x] Task 2: Confirm/adjust release-tag ldflags injection (AC: #2)
+  - [x] Verified `.goreleaser.yml` defines NO `ldflags:` under `builds:` (grep found none), so
+        GoReleaser's default `-X main.version={{.Version}} ...` applies and injects the tag into
+        `main.version`. No edit made or required.
+  - [x] Confirmed no change to `.github/workflows/release.yml` — triggers on `[0-9]+.[0-9]+.[0-9]+`
+        tag push with `fetch-depth: 0` and runs `goreleaser release --clean`.
+  - [x] Did NOT touch `build.sh` — the `"dev"` default already satisfies the fallback (decision:
+        avoid over-engineering, per task guidance).
+- [x] Task 3: Expose the version via the API (AC: #3)
+  - [x] Added `Version(version string) echo.HandlerFunc` in `internal/system/version.go`, mirroring
+        `SettingsHandler`: `VersionAttributes{ Version string \`json:"version"\` }`,`Type: "version"`,
+        `ID: "version"`,`api.SingleResponse`, JSON:API content type header,`c.JSON`.
+  - [x] Registered `e.GET("/api/v1/version", system.Version(version), requireAuth)` next to settings.
+  - [x] Threaded `version` from `main` -> `startup.Run(ctx, cfg, version)` ->
+        `registerRoutes(..., version)` (least-invasive: mirrors how `bookingLimits` is threaded;
+        no global state).
+- [x] Task 4: Show the version in the user settings menu (AC: #4)
+  - [x] Added `web/src/api/version.ts` mirroring `api/settings.ts`.
+  - [x] In `App.vue`, `loadVersion()` fetches once on auth into `appVersion` ref; rendered as a
+        low-emphasis caption line in BOTH the desktop `v-menu` (`data-cy="app-version"`) AND the mobile
+        drawer (`data-cy="mobile-app-version"`), guarded by `v-if="appVersion"`.
+  - [x] Added `app.userMenu.version` to all five locale files
+        (en/de/fr: "Version", es: "Versión", uk: "Версія").
+- [x] Task 5: Tests (AC: #1-#4)
+  - [x] Go: `TestVersionCommandPrintsVersion` executes `newVersionCmd()` and asserts stdout.
+        `TestVersion` handler test mirrors `ping_test.go` (status 200, JSON:API content type,
+        `data.type == "version"`, attribute equals injected value).
+  - [x] Frontend: `web/src/api/version.test.ts` for `fetchVersion()` (mirrors `settings.test.ts`);
+        `App.test.ts` mocks `./api/version` and asserts `[data-cy="app-version"]` renders `1.2.3`.
+  - [ ] Optional Cypress: NOT added (decision: covered by Vitest App render test + fetch unit test;
+        the optional E2E was deemed unnecessary for this low-risk display line).
 
 ## Dev Notes
 
@@ -233,15 +223,52 @@ Optional Cypress E2E using the existing `cy.login()` command. [Source: .claude/r
 
 ### Agent Model Used
 
+claude-opus-4-8
+
 ### Debug Log References
+
+- Go gate: `go build ./...`, `go vet ./...`, `gofmt -l` (clean), `go test ./...` (all pass),
+  `golangci-lint run ./...` -> `0 issues.`
+- Frontend gate: `npm run type-check` (clean), `npm run lint` (0 warnings),
+  `npx vitest run` -> 51 files / 469 tests pass, `npm run build` -> built OK.
+- jscpd: TS check shows no clones involving the new `version.ts`/`version.test.ts` (pre-existing
+  4.7% elsewhere). Go check reports one clone between `version.go` and `ping.go` — the shared
+  JSON:API response-writing tail — which is the intentional, story-mandated system-package pattern
+  (same idiom already duplicated across `ping.go`/`settings.go`).
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created
+- Ultimate context engine analysis completed - comprehensive developer guide created.
+- CLI: `var version = "dev"` in `package main`; `version` subcommand via `newVersionCmd()` (extracted
+  for unit testability) prints the bare version and exits 0.
+- Build injection: verified `.goreleaser.yml` has no custom `ldflags:`, so GoReleaser's default
+  `-X main.version={{.Version}}` populates `main.version` from the git tag. No release-config edits.
+- API: `GET /api/v1/version` (authenticated, `requireAuth`) returns JSON:API single resource
+  `{ data: { type: "version", id: "version", attributes: { version } } }`.
+- Wiring: `version` threaded via `startup.Run(ctx, cfg, version)` -> `registerRoutes(..., version)`;
+  updated all 6 test call sites accordingly (5 `registerRoutes`, 1 `Run`).
+- UI: version shown as a low-emphasis caption in both desktop menu and mobile drawer, fetched once
+  on authentication; hidden until loaded.
+- Locale note: es="Versión", uk="Версія", en/de/fr="Version".
 
 ### File List
+
+- Modified: `cmd/sithub/main.go`
+- Modified: `cmd/sithub/main_test.go`
+- Added: `internal/system/version.go`
+- Added: `internal/system/version_test.go`
+- Modified: `internal/startup/server.go`
+- Modified: `internal/startup/server_test.go`
+- Added: `web/src/api/version.ts`
+- Added: `web/src/api/version.test.ts`
+- Modified: `web/src/App.vue`
+- Modified: `web/src/App.test.ts`
+- Modified: `web/src/locales/en.json`, `de.json`, `es.json`, `fr.json`, `uk.json`
 
 ### Change Log
 
 - 2026-07-08: Story drafted (ready-for-dev) — FR169-FR172 application version reporting across CLI,
   release build injection, API endpoint, and settings-menu UI.
+- 2026-07-09: Implemented all tasks — CLI `version` command + `var version`, `GET /api/v1/version`
+  authenticated endpoint, App.vue user-menu display (desktop + mobile), i18n keys in all five
+  locales, and Go + Vitest tests. All gates green. Status -> review.

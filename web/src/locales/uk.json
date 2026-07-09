@@ -22,7 +22,8 @@
       "languageDe": "Deutsch",
       "languageEs": "Espanol",
       "languageFr": "Francais",
-      "languageUk": "Ukrainska"
+      "languageUk": "Ukrainska",
+      "version": "Версія"
     },
     "admin": "Адмін",
     "passwordDialog": {
@@ -104,6 +105,12 @@
     "bookForMyself": "Забронювати для себе",
     "bookForColleague": "Забронювати для колеги",
     "selectColleague": "Оберіть колегу",
+    "confirmBookingFor": "Підтвердити бронювання для {name}",
+    "areaDayGuardTitle": "Уже заброньовано в цій зоні",
+    "areaDayGuardMessage": "Ви вже забронювали {existingItem} на {date}. Кілька бронювань на зону та день заборонені. Скасувати {existingItem} і забронювати {newItem} замість цього?",
+    "areaDayGuardColleagueMessage": "{name} вже забронював(-ла) {existingItem} на {date}. Кілька бронювань на зону та день заборонені. Скасувати {existingItem} і забронювати {newItem} замість цього?",
+    "areaDayGuardConfirm": "Скасувати та забронювати замість цього",
+    "areaDayGuardCancelFailed": "Заброньовано, але попереднє бронювання в цій зоні не вдалося скасувати.",
     "floorPlan": "План поверху",
     "filterEquipment": "Фільтр обладнання",
     "deleteSavedFilter": "Видалити збережений фільтр",
@@ -188,7 +195,15 @@
     "addNoteTitle": "Додати нотатку",
     "editNoteTitle": "Редагувати нотатку",
     "noteLabel": "Нотатка",
-    "cancelBooking": "Скасувати бронювання"
+    "cancelBooking": "Скасувати бронювання",
+    "onBehalfOf": "Від імені {name}",
+    "viewTableDesktopOnly": "Перегляд таблицею доступний лише на комп'ютері.",
+    "colDate": "Дата",
+    "colItem": "Об'єкт",
+    "colArea": "Зона",
+    "colStatus": "Статус",
+    "colOnBehalf": "Для / Гість",
+    "colActions": "Дії"
   },
   "history": {
     "title": "Історія бронювань",

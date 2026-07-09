@@ -78,13 +78,10 @@ func NewService(cfg *config.Config, store *sql.DB) (*Service, error) {
 		}
 	}
 
-	hashKey := make([]byte, 32)
-	blockKey := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, hashKey); err != nil {
-		return nil, fmt.Errorf("generate hash key: %w", err)
-	}
-	if _, err := io.ReadFull(rand.Reader, blockKey); err != nil {
-		return nil, fmt.Errorf("generate block key: %w", err)
+	// Persistent cookie-signing keys so sessions survive server restarts (FR166).
+	hashKey, blockKey, err := LoadOrCreateKeys(cfg.Main.DataDir)
+	if err != nil {
+		return nil, fmt.Errorf("load cookie keys: %w", err)
 	}
 
 	return &Service{

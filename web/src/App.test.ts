@@ -7,6 +7,12 @@ import router from './router';
 import { createTestI18n } from './__tests__/helpers/i18n';
 import { useAuthStore } from './stores/useAuthStore';
 
+vi.mock('./api/version', () => ({
+  fetchVersion: vi.fn(() =>
+    Promise.resolve({ data: { id: 'version', type: 'version', attributes: { version: '1.2.3' } } }),
+  ),
+}));
+
 describe('App', () => {
   const slotStub = { template: '<div><slot /></div>' };
   const vImgStub = {
@@ -128,6 +134,13 @@ describe('App', () => {
 
       // Logout present
       expect(wrapper.find('[data-cy="logout-btn"]').exists()).toBe(true);
+
+      // Version line renders from the mocked fetch
+      await nextTick();
+      await nextTick();
+      const versionLine = wrapper.find('[data-cy="app-version"]');
+      expect(versionLine.exists()).toBe(true);
+      expect(versionLine.text()).toContain('1.2.3');
     });
 
     it('mobile menu contains all settings and profile items', async () => {

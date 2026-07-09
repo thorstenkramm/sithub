@@ -35,7 +35,8 @@ import (
 )
 
 // Run starts the HTTP server and blocks until it shuts down.
-func Run(ctx context.Context, cfg *config.Config) error {
+// version is the running application version, reported by the /api/v1/version endpoint.
+func Run(ctx context.Context, cfg *config.Config, version string) error {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(echomw.SecureWithConfig(secureConfig()))
@@ -92,7 +93,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 	//nolint:contextcheck // Echo handlers use request context.
 	registerRoutes(e, authService, areasConfig, cfg.Areas.FloorPlansDir, avatarsDir, store,
-		notifier, hub, bookingLimits)
+		notifier, hub, bookingLimits, version)
 	registerSPAHandlers(e, webFS)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Main.Listen, cfg.Main.Port)
@@ -223,7 +224,7 @@ func safeHostSource(host string) string {
 func registerRoutes(
 	e *echo.Echo, authService *auth.Service, areasConfig *areas.Config,
 	floorPlansDir, avatarsDir string, store *sql.DB, notifier notifications.Notifier,
-	liveHub *livefeed.Hub, bookingLimits *bookings.BookingLimits,
+	liveHub *livefeed.Hub, bookingLimits *bookings.BookingLimits, version string,
 ) {
 	// Helper to get current config (returns the same config, loaded at startup)
 	getConfig := func() *areas.Config { return areasConfig }
@@ -249,6 +250,7 @@ func registerRoutes(
 		weeksInAdvanced = bookingLimits.WeeksInAdvanced
 	}
 	e.GET("/api/v1/settings", system.SettingsHandler(weeksInAdvanced), requireAuth)
+	e.GET("/api/v1/version", system.Version(version), requireAuth)
 	e.GET("/api/v1/me", auth.MeHandler(), requireAuth)
 	e.PATCH("/api/v1/me", auth.UpdateMeHandler(authService), requireAuth)
 	e.GET("/api/v1/areas", areas.ListHandlerDynamic(getConfig), requireAuth)

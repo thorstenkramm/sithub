@@ -57,7 +57,7 @@ func TestRunShutsDownOnContextCancel(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- Run(ctx, cfg)
+		errCh <- Run(ctx, cfg, "test-version")
 	}()
 
 	time.Sleep(50 * time.Millisecond)
@@ -226,7 +226,7 @@ func TestBodyLimitSkipsAvatarUpload(t *testing.T) {
 	registerRoutes(
 		e, authService, &areas.Config{},
 		t.TempDir(), avatarsDir, nil,
-		notifications.NewNotifier(""), livefeed.NewHub(), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
 	)
 
 	body, contentType := multipartAvatarBody(t, paddedPNG(t, 3<<20))
@@ -260,7 +260,7 @@ func TestAvatarUploadHasRouteSpecificBodyLimit(t *testing.T) {
 	registerRoutes(
 		e, authService, &areas.Config{},
 		t.TempDir(), t.TempDir(), nil,
-		notifications.NewNotifier(""), livefeed.NewHub(), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
 	)
 
 	body, contentType := multipartAvatarBody(t, paddedPNG(t, 5<<20))
@@ -283,7 +283,7 @@ func TestBodyLimitAllowsNormalBookingRequest(t *testing.T) {
 	registerRoutes(
 		e, authService, testAreasConfig(),
 		t.TempDir(), t.TempDir(), store,
-		notifications.NewNotifier(""), livefeed.NewHub(), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
 	)
 
 	bookingDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
@@ -388,7 +388,7 @@ func setupTestRouter(t *testing.T) *echo.Echo {
 	registerRoutes(
 		e, authService, &areas.Config{},
 		t.TempDir(), t.TempDir(), nil,
-		notifications.NewNotifier(""), livefeed.NewHub(), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
 	)
 	return e
 }
@@ -422,7 +422,7 @@ func TestFloorPlanPositionsWriteRouteRequiresAdmin(t *testing.T) {
 	registerRoutes(
 		e, authService, &areas.Config{},
 		t.TempDir(), t.TempDir(), nil,
-		notifications.NewNotifier(""), livefeed.NewHub(), nil,
+		notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/floor-plan-positions", http.NoBody)

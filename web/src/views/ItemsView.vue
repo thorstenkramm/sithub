@@ -118,22 +118,6 @@
               </template>
             </v-tooltip>
           </div>
-
-          <!-- Colleague selection: always enabled. Selecting a colleague books on their
-               behalf; leaving it empty books for the current user. -->
-          <v-autocomplete
-            v-model="selectedColleagueId"
-            :items="usersList"
-            item-title="displayName"
-            item-value="id"
-            :label="$t('items.selectColleague')"
-            density="compact"
-            :loading="usersLoading"
-            clearable
-            hide-details
-            data-cy="colleague-select"
-            class="colleague-select-inline"
-          />
         </div>
 
       </v-card-text>
@@ -785,8 +769,9 @@
             v-if="itemGroupFloorPlan"
             :floor-plan="itemGroupFloorPlan"
             :title="itemGroupName || 'Floor Plan'"
-            :week-label="weekOptions.find(o => o.value === selectedWeek)?.label || ''"
-            :week-dates="selectedWeekDates"
+            :week-label="floorPlanWeekLabel"
+            :week-dates="floorPlanWeekDates"
+            :selected-day="floorPlanSelectedDate"
             :item-group-id="activeItemGroupId || ''"
             :area-id="getCurrentAreaId()"
             @close="showItemGroupFloorPlanDialog = false"
@@ -816,6 +801,46 @@
       </v-card>
     </v-dialog>
 
+    <!-- Tile booking confirmation dialog (day + week): unified colleague
+         selection. Confirm runs the existing warning flow then books. -->
+    <v-dialog
+      v-model="showBookingConfirmDialog"
+      max-width="480"
+      persistent
+      data-cy="tile-booking-dialog"
+    >
+      <v-card>
+        <v-card-title data-cy="tile-booking-title">
+          {{ bookingConfirmTitle }}
+        </v-card-title>
+        <v-card-text>
+          <ColleagueSelect
+            v-model="dialogColleagueId"
+            data-cy-prefix="tile"
+          />
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn
+            variant="text"
+            data-cy="tile-booking-cancel"
+            @click="showBookingConfirmDialog = false"
+          >
+            {{ $t('common.cancel') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="bookingItemId !== null || weekBookingInProgress"
+            data-cy="tile-booking-confirm"
+            @click="confirmBookingDialog"
+          >
+            {{ $t('items.book') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Confirm Cancel Dialog (week view) -->
     <ConfirmDialog
       v-model="showWeekCancelDialog"
@@ -824,6 +849,18 @@
       :confirm-text="$t('items.cancelBooking')"
       confirm-color="error"
       @confirm="confirmWeekCancel"
+    />
+
+    <!-- Area/day swap guard (story 36.9) -->
+    <ConfirmDialog
+      v-model="showAreaGuard"
+      :title="$t('items.areaDayGuardTitle')"
+      :message="areaGuardMessage"
+      :confirm-text="$t('items.areaDayGuardConfirm')"
+      :loading="guardLoading"
+      confirm-color="error"
+      @confirm="confirmAreaGuard"
+      @cancel="cancelAreaGuard"
     />
 
     <v-snackbar
@@ -903,7 +940,6 @@ import {
   type BookOnBehalfOptions
 } from '../api/bookings';
 import { fetchItems } from '../api/items';
-import { fetchColleagues } from '../api/users';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
@@ -911,7 +947,12 @@ import type { ItemAttributes } from '../api/items';
 import type { JsonApiResource } from '../api/types';
 import { useApi } from '../composables/useApi';
 import { useAuthErrorHandler } from '../composables/useAuthErrorHandler';
-import { useWeekSelector, getWeekdayLabel } from '../composables/useWeekSelector';
+import {
+  useWeekSelector,
+  getWeekdayLabel,
+  getMondayOfWeek,
+  getWeekdayDates
+} from '../composables/useWeekSelector';
 import { useWeekendPreference } from '../composables/useWeekendPreference';
 import { matchesParsedFilter, parseFilter } from '../composables/useEquipmentFilter';
 import { useSavedFilters } from '../composables/useSavedFilters';
@@ -920,12 +961,15 @@ import { useFavorites } from '../composables/useFavorites';
 import { useLiveBookingRefresh } from '../composables/useLiveBookingRefresh';
 import { getSafeLocalStorage } from '../composables/storage';
 import { useWarningConfirmation, type WarnItem } from '../composables/useWarningConfirmation';
+import { useColleagues } from '../composables/useColleagues';
+import { useAreaDayGuard } from '../composables/useAreaDayGuard';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { getInitials, middleTruncate } from '../utils/text';
+import { formatShortDate } from '../utils/date';
 import { getAvatarUrl } from '../api/avatars';
 import { fetchSettings } from '../api/settings';
-import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton, ItemWarning, WarningConfirmDialog } from '../components';
+import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton, ItemWarning, WarningConfirmDialog, ColleagueSelect } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const { t, locale } = useI18n();
@@ -974,10 +1018,38 @@ const { loading: itemsLoading, run: runItems } = useApi();
 const activeItemGroupId = ref<string | null>(null);
 const areaName = ref('');
 const itemGroupName = ref('');
-const selectedColleagueId = ref<string | null>(null);
-const usersList = ref<Array<{ id: string; displayName: string }>>([]);
-const usersLoading = ref(false);
+// Colleague booking is unified through the confirmation dialog (story 36.7):
+// dialogColleagueId holds the current dialog's selection (null = for myself).
+const { loadColleagues, resolveColleagueName: resolveColleagueDisplayName } = useColleagues();
+const dialogColleagueId = ref<string | null>(null);
+const showBookingConfirmDialog = ref(false);
+const pendingBookItemId = ref<string | null>(null);
+const pendingBookItemName = ref('');
 const lastBookingId = ref<string | null>(null);
+
+// Area/day guard (story 36.9): at most one booking per area and day — for the
+// user's own seat, or the colleague's seat when booking on their behalf.
+const {
+  show: showAreaGuard,
+  existingItemName: guardExistingItemName,
+  existingDate: guardExistingDate,
+  newItemName: guardNewItemName,
+  conflictForUserName: guardConflictForUserName,
+  loading: guardLoading,
+  guard: guardAreaDay,
+  confirm: confirmAreaGuard,
+  cancel: cancelAreaGuard,
+} = useAreaDayGuard();
+const areaGuardMessage = computed(() => {
+  const params = {
+    existingItem: guardExistingItemName.value,
+    date: formatDisplayDate(guardExistingDate.value),
+    newItem: guardNewItemName.value,
+  };
+  return guardConflictForUserName.value
+    ? t('items.areaDayGuardColleagueMessage', { ...params, name: guardConflictForUserName.value })
+    : t('items.areaDayGuardMessage', params);
+});
 const showPostBookingNoteDialog = ref(false);
 const noteText = ref('');
 const savingNote = ref(false);
@@ -1150,6 +1222,25 @@ const storedWeek = getWeek();
 if (weekOptions.value.some(o => o.value === storedWeek)) {
   selectedWeek.value = storedWeek;
 }
+
+// Floor-plan dialog inputs (story 36.6). In week mode the floor plan follows
+// the week selector; in day mode it must open on the tile-view's selected day,
+// so hand it the week that CONTAINS that day plus the day itself.
+const dayModeWeekDates = computed(() =>
+  getWeekdayDates(getMondayOfWeek(new Date(`${selectedDate.value}T00:00:00`)), showWeekends.value)
+);
+const floorPlanWeekDates = computed(() =>
+  bookingMode.value === 'day' ? dayModeWeekDates.value : selectedWeekDates.value
+);
+const floorPlanWeekLabel = computed(() => {
+  if (bookingMode.value === 'day') {
+    return formatDisplayDate(selectedDate.value);
+  }
+  return weekOptions.value.find(o => o.value === selectedWeek.value)?.label || '';
+});
+const floorPlanSelectedDate = computed(() =>
+  bookingMode.value === 'day' ? selectedDate.value : undefined
+);
 
 // Per-day data for week mode: map of date -> items array
 const weekData = ref<Record<string, JsonApiResource<ItemAttributes>[]>>({});
@@ -1420,25 +1511,12 @@ const loadWeekData = async (itemGroupId: string, keepResults = false, silent = f
   }
 };
 
-const loadUsers = async () => {
-  usersLoading.value = true;
-  try {
-    const resp = await fetchColleagues();
-    usersList.value = resp.data.map(u => ({
-      id: u.id,
-      displayName: u.attributes.display_name
-    }));
-  } catch {
-    // Silently fail — colleague dropdown will just be empty
-  } finally {
-    usersLoading.value = false;
-  }
-};
-
-const resolveColleagueName = (userId: string): string | undefined => {
-  const user = usersList.value.find(u => u.id === userId);
-  return user?.displayName;
-};
+// Maps the dialog colleague selection to on-behalf booking options; a null
+// selection books for the current user.
+const dialogOnBehalf = (): BookOnBehalfOptions | undefined =>
+  dialogColleagueId.value
+    ? { forUserId: dialogColleagueId.value, forUserName: resolveColleagueDisplayName(dialogColleagueId.value) || undefined }
+    : undefined;
 
 const localizeItemsBookingConflict = (err: ApiError): string => {
   const detail = err.detail ?? '';
@@ -1479,6 +1557,76 @@ const isLimitError = (err: unknown): boolean => {
     && (err.detail ?? '').toLowerCase().includes('booking limit exceeded');
 };
 
+interface WeekGuardEntry {
+  itemId: string;
+  itemName: string;
+  date: string;
+  areaId: string;
+}
+
+interface WeekGuardOutcome {
+  // Keys ("areaId::date") whose swap the user declined; those entries are
+  // skipped and not booked (story 36.9 D4).
+  declined: Set<string>;
+  // Existing booking ids to cancel by ("areaId::date") key, but only AFTER at
+  // least one replacement create for that key succeeds (D2).
+  cancelByKey: Map<string, string>;
+}
+
+const guardAreaDateKey = (areaId: string, date: string) => `${areaId}::${date}`;
+
+// resolveEntryAreaId returns the area used for the guard for a given week
+// entry. In single-area mode the whole page is one area. In favorites mode
+// (story 36.9 D3) each favorited item carries its own area_id, so the guard is
+// applied per item's own area. Returns '' when the area is unknown (legacy
+// favorites saved before areaId was stored); such entries are left unguarded.
+const resolveEntryAreaId = (itemId: string, singleAreaId: string): string => {
+  if (!favoritesMode.value) return singleAreaId;
+  return favoriteItems.value.find(f => f.itemId === itemId)?.areaId ?? '';
+};
+
+// Runs the area/day guard for each selected (item, date) before the week
+// booking batch. The guard never cancels here; instead it resolves the
+// conflicting existing booking id, which the caller cancels only AFTER the
+// create batch succeeds (create-then-cancel, story 36.9 D2). Declining a swap
+// skips only that (area, date), leaving the rest to book (D4). The my-bookings
+// list is fetched once and pruned after each accepted swap so a just-swapped
+// slot isn't re-prompted.
+const resolveWeekAreaGuards = async (
+  entries: WeekGuardEntry[],
+  onBehalf?: BookOnBehalfOptions
+): Promise<WeekGuardOutcome> => {
+  let myBookings = await fetchMyBookings().then(r => r.data).catch(() => []);
+  const seen = new Set<string>();
+  const declined = new Set<string>();
+  const cancelByKey = new Map<string, string>();
+  for (const { itemId, itemName, date, areaId } of entries) {
+    if (!areaId) continue;
+    const key = guardAreaDateKey(areaId, date);
+    // One prompt per (area, date): after a swap the slot is free for the rest.
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const decision = await guardAreaDay(
+      {
+        areaId, date, newItemId: itemId, newItemName: itemName,
+        // A colleague selection scopes the guard to the colleague's seat.
+        forUserId: onBehalf?.forUserId,
+        forUserName: onBehalf?.forUserName,
+      },
+      myBookings
+    );
+    if (!decision.proceed) {
+      declined.add(key);
+      continue;
+    }
+    if (decision.existingBookingId) {
+      cancelByKey.set(key, decision.existingBookingId);
+      myBookings = myBookings.filter(b => b.id !== decision.existingBookingId);
+    }
+  }
+  return { declined, cancelByKey };
+};
+
 const submitWeekBookings = async () => {
   if ((!favoritesMode.value && !activeItemGroupId.value) || weekSelections.value.size === 0) return;
 
@@ -1486,39 +1634,82 @@ const submitWeekBookings = async () => {
   weekBookingInProgress.value = true;
   weekBookingResults.value = [];
 
-  const entries = Array.from(weekSelections.value).map(key => {
+  const singleAreaId = favoritesMode.value ? '' : getCurrentAreaId();
+  const entries: WeekGuardEntry[] = Array.from(weekSelections.value).map(key => {
     const sep = key.indexOf('::');
     const itemId = key.substring(0, sep);
     const date = key.substring(sep + 2);
     const itemName = weekItems.value.find(item => item.id === itemId)?.name || t('common.item');
-    return { itemId, itemName, date };
+    return { itemId, itemName, date, areaId: resolveEntryAreaId(itemId, singleAreaId) };
   });
 
   // A selected colleague means "book on their behalf"; no selection means
-  // "book for the current user".
-  const onBehalf: BookOnBehalfOptions | undefined = selectedColleagueId.value
-    ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
-    : undefined;
+  // "book for the current user" (chosen in the confirmation dialog).
+  const onBehalf = dialogOnBehalf();
+
+  // Story 36.9: guard against a second booking in the same area+day. In
+  // single-area mode the area is getCurrentAreaId(); in favorites mode each
+  // item is guarded by its OWN area_id (D3). Declining a swap skips only that
+  // (area, date) (D4). Conflicting existing bookings are cancelled only AFTER
+  // the create batch succeeds (create-then-cancel, D2). A colleague selection
+  // scopes the guard to the COLLEAGUE's seat (bookings the user already made
+  // for them) instead of the user's own.
+  const { declined, cancelByKey } = await resolveWeekAreaGuards(entries, onBehalf);
+  const bookableEntries = entries.filter(
+    e => !e.areaId || !declined.has(guardAreaDateKey(e.areaId, e.date))
+  );
+
+  if (bookableEntries.length === 0) {
+    dialogColleagueId.value = null;
+    weekBookingInProgress.value = false;
+    return;
+  }
 
   const limitErrors: string[] = [];
-  const promises = entries.map(async ({ itemId, itemName, date }) => {
+  const promises = bookableEntries.map(async ({ itemId, itemName, date, areaId }) => {
+    const guardKey = areaId ? guardAreaDateKey(areaId, date) : undefined;
     try {
       await createBooking(itemId, date, onBehalf);
-      return { itemName, date, success: true, limitHit: false };
+      return { itemName, date, guardKey, success: true, limitHit: false };
     } catch (err) {
       if (isLimitError(err)) {
         const msg = localizeItemsBookingConflict(err as ApiError);
         const dayIdx = selectedWeekDates.value.indexOf(date);
         const dayLabel = dayIdx >= 0 ? getFullDayLabel(date, dayIdx) : date;
         limitErrors.push(`${itemName} — ${dayLabel}: ${msg}`);
-        return { itemName, date, success: false, error: msg, limitHit: true };
+        return { itemName, date, guardKey, success: false, error: msg, limitHit: true };
       }
       const msg = localizeItemsBookingError(err, t('items.bookingFailed'));
-      return { itemName, date, success: false, error: msg, limitHit: false };
+      return { itemName, date, guardKey, success: false, error: msg, limitHit: false };
     }
   });
 
   const results = await Promise.allSettled(promises);
+
+  const successfulSwapKeys = new Set(
+    results
+      .filter((r): r is PromiseFulfilledResult<Awaited<(typeof promises)[number]>> => r.status === 'fulfilled')
+      .filter(r => r.value.success && !!r.value.guardKey && cancelByKey.has(r.value.guardKey))
+      .map(r => r.value.guardKey!)
+  );
+
+  // Create-then-cancel (story 36.9 D2): replacement bookings are in; now cancel
+  // only the swapped-out booking for keys whose replacement actually succeeded.
+  if (successfulSwapKeys.size > 0) {
+    let cancelFailed = false;
+    for (const key of successfulSwapKeys) {
+      const id = cancelByKey.get(key);
+      if (!id) continue;
+      try {
+        await cancelBooking(id);
+      } catch {
+        cancelFailed = true;
+      }
+    }
+    if (cancelFailed) {
+      errorSnackbarMessage.value = t('items.areaDayGuardCancelFailed');
+    }
+  }
 
   const mapped = results.map(r => {
     const val = r.status === 'fulfilled'
@@ -1538,6 +1729,9 @@ const submitWeekBookings = async () => {
   }
 
   weekSelections.value = new Set();
+
+  // Reset the colleague selection so the next booking defaults to "for me".
+  dialogColleagueId.value = null;
 
   // Refresh week data (keep results visible)
   await loadWeekDataForView(true);
@@ -1791,13 +1985,64 @@ const loadWeekDataForView = async (keepResults = false, silent = false) => {
   }
 };
 
+// Day-mode Book opens the shared confirmation dialog (story 36.7) so the user
+// can pick a colleague (default: self) before the warning flow + create runs.
 const requestBooking = (itemId: string) => {
   const item = items.value.find(entry => entry.id === itemId);
-  const warning = item?.attributes.warning;
-  const list: WarnItem[] = warning
-    ? [{ itemId, itemName: item?.attributes.name || '', warning }]
-    : [];
-  presentWarnings(list, () => bookItem(itemId));
+  pendingBookItemId.value = itemId;
+  pendingBookItemName.value = item?.attributes.name || t('common.item');
+  dialogColleagueId.value = null;
+  showBookingConfirmDialog.value = true;
+};
+
+// Title of the shared confirmation dialog reflects the pending flow: a single
+// day-mode item, or the multi-selection week flow.
+const bookingConfirmTitle = computed(() => {
+  if (pendingBookItemId.value) {
+    return t('items.confirmBookingFor', { name: pendingBookItemName.value });
+  }
+  return t('items.bookDays', { count: weekSelectionCount.value }, weekSelectionCount.value);
+});
+
+// Confirm in the dialog closes it, then runs the existing warning-confirmation
+// flow (per-item warnings) before the actual create. Preserves warning → book
+// ordering for both day and week modes.
+const confirmBookingDialog = () => {
+  showBookingConfirmDialog.value = false;
+  if (pendingBookItemId.value) {
+    const itemId = pendingBookItemId.value;
+    const item = items.value.find(entry => entry.id === itemId);
+    const warning = item?.attributes.warning;
+    const list: WarnItem[] = warning
+      ? [{ itemId, itemName: item?.attributes.name || '', warning }]
+      : [];
+    const itemName = item?.attributes.name || t('common.item');
+    pendingBookItemId.value = null;
+    presentWarnings(list, () => {
+      // A colleague selection scopes the guard to the COLLEAGUE's seat: it
+      // prompts only when the user already booked something for that colleague
+      // in the same area on the same day (story 36.9 / FR178).
+      guardAreaDay({
+        areaId: getCurrentAreaId(),
+        date: selectedDate.value,
+        newItemId: itemId,
+        newItemName: itemName,
+        forUserId: dialogColleagueId.value || undefined,
+        forUserName: dialogColleagueId.value
+          ? resolveColleagueDisplayName(dialogColleagueId.value) || undefined
+          : undefined,
+      })
+        .then((decision) => {
+          if (decision.proceed) void bookItem(itemId, decision.existingBookingId);
+        })
+        .catch(() => {
+          errorSnackbarMessage.value = t('items.unableToBook');
+        });
+    });
+    return;
+  }
+  // Week mode: run the week warning flow then submit all selected days.
+  presentWarnings(collectWeekWarnItems(), () => submitWeekBookings());
 };
 
 const findWeekItem = (itemId: string): JsonApiResource<ItemAttributes> | undefined => {
@@ -1824,11 +2069,21 @@ const collectWeekWarnItems = (): WarnItem[] => {
     .filter((entry): entry is WarnItem => entry !== null);
 };
 
+// Week-mode "Book N days" opens the shared confirmation dialog for colleague
+// selection; confirming there runs the warning flow + submitWeekBookings.
 const startWeekWarningFlow = () => {
-  presentWarnings(collectWeekWarnItems(), () => submitWeekBookings());
+  pendingBookItemId.value = null;
+  pendingBookItemName.value = '';
+  dialogColleagueId.value = null;
+  showBookingConfirmDialog.value = true;
 };
 
-const bookItem = async (itemId: string) => {
+// bookItem creates the new booking FIRST, then (only on success) cancels the
+// conflicting existing booking the area/day guard resolved. This create-then-
+// cancel order keeps the swap safe: a failed create leaves the old booking
+// intact. A failed post-create cancel keeps the new booking and surfaces a
+// non-blocking warning (story 36.9 D2).
+const bookItem = async (itemId: string, existingBookingId?: string) => {
   showSuccessSnackbar.value = false;
   errorSnackbarMessage.value = null;
   lastBookingDetails.value = null;
@@ -1837,14 +2092,20 @@ const bookItem = async (itemId: string) => {
   const bookingDate = selectedDate.value;
 
   try {
-    // A selected colleague means "book on their behalf"; no selection means
-    // "book for the current user".
-    const onBehalf: BookOnBehalfOptions | undefined = selectedColleagueId.value
-      ? { forUserId: selectedColleagueId.value, forUserName: resolveColleagueName(selectedColleagueId.value) }
-      : undefined;
+    // A selected colleague (from the confirmation dialog) means "book on their
+    // behalf"; no selection means "book for the current user".
+    const onBehalf = dialogOnBehalf();
 
     const result = await createBooking(itemId, bookingDate, onBehalf);
     lastBookingId.value = result.data.id;
+
+    if (existingBookingId) {
+      try {
+        await cancelBooking(existingBookingId);
+      } catch {
+        errorSnackbarMessage.value = t('items.areaDayGuardCancelFailed');
+      }
+    }
 
     const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || t('common.item');
     const details = { itemName, date: bookingDate };
@@ -1859,7 +2120,7 @@ const bookItem = async (itemId: string) => {
     );
 
     // Reset the colleague selection so the next booking defaults to "for me".
-    selectedColleagueId.value = null;
+    dialogColleagueId.value = null;
 
     // Reload items to reflect updated availability (keep selected date)
     await loadItemsForView(selectedDate.value);
@@ -2033,8 +2294,8 @@ onMounted(async () => {
     // Non-critical: week selector uses default
   }
 
-  // Load users list for colleague dropdown (non-blocking)
-  loadUsers();
+  // Load colleague list for on-behalf name resolution (non-blocking)
+  loadColleagues();
 
   if (favoritesMode.value) {
     // Favorites mode skips the per-item-group lookup entirely. The
@@ -2176,14 +2437,7 @@ function formatDate(date: Date) {
 }
 
 function formatDisplayDate(dateStr: string) {
-  if (!dateStr) return '';
-  const date = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return dateStr;
-  return new Intl.DateTimeFormat(locale.value || undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  }).format(date);
+  return formatShortDate(dateStr, locale.value);
 }
 
 function formatBookingSuccessMessage(details: { itemName: string; date: string } | null) {
@@ -2222,15 +2476,9 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   pointer-events: none;
 }
 
-.colleague-select-inline {
-  flex: 0 0 240px;
-  max-width: 280px;
-}
-
 @media (max-width: 600px) {
   .booking-date-input,
-  .equipment-filter-cluster,
-  .colleague-select-inline {
+  .equipment-filter-cluster {
     flex: 1 1 100%;
     max-width: 100%;
   }

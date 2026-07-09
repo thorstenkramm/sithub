@@ -11,7 +11,7 @@
       <v-card-text class="text-body-1">
         {{ message }}
       </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
+      <v-card-actions class="pa-4 pt-0 confirm-dialog-actions">
         <v-spacer />
         <v-btn
           variant="text"
@@ -34,6 +34,27 @@
     </v-card>
   </v-dialog>
 </template>
+
+<style scoped>
+/* Long localized labels (e.g. the de/uk areaDayGuardConfirm) must never
+   overflow the 400px card: let the actions row wrap and, if a single label
+   is still wider than the card, wrap the text inside the button. */
+.confirm-dialog-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 8px;
+}
+
+.confirm-dialog-actions .v-btn {
+  max-width: 100%;
+  height: auto;
+  min-height: 36px;
+}
+
+.confirm-dialog-actions .v-btn :deep(.v-btn__content) {
+  white-space: normal;
+}
+</style>
 
 <script setup lang="ts">
 import { computed } from 'vue';

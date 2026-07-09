@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-07-08
+last_updated: 2026-07-09
 
 # Note: 2026-05-11 update — Epic 32 (Booker Avatars on Item Tiles & Stable
 # Colleague Booking Layout): all 3 stories done after a round-2 UX revision
@@ -310,14 +310,14 @@ development_status:
   35-5-warning-text-keyed-dismissals: done
   epic-35-retrospective: done
 
-  epic-36: in-progress
-  36-1-persistent-sessions-across-server-restarts: ready-for-dev
-  36-2-desktop-table-view-for-my-bookings: ready-for-dev
-  36-3-named-on-behalf-bookings-in-my-bookings: ready-for-dev
-  36-4-application-version-reporting: ready-for-dev
-  36-5-centered-filled-presence-avatars: ready-for-dev
-  36-6-floor-plan-opens-for-the-selected-day-week: ready-for-dev
-  36-7-unified-colleague-booking-via-confirmation-dialog: ready-for-dev
-  36-8-full-width-booker-names-in-the-weekly-table: ready-for-dev
-  36-9-guard-against-multiple-bookings-per-area-and-day: ready-for-dev
+  epic-36: done
+  36-1-persistent-sessions-across-server-restarts: done
+  36-2-desktop-table-view-for-my-bookings: done
+  36-3-named-on-behalf-bookings-in-my-bookings: done
+  36-4-application-version-reporting: done
+  36-5-centered-filled-presence-avatars: done
+  36-6-floor-plan-opens-for-the-selected-day-week: done
+  36-7-unified-colleague-booking-via-confirmation-dialog: done
+  36-8-full-width-booker-names-in-the-weekly-table: done
+  36-9-guard-against-multiple-bookings-per-area-and-day: done
   epic-36-retrospective: optional

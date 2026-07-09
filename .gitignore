@@ -65,6 +65,9 @@ web/cypress/videos/
 /sithub.db-shm
 /sithub.db-wal
 
+# Cookie signing keys (persistent session keys, never commit)
+/cookie.key
+
 # Local run artifacts
 /.tmp/
 

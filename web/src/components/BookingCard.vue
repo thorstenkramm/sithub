@@ -13,22 +13,10 @@
       <v-card-title class="d-flex align-center flex-wrap ga-2" data-cy="booking-date">
         {{ formattedDate }}
         <StatusChip
-          v-if="booking.attributes.is_guest"
-          status="guest"
+          v-if="status"
+          :status="status"
           size="x-small"
-          data-cy="guest-chip"
-        />
-        <StatusChip
-          v-else-if="booking.attributes.booked_for_me"
-          status="booked-for-me"
-          size="x-small"
-          data-cy="booked-for-me-chip"
-        />
-        <StatusChip
-          v-else-if="booking.attributes.booked_by_user_id && !booking.attributes.booked_for_me"
-          status="on-behalf"
-          size="x-small"
-          data-cy="on-behalf-chip"
+          :data-cy="statusDataCy"
         />
       </v-card-title>
       <v-card-subtitle>
@@ -43,6 +31,13 @@
         data-cy="booked-by"
       >
         {{ t('bookings.bookedBy', { name: booking.attributes.booked_by_user_name }) }}
+      </div>
+      <div
+        v-if="booking.attributes.booked_by_user_id && !booking.attributes.booked_for_me && booking.attributes.for_user_name"
+        class="text-caption text-medium-emphasis mt-1"
+        data-cy="on-behalf-of"
+      >
+        {{ t('bookings.onBehalfOf', { name: booking.attributes.for_user_name }) }}
       </div>
       <div
         v-if="booking.attributes.guest_name"
@@ -179,6 +174,7 @@ import type { JsonApiResource } from '../api/types';
 const { t, locale } = useI18n();
 import type { MyBookingAttributes } from '../api/bookings';
 import { updateBookingNote } from '../api/bookings';
+import { deriveBookingStatus } from '../utils/bookingStatus';
 import StatusChip from './StatusChip.vue';
 
 const props = withDefaults(defineProps<{
@@ -216,6 +212,21 @@ const formattedDate = computed(() => {
     month: 'long',
     day: 'numeric'
   });
+});
+
+const status = computed(() => deriveBookingStatus(props.booking.attributes));
+
+const statusDataCy = computed(() => {
+  switch (status.value) {
+    case 'guest':
+      return 'guest-chip';
+    case 'booked-for-me':
+      return 'booked-for-me-chip';
+    case 'on-behalf':
+      return 'on-behalf-chip';
+    default:
+      return undefined;
+  }
 });
 
 const avatarColor = computed(() => {

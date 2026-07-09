@@ -465,6 +465,13 @@
             </div>
           </div>
 
+          <div class="mt-4">
+            <ColleagueSelect
+              v-model="bookingColleagueId"
+              data-cy-prefix="fp"
+            />
+          </div>
+
           <div
             v-if="selectedBookingDates.length === 0"
             class="text-body-2 text-error mt-3"
@@ -539,6 +546,17 @@
       @confirm="warningConfirmAction"
       @cancel="warningCancelAction"
     />
+
+    <ConfirmDialog
+      v-model="showAreaGuard"
+      :title="$t('items.areaDayGuardTitle')"
+      :message="areaGuardMessage"
+      :confirm-text="$t('items.areaDayGuardConfirm')"
+      :loading="guardLoading"
+      confirm-color="error"
+      @confirm="confirmAreaGuard"
+      @cancel="cancelAreaGuard"
+    />
   </div>
 </template>
 
@@ -559,12 +577,19 @@ import type { FloorPlanPositionAttributes } from "../api/floorPlanPositions";
 import type { ItemAttributes } from "../api/items";
 import type { JsonApiResource } from "../api/types";
 import { getInitials } from "../utils/text";
+import { formatShortDate } from "../utils/date";
 import { useAreaDrillDownPreference } from "../composables/useAreaDrillDownPreference";
 import { useLiveBookingRefresh } from "../composables/useLiveBookingRefresh";
 import { useFavorites } from "../composables/useFavorites";
 import { useWarningConfirmation } from "../composables/useWarningConfirmation";
+import { useColleagues } from "../composables/useColleagues";
+import { useAreaDayGuard } from "../composables/useAreaDayGuard";
+import { fetchMyBookings } from "../api/bookings";
 import ItemWarning from "./ItemWarning.vue";
 import WarningConfirmDialog from "./WarningConfirmDialog.vue";
+import ColleagueSelect from "./ColleagueSelect.vue";
+import ConfirmDialog from "./ConfirmDialog.vue";
+import type { BookOnBehalfOptions } from "../api/bookings";
 
 const props = defineProps<{
   floorPlan: string;
@@ -575,6 +600,12 @@ const props = defineProps<{
   areaLevel?: boolean;
   /** Required for favorites; uniquely scopes itemGroupId/itemId. */
   areaId?: string;
+  /**
+   * Day (ISO YYYY-MM-DD) the tile view had selected in day mode. When set and
+   * present as a non-past day in weekDates, the floor plan opens on that day
+   * instead of today. Unset (week mode) preserves today / first-future.
+   */
+  selectedDay?: string;
 }>();
 
 const emit = defineEmits<{
@@ -759,6 +790,22 @@ const pendingBooking = ref<{
   itemGroupId: string;
 } | null>(null);
 const bookingDaySelections = ref<Record<string, boolean>>({});
+// Colleague to book on behalf of (story 36.7); null = book for myself. A
+// single selection applies to every selected day (single- or multi-day).
+const bookingColleagueId = ref<string | null>(null);
+const { loadColleagues, resolveColleagueName } = useColleagues();
+// Area/day guard (story 36.9): applied per selected date before booking.
+const {
+  show: showAreaGuard,
+  existingItemName: guardExistingItemName,
+  existingDate: guardExistingDate,
+  newItemName: guardNewItemName,
+  conflictForUserName: guardConflictForUserName,
+  loading: guardLoading,
+  guard: guardAreaDay,
+  confirm: confirmAreaGuard,
+  cancel: cancelAreaGuard,
+} = useAreaDayGuard();
 const bookingDayInfoMap = ref<Map<string, BookingDayInfo>>(new Map());
 const bookingItemEquipment = ref<string[]>([]);
 const bookingItemWarning = ref<string | undefined>();
@@ -823,6 +870,17 @@ const bookingSummary = computed(() => {
   });
 });
 
+const areaGuardMessage = computed(() => {
+  const params = {
+    existingItem: guardExistingItemName.value,
+    date: formatShortDate(guardExistingDate.value, locale.value),
+    newItem: guardNewItemName.value,
+  };
+  return guardConflictForUserName.value
+    ? t("items.areaDayGuardColleagueMessage", { ...params, name: guardConflictForUserName.value })
+    : t("items.areaDayGuardMessage", params);
+});
+
 watch(showBookingSnackbar, (open) => {
   if (!open && !undoInProgress.value) {
     lastBooking.value = null;
@@ -833,6 +891,7 @@ watch(showBookingDialog, (open) => {
   if (!open && !bookingInProgress.value) {
     pendingBooking.value = null;
     bookingDaySelections.value = {};
+    bookingColleagueId.value = null;
     bookingDayInfoMap.value = new Map();
     bookingItemEquipment.value = [];
     bookingItemWarning.value = undefined;
@@ -909,6 +968,19 @@ function getBookingDayStatusText(date: string): string {
 }
 
 function preselectDay() {
+  // Day mode passes the tile-view's selected day; honor it when it is a
+  // non-past day present in the current weekDates (story 36.6). Otherwise fall
+  // back to today / first-future (week mode passes no selectedDay).
+  if (props.selectedDay) {
+    const selectedIndex = weekdays.value.findIndex(
+      (day) => day.date === props.selectedDay && !day.past,
+    );
+    if (selectedIndex >= 0) {
+      selectedDayIndex.value = selectedIndex;
+      return;
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   const todayIndex = weekdays.value.findIndex((day) => day.date === today);
   if (todayIndex >= 0) {
@@ -1467,8 +1539,10 @@ async function requestBooking(itemID: string, label: string) {
     label,
     itemGroupId: resolveBookingItemGroupId(itemID),
   };
+  bookingColleagueId.value = null;
   initializeBookingSelection();
   showBookingDialog.value = true;
+  void loadColleagues();
   await loadBookingDayAvailability();
 }
 
@@ -1538,29 +1612,117 @@ function confirmPendingBooking() {
   presentWarnings(warnItems, () => void executeBooking(bookingDates));
 }
 
+// Runs the area/day guard for each selected date before booking (story 36.9).
+// Returns, per date, whether the booking may proceed and the id of the
+// conflicting existing booking to cancel AFTER a successful create. Declining
+// the swap for one date skips only that date; other dates still book (D4). The
+// guard never cancels here — the caller creates first, then cancels (D2). Only
+// runs when the area is known (drill-down level); no-ops otherwise. A colleague
+// selection scopes the guard to the COLLEAGUE's seat: it prompts only when the
+// user already booked something for that colleague in the same area/day.
+async function resolveFloorPlanAreaGuards(
+  bookingDates: string[],
+): Promise<{ dates: string[]; cancelByDate: Map<string, string> }> {
+  if (!props.areaId || !pendingBooking.value) {
+    return { dates: bookingDates, cancelByDate: new Map() };
+  }
+  const colleagueId = bookingColleagueId.value;
+  let myBookings = await fetchMyBookings()
+    .then((r) => r.data)
+    .catch(() => []);
+  const dates: string[] = [];
+  const cancelByDate = new Map<string, string>();
+  for (const date of bookingDates) {
+    const decision = await guardAreaDay(
+      {
+        areaId: props.areaId,
+        date,
+        newItemId: pendingBooking.value.itemId,
+        newItemName: pendingBooking.value.label,
+        forUserId: colleagueId || undefined,
+        forUserName: colleagueId
+          ? resolveColleagueName(colleagueId) || undefined
+          : undefined,
+      },
+      myBookings,
+    );
+    // Declined swap: skip this day only, keep the rest.
+    if (!decision.proceed) continue;
+    dates.push(date);
+    if (decision.existingBookingId) {
+      cancelByDate.set(date, decision.existingBookingId);
+      // Drop the just-swapped booking so it is not re-prompted for later dates.
+      myBookings = myBookings.filter((b) => b.id !== decision.existingBookingId);
+    }
+  }
+  return { dates, cancelByDate };
+}
+
+// Cancels the existing bookings swapped out during the guard, AFTER the new
+// booking has been created. A failure surfaces a non-blocking warning but the
+// new booking is kept (story 36.9 D2).
+async function cancelSwappedBookings(cancelIds: string[]) {
+  let cancelFailed = false;
+  for (const id of cancelIds) {
+    try {
+      await cancelBooking(id);
+    } catch {
+      cancelFailed = true;
+    }
+  }
+  if (cancelFailed) {
+    errorSnackbarText.value = t("items.areaDayGuardCancelFailed");
+    showErrorSnackbar.value = true;
+  }
+}
+
 async function executeBooking(bookingDates: string[]) {
   if (!pendingBooking.value) {
+    return;
+  }
+
+  const { dates: datesToBook, cancelByDate } =
+    await resolveFloorPlanAreaGuards(bookingDates);
+  if (datesToBook.length === 0) {
     return;
   }
 
   bookingInProgress.value = true;
   try {
     let createdBookingIds: string[] = [];
+    const createdDates = new Set<string>();
     let conflicts: string[] = [];
-    const multiDay = bookingDates.length > 1;
+    const multiDay = datesToBook.length > 1;
+
+    // A selected colleague books every chosen day on their behalf (story 36.7);
+    // null keeps the booking for the current user.
+    const onBehalf: BookOnBehalfOptions | undefined = bookingColleagueId.value
+      ? {
+          forUserId: bookingColleagueId.value,
+          forUserName: resolveColleagueName(bookingColleagueId.value) || undefined,
+        }
+      : undefined;
 
     if (!multiDay) {
       const response = await createBooking(
         pendingBooking.value.itemId,
-        bookingDates[0]!,
+        datesToBook[0]!,
+        onBehalf,
       );
       createdBookingIds = [response.data.id];
+      createdDates.add(datesToBook[0]!);
     } else {
       const response = await createMultiDayBooking(
         pendingBooking.value.itemId,
-        bookingDates,
+        datesToBook,
+        onBehalf,
       );
       createdBookingIds = response.created.map((resource) => resource.id);
+      response.created.forEach((resource) => {
+        if (resource.attributes.booking_date) {
+          createdDates.add(resource.attributes.booking_date);
+        }
+      });
       conflicts = response.conflicts || [];
     }
 
@@ -1572,6 +1734,14 @@ async function executeBooking(bookingDates: string[]) {
       showErrorSnackbar.value = true;
       return;
     }
+
+    // New booking(s) created: now cancel only the swapped-out existing bookings
+    // whose replacement date was actually created (create-then-cancel, story
+    // 36.9 D2). A failed cancel keeps the new booking and warns without blocking.
+    const cancelIds = Array.from(cancelByDate.entries())
+      .filter(([date]) => createdDates.has(date))
+      .map(([, id]) => id);
+    await cancelSwappedBookings(cancelIds);
 
     lastBooking.value = {
       bookingIds: createdBookingIds,
@@ -1589,6 +1759,7 @@ async function executeBooking(bookingDates: string[]) {
     showBookingDialog.value = false;
     pendingBooking.value = null;
     bookingDaySelections.value = {};
+    bookingColleagueId.value = null;
     await refreshAvailability();
 
     if (conflicts.length > 0) {
