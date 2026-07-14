@@ -22,7 +22,7 @@
     "vue": "^3.5.39",
     "vue-i18n": "^11.4.6",
     "vue-router": "^5.1.0",
-    "vuetify": "^3.12.9"
+    "vuetify": "^3.12.10"
   },
   "overrides": {
     "flatted": "^3.4.2",
