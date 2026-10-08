@@ -79,7 +79,7 @@ jobs:
 
       - name: Security audit (npm)
         working-directory: web
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Frontend type-check
         working-directory: web

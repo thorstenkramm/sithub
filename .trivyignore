@@ -5,3 +5,10 @@
 # hashing; the openpgp subpackage is never imported (verified: no `x/crypto/openpgp`
 # import anywhere in the tree). No fixed version exists (deprecated package). Not applicable.
 GO-2026-5932
+
+# CVE-2026-93687 / GHSA-vfj7-8cjw-p6xm: braces stack-exhaustion DoS via deeply nested patterns.
+# All braces versions are affected; no patched release exists yet. braces is a dev-only,
+# lint-time dependency (@vue/eslint-config-typescript -> fast-glob -> micromatch -> braces)
+# and is not part of the shipped frontend bundle. Remove once a fixed braces is released.
+CVE-2026-93687
+GHSA-vfj7-8cjw-p6xm
