@@ -49,7 +49,7 @@ run_step "Go tests (race + coverage)" bash -c \
    echo "Go coverage: ${pct}%" &&
    awk -v pct="$pct" '\''BEGIN {exit !(pct >= 80)}'\'''
 
-run_step "Markdown lint" npx markdownlint README.md
+run_step "Markdown lint" npx --yes markdownlint-cli README.md
 run_step "API doc lint" npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
 run_step "Code duplication (Go)" npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 3
 

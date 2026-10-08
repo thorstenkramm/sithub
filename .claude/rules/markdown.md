@@ -22,7 +22,7 @@
    Some text that refers to something important. And so and so on bla bla
    ```
 
-3. Always lint Markdown files using `npx markdownlint --fix <FILE>.md` and fix findings until linter succeeds.
+3. Always lint Markdown files using `npx --yes markdownlint-cli --fix <FILE>.md` and fix findings until linter succeeds.
 4. Avoid large Markdown tables. Do not use tables when cells have line breaks or content larger than 75 characters.
    Small tables are OK.
 5. Use ordered and unordered lists only when they make sense.
