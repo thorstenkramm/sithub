@@ -46,11 +46,6 @@ func UpsertEntraIDUser(
 	now := time.Now().UTC().Format(time.RFC3339)
 	id := uuid.New().String()
 
-	isAdminInt := 0
-	if isAdmin {
-		isAdminInt = 1
-	}
-
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO users (id, email, display_name, password_hash, user_source, entra_id,
 			is_admin, last_login, created_at, updated_at)
@@ -61,7 +56,7 @@ func UpsertEntraIDUser(
 			is_admin = excluded.is_admin,
 			last_login = excluded.last_login,
 			updated_at = excluded.updated_at`,
-		id, email, displayName, entraID, isAdminInt, now, now, now,
+		id, email, displayName, entraID, boolToInt(isAdmin), now, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("upsert entra user: %w", err)
@@ -77,16 +72,11 @@ func CreateLocalUser(
 	now := time.Now().UTC().Format(time.RFC3339)
 	id := uuid.New().String()
 
-	isAdminInt := 0
-	if isAdmin {
-		isAdminInt = 1
-	}
-
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO users (id, email, display_name, password_hash, user_source, entra_id,
 			is_admin, last_login, created_at, updated_at)
 		VALUES (?, ?, ?, ?, 'internal', '', ?, '', ?, ?)`,
-		id, email, displayName, passwordHash, isAdminInt, now, now,
+		id, email, displayName, passwordHash, boolToInt(isAdmin), now, now,
 	)
 	if err != nil {
 		var sqliteErr sqlite3.Error
@@ -188,12 +178,8 @@ func UpdateUser(ctx context.Context, db *sql.DB, id string, fields UpdateFields)
 		args = append(args, *fields.DisplayName)
 	}
 	if fields.IsAdmin != nil {
-		isAdminInt := 0
-		if *fields.IsAdmin {
-			isAdminInt = 1
-		}
 		setClauses = append(setClauses, "is_admin = ?")
-		args = append(args, isAdminInt)
+		args = append(args, boolToInt(*fields.IsAdmin))
 	}
 
 	args = append(args, id)
@@ -390,21 +376,11 @@ func HashPassword(password string) (string, error) {
 }
 
 func scanOne(row *sql.Row) (*Record, error) {
-	var rec Record
-	var isAdminInt int
-	err := row.Scan(
-		&rec.ID, &rec.Email, &rec.DisplayName, &rec.PasswordHash,
-		&rec.UserSource, &rec.EntraID, &isAdminInt, &rec.LastLogin,
-		&rec.CreatedAt, &rec.UpdatedAt,
-	)
+	rec, err := scanRow(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
-	if err != nil {
-		return nil, fmt.Errorf("scan user: %w", err)
-	}
-	rec.IsAdmin = isAdminInt == 1
-	return &rec, nil
+	return rec, err
 }
 
 type rowScanner interface {
@@ -424,4 +400,12 @@ func scanRow(row rowScanner) (*Record, error) {
 	}
 	rec.IsAdmin = isAdminInt == 1
 	return &rec, nil
+}
+
+// boolToInt converts a bool to SQLite's integer boolean representation.
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

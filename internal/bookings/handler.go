@@ -221,32 +221,10 @@ func findAuthorizedBooking(
 var ErrBookingNotFound = errors.New("booking not found")
 
 func writePatchResponse(c echo.Context, booking *BookingRecord, note string) error {
-	attrs := BookingAttributes{
-		ItemID:      booking.ItemID,
-		UserID:      booking.UserID,
-		BookingDate: booking.BookingDate,
-		CreatedAt:   booking.CreatedAt,
-		Note:        note,
-	}
-	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
-		attrs.BookedByUserID = booking.BookedByUserID
-	}
-	if booking.IsGuest {
-		attrs.IsGuest = true
-		attrs.GuestEmail = booking.GuestEmail
-	}
-
-	resp := api.SingleResponse{
-		Data: api.Resource{
-			Type:       resourceTypeBooking,
-			ID:         booking.ID,
-			Attributes: attrs,
-		},
-	}
-
-	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
+	updated := Booking(*booking)
+	updated.Note = note
 	//nolint:wrapcheck // Terminal response
-	return c.JSON(http.StatusOK, resp)
+	return api.WriteSingle(c, http.StatusOK, bookingResource(&updated), "write booking response")
 }
 
 // DeleteHandler returns a handler for canceling a booking.
@@ -1034,26 +1012,7 @@ func processMultiDayBooking(
 		// Send notification asynchronously
 		sendBookingCreatedNotification(notifier, booking)
 
-		attrs := BookingAttributes{
-			ItemID:      booking.ItemID,
-			UserID:      booking.UserID,
-			BookingDate: booking.BookingDate,
-			CreatedAt:   booking.CreatedAt,
-			Note:        booking.Note,
-		}
-		if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
-			attrs.BookedByUserID = booking.BookedByUserID
-		}
-		if booking.IsGuest {
-			attrs.IsGuest = true
-			attrs.GuestEmail = booking.GuestEmail
-		}
-
-		created = append(created, api.Resource{
-			Type:       resourceTypeBooking,
-			ID:         booking.ID,
-			Attributes: attrs,
-		})
+		created = append(created, bookingResource(booking))
 	}
 
 	// Return multi-day response
@@ -1068,6 +1027,13 @@ func processMultiDayBooking(
 }
 
 func writeBookingResponse(c echo.Context, booking *Booking) error {
+	//nolint:wrapcheck // Terminal response
+	return api.WriteSingle(c, http.StatusCreated, bookingResource(booking), "write booking response")
+}
+
+// bookingResource maps a booking to its JSON:API resource. booked_by_user_id is only
+// set for on-behalf bookings, guest fields only for guest bookings.
+func bookingResource(booking *Booking) api.Resource {
 	attrs := BookingAttributes{
 		ItemID:      booking.ItemID,
 		UserID:      booking.UserID,
@@ -1075,27 +1041,18 @@ func writeBookingResponse(c echo.Context, booking *Booking) error {
 		CreatedAt:   booking.CreatedAt,
 		Note:        booking.Note,
 	}
-	// Include booked_by info if booking was made on behalf
 	if booking.BookedByUserID != "" && booking.BookedByUserID != booking.UserID {
 		attrs.BookedByUserID = booking.BookedByUserID
 	}
-	// Include guest info
 	if booking.IsGuest {
 		attrs.IsGuest = true
 		attrs.GuestEmail = booking.GuestEmail
 	}
-
-	resp := api.SingleResponse{
-		Data: api.Resource{
-			Type:       resourceTypeBooking,
-			ID:         booking.ID,
-			Attributes: attrs,
-		},
+	return api.Resource{
+		Type:       resourceTypeBooking,
+		ID:         booking.ID,
+		Attributes: attrs,
 	}
-
-	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-	//nolint:wrapcheck // Terminal response, no wrapping needed
-	return c.JSON(http.StatusCreated, resp)
 }
 
 // Booking represents a booking record.

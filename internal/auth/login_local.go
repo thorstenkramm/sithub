@@ -99,22 +99,7 @@ func LocalLoginHandler(svc *Service) echo.HandlerFunc {
 		userCookie := svc.NewCookie(c, userCookieName, encodedUser)
 		c.SetCookie(userCookie)
 
-		resp := api.SingleResponse{
-			Data: api.Resource{
-				Type: resourceTypeUser,
-				ID:   user.ID,
-				Attributes: map[string]interface{}{
-					attrDisplayName: user.Name,
-					attrEmail:       user.Email,
-					attrIsAdmin:     user.IsAdmin,
-					attrAuthSource:  user.AuthSource,
-					attrRole:        userRole(user),
-				},
-			},
-		}
-
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusOK, resp)
+		return respondWithUserProfile(c, user)
 	}
 }
 

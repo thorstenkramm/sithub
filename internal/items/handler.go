@@ -47,23 +47,12 @@ func ListHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.Handle
 
 		resolveBookerNames(ctx, store, itemBookings)
 
-		currentUserID, userEmail := resolveCurrentUser(ctx, store, user)
+		currentUserID, userEmail := auth.ResolveUserEmail(ctx, store, user)
 		parentArea := findParentArea(cfg, itemGroupID)
 
 		resources := buildItemResources(ig, parentArea, itemBookings, isAdmin, currentUserID, userEmail)
 		return api.WriteCollection(c, resources, "write items response")
 	}
-}
-
-func resolveCurrentUser(ctx context.Context, store *sql.DB, user *auth.User) (userID, email string) {
-	if user == nil {
-		return "", ""
-	}
-	rec, err := users.FindByID(ctx, store, user.ID)
-	if err != nil || rec == nil {
-		return user.ID, ""
-	}
-	return user.ID, rec.Email
 }
 
 func findParentArea(cfg *areas.Config, itemGroupID string) *areas.Area {
@@ -101,13 +90,9 @@ func resolveBookerNames(
 		}
 	}
 
-	var names map[string]string
-	if len(userIDs) > 0 {
-		var err error
-		names, err = users.FindDisplayNames(ctx, store, userIDs)
-		if err != nil {
-			names = make(map[string]string)
-		}
+	names, err := users.FindDisplayNames(ctx, store, userIDs)
+	if err != nil {
+		names = map[string]string{}
 	}
 
 	for itemID, info := range itemBookings {

@@ -245,6 +245,23 @@ func TestUpdateHandlerPasswordResetEntraIDUser(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
+func TestUpdateHandlerNotFound(t *testing.T) {
+	db := setupHandlerDB(t)
+
+	body := `{"data":{"attributes":{"display_name":"Nobody"}}}`
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/users/unknown", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, api.JSONAPIContentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("unknown")
+
+	err := UpdateHandler(db)(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func TestDeleteHandler(t *testing.T) {
 	db := setupHandlerDB(t)
 	user := seedUser(t, db, "alice@test.com", "Alice", "internal", false)

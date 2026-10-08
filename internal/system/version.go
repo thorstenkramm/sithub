@@ -1,7 +1,6 @@
 package system
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -20,20 +19,12 @@ type VersionAttributes struct {
 // The version value is captured at wiring time (injected via build ldflags).
 func Version(version string) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		resp := api.SingleResponse{
-			Data: api.Resource{
-				Type: resourceTypeVersion,
-				ID:   resourceTypeVersion,
-				Attributes: VersionAttributes{
-					Version: version,
-				},
+		return api.WriteSingle(c, http.StatusOK, api.Resource{
+			Type: resourceTypeVersion,
+			ID:   resourceTypeVersion,
+			Attributes: VersionAttributes{
+				Version: version,
 			},
-		}
-
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		if err := c.JSON(http.StatusOK, resp); err != nil {
-			return fmt.Errorf("write version response: %w", err)
-		}
-		return nil
+		}, "write version response")
 	}
 }

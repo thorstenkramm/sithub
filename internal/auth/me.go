@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +25,19 @@ func GetUserFromContext(c echo.Context) *User {
 	return user
 }
 
+// ResolveUserEmail returns the user's ID and their current email from the database.
+// Both are empty for a nil user; the email is empty when the lookup fails.
+func ResolveUserEmail(ctx context.Context, store *sql.DB, user *User) (userID, email string) {
+	if user == nil {
+		return "", ""
+	}
+	rec, err := users.FindByID(ctx, store, user.ID)
+	if err != nil || rec == nil {
+		return user.ID, ""
+	}
+	return user.ID, rec.Email
+}
+
 // MeHandler returns the authenticated user profile.
 func MeHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -31,22 +46,7 @@ func MeHandler() echo.HandlerFunc {
 			return api.WriteUnauthorized(c)
 		}
 
-		resp := api.SingleResponse{
-			Data: api.Resource{
-				Type: resourceTypeUser,
-				ID:   user.ID,
-				Attributes: map[string]interface{}{
-					attrDisplayName: user.Name,
-					attrEmail:       user.Email,
-					attrIsAdmin:     user.IsAdmin,
-					attrAuthSource:  user.AuthSource,
-					attrRole:        userRole(user),
-				},
-			},
-		}
-
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusOK, resp)
+		return respondWithUserProfile(c, user)
 	}
 }
 
@@ -141,20 +141,16 @@ func validateAndUpdatePassword(c echo.Context, svc *Service, user *User, current
 }
 
 func respondWithUserProfile(c echo.Context, user *User) error {
-	resp := api.SingleResponse{
-		Data: api.Resource{
-			Type: resourceTypeUser,
-			ID:   user.ID,
-			Attributes: map[string]interface{}{
-				attrDisplayName: user.Name,
-				attrEmail:       user.Email,
-				attrIsAdmin:     user.IsAdmin,
-				attrAuthSource:  user.AuthSource,
-				attrRole:        userRole(user),
-			},
+	//nolint:wrapcheck // Terminal response
+	return api.WriteSingle(c, http.StatusOK, api.Resource{
+		Type: resourceTypeUser,
+		ID:   user.ID,
+		Attributes: map[string]interface{}{
+			attrDisplayName: user.Name,
+			attrEmail:       user.Email,
+			attrIsAdmin:     user.IsAdmin,
+			attrAuthSource:  user.AuthSource,
+			attrRole:        userRole(user),
 		},
-	}
-
-	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-	return c.JSON(http.StatusOK, resp) //nolint:wrapcheck // Terminal response
+	}, "write user profile response")
 }

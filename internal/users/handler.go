@@ -51,9 +51,7 @@ func ListHandler(store *sql.DB) echo.HandlerFunc {
 			}
 		})
 
-		resp := api.CollectionResponse{Data: resources}
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusOK, resp)
+		return api.WriteCollection(c, resources, "write users response")
 	}
 }
 
@@ -81,9 +79,7 @@ func ColleaguesHandler(store *sql.DB) echo.HandlerFunc {
 			}
 		})
 
-		resp := api.CollectionResponse{Data: resources}
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusOK, resp)
+		return api.WriteCollection(c, resources, "write colleagues response")
 	}
 }
 
@@ -104,15 +100,7 @@ func GetHandler(store *sql.DB) echo.HandlerFunc {
 			return fmt.Errorf("find user: %w", err)
 		}
 
-		resp := api.SingleResponse{
-			Data: api.Resource{
-				Type:       resourceTypeUser,
-				ID:         rec.ID,
-				Attributes: recordToAttributes(rec),
-			},
-		}
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusOK, resp)
+		return writeUser(c, http.StatusOK, rec)
 	}
 }
 
@@ -164,15 +152,7 @@ func CreateHandler(store *sql.DB) echo.HandlerFunc {
 			return fmt.Errorf("create user: %w", err)
 		}
 
-		resp := api.SingleResponse{
-			Data: api.Resource{
-				Type:       resourceTypeUser,
-				ID:         rec.ID,
-				Attributes: recordToAttributes(rec),
-			},
-		}
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		return c.JSON(http.StatusCreated, resp)
+		return writeUser(c, http.StatusCreated, rec)
 	}
 }
 
@@ -207,11 +187,12 @@ func UpdateHandler(store *sql.DB) echo.HandlerFunc {
 		}
 
 		rec, err := applyFieldUpdates(ctx, c, store, userID, req.Data.Attributes)
-		if err != nil {
+		if err != nil || rec == nil {
+			// rec is nil when an error response has already been written.
 			return err
 		}
 
-		return respondWithUpdatedUser(c, rec)
+		return writeUser(c, http.StatusOK, rec)
 	}
 }
 
@@ -279,16 +260,13 @@ func applyFieldUpdates(ctx context.Context, c echo.Context, store *sql.DB, userI
 	return rec, nil
 }
 
-func respondWithUpdatedUser(c echo.Context, rec *Record) error {
-	resp := api.SingleResponse{
-		Data: api.Resource{
-			Type:       resourceTypeUser,
-			ID:         rec.ID,
-			Attributes: recordToAttributes(rec),
-		},
-	}
-	c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-	return c.JSON(http.StatusOK, resp) //nolint:wrapcheck // Terminal response
+func writeUser(c echo.Context, status int, rec *Record) error {
+	//nolint:wrapcheck // Terminal response
+	return api.WriteSingle(c, status, api.Resource{
+		Type:       resourceTypeUser,
+		ID:         rec.ID,
+		Attributes: recordToAttributes(rec),
+	}, "write user response")
 }
 
 // DeleteHandler returns a handler for deleting a local user (admin only).

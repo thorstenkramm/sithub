@@ -2,7 +2,6 @@
 package system
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -18,20 +17,12 @@ type SettingsAttributes struct {
 // SettingsHandler returns a handler that exposes public application settings.
 func SettingsHandler(weeksInAdvanced int) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		resp := api.SingleResponse{
-			Data: api.Resource{
-				Type: "settings",
-				ID:   "settings",
-				Attributes: SettingsAttributes{
-					WeeksInAdvanced: weeksInAdvanced,
-				},
+		return api.WriteSingle(c, http.StatusOK, api.Resource{
+			Type: "settings",
+			ID:   "settings",
+			Attributes: SettingsAttributes{
+				WeeksInAdvanced: weeksInAdvanced,
 			},
-		}
-
-		c.Response().Header().Set(echo.HeaderContentType, api.JSONAPIContentType)
-		if err := c.JSON(http.StatusOK, resp); err != nil {
-			return fmt.Errorf("write settings response: %w", err)
-		}
-		return nil
+		}, "write settings response")
 	}
 }

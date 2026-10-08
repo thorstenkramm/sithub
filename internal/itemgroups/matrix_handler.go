@@ -81,7 +81,7 @@ func MatrixHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.Hand
 		user := auth.GetUserFromContext(c)
 		isAdmin := user != nil && user.IsAdmin
 
-		currentUserID, userEmail := resolveMatrixUser(ctx, store, user)
+		currentUserID, userEmail := auth.ResolveUserEmail(ctx, store, user)
 
 		resources, err := buildMatrixResources(ctx, store, area, weekdays, isAdmin, currentUserID, userEmail)
 		if err != nil {
@@ -90,18 +90,6 @@ func MatrixHandlerDynamic(getConfig areas.ConfigGetter, store *sql.DB) echo.Hand
 
 		return api.WriteCollection(c, resources, "write matrix response")
 	}
-}
-
-// resolveMatrixUser returns the current user's ID and email from the database.
-func resolveMatrixUser(ctx context.Context, store *sql.DB, user *auth.User) (userID, email string) {
-	if user == nil {
-		return "", ""
-	}
-	rec, err := users.FindByID(ctx, store, user.ID)
-	if err != nil || rec == nil {
-		return user.ID, ""
-	}
-	return user.ID, rec.Email
 }
 
 func buildMatrixResources(
@@ -181,13 +169,9 @@ func resolveMatrixBookerNames(
 		}
 	}
 
-	var names map[string]string
-	if len(userIDs) > 0 {
-		var err error
-		names, err = users.FindDisplayNames(ctx, store, userIDs)
-		if err != nil {
-			names = make(map[string]string)
-		}
+	names, err := users.FindDisplayNames(ctx, store, userIDs)
+	if err != nil {
+		names = map[string]string{}
 	}
 
 	for key, info := range mb {
