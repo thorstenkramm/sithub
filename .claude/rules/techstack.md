@@ -1,8 +1,8 @@
 # Tech Stack of SitHub
 
-- Language: Go version 1.25
+- Language: Go version 1.26
 - Web framework: [Echo Framework](https://echo.labstack.com/)
-- Linting: `golangci-lint` version 2.5.0
+- Linting: `golangci-lint` version 2.14.0
 - VCS: `git` and [GitHub](https://github.com/thorstenkramm/sithub)
 - CI/CD: GitHub Actions
 - Database: SQLite3 with WAL enabled

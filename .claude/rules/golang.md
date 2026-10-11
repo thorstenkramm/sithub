@@ -6,7 +6,7 @@ These guidelines are based on the
 
 ## General rules
 
-- Go 1.25; rely on `gofmt` defaults (tabs, import ordering). Prefer small, lower-case package names and exported
+- Go 1.26; rely on `gofmt` defaults (tabs, import ordering). Prefer small, lower-case package names and exported
   identifiers with doc comments.
 - Handlers and services: use clear verbs, e.g., `ListFilesHandler`, `ExecuteCommandService`.
 - Keep functions small; pass `context.Context` through request flows; avoid global state beyond config wiring.
@@ -227,7 +227,7 @@ func waitForServer(errCh <-chan error) { ... }
 - Use `t.Parallel()` for concurrent tests
 - Use `github.com/stretchr/testify/assert`/`require` in `_test.go` files; prefer `require.NoError` for setup and
   `assert` for behavioral checks.
-- `golangci-lint run ./...` (v2.5.0) for linting; add linters to `.golangci.yml` if configuration is introduced
+- `golangci-lint run ./...` (v2.14.0) for linting; add linters to `.golangci.yml` if configuration is introduced
     (required after each task).
 - Search for code duplication with using [JSCPD](https://github.com/kucherenko/jscpd) and the command
   `npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 0 --exit-code 1`

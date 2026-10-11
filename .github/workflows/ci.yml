@@ -96,13 +96,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.x'
+          go-version: '1.26.x'
           cache: true
 
       - name: Golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.5.0
+          version: v2.14.0
           args: --timeout=5m ./...
 
       - name: Go tests (race + coverage)

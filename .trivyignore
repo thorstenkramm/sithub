@@ -5,12 +5,3 @@
 # hashing; the openpgp subpackage is never imported (verified: no `x/crypto/openpgp`
 # import anywhere in the tree). No fixed version exists (deprecated package). Not applicable.
 GO-2026-5932
-
-# GO-2026-6354 (CVE-2026-78662) / GO-2026-6355 (CVE-2026-56855): DoS on deadlocked channels in
-# golang.org/x/crypto/ssh. SitHub imports ONLY golang.org/x/crypto/bcrypt; the ssh subpackage is
-# never imported. The fix (x/crypto v0.56.0) requires Go 1.26 while SitHub targets Go 1.25.
-# Remove once SitHub moves to Go 1.26 and x/crypto >= v0.56.0.
-GO-2026-6354
-CVE-2026-78662
-GO-2026-6355
-CVE-2026-56855
