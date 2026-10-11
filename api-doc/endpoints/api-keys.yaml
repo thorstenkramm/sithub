@@ -1,0 +1,63 @@
+description: Requires an administrator session. Bearer API keys receive 403 and cannot manage keys.
+get:
+  summary: List API keys (admin only)
+  operationId: listApiKeys
+  description: Public metadata ordered by creation descending, then name. Includes expired keys. Never returns hashes or full keys.
+  responses:
+    '200':
+      description: API key collection
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ApiKeyCollectionResponse
+    '401':
+      description: Session required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Administrator session required; bearer API keys are always denied
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+post:
+  summary: Create an API key (admin only)
+  operationId: createApiKey
+  requestBody:
+    required: true
+    content:
+      application/vnd.api+json:
+        schema:
+          $ref: ../openapi.yaml#/components/schemas/ApiKeyCreateRequest
+  responses:
+    '201':
+      description: Created. Save the plaintext key now; it cannot be retrieved again. Hashes are never returned.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ApiKeyCreatedResponse
+    '400':
+      description: Invalid body, resource type, name, scope or expiry
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Session required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Administrator session required; bearer API keys are always denied
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

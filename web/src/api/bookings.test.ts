@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cancelBooking, createBooking, fetchMyBookings, updateBookingNote } from './bookings';
+import {
+  cancelBooking,
+  createBooking,
+  fetchBookingExport,
+  fetchMyBookings,
+  updateBookingNote
+} from './bookings';
 
 const mockFetch = vi.fn();
 
@@ -304,5 +310,55 @@ describe('cancelBooking', () => {
     await expect(cancelBooking('booking-123')).rejects.toMatchObject({
       status: 500
     });
+  });
+});
+
+describe('fetchBookingExport', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data: [], meta: { total: 0, limit: 20, offset: 0 }, links: {} })
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const requestedUrl = () => new URL(String(mockFetch.mock.calls[0][0]), 'http://localhost');
+
+  it('requests the range with paging and the area', async () => {
+    await fetchBookingExport({ from: '2026-10-04', to: '2026-10-08', area: 'office', limit: 20, offset: 40 });
+
+    const url = requestedUrl();
+    expect(url.pathname).toBe('/api/v1/bookings/export');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      'filter[from]': '2026-10-04',
+      'filter[to]': '2026-10-08',
+      'filter[area]': 'office',
+      'page[limit]': '20',
+      'page[offset]': '40'
+    });
+  });
+
+  it('omits the area parameter for all areas', async () => {
+    await fetchBookingExport({ from: '2026-10-04', to: '2026-10-08', area: '', limit: 20, offset: 0 });
+
+    expect(requestedUrl().searchParams.has('filter[area]')).toBe(false);
+  });
+
+  it('rejects with the backend detail on a 400', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ errors: [{ detail: '"filter[from]" must not be after "filter[to]"' }] })
+    });
+
+    await expect(
+      fetchBookingExport({ from: '2026-10-09', to: '2026-10-08', area: '', limit: 20, offset: 0 })
+    ).rejects.toMatchObject({ status: 400, detail: '"filter[from]" must not be after "filter[to]"' });
   });
 });

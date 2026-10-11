@@ -1,15 +1,34 @@
 get:
-  summary: List all users
+  summary: List users, paginated (admin only)
+  description: >-
+    Returns one page of users ordered case-insensitively by display name (ties broken by user ID),
+    so paging through all pages lists every user exactly once. Without page parameters the first
+    20 users are returned. An offset beyond the total returns an empty data array.
   operationId: listUsers
+  parameters:
+    - $ref: ../openapi.yaml#/components/parameters/PageLimit
+    - $ref: ../openapi.yaml#/components/parameters/PageOffset
   responses:
     '200':
-      description: List of users
+      description: One page of users with pagination meta and links
       content:
         application/vnd.api+json:
           schema:
             $ref: ../openapi.yaml#/components/schemas/UserCollectionResponse
+    '400':
+      description: Invalid page[limit] or page[offset] value
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
     '401':
       description: Unauthorized
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Admin access required
       content:
         application/vnd.api+json:
           schema:

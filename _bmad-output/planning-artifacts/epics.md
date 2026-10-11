@@ -14,7 +14,8 @@ inputDocuments:
   - /Users/thorsten/projects/thorsten/sithub/private/security-report-claude.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-35.md
   - /Users/thorsten/projects/thorsten/sithub/private/epic-36.md
-lastEdited: '2026-07-08'
+  - /Users/thorsten/projects/thorsten/sithub/private/epic-37.md
+lastEdited: '2026-10-08'
 editHistory:
   - date: '2026-02-07'
     changes: "Updated Epic 1 for dual-source auth (Entra ID + local). Added FR28-FR35. Added Epic 11: User Management & Local Authentication with 8 stories. Updated NFR3, additional requirements, and coverage map."
@@ -60,6 +61,8 @@ editHistory:
     changes: "Added FR159-FR165 from private/epic-35.md for Epic 35: Consistent Warnings. Unifies the warning visual style across tiles, floor plan, and weekly table; adds floor-plan warning indicators (free items only) and confirmation; fixes the table-view hover style and duplicate in-cell warning; makes the confirmation dialog uniform from every view; generalizes sequential multi-item confirmations beyond week mode (extends FR105); re-shows dismissed warnings when the warning text changes (refines FR104 storage to item-id + text hash)."
   - date: '2026-07-08'
     changes: "Added FR166-FR178 from private/epic-36.md for Epic 36: User Feedback — Persistent Sessions, Versioning & Booking UX. Persistent sessions across server restarts (persistent cookie-signing keys); desktop My Bookings table/tile toggle (table default, localStorage) with named on-behalf bookings; end-to-end version reporting (sithub version CLI, release-tag ldflags injection, API endpoint, settings UI); centered/filled presence avatars; floor plan opens for the tile-selected day/week; unified colleague booking via the shared confirmation dialog (removes tile dropdown, adds floor-plan multi-day on-behalf); full-width weekly-table booker names (truncate from back); and a guard dialog against multiple bookings per area/day. Nine stories 36.1-36.9; no baseline FR coverage changed."
+  - date: '2026-10-08'
+    changes: "Added FR179-FR195 from private/epic-37.md for Epic 37: Transparent Errors, Week Navigation, User Lifecycle, API Keys & Data Export. Backend error details shown untranslated after a translated prefix (all error paths, reserved-item 403 stays on page); week dropdown on every floor-plan entry path, prev/next week arrows in tile view and floor plan, translated calendar-week label; mobile word-boundary fixes; paginated admin users table (single display name, JSON:API page[limit]/page[offset]); orphaned-user deletion (hard delete without bookings, soft delete with future-booking cancellation, session/login block, Entra ID reactivation); independent is_data_exporter flag; revocable scoped API keys (shown once, SHA-256 at rest) with bearer auth and docs/public-api.md; data export table with date range and top-level area filter plus CSV download. Ten stories 37.1-37.10; no baseline FR coverage changed."
 ---
 
 # sithub - Epic Breakdown
@@ -654,6 +657,73 @@ opens a confirmation: "You already booked <ITEM> on <DATE>. Multiple bookings pe
 not allowed. Do you want to cancel <ITEM> and book <NEW-ITEM> instead?" Confirming cancels the
 existing booking and creates the new one. Acceptance: a second same-area same-day booking shows the
 dialog; confirming swaps the booking, cancelling leaves the original.
+FR179: Every failed API call surfaces the backend's error message to the user. The UI shows a
+translated context prefix followed by the untranslated backend `errors[].detail`, e.g.
+"Objekt konnte nicht gebucht werden. API Fehler:" + newline + "booking_date is too far in the future
+(maximum 3 weeks in advance): 2026-08-24". Backend messages are never translated or replaced by a
+generic "please try again" text. Acceptance: a booking beyond the advance limit shows the prefix and
+the exact backend detail.
+FR180: All API error paths in the frontend are audited and comply with FR179: booking from tiles,
+floor plan and weekly table, cancellation, colleague/guest booking, profile and settings. A 403 for a
+reserved item shows its backend message instead of redirecting to the Access Denied page. Acceptance:
+each listed path shows the backend detail on failure; booking a reserved item without permission
+keeps the user on the page.
+FR181: The floor plan always offers the same week dropdown as the tile view, regardless of how it was
+opened (tile day/week mode, item view, drill-down). Changing the week reloads the floor plan for that
+week. Acceptance: from every entry path, the floor plan shows the week dropdown and switching it
+updates availability.
+FR182: The tile view and the floor plan show previous/next arrow buttons next to the week dropdown
+that move one week back or forward. "Previous" is disabled in the current week; "next" is disabled at
+the last week allowed by the advance-booking limit. Acceptance: arrows step one week at a time and are
+disabled at both bounds.
+FR183: The floor plan header shows the calendar week translated for the active language (e.g. "KW 41"
+in German instead of "Week 41"). Acceptance: with German UI the header shows "KW".
+FR184: Administrators find a "Users" menu entry opening a user table with server-side pagination
+(JSON:API `page[limit]`/`page[offset]`), 20 users per page by default, pagination controls beneath the
+table. Columns: email, name (display name), role(s), last login. Acceptance: with more than 20 users
+the table pages through all users.
+FR185: Each user row has a delete action with a confirmation dialog. A user without any booking (past
+or future, including on-behalf bookings) is permanently deleted from the database. Acceptance: deleting
+a user without bookings removes the row from the database.
+FR186: A user with bookings is soft-deleted (`deleted=true`) instead: past bookings are kept, bookings
+from today onward are cancelled, and the confirmation dialog states how many future bookings will be
+cancelled. A soft-deleted user is no longer offered for "book for a colleague", cannot log in with
+local credentials, and existing sessions of that user are rejected. Acceptance: after soft deletion the
+user is missing from the colleague list, local login fails, an existing session gets 401, and future
+bookings are gone.
+FR187: A soft-deleted Entra ID user who logs in via Entra ID again is reactivated (`deleted=false`) and
+fully operational. Acceptance: Entra login of a soft-deleted user clears the flag.
+FR188: Administrators can grant and revoke the role "data exporter" per user in the user management.
+It is an independent flag (`is_data_exporter`) next to `is_admin`; administrators do not get data
+export access unless they also hold the flag. Acceptance: toggling the role in the user table changes
+the user's access to the data export.
+FR189: Administrators find an "API Keys" menu entry with a table of existing keys showing name, the
+first 10 characters of the key, expiry date and scope. Acceptance: created keys are listed with a
+10-character key prefix only.
+FR190: Administrators can create an API key with a name, an expiry chosen from a dropdown (3, 12 or 24
+months) and a scope (currently only "read bookings"). The key is a random UUID v4, shown in full exactly
+once after creation with a copy button; only a SHA-256 hash and the 10-character prefix are stored.
+Administrators can revoke (delete) a key. Acceptance: the full key is visible only in the creation
+dialog; a revoked key no longer authenticates.
+FR191: API keys authenticate requests via `Authorization: Bearer <key>`. Expired or revoked keys get
+401; a key can only call endpoints covered by its scope (403 otherwise). The "read bookings" scope
+grants read access to the bookings export endpoint (FR193). Acceptance: a valid key reads bookings via
+curl; an expired key gets 401; the key cannot call admin endpoints.
+FR192: A new document `docs/public-api.md` explains how administrators create API keys and how to use
+them, including a curl example against the bookings endpoint. Acceptance: the document exists and the
+curl example works against a running server.
+FR193: Users holding the "data exporter" role find a "Data export" menu entry showing a table of all
+bookings with columns name, email, booked item and booking date; 20 rows per page with server-side
+pagination beneath the table. Above the table a date range picker (start and end date, default: the
+last 5 days) and an area dropdown ("All areas" plus each top-level area) filter the data. Acceptance:
+changing the date range or area updates the table; the default shows the last 5 days.
+FR194: Beneath the data export table a button "Export as CSV" downloads all bookings matching the
+current filters (not only the visible page). The file name contains the start and end date. Acceptance:
+the CSV contains every filtered booking and is named with both dates.
+FR195: The mobile view has no words broken mid-word. Breadcrumb entries (e.g. "Büro 2.EG", "Cube 1")
+and the floor-plan dialog checkbox labels ("Beschriftungen anzeigen", "Avatare anzeigen") wrap only
+at word boundaries or truncate with an ellipsis. Acceptance: at 360px width no label is split inside a
+word.
 
 ### NonFunctional Requirements
 
@@ -921,6 +991,23 @@ FR175: Epic 36 - Unified colleague selection via confirmation dialog (remove til
 FR176: Epic 36 - Floor-plan dialog: colleague booking across all selected days
 FR177: Epic 36 - Table view: full-width booker names, truncate from the back
 FR178: Epic 36 - Guard dialog for multiple bookings per area/day
+FR179: Epic 37 - Backend error detail shown in the UI (untranslated, with prefix)
+FR180: Epic 37 - Audit of all frontend API error paths; reserved-item 403 stays on page
+FR181: Epic 37 - Week dropdown in the floor plan on every entry path
+FR182: Epic 37 - Previous/next week arrows in tile view and floor plan
+FR183: Epic 37 - Translated calendar week label in the floor plan header
+FR184: Epic 37 - Admin users table with server-side pagination
+FR185: Epic 37 - Hard delete of users without bookings
+FR186: Epic 37 - Soft delete of users with bookings (cancel future, block login and sessions)
+FR187: Epic 37 - Reactivation of soft-deleted users on Entra ID login
+FR188: Epic 37 - "Data exporter" role as an independent flag
+FR189: Epic 37 - Admin API keys table (name, 10-char prefix, expiry, scope)
+FR190: Epic 37 - Create and revoke API keys (shown once, hashed at rest)
+FR191: Epic 37 - Bearer authentication with API keys, scope enforcement
+FR192: Epic 37 - docs/public-api.md with curl example
+FR193: Epic 37 - Data export table with date range and area filter
+FR194: Epic 37 - CSV export of filtered bookings, dates in file name
+FR195: Epic 37 - Mobile: no words broken mid-word
 
 ## Epic List
 
@@ -1171,6 +1258,18 @@ dialog for all selected days. Use the full cell width for booker names in the we
 (truncating from the back). Finally, guard against accidental multiple bookings per area and day
 with a confirmation to swap.
 **FRs covered:** FR166, FR167, FR168, FR169, FR170, FR171, FR172, FR173, FR174, FR175, FR176, FR177, FR178
+
+### Epic 37: Transparent Errors, Week Navigation, User Lifecycle, API Keys & Data Export
+
+Make SitHub easier to operate and to use. Users see the backend's real error message instead of a
+generic "please try again", switch weeks directly from the floor plan, step weeks with arrows, and
+use the mobile view without words broken mid-word. Administrators manage users in a paginated table,
+delete orphaned accounts (hard delete without bookings, soft delete otherwise) and grant the new
+"data exporter" role. Administrators also issue revocable, scoped API keys for bearer
+authentication, documented in `docs/public-api.md`. Data exporters browse all bookings by date range
+and top-level area and download them as CSV for finance.
+**FRs covered:** FR179, FR180, FR181, FR182, FR183, FR184, FR185, FR186, FR187, FR188, FR189, FR190, FR191,
+FR192, FR193, FR194, FR195
 
 <!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
 
@@ -5583,3 +5682,381 @@ and day are not allowed. Do you want to cancel \<ITEM\> and book \<NEW-ITEM\> in
 **Given** the guard
 **When** a booking is attempted from the tile, table, or floor-plan flow
 **Then** it applies consistently and is scoped to the same area and the same day
+
+## Epic 37 Stories: Transparent Errors, Week Navigation, User Lifecycle, API Keys & Data Export
+
+Show users the backend's real error messages, let them switch and step weeks from the floor plan and
+tile view, fix mobile line breaks, give administrators a paginated user management with orphaned-user
+deletion and a "data exporter" role, issue revocable scoped API keys for bearer authentication, and let
+data exporters browse and download all bookings as CSV.
+**FRs covered:** FR179, FR180, FR181, FR182, FR183, FR184, FR185, FR186, FR187, FR188, FR189, FR190, FR191,
+FR192, FR193, FR194, FR195
+
+### Story 37.1: Show Backend Error Messages in the UI
+
+**FRs covered:** FR179, FR180
+
+As a user,
+I want to see the exact reason the server rejected my action,
+so that I understand what went wrong without contacting support.
+
+**Acceptance Criteria:**
+
+**Given** a booking request fails with a JSON:API error (e.g. 400 "booking_date is too far in the future
+(maximum 3 weeks in advance): 2026-08-24")
+**When** the error snackbar is shown
+**Then** it shows a translated prefix (de: "Objekt konnte nicht gebucht werden. API Fehler:") followed on a
+new line by the untranslated backend `errors[].detail`
+
+**Given** a failed API response carries no `errors[].detail` (e.g. network error, empty body)
+**When** the error is shown
+**Then** the translated prefix is followed by the HTTP status (e.g. "HTTP 502") instead of a generic
+"please try again" text
+
+**Given** the error paths in tile booking (ItemsView), floor-plan booking (InteractiveFloorPlan), weekly
+table booking (MatrixBookingPopover), cancellation, colleague and guest booking, and profile/settings
+**When** any of them fails
+**Then** each shows the backend detail as above; specialised messages for known 409 cases may stay as the
+prefix but must not hide the backend detail
+
+**Given** a user books a reserved item they are not allowed to book (403 with a reservation message)
+**When** the request fails
+**Then** the user stays on the page and sees the backend message; there is no redirect to Access Denied
+
+**Given** an expired session (401)
+**When** any request fails with 401
+**Then** the existing redirect-to-login behavior is unchanged
+
+**Given** the shared error handling
+**When** implemented
+**Then** one helper in the API layer formats prefix + detail (no per-view duplication), it is covered by
+unit tests, and the E2E test books beyond the advance limit and asserts the backend detail is visible
+
+### Story 37.2: Week Dropdown and Navigation Arrows in Floor Plan and Tile View
+
+**FRs covered:** FR181, FR182, FR183
+
+As a user,
+I want to switch and step through weeks directly in the floor plan and the tile view,
+so that I can plan bookings without leaving the view I am in.
+
+**Acceptance Criteria:**
+
+**Given** the floor plan is opened from any entry path (tile day mode, tile week mode, item view, drill-down)
+**When** it is displayed
+**Then** it shows the same week dropdown as the tile view, with the same options (current week up to the
+advance-booking limit from `/api/v1/settings`)
+
+**Given** the floor plan week dropdown
+**When** I select another week
+**Then** the floor plan reloads availability for that week and the selected weekday is kept (first workday
+if the weekday is not available)
+
+**Given** the tile view and the floor plan
+**When** they are displayed
+**Then** a "previous week" and a "next week" arrow button sit next to the week dropdown and change the week
+by exactly one week
+
+**Given** the current week is selected
+**When** the arrows are rendered
+**Then** "previous week" is disabled
+
+**Given** the last week allowed by `weeks_in_advanced` is selected
+**When** the arrows are rendered
+**Then** "next week" is disabled
+
+**Given** the German UI
+**When** the floor plan header shows the calendar week
+**Then** it reads "KW 41" (translated label) instead of "Week 41"; English keeps "Week 41"
+
+**Given** the arrows and dropdown
+**When** implemented
+**Then** they have accessible labels and `data-cy` attributes (`week-prev`, `week-next`), and an E2E test
+covers stepping weeks in both views including both disabled bounds
+
+### Story 37.3: Mobile Line-Break Fixes
+
+**FRs covered:** FR195
+
+As a mobile user,
+I want labels to wrap at word boundaries,
+so that the interface is readable and looks polished.
+
+**Acceptance Criteria:**
+
+**Given** a 360px wide viewport and the item group bookings page
+**When** the breadcrumb shows "Büro 2.EG" and "Cube 1"
+**Then** no breadcrumb entry is split inside a word; long entries truncate with an ellipsis or wrap
+between words
+
+**Given** a 360px wide viewport and the floor plan dialog
+**When** the footer shows the checkboxes "Beschriftungen anzeigen" and "Avatare anzeigen" and the close button
+**Then** labels are not split inside a word; the footer wraps controls onto separate lines if needed
+
+**Given** the fix
+**When** reviewed
+**Then** other mobile views with the same breadcrumb and checkbox components are checked for the same
+problem, and a Cypress test at 360px asserts the affected labels render on word boundaries (no element
+narrower than its longest word)
+
+### Story 37.4: Admin Users Table with Pagination
+
+**FRs covered:** FR184
+
+As an administrator,
+I want a paginated table of all users,
+so that I can review accounts and their activity.
+
+**Acceptance Criteria:**
+
+**Given** I am an administrator
+**When** I open the user menu
+**Then** I see a "Users" entry (gated by `isAdmin`, route with `meta.requiresAdmin`); non-admins do not see
+it and are redirected to Access Denied when opening the route directly
+
+**Given** the Users page
+**When** it loads
+**Then** a server-paginated table (`v-data-table-server`) shows the columns email, name (display name),
+role(s), and last login (localized date-time, "never" if empty), 20 rows per page, pagination beneath
+
+**Given** `GET /api/v1/users?page[limit]=20&page[offset]=40`
+**When** called by an administrator
+**Then** the response contains the requested slice, `meta.total`, and JSON:API `links` (self, first, prev,
+next, last); `page[limit]` is capped at 100 and invalid values return 400
+
+**Given** the pagination support
+**When** implemented
+**Then** the pagination parameters, `PaginationMeta`, and `PaginationLinks` live in `internal/api` so later
+stories reuse them, and `api-doc` documents the parameters
+
+**Given** more than 20 users
+**When** I page through the table
+**Then** every user appears exactly once, sorted by name
+
+### Story 37.5: Delete Orphaned Users
+
+**FRs covered:** FR185, FR186, FR187
+
+As an administrator,
+I want to delete users who left the organization,
+so that they disappear from colleague selection and cannot sign in, while booking history stays intact.
+
+**Acceptance Criteria:**
+
+**Given** migration `000004` adds `users.deleted` (default false)
+**When** the server starts
+**Then** the migration applies cleanly and existing users are not deleted
+
+**Given** each row in the Users table
+**When** I click its delete icon
+**Then** a confirmation dialog opens; deleting my own account is not possible
+
+**Given** the user has no bookings at all (as user or as `booked_by`, past or future)
+**When** I confirm deletion
+**Then** the user is removed from the database (hard delete)
+
+**Given** the user has bookings
+**When** the dialog opens
+**Then** it states that the user will be deactivated and how many future bookings (today onward) will be
+cancelled
+
+**Given** the user has bookings
+**When** I confirm deletion
+**Then** `deleted=true` is set, bookings from today onward are cancelled, past bookings are kept, and the
+user stays in the table marked as "deleted"
+
+**Given** a soft-deleted user
+**When** the colleague list (`/api/v1/colleagues`) is requested
+**Then** the user is not included
+
+**Given** a soft-deleted local user
+**When** they try to log in with correct credentials
+**Then** the login is rejected with the same response as invalid credentials
+
+**Given** a soft-deleted user with an existing session cookie
+**When** they make any request
+**Then** it is rejected with 401 (the session check consults the database for local and Entra ID users)
+
+**Given** a soft-deleted Entra ID user
+**When** they log in via Entra ID again
+**Then** `deleted` is reset to false and the user is fully operational, including the colleague list
+
+### Story 37.6: Data Exporter Role
+
+**FRs covered:** FR188
+
+As an administrator,
+I want to grant the "data exporter" role to selected users,
+so that finance can access booking data without becoming administrators.
+
+**Acceptance Criteria:**
+
+**Given** migration adds `users.is_data_exporter` (default false)
+**When** the server starts
+**Then** the migration applies cleanly and no existing user gains the role
+
+**Given** the Users table
+**When** I view a user
+**Then** the role column shows "Admin" and/or "Data exporter" (or "User"), and I can toggle "Data exporter"
+via `PATCH /api/v1/users/:id` (`is_data_exporter`)
+
+**Given** a user without the flag (including administrators)
+**When** they request data-export endpoints or routes
+**Then** they get 403 / Access Denied
+
+**Given** the flag is granted or revoked
+**When** the user makes the next request
+**Then** the change takes effect without requiring a new login (the flag is read from the database)
+
+**Given** the auth API
+**When** `GET /api/v1/me` is called
+**Then** it includes `is_data_exporter`, so the frontend can gate the menu entry
+
+### Story 37.7: Data Export Table with Date and Area Filters
+
+**FRs covered:** FR193
+
+As a data exporter,
+I want to browse all bookings for a date range and area,
+so that I can check the data before handing it to finance.
+
+**Acceptance Criteria:**
+
+**Given** I hold the data exporter role
+**When** I open the user menu
+**Then** I see "Data export"; users without the role do not
+
+**Given** the Data export page
+**When** it loads
+**Then** a date range picker (start, end) defaults to the last 5 days including today, an area dropdown
+shows "All areas" plus every top-level area from the areas config, and a server-paginated table with 20
+rows per page shows name, email, booked item, and booking date
+
+**Given** `GET /api/v1/bookings/export?from=…&to=…&area=…&page[limit]=…&page[offset]=…`
+**When** called by a data exporter
+**Then** it returns bookings of all users in the range (inclusive) and area, sorted by date then name,
+paginated with the shared helpers from Story 37.4
+
+**Given** on-behalf, guest, and soft-deleted-user bookings
+**When** listed
+**Then** name and email belong to the person the booking is for (guest name and email for guests), and
+soft-deleted users' bookings are included
+
+**Given** the booked item column
+**When** rendered
+**Then** it shows the item name with its item group (e.g. "Cube 1 / Tisch 3")
+
+**Given** invalid input (from after to, unparseable dates, unknown area)
+**When** the request is made
+**Then** it returns 400 with a JSON:API error shown via the Story 37.1 error handling
+
+### Story 37.8: Export Bookings as CSV
+
+**FRs covered:** FR194
+
+As a data exporter,
+I want to download the filtered bookings as a CSV file,
+so that finance can process them in third-party software.
+
+**Acceptance Criteria:**
+
+**Given** the Data export page with a date range and area selected
+**When** I click "Export as CSV" beneath the table
+**Then** a CSV file downloads containing all bookings matching the filters, not just the visible page
+
+**Given** the CSV
+**When** opened
+**Then** it has a header row (name, email, booked item, booking date), UTF-8 encoding with BOM so
+spreadsheet tools show umlauts correctly, RFC 4180 quoting, and ISO dates (YYYY-MM-DD)
+
+**Given** the download
+**When** the file is saved
+**Then** its name contains start and end date, e.g. `sithub-bookings-2026-10-03_2026-10-08.csv`
+
+**Given** the endpoint (e.g. `GET /api/v1/bookings/export.csv` with the same filters)
+**When** called without the data exporter role
+**Then** it returns 403
+
+**Given** cell values starting with `=`, `+`, `-`, or `@`
+**When** written to the CSV
+**Then** they are escaped to prevent spreadsheet formula injection
+
+### Story 37.9: API Key Management
+
+**FRs covered:** FR189, FR190
+
+As an administrator,
+I want to create, list, and revoke API keys,
+so that external systems can access SitHub without personal accounts.
+
+**Acceptance Criteria:**
+
+**Given** migration adds an `api_keys` table (id, name, key_prefix, key_hash, scope, expires_at, created_at,
+created_by)
+**When** the server starts
+**Then** the migration applies cleanly
+
+**Given** I am an administrator
+**When** I open the user menu
+**Then** I see "API Keys"; non-admins do not and get Access Denied on the route
+
+**Given** the API Keys page
+**When** it loads
+**Then** a table lists name, the first 10 characters of each key, expiry date, and scope
+
+**Given** I click "Add key"
+**When** the dialog opens
+**Then** I enter a name (required), choose an expiry from a dropdown (3 months, 12 months, 24 months), and
+choose the scope (only "read bookings")
+
+**Given** I submit the dialog
+**When** the key is created
+**Then** a random UUID v4 key is generated server-side, shown in full exactly once with a copy button and
+a warning that it cannot be shown again; only its SHA-256 hash and 10-character prefix are stored
+
+**Given** an existing key
+**When** I revoke it and confirm
+**Then** it is deleted and no longer listed
+
+**Given** the API key endpoints (`/api/v1/api-keys`)
+**When** called by non-admins
+**Then** they return 403; responses never contain the hash, and the full key only in the create response
+
+### Story 37.10: Bearer Authentication with API Keys
+
+**FRs covered:** FR191, FR192
+
+As an integrator,
+I want to authenticate with an API key,
+so that scripts and finance tools can read bookings automatically.
+
+**Acceptance Criteria:**
+
+**Given** a request with `Authorization: Bearer <key>`
+**When** the key's SHA-256 hash matches a stored, unexpired key
+**Then** the request is authenticated as that key (not as a user), checked before the session cookie
+
+**Given** an unknown, revoked, or expired key
+**When** the request is made
+**Then** it returns 401 with a JSON:API error
+
+**Given** a key with scope "read bookings"
+**When** it calls `GET /api/v1/bookings/export` or `/bookings/export.csv` (Story 37.7/37.8)
+**Then** the request succeeds with the same filters and pagination as in the UI
+
+**Given** a key with scope "read bookings"
+**When** it calls any other endpoint (admin, booking creation, users, api-keys)
+**Then** it returns 403
+
+**Given** key comparison
+**When** implemented
+**Then** it uses the stored hash (constant-time comparison), and the key value is never logged
+
+**Given** `docs/public-api.md`
+**When** read
+**Then** it explains how an administrator creates a key, the bearer header, the "read bookings" scope and
+its endpoints with parameters, expiry and revocation, and a working curl example; it passes markdownlint
+
+**Given** the OpenAPI docs in `api-doc`
+**When** updated
+**Then** the bearer security scheme and the export endpoints are documented and pass the redocly lint

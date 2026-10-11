@@ -4,7 +4,7 @@
     max-width="400"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <v-card>
+    <v-card data-cy="confirm-dialog">
       <v-card-title class="text-h6 font-weight-bold">
         {{ title }}
       </v-card-title>

@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', () => {
   const email = ref('');
   const userId = ref('');
   const isAdmin = ref(false);
+  const isDataExporter = ref(false);
   const authSource = ref('');
   const isAuthenticated = ref(false);
 
@@ -14,12 +15,14 @@ export const useAuthStore = defineStore('auth', () => {
     display_name: string;
     email: string;
     is_admin: boolean;
+    is_data_exporter: boolean;
     auth_source: string;
   }) {
     userId.value = data.id;
     userName.value = data.display_name;
     email.value = data.email;
     isAdmin.value = data.is_admin;
+    isDataExporter.value = data.is_data_exporter;
     authSource.value = data.auth_source;
     isAuthenticated.value = true;
   }
@@ -29,9 +32,10 @@ export const useAuthStore = defineStore('auth', () => {
     userName.value = '';
     email.value = '';
     isAdmin.value = false;
+    isDataExporter.value = false;
     authSource.value = '';
     isAuthenticated.value = false;
   }
 
-  return { userName, email, userId, isAdmin, authSource, isAuthenticated, setUser, clearUser };
+  return { userName, email, userId, isAdmin, isDataExporter, authSource, isAuthenticated, setUser, clearUser };
 });

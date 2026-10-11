@@ -393,6 +393,11 @@ a:hover {
    Print Styles
    ======================================== */
 
+/* API error messages: translated prefix + backend detail on separate lines (story 37.1) */
+.api-error-text {
+  white-space: pre-line;
+}
+
 @media print {
   .v-app-bar,
   .v-navigation-drawer,

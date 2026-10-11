@@ -1,0 +1,60 @@
+get:
+  summary: List bookings of all users for export
+  security:
+    - cookieAuth: []
+    - bearerAuth: []
+  description: |
+    Returns the bookings of all users within an inclusive date range, optionally limited to one top-level
+    area, sorted by booking date, then user name (case-insensitive), then booking ID. The listing is
+    paginated, so paging through all pages lists every booking exactly once.
+
+    `user_id`, name and email belong to the person the booking is for: the guest name and guest email for guest
+    bookings, the colleague for bookings made on behalf of someone else. Bookings of deactivated
+    (soft-deleted) users are included. A booking whose item is no longer configured is still listed; its
+    `booked_item` and `item_name` show the raw item ID and the group and area fields are empty.
+
+    Accepts a session holding the data exporter role or an API key with read-bookings scope.
+    Administrators without the exporter role get 403 when using a session. Bearer takes precedence
+    over cookies; invalid, revoked or expired keys return 401 without cookie fallback.
+  operationId: listBookingExport
+  tags:
+    - Bookings
+  parameters:
+    - $ref: ../openapi.yaml#/components/parameters/ExportFrom
+    - $ref: ../openapi.yaml#/components/parameters/ExportTo
+    - $ref: ../openapi.yaml#/components/parameters/ExportArea
+    - $ref: ../openapi.yaml#/components/parameters/PageLimit
+    - $ref: ../openapi.yaml#/components/parameters/PageOffset
+  responses:
+    '200':
+      description: One page of bookings with pagination meta and links
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/BookingExportCollectionResponse
+    '400':
+      description: >-
+        Missing or unparseable `filter[from]`/`filter[to]`, `filter[from]` after `filter[to]`, unknown area, or invalid
+        `page[limit]`/`page[offset]`
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Missing authentication or malformed, unknown, revoked or expired bearer key
+      headers:
+        WWW-Authenticate:
+          description: Sent on bearer credential rejection
+          schema:
+            type: string
+            example: 'Bearer error="invalid_token"'
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Session requires the data exporter role; API key requires read-bookings scope
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

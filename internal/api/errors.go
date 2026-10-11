@@ -22,7 +22,12 @@ func WriteBadRequest(c echo.Context, detail string) error {
 
 // WriteUnauthorized writes a JSON:API unauthorized error response.
 func WriteUnauthorized(c echo.Context) error {
-	errResp := NewError(http.StatusUnauthorized, "Unauthorized", "Login required", "auth_required")
+	return WriteUnauthorizedDetail(c, "Login required")
+}
+
+// WriteUnauthorizedDetail writes a JSON:API unauthorized response with a custom detail.
+func WriteUnauthorizedDetail(c echo.Context, detail string) error {
+	errResp := NewError(http.StatusUnauthorized, "Unauthorized", detail, "auth_required")
 	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
 	if err := c.JSON(http.StatusUnauthorized, errResp); err != nil {
 		return fmt.Errorf("write unauthorized response: %w", err)

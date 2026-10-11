@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import { createVuetify } from 'vuetify';
@@ -6,6 +6,19 @@ import App from './App.vue';
 import router from './router';
 import { createTestI18n } from './__tests__/helpers/i18n';
 import { useAuthStore } from './stores/useAuthStore';
+import { ApiError } from './api/client';
+import { changePassword } from './api/me';
+import { deleteAvatar } from './api/avatars';
+
+vi.mock('./api/me', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api/me')>()),
+  changePassword: vi.fn(),
+}));
+
+vi.mock('./api/avatars', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api/avatars')>()),
+  deleteAvatar: vi.fn(),
+}));
 
 vi.mock('./api/version', () => ({
   fetchVersion: vi.fn(() =>
@@ -124,6 +137,8 @@ describe('App', () => {
 
       // Profile actions present
       expect(wrapper.find('[data-cy="floor-plan-editor-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="users-menu-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="api-keys-btn"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="avatar-btn"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="change-password-btn"]').exists()).toBe(true);
 
@@ -149,6 +164,8 @@ describe('App', () => {
 
       // Profile actions present
       expect(wrapper.find('[data-cy="mobile-floor-plan-editor-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="mobile-users-menu-btn"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="mobile-api-keys-btn"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="mobile-avatar-btn"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="mobile-change-password-btn"]').exists()).toBe(true);
 
@@ -160,6 +177,58 @@ describe('App', () => {
       // Logout present
       expect(wrapper.find('[data-cy="mobile-logout-btn"]').exists()).toBe(true);
     });
+  });
+
+  describe('data export menu entry', () => {
+    it('hides API key management from non-admins on desktop and mobile', async () => {
+      useAuthStore(pinia).setUser({
+        id: 'regular', display_name: 'Regular', email: 'regular@example.com',
+        is_admin: false, auth_source: 'internal'
+      });
+      const wrapper = mountApp();
+      await nextTick();
+      expect(wrapper.find('[data-cy="api-keys-btn"]').exists()).toBe(false);
+      expect(wrapper.find('[data-cy="mobile-api-keys-btn"]').exists()).toBe(false);
+    });
+    it.each([
+      { name: 'a data exporter', isAdmin: false, isDataExporter: true, visible: true },
+      { name: 'an admin who is also a data exporter', isAdmin: true, isDataExporter: true, visible: true },
+      { name: 'an admin without the flag', isAdmin: true, isDataExporter: false, visible: false },
+      { name: 'a regular user', isAdmin: false, isDataExporter: false, visible: false },
+    ])('should be visible=$visible for $name', async ({ isAdmin, isDataExporter, visible }) => {
+      useAuthStore(pinia).setUser({
+        id: 'user-3',
+        display_name: 'Finance',
+        email: 'finance@example.com',
+        is_admin: isAdmin,
+        is_data_exporter: isDataExporter,
+        auth_source: 'internal',
+      });
+
+      const wrapper = mountApp();
+      await nextTick();
+
+      expect(wrapper.find('[data-cy="data-export-btn"]').exists()).toBe(visible);
+      expect(wrapper.find('[data-cy="mobile-data-export-btn"]').exists()).toBe(visible);
+    });
+  });
+
+  it('should hide the admin-only menu entries from non-admins', async () => {
+    const authStore = useAuthStore(pinia);
+    authStore.setUser({
+      id: 'user-2',
+      display_name: 'Regular User',
+      email: 'regular@example.com',
+      is_admin: false,
+      auth_source: 'internal',
+    });
+
+    const wrapper = mountApp();
+    await nextTick();
+
+    expect(wrapper.find('[data-cy="users-menu-btn"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="mobile-users-menu-btn"]').exists()).toBe(false);
+    expect(wrapper.find('[data-cy="floor-plan-editor-btn"]').exists()).toBe(false);
   });
 
   it('renders the current user avatar and retries after a user switch', async () => {
@@ -195,5 +264,54 @@ describe('App', () => {
 
     const secondAvatar = wrapper.get('[data-cy="stub-v-img"]');
     expect(secondAvatar.attributes('src')).toMatch(/^\/api\/v1\/avatars\/user-2\?t=\d+$/);
+  });
+  describe('backend error messages (story 37.1)', () => {
+    beforeEach(() => {
+      useAuthStore(pinia).setUser({
+        id: 'user-1',
+        display_name: 'Test User',
+        email: 'test@example.com',
+        is_admin: false,
+        auth_source: 'internal',
+      });
+    });
+
+    it('should append the backend detail to the wrong-password message', async () => {
+      vi.mocked(changePassword).mockRejectedValue(
+        new ApiError('Request failed: 401', 401, 'current password is incorrect'),
+      );
+      const wrapper = mountApp();
+      await wrapper.get('[data-cy="change-password-btn"]').trigger('click');
+      await wrapper.get('[data-cy="password-submit"]').trigger('click');
+      await flushPromises();
+
+      const alert = wrapper.get('[data-cy="password-error"]');
+      expect(alert.text()).toBe('Current password is incorrect.\ncurrent password is incorrect');
+      expect(alert.classes()).toContain('api-error-text');
+    });
+
+    it('should use the generic prefix and HTTP status for an unknown password failure', async () => {
+      vi.mocked(changePassword).mockRejectedValue(new ApiError('Request failed: 500', 500));
+      const wrapper = mountApp();
+      await wrapper.get('[data-cy="change-password-btn"]').trigger('click');
+      await wrapper.get('[data-cy="password-submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.get('[data-cy="password-error"]').text()).toBe(
+        'Unable to change password. API error:\nHTTP 500',
+      );
+    });
+
+    it('should show the backend detail when removing the avatar fails', async () => {
+      vi.mocked(deleteAvatar).mockRejectedValue(new ApiError('Request failed: 500', 500, 'storage unavailable'));
+      const wrapper = mountApp();
+      await wrapper.get('[data-cy="avatar-btn"]').trigger('click');
+      await wrapper.get('[data-cy="avatar-delete-btn"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.get('[data-cy="avatar-error"]').text()).toBe(
+        'Unable to remove photo. API error:\nstorage unavailable',
+      );
+    });
   });
 });

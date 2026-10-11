@@ -50,17 +50,12 @@
           />
 
           <!-- Week mode: week selector -->
-          <v-select
+          <WeekSelector
             v-if="bookingMode === 'week'"
             v-model="selectedWeek"
-            :items="weekOptions"
-            item-title="label"
-            item-value="value"
+            :options="weekOptions"
             :label="$t('items.calendarWeek')"
-            density="compact"
-            hide-details
-            data-cy="week-selector"
-            class="booking-date-input"
+            class="booking-week-input"
           />
 
           <!-- Floor plan button (shared component for consistent sizing across pages) -->
@@ -127,7 +122,7 @@
     <LoadingState v-if="itemsLoading || weekDataLoading" type="cards" :count="6" data-cy="items-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="itemsErrorMessage" type="error" class="mb-4" data-cy="items-error">
+    <v-alert v-else-if="itemsErrorMessage" type="error" class="mb-4 api-error-text" data-cy="items-error">
       {{ itemsErrorMessage }}
     </v-alert>
 
@@ -208,7 +203,7 @@
               size="x-small"
               variant="tonal"
               color="warning"
-              prepend-icon="mdi-lock"
+              prepend-icon="$lock"
               data-cy="item-reserved-badge"
             >
               {{ $t('items.reserved') }}
@@ -417,7 +412,7 @@
               size="x-small"
               variant="tonal"
               color="warning"
-              prepend-icon="mdi-lock"
+              prepend-icon="$lock"
               data-cy="item-reserved-badge"
             >
               {{ $t('items.reserved') }}
@@ -690,9 +685,7 @@
           <v-icon :color="result.success ? 'success' : 'error'" size="18">
             {{ result.success ? '$success' : '$warning' }}
           </v-icon>
-          <span class="text-body-2">
-            {{ result.itemName }} - {{ result.dayLabel }}{{ result.success ? '' : ': ' + result.error }}
-          </span>
+          <span class="text-body-2 api-error-text">{{ result.itemName }} - {{ result.dayLabel }}{{ result.success ? '' : ': ' + result.error }}</span>
         </div>
       </v-card-text>
       <v-card-actions>
@@ -769,7 +762,8 @@
             v-if="itemGroupFloorPlan"
             :floor-plan="itemGroupFloorPlan"
             :title="itemGroupName || 'Floor Plan'"
-            :week-label="floorPlanWeekLabel"
+            v-model:week="floorPlanWeek"
+            :week-options="weekOptions"
             :week-dates="floorPlanWeekDates"
             :selected-day="floorPlanSelectedDate"
             :item-group-id="activeItemGroupId || ''"
@@ -894,7 +888,7 @@
       closable
       data-cy="booking-error"
     >
-      <span data-cy="booking-error-text">{{ errorSnackbarMessage }}</span>
+      <span class="api-error-text" data-cy="booking-error-text">{{ errorSnackbarMessage }}</span>
     </v-snackbar>
 
     <v-dialog v-model="showLimitDialog" max-width="400" persistent data-cy="booking-limit-dialog">
@@ -931,7 +925,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useI18n } from 'vue-i18n';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
-import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { ApiError, formatApiErrorMessage, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import {
   createBooking,
   cancelBooking,
@@ -951,6 +945,9 @@ import {
   useWeekSelector,
   getWeekdayLabel,
   getMondayOfWeek,
+  getMondayOfISOWeek,
+  clampWeekToOptions,
+  getISOWeekString,
   getWeekdayDates
 } from '../composables/useWeekSelector';
 import { useWeekendPreference } from '../composables/useWeekendPreference';
@@ -969,7 +966,7 @@ import { getInitials, middleTruncate } from '../utils/text';
 import { formatShortDate } from '../utils/date';
 import { getAvatarUrl } from '../api/avatars';
 import { fetchSettings } from '../api/settings';
-import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton, ItemWarning, WarningConfirmDialog, ColleagueSelect } from '../components';
+import { PageHeader, LoadingState, EmptyState, StatusChip, DatePickerField, ConfirmDialog, FloorPlanButton, ItemWarning, WarningConfirmDialog, ColleagueSelect, WeekSelector } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 
 const { t, locale } = useI18n();
@@ -1215,7 +1212,7 @@ const bookingMode = ref<'day' | 'week'>(
 );
 const { showWeekends } = useWeekendPreference();
 const weeksInAdvanced = ref(7);
-const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends, weeksInAdvanced);
+const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends, weeksInAdvanced, t);
 
 // Restore memorized week
 const storedWeek = getWeek();
@@ -1223,20 +1220,33 @@ if (weekOptions.value.some(o => o.value === storedWeek)) {
   selectedWeek.value = storedWeek;
 }
 
-// Floor-plan dialog inputs (story 36.6). In week mode the floor plan follows
-// the week selector; in day mode it must open on the tile-view's selected day,
-// so hand it the week that CONTAINS that day plus the day itself.
-const dayModeWeekDates = computed(() =>
-  getWeekdayDates(getMondayOfWeek(new Date(`${selectedDate.value}T00:00:00`)), showWeekends.value)
-);
-const floorPlanWeekDates = computed(() =>
-  bookingMode.value === 'day' ? dayModeWeekDates.value : selectedWeekDates.value
-);
-const floorPlanWeekLabel = computed(() => {
-  if (bookingMode.value === 'day') {
-    return formatDisplayDate(selectedDate.value);
+// Floor-plan dialog inputs (story 36.6 / 37.2). In week mode the floor plan
+// shares the week selector with the tiles. In day mode it opens on the week
+// that CONTAINS the tile-view's selected day (plus the day itself); stepping
+// weeks inside the floor plan then stays local to the dialog and does not
+// change the tile view's selected day.
+const selectedDayWeek = () => getISOWeekString(getMondayOfWeek(new Date(`${selectedDate.value}T00:00:00`)));
+const dayModeFloorPlanWeek = ref('');
+watch(showItemGroupFloorPlanDialog, (open) => {
+  if (open) dayModeFloorPlanWeek.value = selectedDayWeek();
+});
+const floorPlanWeek = computed({
+  get: () => clampWeekToOptions(
+    bookingMode.value === 'day' ? dayModeFloorPlanWeek.value || selectedDayWeek() : selectedWeek.value,
+    weekOptions.value
+  ),
+  set: (week: string) => {
+    if (bookingMode.value === 'day') {
+      dayModeFloorPlanWeek.value = week;
+    } else {
+      selectedWeek.value = week;
+    }
   }
-  return weekOptions.value.find(o => o.value === selectedWeek.value)?.label || '';
+});
+const floorPlanWeekDates = computed(() => {
+  if (bookingMode.value === 'week') return selectedWeekDates.value;
+  const monday = getMondayOfISOWeek(floorPlanWeek.value) ?? getMondayOfWeek(new Date());
+  return getWeekdayDates(monday, showWeekends.value);
 });
 const floorPlanSelectedDate = computed(() =>
   bookingMode.value === 'day' ? selectedDate.value : undefined
@@ -1427,8 +1437,8 @@ const confirmWeekCancel = async () => {
     showSuccessFeedback(t('items.bookingCancelledSuccessfully'), 'week-cancel-success');
     await loadWeekDataForView();
   } catch (err) {
-    if (await handleAuthError(err)) return;
-    errorSnackbarMessage.value =t('items.unableToCancel');
+    if (handleUnauthorized(err)) return;
+    errorSnackbarMessage.value = formatApiErrorMessage(t('apiErrors.cancel'), err);
   } finally {
     weekCancellingKey.value = null;
     pendingWeekCancelKey.value = null;
@@ -1501,7 +1511,9 @@ const loadWeekData = async (itemGroupId: string, keepResults = false, silent = f
     if (!silent) {
       weekData.value = {};
       myWeekBookings.value = new Map();
-      itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : t('items.unableToLoadWeekly');
+      itemsErrorMessage.value = isConnectionError(err)
+        ? CONNECTION_LOST_MESSAGE
+        : formatApiErrorMessage(t('apiErrors.load'), err);
     }
     // Silent refresh keeps the previously rendered state on transient errors.
   } finally {
@@ -1538,17 +1550,15 @@ const localizeItemsBookingConflict = (err: ApiError): string => {
   return t('items.itemAlreadyBookedForDate');
 };
 
-const localizeItemsBookingError = (err: unknown, fallback: string): string => {
-  if (!(err instanceof ApiError)) {
-    return fallback;
+// Returns a localized prefix (specialised for 409/404) followed by the backend detail.
+const localizeItemsBookingError = (err: unknown): string => {
+  let prefix = t('apiErrors.book');
+  if (err instanceof ApiError && err.status === 409) {
+    prefix = localizeItemsBookingConflict(err);
+  } else if (err instanceof ApiError && err.status === 404) {
+    prefix = t('items.itemNotFound');
   }
-  if (err.status === 409) {
-    return localizeItemsBookingConflict(err);
-  }
-  if (err.status === 404) {
-    return t('items.itemNotFound');
-  }
-  return fallback;
+  return formatApiErrorMessage(prefix, err);
 };
 
 const isLimitError = (err: unknown): boolean => {
@@ -1672,14 +1682,13 @@ const submitWeekBookings = async () => {
       await createBooking(itemId, date, onBehalf);
       return { itemName, date, guardKey, success: true, limitHit: false };
     } catch (err) {
+      const msg = localizeItemsBookingError(err);
       if (isLimitError(err)) {
-        const msg = localizeItemsBookingConflict(err as ApiError);
         const dayIdx = selectedWeekDates.value.indexOf(date);
         const dayLabel = dayIdx >= 0 ? getFullDayLabel(date, dayIdx) : date;
         limitErrors.push(`${itemName} — ${dayLabel}: ${msg}`);
         return { itemName, date, guardKey, success: false, error: msg, limitHit: true };
       }
-      const msg = localizeItemsBookingError(err, t('items.bookingFailed'));
       return { itemName, date, guardKey, success: false, error: msg, limitHit: false };
     }
   });
@@ -1696,18 +1705,20 @@ const submitWeekBookings = async () => {
   // Create-then-cancel (story 36.9 D2): replacement bookings are in; now cancel
   // only the swapped-out booking for keys whose replacement actually succeeded.
   if (successfulSwapKeys.size > 0) {
+    let cancelError: unknown;
     let cancelFailed = false;
     for (const key of successfulSwapKeys) {
       const id = cancelByKey.get(key);
       if (!id) continue;
       try {
         await cancelBooking(id);
-      } catch {
+      } catch (err) {
+        cancelError = err;
         cancelFailed = true;
       }
     }
     if (cancelFailed) {
-      errorSnackbarMessage.value = t('items.areaDayGuardCancelFailed');
+      errorSnackbarMessage.value = formatApiErrorMessage(t('items.areaDayGuardCancelFailed'), cancelError);
     }
   }
 
@@ -1768,7 +1779,7 @@ const breadcrumbs = computed(() => {
   ];
 });
 
-const { handleAuthError } = useAuthErrorHandler();
+const { handleAuthError, handleUnauthorized } = useAuthErrorHandler();
 
 const ensureDate = (value: string) => {
   if (value.trim() !== '') {
@@ -1804,7 +1815,7 @@ const loadItems = async (itemGroupId: string, date: string) => {
       itemsErrorMessage.value = t('items.notFound');
       return;
     }
-    itemsErrorMessage.value = t('items.unableToLoad');
+    itemsErrorMessage.value = formatApiErrorMessage(t('apiErrors.load'), err);
   }
 };
 
@@ -1874,7 +1885,7 @@ const loadFavoriteItems = async (date: string) => {
       itemsErrorMessage.value = CONNECTION_LOST_MESSAGE;
       return;
     }
-    itemsErrorMessage.value = t('items.unableToLoad');
+    itemsErrorMessage.value = formatApiErrorMessage(t('apiErrors.load'), err);
   }
 };
 
@@ -1948,7 +1959,9 @@ const loadFavoriteWeekData = async (keepResults = false, silent = false) => {
     if (!silent) {
       weekData.value = {};
       myWeekBookings.value = new Map();
-      itemsErrorMessage.value = isConnectionError(err) ? CONNECTION_LOST_MESSAGE : t('items.unableToLoadWeekly');
+      itemsErrorMessage.value = isConnectionError(err)
+        ? CONNECTION_LOST_MESSAGE
+        : formatApiErrorMessage(t('apiErrors.load'), err);
     }
   } finally {
     if (!silent) {
@@ -2035,8 +2048,8 @@ const confirmBookingDialog = () => {
         .then((decision) => {
           if (decision.proceed) void bookItem(itemId, decision.existingBookingId);
         })
-        .catch(() => {
-          errorSnackbarMessage.value = t('items.unableToBook');
+        .catch((err: unknown) => {
+          errorSnackbarMessage.value = formatApiErrorMessage(t('apiErrors.book'), err);
         });
     });
     return;
@@ -2102,8 +2115,8 @@ const bookItem = async (itemId: string, existingBookingId?: string) => {
     if (existingBookingId) {
       try {
         await cancelBooking(existingBookingId);
-      } catch {
-        errorSnackbarMessage.value = t('items.areaDayGuardCancelFailed');
+      } catch (cancelErr) {
+        errorSnackbarMessage.value = formatApiErrorMessage(t('items.areaDayGuardCancelFailed'), cancelErr);
       }
     }
 
@@ -2125,30 +2138,25 @@ const bookItem = async (itemId: string, existingBookingId?: string) => {
     // Reload items to reflect updated availability (keep selected date)
     await loadItemsForView(selectedDate.value);
   } catch (err) {
-    if (await handleAuthError(err)) {
+    // Only an expired session redirects; a 403 (e.g. reserved item) is shown in the snackbar.
+    if (handleUnauthorized(err)) {
       return;
     }
 
     const itemName = items.value.find(entry => entry.id === itemId)?.attributes.name || t('common.item');
-    let detail = t('items.unableToBook');
+    const message = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${localizeItemsBookingError(err)}`;
 
     if (isLimitError(err)) {
-      detail = localizeItemsBookingConflict(err as ApiError);
-      limitDialogMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
+      limitDialogMessage.value = message;
       showLimitDialog.value = true;
 
       await loadItemsForView(selectedDate.value);
-    } else if (err instanceof ApiError && err.status === 409) {
-      detail = localizeItemsBookingConflict(err);
-
-      // Refresh item list so user sees updated availability
-      await loadItemsForView(selectedDate.value);
-      errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
     } else {
-      if (err instanceof ApiError && err.status === 404) {
-        detail = t('items.itemNotFound');
+      if (err instanceof ApiError && err.status === 409) {
+        // Refresh item list so user sees updated availability
+        await loadItemsForView(selectedDate.value);
       }
-      errorSnackbarMessage.value = `${itemName} - ${formatDisplayDate(selectedDate.value)}: ${detail}`;
+      errorSnackbarMessage.value = message;
     }
   } finally {
     bookingItemId.value = null;
@@ -2167,14 +2175,13 @@ const adminCancelBooking = async (bookingId: string) => {
     // Reload items to reflect updated availability
     await loadItemsForView(selectedDate.value);
   } catch (err) {
-    if (await handleAuthError(err)) {
+    if (handleUnauthorized(err)) {
       return;
     }
-    if (err instanceof ApiError && err.status === 404) {
-      errorSnackbarMessage.value =t('items.bookingNotFound');
-    } else {
-      errorSnackbarMessage.value =t('items.unableToCancelBooking');
-    }
+    const prefix = err instanceof ApiError && err.status === 404
+      ? t('items.bookingNotFound')
+      : t('apiErrors.cancel');
+    errorSnackbarMessage.value = formatApiErrorMessage(prefix, err);
   } finally {
     cancelingBookingId.value = null;
   }
@@ -2197,10 +2204,10 @@ const saveNoteAfterBooking = async () => {
     lastBookingDetails.value = null;
     await loadItemsForView(selectedDate.value);
   } catch (err) {
-    if (await handleAuthError(err)) {
+    if (handleUnauthorized(err)) {
       return;
     }
-    errorSnackbarMessage.value =t('items.unableToSaveNote');
+    errorSnackbarMessage.value = formatApiErrorMessage(t('apiErrors.saveNote'), err);
   } finally {
     savingNote.value = false;
   }
@@ -2465,6 +2472,13 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
   min-width: 200px;
 }
 
+/* Week dropdown (240px) plus the previous/next arrow buttons */
+.booking-week-input {
+  flex: 0 0 320px;
+  max-width: 320px;
+  min-width: 280px;
+}
+
 .equipment-filter-cluster {
   flex: 1 1 280px;
   min-width: 240px;
@@ -2478,6 +2492,7 @@ function formatBookingSuccessMessage(details: { itemName: string; date: string }
 
 @media (max-width: 600px) {
   .booking-date-input,
+  .booking-week-input,
   .equipment-filter-cluster {
     flex: 1 1 100%;
     max-width: 100%;

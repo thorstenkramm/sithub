@@ -10,6 +10,10 @@ servers:
 security:
   - cookieAuth: []
 paths:
+  /api-keys:
+    $ref: ./endpoints/api-keys.yaml
+  /api-keys/{id}:
+    $ref: ./endpoints/api-key.yaml
   /ping:
     $ref: ./endpoints/ping.yaml
   /settings:
@@ -32,6 +36,10 @@ paths:
     $ref: ./endpoints/bookings.yaml
   /bookings/history:
     $ref: ./endpoints/bookings-history.yaml
+  /bookings/export:
+    $ref: ./endpoints/bookings-export.yaml
+  /bookings/export.csv:
+    $ref: ./endpoints/bookings-export-csv.yaml
   /bookings/{booking_id}:
     $ref: ./endpoints/booking.yaml
   /me:
@@ -46,6 +54,8 @@ paths:
     $ref: ./endpoints/users.yaml
   /users/{user_id}:
     $ref: ./endpoints/user.yaml
+  /users/{user_id}/deletion-impact:
+    $ref: ./endpoints/user-deletion-impact.yaml
   /avatars/{user_id}:
     $ref: ./endpoints/avatars.yaml
   /me/avatar:
@@ -59,11 +69,194 @@ paths:
 
 components:
   securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: UUID
+      description: >-
+        Administrator-created API key with read-bookings scope. Grants access only to the JSON and CSV
+        booking exports. Bearer credentials override cookies; malformed, unknown, revoked or expired
+        keys return 401 without cookie fallback. See docs/public-api.md.
     cookieAuth:
       type: apiKey
       in: cookie
       name: sithub_user
+  parameters:
+    ExportFrom:
+      name: filter[from]
+      in: query
+      required: true
+      description: First booking date, inclusive.
+      schema:
+        type: string
+        format: date
+    ExportTo:
+      name: filter[to]
+      in: query
+      required: true
+      description: Last booking date, inclusive. Must not be before `filter[from]`.
+      schema:
+        type: string
+        format: date
+    ExportArea:
+      name: filter[area]
+      in: query
+      required: false
+      description: ID of a top-level area. Omit or leave empty for all areas.
+      schema:
+        type: string
+    PageLimit:
+      name: page[limit]
+      in: query
+      required: false
+      description: Maximum number of resources per page. Values above 100 are capped to 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PageOffset:
+      name: page[offset]
+      in: query
+      required: false
+      description: Number of resources to skip before the first returned resource.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
   schemas:
+    ApiKeyAttributes:
+      type: object
+      required: [name, key_prefix, scope, expires_at, created_at, created_by]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        key_prefix:
+          type: string
+          minLength: 10
+          maxLength: 10
+          description: First 10 characters of the key, including the dash.
+        scope:
+          type: string
+          enum: [read-bookings]
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          description: Creating administrator's user ID.
+    ApiKeyResource:
+      type: object
+      required: [id, type, attributes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [api-keys]
+        attributes:
+          $ref: '#/components/schemas/ApiKeyAttributes'
+    ApiKeyCreateRequest:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [type, attributes]
+          properties:
+            type:
+              type: string
+              enum: [api-keys]
+            attributes:
+              type: object
+              required: [name, scope, expires_in_months]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Trimmed before validation. Duplicate names are allowed.
+                scope:
+                  type: string
+                  enum: [read-bookings]
+                expires_in_months:
+                  type: integer
+                  enum: [3, 12, 24]
+                  description: Calendar months from creation in UTC; overflowing days normalize into the next month.
+    ApiKeyCollectionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKeyResource'
+    ApiKeyCreatedResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/ApiKeyResource'
+            - type: object
+              properties:
+                attributes:
+                  type: object
+                  required: [key]
+                  properties:
+                    key:
+                      type: string
+                      format: uuid
+                      description: Random UUID v4 plaintext key. Returned only once, in this creation response.
+    PaginationMeta:
+      type: object
+      description: Top-level meta of a paginated collection.
+      properties:
+        total:
+          type: integer
+          description: Total number of resources across all pages
+        limit:
+          type: integer
+          description: Effective page size (after capping)
+        offset:
+          type: integer
+          description: Offset of the first resource in this page
+      required:
+        - total
+        - limit
+        - offset
+    PaginationLinks:
+      type: object
+      description: >-
+        Relative pagination links. Query parameters other than page[limit] and page[offset] are preserved.
+        prev and next are null when there is no previous or next page.
+      properties:
+        self:
+          type: string
+        first:
+          type: string
+        prev:
+          type:
+            - string
+            - 'null'
+        next:
+          type:
+            - string
+            - 'null'
+        last:
+          type: string
+      required:
+        - self
+        - first
+        - prev
+        - next
+        - last
     ErrorResponse:
       type: object
       properties:
@@ -659,6 +852,11 @@ components:
           type: string
         is_admin:
           type: boolean
+        is_data_exporter:
+          type: boolean
+          description: >-
+            Grants access to booking data export. Independent of is_admin; administrators do not
+            implicitly hold it. Read from the database on every request, so changes apply without re-login.
         auth_source:
           type: string
           enum:
@@ -673,6 +871,9 @@ components:
           type: string
           format: date-time
           description: Timestamp of last successful login (empty if never logged in)
+        deleted:
+          type: boolean
+          description: Whether the user is deactivated and blocked from sign-in/colleague selection
         created_at:
           type: string
           format: date-time
@@ -683,8 +884,10 @@ components:
         - email
         - display_name
         - is_admin
+        - is_data_exporter
         - auth_source
         - role
+        - deleted
     UserResource:
       allOf:
         - $ref: '#/components/schemas/Resource'
@@ -704,6 +907,80 @@ components:
           $ref: '#/components/schemas/UserResource'
       required:
         - data
+    BookingExportAttributes:
+      type: object
+      properties:
+        booking_date:
+          type: string
+          format: date
+        user_id:
+          type: string
+          description: >-
+            ID of the person the booking is for, usable with the avatar endpoint. Empty for guest
+            bookings and when the user no longer exists.
+        user_name:
+          type: string
+          description: Name of the person the booking is for (guest name for guest bookings)
+        user_email:
+          type: string
+          description: Email of the person the booking is for (empty for guests without email)
+        is_guest:
+          type: boolean
+        item_id:
+          type: string
+        item_name:
+          type: string
+        item_group_id:
+          type: string
+        item_group_name:
+          type: string
+        area_id:
+          type: string
+        area_name:
+          type: string
+        booked_item:
+          type: string
+          description: Item group name and item name, e.g. "Cube 1 / Tisch 3"
+      required:
+        - booking_date
+        - user_id
+        - user_name
+        - user_email
+        - is_guest
+        - item_id
+        - item_name
+        - item_group_id
+        - item_group_name
+        - area_id
+        - area_name
+        - booked_item
+    BookingExportResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: bookings
+            attributes:
+              $ref: '#/components/schemas/BookingExportAttributes'
+          required:
+            - type
+            - attributes
+    BookingExportCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingExportResource'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+      required:
+        - data
+        - meta
+        - links
     UserCollectionResponse:
       type: object
       properties:
@@ -711,6 +988,48 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserResource'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+      required:
+        - data
+        - meta
+        - links
+    UserDeletionImpactAttributes:
+      type: object
+      properties:
+        has_bookings:
+          type: boolean
+        future_booking_count:
+          type: integer
+          minimum: 0
+        mode:
+          type: string
+          enum:
+            - delete
+            - deactivate
+      required:
+        - has_bookings
+        - future_booking_count
+        - mode
+    UserDeletionImpactResource:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          properties:
+            type:
+              const: user-deletion-impacts
+            attributes:
+              $ref: '#/components/schemas/UserDeletionImpactAttributes'
+          required:
+            - type
+            - attributes
+    UserDeletionImpactSingleResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserDeletionImpactResource'
       required:
         - data
     CreateUserRequest:
@@ -760,6 +1079,9 @@ components:
                   type: string
                 is_admin:
                   type: boolean
+                is_data_exporter:
+                  type: boolean
+                  description: Grant or revoke the data exporter role. Omit to keep the current value.
                 password:
                   type: string
                   minLength: 14

@@ -1,4 +1,28 @@
 {
+  "apiKeys": {
+    "title": "Claves API",
+    "add": "Añadir clave",
+    "columns": { "name": "Nombre", "prefix": "Prefijo de la clave", "expiry": "Caducidad", "scope": "Permiso" },
+    "months": "{count} meses",
+    "scope": "Leer reservas",
+    "createdTitle": "Clave API creada",
+    "key": "Clave API",
+    "onceWarning": "Guarda esta clave ahora. No se podrá volver a mostrar.",
+    "copy": "Copiar clave",
+    "copied": "Clave copiada",
+    "copyManual": "Copia manualmente la clave seleccionada. El portapapeles no está disponible.",
+    "done": "Listo",
+    "revoke": "Revocar",
+    "revokeTitle": "Revocar clave API",
+    "revokeMessage": "¿Revocar la clave API «{name}»? Esta acción no se puede deshacer.",
+    "revoked": "Clave API revocada",
+    "expired": "Caducada",
+    "emptyTitle": "No hay claves API",
+    "emptyMessage": "Añade una clave para dar acceso a las reservas a un sistema externo.",
+    "loadError": "No se pudieron cargar las claves API.",
+    "createError": "No se pudo crear la clave API.",
+    "revokeError": "No se pudo revocar la clave API."
+  },
   "app": {
     "navigation": {
       "areas": "Zonas",
@@ -13,6 +37,9 @@
       "themeDark": "Oscuro",
       "showWeekends": "Mostrar fines de semana",
       "editFloorPlans": "Editar planos de planta",
+      "users": "Usuarios",
+      "apiKeys": "Claves API",
+      "dataExport": "Exportación de datos",
       "changePassword": "Cambiar contrasena",
       "avatar": "Foto de perfil",
       "signOut": "Cerrar sesion",
@@ -36,17 +63,13 @@
       "invalidCurrentPassword": "La contrasena actual es incorrecta.",
       "requiredFields": "La contrasena actual y la nueva son obligatorias.",
       "tooShort": "La contrasena debe tener al menos 14 caracteres.",
-      "localAccountsOnly": "El cambio de contrasena solo esta disponible para cuentas locales.",
-      "failed": "No se pudo cambiar la contrasena",
-      "genericError": "Se ha producido un error. Por favor, intentelo de nuevo."
+      "localAccountsOnly": "El cambio de contrasena solo esta disponible para cuentas locales."
     },
     "avatarDialog": {
       "title": "Foto de perfil",
       "upload": "Subir",
       "remove": "Eliminar",
-      "success": "Foto de perfil actualizada.",
-      "uploadFailed": "No se pudo subir la foto. Por favor, intentelo de nuevo.",
-      "deleteFailed": "No se pudo eliminar la foto. Por favor, intentelo de nuevo."
+      "success": "Foto de perfil actualizada."
     }
   },
   "auth": {
@@ -92,7 +115,6 @@
     "filterSaved": "Filtro guardado.",
     "savedAsFavorite": "{name} guardado como favorito.",
     "removedFromFavorites": "{name} eliminado de favoritos.",
-    "unableToLoad": "No se pudieron cargar los grupos de elementos.",
     "viewTiles": "Mosaicos",
     "viewTable": "Tabla",
     "viewTableDesktopOnly": "La vista de tabla solo está disponible en escritorio."
@@ -137,22 +159,15 @@
     "editNoteTitle": "Editar nota",
     "noteLabel": "Nota",
     "notFound": "Grupo de elementos no encontrado.",
-    "unableToLoad": "No se pudieron cargar los elementos.",
-    "unableToLoadWeekly": "No se pudieron cargar los elementos semanales.",
     "selectColleagueError": "Por favor, seleccione un companero.",
-    "unableToBook": "No se pudo reservar el elemento. Por favor, intentelo de nuevo.",
     "noLongerAvailable": "Este elemento ya no esta disponible para la fecha seleccionada.",
     "itemAlreadyBookedForDate": "El elemento ya esta reservado para esta fecha",
     "alreadyBookedByYouForDate": "Ya tiene este elemento reservado para esta fecha",
     "itemNotFound": "Elemento no encontrado.",
-    "bookingFailed": "La reserva ha fallado",
     "unexpectedError": "Error inesperado",
     "bookingConfirmed": "Reserva confirmada.",
     "bookingCancelledSuccessfully": "Reserva cancelada correctamente.",
     "bookingNotFound": "Reserva no encontrada o ya cancelada.",
-    "unableToCancelBooking": "No se pudo cancelar la reserva. Por favor, intentelo de nuevo.",
-    "unableToCancel": "No se pudo cancelar la reserva.",
-    "unableToSaveNote": "No se pudo guardar la nota. Por favor, intentelo de nuevo.",
     "savedFilterDeleted": "Filtro guardado eliminado.",
     "filterSaved": "Filtro guardado.",
     "savedAsFavorite": "{name} guardado como favorito.",
@@ -186,7 +201,6 @@
     "cancelButton": "Cancelar reserva",
     "cancelledSuccessfully": "Reserva cancelada correctamente.",
     "notFoundOrCancelled": "Reserva no encontrada o ya cancelada.",
-    "unableToCancel": "No se pudo cancelar la reserva. Por favor, intentelo de nuevo.",
     "bookedBy": "Reservado por {name}",
     "guest": "Invitado: {name}",
     "addNote": "Anadir nota",
@@ -222,8 +236,7 @@
     "emptyMessage": "No se ha reservado ningun elemento en este grupo para la fecha seleccionada.",
     "unknown": "Desconocido",
     "itemCount": "{count} elemento reservado para {date} | {count} elementos reservados para {date}",
-    "notFound": "Grupo de elementos no encontrado.",
-    "unableToLoad": "No se pudieron cargar las reservas."
+    "notFound": "Grupo de elementos no encontrado."
   },
   "presence": {
     "title": "Presencia de hoy",
@@ -234,8 +247,7 @@
     "unknown": "Desconocido",
     "bookingNote": "Nota de reserva",
     "personCount": "{count} persona programada para {date} | {count} personas programadas para {date}",
-    "notFound": "Zona no encontrada.",
-    "unableToLoad": "No se pudo cargar la presencia."
+    "notFound": "Zona no encontrada."
   },
   "floorPlanEditor": {
     "title": "Editor de plano de planta",
@@ -272,7 +284,6 @@
     "bookingSummary": "Reservar {label} en {location} durante {dayLabel} a partir de {startDate}.",
     "dayCount": "{count} dia | {count} dias",
     "freeFraction": "{free}/{total} libres",
-    "unableToCheckAvailability": "No se pudo comprobar la disponibilidad para la semana seleccionada.",
     "bookedBy": "Reservado por {name}",
     "someoneElse": "otra persona",
     "alreadyBookedByYou": "Ya esta reservado por usted",
@@ -284,8 +295,7 @@
     "itemAlreadyBooked": "El elemento seleccionado ya esta reservado.",
     "bookingCouldNotBeCompleted": "No se pudo completar la reserva.",
     "bookedSuccessfully": "{label} reservado correctamente.",
-    "bookedForDays": "{label} reservado durante {count} dias.",
-    "undoFailedStillActive": "No se pudo deshacer. La reserva sigue activa."
+    "bookedForDays": "{label} reservado durante {count} dias."
   },
   "status": {
     "available": "Disponible",
@@ -303,6 +313,7 @@
     "save": "Guardar",
     "delete": "Eliminar",
     "close": "Cerrar",
+    "connectionLost": "Conexión con el servidor perdida",
     "home": "Inicio",
     "date": "Fecha",
     "booked": "Reservado",
@@ -312,12 +323,22 @@
     "presence": "Presencia",
     "bookings": "Reservas"
   },
+  "apiErrors": {
+    "book": "No se pudo reservar el elemento. Error de API:",
+    "cancel": "No se pudo cancelar la reserva. Error de API:",
+    "saveNote": "No se pudo guardar la nota. Error de API:",
+    "undoBooking": "No se pudo deshacer la reserva. Error de API:",
+    "checkAvailability": "No se pudo comprobar la disponibilidad. Error de API:",
+    "uploadAvatar": "No se pudo subir la foto. Error de API:",
+    "deleteAvatar": "No se pudo eliminar la foto. Error de API:",
+    "changePassword": "No se pudo cambiar la contraseña. Error de API:",
+    "load": "No se pudieron cargar los datos. Error de API:"
+  },
   "matrix": {
     "bookingConfirmed": "Reserva confirmada.",
     "deskNoLongerAvailable": "Este puesto ya no está disponible.",
     "cancelBooking": "Cancelar reserva",
     "cancelConfirmed": "Reserva cancelada.",
-    "cancelFailed": "No se pudo cancelar la reserva.",
     "person": "Persona",
     "desk": "Puesto"
   },
@@ -343,5 +364,62 @@
     "frShort": "V",
     "saShort": "S",
     "suShort": "D"
+  },
+  "weekSelector": {
+    "weekNumber": "Semana {week}",
+    "previousWeek": "Semana anterior",
+    "nextWeek": "Semana siguiente"
+  },
+  "adminUsers": {
+    "title": "Usuarios",
+    "subtitle": "Todas las cuentas de usuario y su último inicio de sesión",
+    "colEmail": "Correo electrónico",
+    "colName": "Nombre",
+    "colRoles": "Rol(es)",
+    "colLastLogin": "Último inicio de sesión",
+    "never": "nunca",
+    "roleAdmin": "Admin",
+    "roleUser": "Usuario",
+    "loadError": "No se pudieron cargar los usuarios.",
+    "remove": "Quitar usuario",
+    "cannotRemoveSelf": "No puedes quitar tu propia cuenta.",
+    "removeError": "No se pudo quitar el usuario.",
+    "deactivated": "desactivado",
+    "deleteTitle": "Eliminar usuario",
+    "deleteMessage": "{name} no tiene reservas y se eliminará de forma permanente. Esta acción no se puede deshacer.",
+    "deleteConfirm": "Eliminar",
+    "deleteSuccess": "{name} se ha eliminado.",
+    "deleteError": "No se pudo eliminar el usuario.",
+    "deactivateTitle": "Desactivar usuario",
+    "deactivateMessage": "Para conservar el historial de reservas, {name} se desactivará en lugar de eliminarse. Ya no podrá iniciar sesión.",
+    "deactivateMessageEntra": "Para conservar el historial de reservas, {name} se desactivará en lugar de eliminarse. Si {name} vuelve a iniciar sesión con Microsoft, la cuenta se reactivará automáticamente. Para bloquear el acceso de forma permanente, quita a esta persona del grupo de Entra ID.",
+    "futureBookingsCanceled": "Se cancelará una reserva próxima. | Se cancelarán {count} reservas próximas.",
+    "deactivateConfirm": "Desactivar",
+    "deactivateSuccess": "{name} se ha desactivado.",
+    "deactivateSuccessCanceled": "{name} se ha desactivado y se ha cancelado una reserva. | {name} se ha desactivado y se han cancelado {count} reservas.",
+    "deactivateError": "No se pudo desactivar el usuario.",
+    "roleDataExporter": "Exportador de datos",
+    "colDataExporter": "Exportador de datos",
+    "dataExporterGranted": "Rol de exportador de datos concedido.",
+    "dataExporterRevoked": "Rol de exportador de datos retirado.",
+    "dataExporterError": "No se pudo cambiar el rol de exportador de datos."
+  },
+  "dataExport": {
+    "exportCsv": "Exportar como CSV",
+    "exportCsvSuccess": "Archivo CSV descargado",
+    "exportCsvFailed": "Error al exportar CSV. Error de API:",
+    "title": "Exportación de datos",
+    "subtitle": "Consulte todas las reservas de un período y área",
+    "fromDate": "Desde",
+    "toDate": "Hasta",
+    "area": "Área",
+    "allAreas": "Todas las áreas",
+    "colName": "Nombre",
+    "colEmail": "Correo electrónico",
+    "colItem": "Elemento reservado",
+    "colDate": "Fecha de reserva",
+    "emptyTable": "No se encontraron reservas para este período y área.",
+    "unknownUser": "Usuario desconocido",
+    "loadFailedPrefix": "No se pudieron cargar las reservas. Error de API:"
   }
 }

@@ -2,6 +2,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import ItemsView from './ItemsView.vue';
+import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 import PageHeader from '../components/PageHeader.vue';
 import { fetchItems } from '../api/items';
 import { fetchMe } from '../api/me';
@@ -14,6 +15,7 @@ import { __resetLegacyPurgeForTests } from '../composables/useFavorites';
 import { buildViewStubs, createTestI18n, defineAuthRedirectTests } from './testHelpers';
 import { ApiError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { middleTruncate } from '../utils/text';
+import { getISOWeekString, getMondayOfWeek } from '../composables/useWeekSelector';
 
 /* jscpd:ignore-start */
 
@@ -913,6 +915,8 @@ describe('ItemsView', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-cy="week-selector"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="week-prev"]').exists()).toBe(true);
+      expect(wrapper.find('[data-cy="week-next"]').exists()).toBe(true);
       expect(wrapper.find('[data-cy="items-date"]').exists()).toBe(false);
     });
 
@@ -1430,14 +1434,14 @@ describe('ItemsView', () => {
       expect(createOrder).toBeLessThan(cancelOrder);
     });
 
-    it('keeps the old booking and shows a warning when the post-create cancel fails', async () => {
+    it.each([new Error('cancel failed'), null, undefined, ''])('keeps the old booking and shows a warning when cancel rejects with %s', async (failure) => {
       fetchMyBookingsMock.mockResolvedValue({ data: [existingBooking] } as never);
       const wrapper = mountView();
       await flushPromises();
       createBookingMock.mockClear();
       cancelBookingMock.mockClear();
       createBookingMock.mockResolvedValue({ data: { id: 'new-1' } } as never);
-      cancelBookingMock.mockRejectedValueOnce(new Error('cancel failed'));
+      cancelBookingMock.mockRejectedValueOnce(failure);
 
       await wrapper.get('[data-cy="book-item-btn"]').trigger('click');
       await flushPromises();
@@ -1450,7 +1454,7 @@ describe('ItemsView', () => {
       expect(createBookingMock).toHaveBeenCalledWith('item-1', futureDay(), undefined);
       expect(cancelBookingMock).toHaveBeenCalledWith('existing-1');
       expect(wrapper.get('[data-cy="booking-error-text"]').text()).toBe(
-        'Booked, but your previous booking in this area could not be cancelled.'
+        `Booked, but your previous booking in this area could not be cancelled.\n${failure instanceof Error ? failure.message : String(failure)}`.trim()
       );
     });
 
@@ -1953,6 +1957,55 @@ describe('ItemsView', () => {
     expect(dialog.attributes('data-persistent')).toBe('');
   });
 
+  it('should open the floor plan on the week of the selected day and keep week steps local (story 37.2)', async () => {
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group', floor_plan: 'group.svg' } }]
+    });
+    // Next week's Wednesday: always a future weekday, independent of today's weekday.
+    const wednesday = getMondayOfWeek(new Date());
+    wednesday.setDate(wednesday.getDate() + 9);
+    const storedDay = formatDate(wednesday);
+    useDateState().setDay(storedDay);
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
+    await flushPromises();
+
+    const floorPlan = wrapper.findComponent(InteractiveFloorPlan);
+    const dayMonday = getMondayOfWeek(new Date(`${storedDay}T00:00:00`));
+    expect(floorPlan.props('week')).toBe(getISOWeekString(dayMonday));
+    expect(floorPlan.props('weekDates')).toContain(storedDay);
+    expect(floorPlan.props('selectedDay')).toBe(storedDay);
+
+    const nextMonday = new Date(dayMonday);
+    nextMonday.setDate(dayMonday.getDate() + 7);
+    floorPlan.vm.$emit('update:week', getISOWeekString(nextMonday));
+    await flushPromises();
+
+    expect(floorPlan.props('week')).toBe(getISOWeekString(nextMonday));
+    expect(floorPlan.props('weekDates')).not.toContain(storedDay);
+    expect((wrapper.vm as unknown as { selectedDate: string }).selectedDate).toBe(storedDay);
+  });
+
+  it('should clamp an out-of-range day-mode floor plan to the allowed horizon', async () => {
+    fetchItemGroupsMock.mockResolvedValue({
+      data: [{ id: 'ig-1', type: 'item-groups', attributes: { name: 'Test Group', floor_plan: 'group.svg' } }]
+    });
+    const farDay = new Date();
+    farDay.setDate(farDay.getDate() + 365);
+    const storedDay = formatDate(farDay);
+    useDateState().setDay(storedDay);
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('[data-cy="item-group-floor-plan-btn"]').trigger('click');
+    await flushPromises();
+    const floorPlan = wrapper.findComponent(InteractiveFloorPlan);
+    const options = floorPlan.props('weekOptions');
+    expect(floorPlan.props('week')).toBe(options[options.length - 1]!.value);
+    expect((wrapper.vm as unknown as { selectedDate: string }).selectedDate).toBe(storedDay);
+  });
+
   it('opens the item-group floor plan fullscreen on compact viewports', async () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: query === '(max-width: 768px)',
@@ -1987,6 +2040,126 @@ describe('ItemsView', () => {
     const dialog = wrapper.get('[data-cy="item-group-floor-plan-dialog"]');
     expect(dialog.attributes('max-width')).toBeUndefined();
     expect(dialog.attributes('maxwidth')).toBeUndefined();
+  });
+
+  describe('backend error messages (story 37.1)', () => {
+    const singleItem = {
+      data: [{
+        id: 'item-1',
+        type: 'items',
+        attributes: { name: 'Desk A', equipment: [], availability: 'available' as const }
+      }]
+    };
+    const originalLocation = window.location;
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    });
+
+    it('should show the translated prefix and the backend detail when a day booking fails', async () => {
+      fetchItemsMock.mockResolvedValue(singleItem);
+      const wrapper = mountView();
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(
+        new ApiError('Request failed: 400', 400, 'booking_date is too far in the future (maximum 3 weeks in advance)')
+      );
+      await bookViaDialog(wrapper);
+
+      const text = wrapper.get('[data-cy="booking-error-text"]').text();
+      expect(text).toContain('Desk A');
+      expect(text).toContain(
+        'Unable to book item. API error:\nbooking_date is too far in the future (maximum 3 weeks in advance)'
+      );
+      expect(wrapper.get('[data-cy="booking-error-text"]').classes()).toContain('api-error-text');
+    });
+
+    it('should show the HTTP status when the failed booking has no detail', async () => {
+      fetchItemsMock.mockResolvedValue(singleItem);
+      const wrapper = mountView();
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(new ApiError('Request failed: 502', 502));
+      await bookViaDialog(wrapper);
+
+      expect(wrapper.get('[data-cy="booking-error-text"]').text()).toContain('Unable to book item. API error:\nHTTP 502');
+    });
+
+    it('should keep the specialised 409 text as prefix and append the backend detail', async () => {
+      fetchItemsMock.mockResolvedValue(singleItem);
+      const wrapper = mountView();
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(new ApiError('Conflict', 409, 'item already booked'));
+      await bookViaDialog(wrapper);
+
+      expect(wrapper.get('[data-cy="booking-error-text"]').text()).toContain(
+        'Item is already booked for this date\nitem already booked'
+      );
+    });
+
+    it('should stay on the page and show the reservation message on 403', async () => {
+      fetchItemsMock.mockResolvedValue(singleItem);
+      const wrapper = mountView();
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(
+        new ApiError('Forbidden', 403, 'This item "Desk A" is reserved. You do not have access.')
+      );
+      await bookViaDialog(wrapper);
+
+      expect(pushMock).not.toHaveBeenCalledWith('/access-denied');
+      expect(wrapper.get('[data-cy="booking-error-text"]').text()).toContain(
+        'This item "Desk A" is reserved. You do not have access.'
+      );
+    });
+
+    it('should still redirect to login when a booking fails with 401', async () => {
+      fetchItemsMock.mockResolvedValue(singleItem);
+      const wrapper = mountView();
+      await flushPromises();
+      Object.defineProperty(window, 'location', { configurable: true, value: { href: '' } });
+
+      createBookingMock.mockRejectedValue(new ApiError('Unauthorized', 401));
+      await bookViaDialog(wrapper);
+
+      expect(window.location.href).toBe('/login');
+    });
+
+    it('should show the translated prefix and the backend detail when loading items fails', async () => {
+      fetchItemsMock.mockRejectedValue(new ApiError('Request failed: 500', 500, 'database is locked'));
+      const wrapper = mountView();
+      await flushPromises();
+
+      const alert = wrapper.get('[data-cy="items-error"]');
+      expect(alert.text()).toContain('Unable to load data. API error:\ndatabase is locked');
+      expect(alert.classes()).toContain('api-error-text');
+    });
+
+    it('should show the backend detail in the week booking results', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-04-06T10:00:00'));
+      localStorage.setItem('sithub_booking_mode', 'week');
+      fetchItemsMock.mockResolvedValue(singleItem);
+
+      const wrapper = mountView();
+      await flushPromises();
+
+      await wrapper.get('[data-cy="week-day-checkbox"]').find('input').setValue(true);
+      await flushPromises();
+
+      createBookingMock.mockRejectedValue(new ApiError('Request failed: 400', 400, 'booking_date is too far'));
+
+      await wrapper.get('[data-cy="week-confirm-btn"]').trigger('click');
+      await flushPromises();
+      await wrapper.get('[data-cy="tile-booking-confirm"]').trigger('click');
+      await flushPromises();
+
+      const results = wrapper.get('[data-cy="week-booking-results"]').text();
+      expect(results).toContain('Unable to book item. API error:\nbooking_date is too far');
+      localStorage.removeItem('sithub_booking_mode');
+      vi.useRealTimers();
+    });
   });
 
   describe('booking limit error modal', () => {

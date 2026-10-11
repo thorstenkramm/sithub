@@ -508,6 +508,36 @@ describe('MatrixBookingPopover', () => {
     expect(wrapper.emitted('bookingConflict')).toBeTruthy();
   });
 
+  it('should keep the conflict text as prefix and append the backend detail on 409', async () => {
+    createBookingMock.mockRejectedValue(new ApiError('Conflict', 409, 'item already booked'));
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    const alert = wrapper.get('[data-cy="matrix-booking-error"]');
+    expect(alert.text()).toContain('This desk is no longer available.\nitem already booked');
+    expect(alert.classes()).toContain('api-error-text');
+    expect(wrapper.emitted('bookingConflict')).toBeTruthy();
+  });
+
+  it('should show the translated prefix and the backend detail when booking fails', async () => {
+    createBookingMock.mockRejectedValue(
+      new ApiError('Request failed: 400', 400, 'booking_date is too far in the future')
+    );
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-booking-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-cy="matrix-booking-error"]').text()).toContain(
+      'Unable to book item. API error:\nbooking_date is too far in the future'
+    );
+    expect(wrapper.emitted('bookingConflict')).toBeFalsy();
+  });
+
   it('saves last colleague to localStorage on colleague booking', async () => {
     fetchColleaguesMock.mockResolvedValue({
       data: [{ id: 'c-1', type: 'users', attributes: { display_name: 'Alice' } }]

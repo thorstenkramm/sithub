@@ -66,4 +66,31 @@ describe('PageHeader', () => {
     });
     expect(wrapper.find('button').exists()).toBe(true);
   });
+
+  it('should keep crumb entries whole and let the trail wrap between entries', () => {
+    const breadcrumbs = [
+      { text: 'Startseite', to: '/' },
+      { text: 'Büro 2.EG', to: '/areas/buero_2eg/item-groups' },
+      { text: 'Cube 1' }
+    ];
+    const wrapper = mount(PageHeader, {
+      props: { title: 'Title', breadcrumbs },
+      global: {
+        stubs: {
+          'v-icon': { template: '<i><slot /></i>' },
+          'router-link': { props: ['to'], template: '<a v-bind="$attrs"><slot /></a>' }
+        }
+      }
+    });
+
+    expect(wrapper.get('[data-cy="breadcrumbs"] ol').classes()).toContain('flex-wrap');
+
+    const link = wrapper.get('[data-cy="breadcrumb-link-1"]');
+    expect(link.classes()).toContain('breadcrumb-label');
+    expect(link.attributes('title')).toBe('Büro 2.EG');
+
+    const current = wrapper.get('[data-cy="breadcrumb-text-2"]');
+    expect(current.classes()).toContain('breadcrumb-label');
+    expect(current.attributes('title')).toBe('Cube 1');
+  });
 });

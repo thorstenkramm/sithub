@@ -146,11 +146,12 @@ func respondWithUserProfile(c echo.Context, user *User) error {
 		Type: resourceTypeUser,
 		ID:   user.ID,
 		Attributes: map[string]interface{}{
-			attrDisplayName: user.Name,
-			attrEmail:       user.Email,
-			attrIsAdmin:     user.IsAdmin,
-			attrAuthSource:  user.AuthSource,
-			attrRole:        userRole(user),
+			attrDisplayName:    user.Name,
+			attrEmail:          user.Email,
+			attrIsAdmin:        user.IsAdmin,
+			attrIsDataExporter: user.IsDataExporter,
+			attrAuthSource:     user.AuthSource,
+			attrRole:           userRole(user),
 		},
 	}, "write user profile response")
 }

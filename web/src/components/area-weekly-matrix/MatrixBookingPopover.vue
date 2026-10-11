@@ -66,7 +66,7 @@
         v-if="errorMessage"
         type="error"
         density="compact"
-        class="mt-3"
+        class="mt-3 api-error-text"
         data-cy="matrix-booking-error"
       >
         {{ errorMessage }}
@@ -123,7 +123,7 @@ import { useI18n } from 'vue-i18n';
 import type { MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
 import { createBooking, cancelBooking, type BookOnBehalfOptions } from '../../api/bookings';
 import { fetchColleagues } from '../../api/users';
-import { ApiError } from '../../api/client';
+import { ApiError, formatApiErrorMessage } from '../../api/client';
 import { useWarningConfirmation } from '../../composables/useWarningConfirmation';
 import { useAreaDayGuard } from '../../composables/useAreaDayGuard';
 import { getSafeLocalStorage } from '../../composables/storage';
@@ -285,8 +285,8 @@ function submitBooking() {
       .then((decision) => {
         if (decision.proceed) void doBook(decision.existingBookingId);
       })
-      .catch(() => {
-        errorMessage.value = t('items.unableToBook');
+      .catch((err: unknown) => {
+        errorMessage.value = formatApiErrorMessage(t('apiErrors.book'), err);
       });
   });
 }
@@ -311,10 +311,10 @@ async function doBook(existingBookingId?: string) {
     if (existingBookingId) {
       try {
         await cancelBooking(existingBookingId);
-      } catch {
+      } catch (cancelErr) {
         // New booking succeeded; the old one could not be cancelled. Keep the
         // new booking and warn without blocking (story 36.9 D2).
-        errorMessage.value = t('items.areaDayGuardCancelFailed');
+        errorMessage.value = formatApiErrorMessage(t('items.areaDayGuardCancelFailed'), cancelErr);
       }
     }
 
@@ -326,10 +326,10 @@ async function doBook(existingBookingId?: string) {
     emit('booked');
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
-      errorMessage.value = t('matrix.deskNoLongerAvailable');
+      errorMessage.value = formatApiErrorMessage(t('matrix.deskNoLongerAvailable'), err);
       emit('bookingConflict');
     } else {
-      errorMessage.value = t('items.unableToBook');
+      errorMessage.value = formatApiErrorMessage(t('apiErrors.book'), err);
     }
   } finally {
     submitting.value = false;

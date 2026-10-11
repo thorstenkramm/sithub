@@ -4,7 +4,7 @@
     <LoadingState v-if="loading" type="cards" :count="2" data-cy="matrix-loading" />
 
     <!-- Error -->
-    <v-alert v-else-if="errorMessage" type="error" class="mb-4" data-cy="matrix-error">
+    <v-alert v-else-if="errorMessage" type="error" class="mb-4 api-error-text" data-cy="matrix-error">
       {{ errorMessage }}
     </v-alert>
 
@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { formatApiErrorMessage } from '../../api/client';
 import { fetchWeeklyMatrix } from '../../api/itemGroupMatrix';
 import type { ItemGroupMatrixAttributes, MatrixDayMeta, MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
 import type { JsonApiResource } from '../../api/types';
@@ -259,9 +260,9 @@ async function loadMatrix(opts: { silent?: boolean } = {}) {
     } else if (!opts.silent) {
       days.value = [];
     }
-  } catch {
+  } catch (err) {
     if (!opts.silent) {
-      errorMessage.value = t('itemGroups.unableToLoad');
+      errorMessage.value = formatApiErrorMessage(t('apiErrors.load'), err);
       matrixData.value = [];
       days.value = [];
     }

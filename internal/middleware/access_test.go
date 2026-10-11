@@ -27,3 +27,24 @@ func TestRedirectForbiddenSendsToAccessDenied(t *testing.T) {
 		t.Fatalf("expected /access-denied, got %s", loc)
 	}
 }
+
+func TestRedirectForbiddenDeletedUserGoesToLogin(t *testing.T) {
+	db := setupMiddlewareTestDB(t)
+	seedMiddlewareUser(t, db, "deleted", "deleted@example.com")
+	_, err := db.Exec(`UPDATE users SET deleted = 1 WHERE id = 'deleted'`)
+	if err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	svc := newTestAuthServiceWithStore(t, db)
+
+	rec := runMiddleware(t, RedirectForbidden(svc), "/", &auth.User{
+		ID: "deleted", AuthSource: "internal", IsPermitted: true,
+	})
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("expected 302, got %d", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "/login" {
+		t.Fatalf("expected /login, got %s", loc)
+	}
+}

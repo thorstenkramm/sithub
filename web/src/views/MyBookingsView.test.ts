@@ -323,4 +323,20 @@ describe('MyBookingsView', () => {
     const wrapper = await mountReady();
     await confirmCancelFrom(wrapper, '[data-cy="booking-item"] button');
   });
+
+  it('should show the backend detail in an error snackbar when cancellation fails', async () => {
+    const cancelBookingMock = cancelBooking as unknown as ReturnType<typeof vi.fn>;
+    cancelBookingMock.mockRejectedValue(new ApiError('Request failed: 403', 403, 'booking belongs to another user'));
+    const wrapper = await mountReady();
+
+    await wrapper.get('[data-cy="bookings-table"] [data-cy="cancel-btn"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-cy="confirm-cancel"]').trigger('click');
+    await flushPromises();
+
+    const error = wrapper.get('[data-cy="cancel-error"]');
+    expect(error.text()).toContain('Unable to cancel booking. API error:\nbooking belongs to another user');
+    expect(error.find('.api-error-text').exists()).toBe(true);
+    expect(pushMock).not.toHaveBeenCalledWith('/access-denied');
+  });
 });

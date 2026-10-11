@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/mail"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
 	"github.com/thorstenkramm/sithub/internal/api"
+	"github.com/thorstenkramm/sithub/internal/notifications"
 )
 
 const (
@@ -26,19 +29,37 @@ type UserAttributes struct {
 	Email       string `json:"email"`
 	DisplayName string `json:"display_name"`
 	IsAdmin     bool   `json:"is_admin"`
-	AuthSource  string `json:"auth_source"`
-	Role        string `json:"role"`
-	LastLogin   string `json:"last_login"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	// IsDataExporter is independent of IsAdmin; role is still admin or user.
+	IsDataExporter bool   `json:"is_data_exporter"`
+	AuthSource     string `json:"auth_source"`
+	Role           string `json:"role"`
+	LastLogin      string `json:"last_login"`
+	Deleted        bool   `json:"deleted"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
-// ListHandler returns a handler for listing all users.
+// DeletionImpactAttributes represents the preview for deleting a user.
+type DeletionImpactAttributes struct {
+	HasBookings        bool   `json:"has_bookings"`
+	FutureBookingCount int    `json:"future_booking_count"`
+	Mode               string `json:"mode"`
+}
+
+// ListHandler returns a handler for listing users one page at a time, ordered by display name.
 func ListHandler(store *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		ctx := c.Request().Context()
+		page, err := api.ParsePage(c)
+		if err != nil {
+			return api.WriteBadRequest(c, err.Error())
+		}
 
-		records, err := ListAll(ctx, store)
+		ctx := c.Request().Context()
+		total, err := Count(ctx, store)
+		if err != nil {
+			return fmt.Errorf("list users: %w", err)
+		}
+		records, err := ListPage(ctx, store, page.Limit, page.Offset)
 		if err != nil {
 			return fmt.Errorf("list users: %w", err)
 		}
@@ -51,7 +72,7 @@ func ListHandler(store *sql.DB) echo.HandlerFunc {
 			}
 		})
 
-		return api.WriteCollection(c, resources, "write users response")
+		return api.WritePaginatedCollection(c, resources, page, total, "write users response")
 	}
 }
 
@@ -156,14 +177,18 @@ func CreateHandler(store *sql.DB) echo.HandlerFunc {
 	}
 }
 
+// updateUserAttributes are the attributes accepted by PATCH /api/v1/users/:id. Omitted fields stay unchanged.
+type updateUserAttributes struct {
+	Email          *string `json:"email,omitempty"`
+	DisplayName    *string `json:"display_name,omitempty"`
+	IsAdmin        *bool   `json:"is_admin,omitempty"`
+	IsDataExporter *bool   `json:"is_data_exporter,omitempty"`
+	Password       *string `json:"password,omitempty"`
+}
+
 type updateUserRequest struct {
 	Data struct {
-		Attributes struct {
-			Email       *string `json:"email,omitempty"`
-			DisplayName *string `json:"display_name,omitempty"`
-			IsAdmin     *bool   `json:"is_admin,omitempty"`
-			Password    *string `json:"password,omitempty"`
-		} `json:"attributes"`
+		Attributes updateUserAttributes `json:"attributes"`
 	} `json:"data"`
 }
 
@@ -233,16 +258,14 @@ func handlePasswordResetIfRequested(
 	return nil
 }
 
-func applyFieldUpdates(ctx context.Context, c echo.Context, store *sql.DB, userID string, attrs struct {
-	Email       *string `json:"email,omitempty"`
-	DisplayName *string `json:"display_name,omitempty"`
-	IsAdmin     *bool   `json:"is_admin,omitempty"`
-	Password    *string `json:"password,omitempty"`
-}) (*Record, error) {
+func applyFieldUpdates(
+	ctx context.Context, c echo.Context, store *sql.DB, userID string, attrs updateUserAttributes,
+) (*Record, error) {
 	fields := UpdateFields{
-		Email:       trimPtr(attrs.Email),
-		DisplayName: trimPtr(attrs.DisplayName),
-		IsAdmin:     attrs.IsAdmin,
+		Email:          trimPtr(attrs.Email),
+		DisplayName:    trimPtr(attrs.DisplayName),
+		IsAdmin:        attrs.IsAdmin,
+		IsDataExporter: attrs.IsDataExporter,
 	}
 
 	rec, err := UpdateUser(ctx, store, userID, fields)
@@ -269,8 +292,41 @@ func writeUser(c echo.Context, status int, rec *Record) error {
 	}, "write user response")
 }
 
-// DeleteHandler returns a handler for deleting a local user (admin only).
-func DeleteHandler(store *sql.DB) echo.HandlerFunc {
+// DeletionImpactHandler previews whether a user deletion will hard-delete or deactivate.
+func DeletionImpactHandler(store *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userID := c.Param("id")
+		if userID == "" {
+			return api.WriteBadRequest(c, "User ID is required")
+		}
+
+		impact, err := DeletionImpact(c.Request().Context(), store, userID, Today())
+		if errors.Is(err, ErrUserNotFound) {
+			return api.WriteNotFound(c, "User not found")
+		}
+		if err != nil {
+			return fmt.Errorf("preview user deletion: %w", err)
+		}
+
+		mode := "delete"
+		if impact.HasBookings {
+			mode = "deactivate"
+		}
+
+		return api.WriteSingle(c, http.StatusOK, api.Resource{
+			Type: "user-deletion-impacts",
+			ID:   userID,
+			Attributes: DeletionImpactAttributes{
+				HasBookings:        impact.HasBookings,
+				FutureBookingCount: impact.FutureBookingCount,
+				Mode:               mode,
+			},
+		}, "write user deletion impact response")
+	}
+}
+
+// DeleteHandler returns a handler for deleting or deactivating a user (admin only).
+func DeleteHandler(store *sql.DB, notifier notifications.Notifier) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userID := c.Param("id")
 		if userID == "" {
@@ -279,30 +335,50 @@ func DeleteHandler(store *sql.DB) echo.HandlerFunc {
 
 		ctx := c.Request().Context()
 
-		// Only local users can be deleted
-		rec, err := FindByID(ctx, store, userID)
-		if errors.Is(err, ErrUserNotFound) {
-			return api.WriteNotFound(c, "User not found")
-		}
-		if err != nil {
-			return fmt.Errorf("find user for delete: %w", err)
-		}
-
 		// Prevent admin from deleting themselves.
-		// The user struct has a public ID field; use reflection-free approach.
 		if caller := currentUserID(c); caller == userID {
 			return api.WriteBadRequest(c, "Cannot delete your own account")
 		}
 
-		if rec.UserSource != userSourceInternal {
-			return api.WriteBadRequest(c, "Only local users can be deleted (Entra ID users are managed externally)")
+		result, err := DeleteOrDeactivate(ctx, store, userID, Today())
+		if errors.Is(err, ErrUserNotFound) {
+			return api.WriteNotFound(c, "User not found")
 		}
-
-		if err := DeleteUser(ctx, store, userID); err != nil {
+		if err != nil {
 			return fmt.Errorf("delete user: %w", err)
 		}
 
-		return c.NoContent(http.StatusNoContent)
+		if result.Mode == DeletionModeDeleted {
+			return c.NoContent(http.StatusNoContent)
+		}
+
+		adminID := currentUserID(c)
+		for _, booking := range result.CanceledBookings {
+			notifier.NotifyAsync(&notifications.BookingEvent{
+				Event:            notifications.EventBookingCanceled,
+				BookingID:        booking.ID,
+				ItemID:           booking.ItemID,
+				UserID:           booking.UserID,
+				BookingDate:      booking.BookingDate,
+				IsGuest:          booking.IsGuest,
+				GuestName:        booking.GuestName,
+				GuestEmail:       booking.GuestEmail,
+				CanceledByUserID: adminID,
+				Timestamp:        time.Now().UTC().Format(time.RFC3339),
+			})
+		}
+		slog.Info("user deactivated",
+			"user_id", userID,
+			"admin_id", adminID,
+			"canceled_count", len(result.CanceledBookings),
+		)
+
+		rec, err := FindByID(ctx, store, userID)
+		if err != nil {
+			return fmt.Errorf("find deactivated user: %w", err)
+		}
+
+		return writeUser(c, http.StatusOK, rec)
 	}
 }
 
@@ -312,14 +388,16 @@ func recordToAttributes(rec *Record) UserAttributes {
 		role = "admin"
 	}
 	return UserAttributes{
-		Email:       rec.Email,
-		DisplayName: rec.DisplayName,
-		IsAdmin:     rec.IsAdmin,
-		AuthSource:  rec.UserSource,
-		Role:        role,
-		LastLogin:   rec.LastLogin,
-		CreatedAt:   rec.CreatedAt,
-		UpdatedAt:   rec.UpdatedAt,
+		Email:          rec.Email,
+		DisplayName:    rec.DisplayName,
+		IsAdmin:        rec.IsAdmin,
+		IsDataExporter: rec.IsDataExporter,
+		AuthSource:     rec.UserSource,
+		Role:           role,
+		LastLogin:      rec.LastLogin,
+		Deleted:        rec.Deleted,
+		CreatedAt:      rec.CreatedAt,
+		UpdatedAt:      rec.UpdatedAt,
 	}
 }
 

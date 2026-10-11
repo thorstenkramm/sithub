@@ -9,12 +9,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src')
     }
   },
-  server: {
-    deps: {
-      inline: ['vuetify']
-    }
-  },
   test: {
+    server: {
+      deps: {
+        inline: ['vuetify']
+      }
+    },
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],

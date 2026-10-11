@@ -1,5 +1,5 @@
-import { apiRequest, parseErrorDetail, ApiError } from './client';
-import type { CollectionResponse, SingleResponse } from './types';
+import { apiDownload, apiRequest, throwApiError } from './client';
+import type { CollectionResponse, PaginatedCollectionResponse, SingleResponse } from './types';
 
 export interface BookingAttributes {
   item_id: string;
@@ -199,7 +199,59 @@ export async function cancelBooking(bookingId: string): Promise<void> {
   });
 
   if (!response.ok) {
-    const detail = await parseErrorDetail(response);
-    throw new ApiError(`Request failed: ${response.status}`, response.status, detail);
+    await throwApiError(response);
   }
+}
+
+export interface BookingExportAttributes {
+  booking_date: string;
+  /** ID of the booked person for avatar lookup; empty for guests and removed users. */
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  is_guest: boolean;
+  item_id: string;
+  item_name: string;
+  item_group_id: string;
+  item_group_name: string;
+  area_id: string;
+  area_name: string;
+  /** "<item group name> / <item name>" */
+  booked_item: string;
+}
+
+export interface BookingExportRequest {
+  /** First booking date, YYYY-MM-DD, inclusive. */
+  from: string;
+  /** Last booking date, YYYY-MM-DD, inclusive. */
+  to: string;
+  /** Area ID, empty for all areas. */
+  area: string;
+  limit: number;
+  offset: number;
+}
+
+export type BookingExportFilters = Pick<BookingExportRequest, 'from' | 'to' | 'area'>;
+
+// filter[...] names, because privacy browser extensions strip a plain "from" parameter from URLs.
+function buildExportQuery({ from, to, area }: BookingExportFilters) {
+  const params = new URLSearchParams({ 'filter[from]': from, 'filter[to]': to });
+  if (area) params.set('filter[area]', area);
+  return params;
+}
+
+/** Fetches one page of bookings of all users (data exporter only), sorted by date and name. */
+export function fetchBookingExport({ from, to, area, limit, offset }: BookingExportRequest) {
+  const params = buildExportQuery({ from, to, area });
+  params.set('page[limit]', String(limit));
+  params.set('page[offset]', String(offset));
+  return apiRequest<PaginatedCollectionResponse<BookingExportAttributes>>(
+    `/api/v1/bookings/export?${params.toString()}`
+  );
+}
+
+/** Downloads all matching bookings, independently of the visible table page. */
+export async function downloadBookingsCsv(filters: BookingExportFilters) {
+  const result = await apiDownload(`/api/v1/bookings/export.csv?${buildExportQuery(filters)}`);
+  return { blob: result.blob, filename: result.filename || `sithub-bookings-${filters.from}_${filters.to}.csv` };
 }

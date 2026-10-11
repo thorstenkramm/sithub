@@ -17,7 +17,7 @@ const (
 	bcryptCost  = 12
 	userColumns = `id, email, display_name, password_hash,
 		user_source, entra_id, is_admin, last_login,
-		created_at, updated_at`
+		created_at, updated_at, deleted, is_data_exporter`
 )
 
 // FindByID returns a user by primary key, or ErrUserNotFound.
@@ -55,7 +55,8 @@ func UpsertEntraIDUser(
 			entra_id = excluded.entra_id,
 			is_admin = excluded.is_admin,
 			last_login = excluded.last_login,
-			updated_at = excluded.updated_at`,
+			updated_at = excluded.updated_at,
+			deleted = 0`,
 		id, email, displayName, entraID, boolToInt(isAdmin), now, now, now,
 	)
 	if err != nil {
@@ -98,10 +99,13 @@ func CreateLocalUser(
 	}, nil
 }
 
-// ListAll returns all users ordered by display_name.
-func ListAll(ctx context.Context, db *sql.DB) ([]Record, error) {
+// ListPage returns one page of users ordered case-insensitively by display_name.
+// The id tie-breaker keeps the order stable so pages never overlap or skip rows.
+func ListPage(ctx context.Context, db *sql.DB, limit, offset int) ([]Record, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users ORDER BY display_name`)
+		`SELECT `+userColumns+` FROM users
+		ORDER BY display_name COLLATE NOCASE, id
+		LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -109,7 +113,7 @@ func ListAll(ctx context.Context, db *sql.DB) ([]Record, error) {
 		_ = rows.Close() //nolint:errcheck // Defer close, error not critical
 	}()
 
-	var result []Record
+	result := []Record{}
 	for rows.Next() {
 		rec, err := scanRow(rows)
 		if err != nil {
@@ -123,16 +127,26 @@ func ListAll(ctx context.Context, db *sql.DB) ([]Record, error) {
 	return result, nil
 }
 
+// Count returns the total number of users.
+func Count(ctx context.Context, db *sql.DB) (int, error) {
+	var total int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count users: %w", err)
+	}
+	return total, nil
+}
+
 // ColleagueSummary holds only the fields needed for the colleague dropdown.
 type ColleagueSummary struct {
 	ID          string
 	DisplayName string
 }
 
-// ListColleagues returns id and display_name for all users, ordered by display_name.
+// ListColleagues returns id and display_name for all active users, ordered by display_name.
+// Deactivated users are excluded so they cannot be selected for new bookings.
 func ListColleagues(ctx context.Context, db *sql.DB) ([]ColleagueSummary, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, display_name FROM users ORDER BY display_name`)
+		`SELECT id, display_name FROM users WHERE deleted = 0 ORDER BY display_name`)
 	if err != nil {
 		return nil, fmt.Errorf("list colleagues: %w", err)
 	}
@@ -159,6 +173,8 @@ type UpdateFields struct {
 	Email       *string
 	DisplayName *string
 	IsAdmin     *bool
+	// IsDataExporter is managed only by administrators; Entra ID logins never touch it.
+	IsDataExporter *bool
 }
 
 // UpdateUser applies partial updates to a user.
@@ -180,6 +196,10 @@ func UpdateUser(ctx context.Context, db *sql.DB, id string, fields UpdateFields)
 	if fields.IsAdmin != nil {
 		setClauses = append(setClauses, "is_admin = ?")
 		args = append(args, boolToInt(*fields.IsAdmin))
+	}
+	if fields.IsDataExporter != nil {
+		setClauses = append(setClauses, "is_data_exporter = ?")
+		args = append(args, boolToInt(*fields.IsDataExporter))
 	}
 
 	args = append(args, id)
@@ -206,22 +226,6 @@ func UpdateUser(ctx context.Context, db *sql.DB, id string, fields UpdateFields)
 	}
 
 	return FindByID(ctx, db, id)
-}
-
-// DeleteUser removes a user by ID. Returns ErrUserNotFound if no row was deleted.
-func DeleteUser(ctx context.Context, db *sql.DB, id string) error {
-	result, err := db.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)
-	if err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("delete user rows: %w", err)
-	}
-	if rows == 0 {
-		return ErrUserNotFound
-	}
-	return nil
 }
 
 // UpdatePasswordHash sets a new password hash for a user.
@@ -389,16 +393,18 @@ type rowScanner interface {
 
 func scanRow(row rowScanner) (*Record, error) {
 	var rec Record
-	var isAdminInt int
+	var isAdminInt, deletedInt, dataExporterInt int
 	err := row.Scan(
 		&rec.ID, &rec.Email, &rec.DisplayName, &rec.PasswordHash,
 		&rec.UserSource, &rec.EntraID, &isAdminInt, &rec.LastLogin,
-		&rec.CreatedAt, &rec.UpdatedAt,
+		&rec.CreatedAt, &rec.UpdatedAt, &deletedInt, &dataExporterInt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan user row: %w", err)
 	}
 	rec.IsAdmin = isAdminInt == 1
+	rec.Deleted = deletedInt == 1
+	rec.IsDataExporter = dataExporterInt == 1
 	return &rec, nil
 }
 

@@ -65,6 +65,24 @@ const router = createRouter({
       meta: { requiresAdmin: true }
     },
     {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('../views/AdminUsersView.vue'),
+      meta: { requiresAdmin: true }
+    },
+    {
+      path: '/admin/api-keys',
+      name: 'api-keys',
+      component: () => import('../views/ApiKeysView.vue'),
+      meta: { requiresAdmin: true }
+    },
+    {
+      path: '/data-export',
+      name: 'data-export',
+      component: () => import('../views/DataExportView.vue'),
+      meta: { requiresDataExporter: true }
+    },
+    {
       path: '/access-denied',
       name: 'access-denied',
       component: () => import('../views/AccessDeniedView.vue'),
@@ -86,6 +104,7 @@ router.beforeEach(async (to) => {
         display_name: response.data.attributes.display_name,
         email: response.data.attributes.email,
         is_admin: response.data.attributes.is_admin,
+        is_data_exporter: response.data.attributes.is_data_exporter,
         auth_source: response.data.attributes.auth_source
       });
     } catch {
@@ -94,6 +113,11 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    return { name: 'access-denied' };
+  }
+
+  // Administrators do not implicitly hold the data exporter role.
+  if (to.meta.requiresDataExporter && !authStore.isDataExporter) {
     return { name: 'access-denied' };
   }
 

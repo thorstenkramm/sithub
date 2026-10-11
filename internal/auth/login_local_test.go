@@ -120,6 +120,37 @@ func TestLocalLoginHandlerInvalidPassword(t *testing.T) {
 	assert.Equal(t, "invalid_credentials", resp.Errors[0].Code)
 }
 
+func TestLocalLoginHandlerDeletedUserMatchesInvalidPassword(t *testing.T) {
+	db := setupTestDB(t)
+	hash, err := users.HashPassword("CorrectPassword123!")
+	require.NoError(t, err)
+	rec, err := users.CreateLocalUser(t.Context(), db, "alice@test.com", "Alice", hash, false)
+	require.NoError(t, err)
+	_, err = db.Exec(`UPDATE users SET deleted = 1 WHERE id = ?`, rec.ID)
+	require.NoError(t, err)
+
+	cfg := &config.Config{}
+	svc, err := NewService(cfg, db)
+	require.NoError(t, err)
+
+	runLogin := func(password string) *httptest.ResponseRecorder {
+		body := `{"email":"alice@test.com","password":"` + password + `"}`
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		loginRec := httptest.NewRecorder()
+		require.NoError(t, LocalLoginHandler(svc)(e.NewContext(req, loginRec)))
+		return loginRec
+	}
+
+	wrongPassword := runLogin("WrongPassword123!")
+	deletedCorrectPassword := runLogin("CorrectPassword123!")
+
+	assert.Equal(t, http.StatusUnauthorized, deletedCorrectPassword.Code)
+	assert.Equal(t, wrongPassword.Code, deletedCorrectPassword.Code)
+	assert.JSONEq(t, wrongPassword.Body.String(), deletedCorrectPassword.Body.String())
+}
+
 func TestLocalLoginHandlerUserNotFound(t *testing.T) {
 	db := setupTestDB(t)
 	cfg := &config.Config{}

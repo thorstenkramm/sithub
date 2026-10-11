@@ -1,8 +1,10 @@
 import { ref } from 'vue';
 import {
+  clampWeekToOptions,
   getMondayOfWeek,
   getISOWeekNumber,
   getISOWeekString,
+  getMondayOfISOWeek,
   getWeekdayDates,
   getWeekdayLabel,
   localizeWeekday,
@@ -196,5 +198,69 @@ describe('useWeekSelector', () => {
 
     maxWeeks.value = 5;
     expect(weekOptions.value).toHaveLength(6);
+  });
+
+  it('clamps a restored week when settings narrow the horizon', () => {
+    const maxWeeks = ref(7);
+    const { weekOptions, selectedWeek } = useWeekSelector(undefined, maxWeeks);
+    selectedWeek.value = weekOptions.value[5]!.value;
+    maxWeeks.value = 2;
+    expect(selectedWeek.value).toBe(weekOptions.value[2]!.value);
+  });
+
+  it('uses the translator for the week token in option labels', () => {
+    const t = (key: string, named?: Record<string, unknown>) =>
+      key === 'weekSelector.weekNumber' ? `KW ${String(named?.week)}` : key;
+    const { weekOptions } = useWeekSelector(undefined, undefined, t);
+    for (const option of weekOptions.value) {
+      expect(option.label).toMatch(/^\d{2}\.\d{2}\.-\d{2}\.\d{2}\.\d{4} - KW \d+$/);
+    }
+  });
+
+  it('selectedMonday follows the selected ISO week', () => {
+    const { selectedWeek, selectedMonday } = useWeekSelector();
+    selectedWeek.value = '2026-W41';
+    expect(selectedMonday.value.getFullYear()).toBe(2026);
+    expect(selectedMonday.value.getMonth()).toBe(9);
+    expect(selectedMonday.value.getDate()).toBe(5);
+  });
+});
+
+describe('getMondayOfISOWeek', () => {
+  it('returns the Monday of an ISO week', () => {
+    const monday = getMondayOfISOWeek('2026-W41');
+    expect(monday?.getFullYear()).toBe(2026);
+    expect(monday?.getMonth()).toBe(9);
+    expect(monday?.getDate()).toBe(5);
+    expect(monday?.getDay()).toBe(1);
+  });
+
+  it('handles week 1 starting in the previous year', () => {
+    const monday = getMondayOfISOWeek('2026-W01');
+    expect(monday?.getFullYear()).toBe(2025);
+    expect(monday?.getMonth()).toBe(11);
+    expect(monday?.getDate()).toBe(29);
+  });
+
+  it.each(['2026-W00', '2026-W54', '2025-W53'])('rejects invalid numeric ISO week %s', (week) => {
+    expect(getMondayOfISOWeek(week)).toBeNull();
+  });
+
+  it('accepts week 53 when the ISO year has it', () => {
+    expect(getMondayOfISOWeek('2026-W53')).not.toBeNull();
+  });
+
+  it('returns null for an invalid string', () => {
+    expect(getMondayOfISOWeek('2026-41')).toBeNull();
+  });
+});
+
+
+describe('clampWeekToOptions', () => {
+  const options = [{ label: 'current', value: '2026-W41' }, { label: 'last', value: '2026-W42' }];
+  it('clamps dates beyond the horizon and before the current week', () => {
+    expect(clampWeekToOptions('2026-W50', options)).toBe('2026-W42');
+    expect(clampWeekToOptions('2026-W40', options)).toBe('2026-W41');
+    expect(clampWeekToOptions('2026-W41', options)).toBe('2026-W41');
   });
 });

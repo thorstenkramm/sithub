@@ -12,6 +12,7 @@ export { default as FloorPlanButton } from './FloorPlanButton.vue';
 export { default as ItemWarning } from './ItemWarning.vue';
 export { default as WarningConfirmDialog } from './WarningConfirmDialog.vue';
 export { default as ColleagueSelect } from './ColleagueSelect.vue';
+export { default as WeekSelector } from './WeekSelector.vue';
 
 // Re-export types
 export type { BreadcrumbItem } from './PageHeader.vue';

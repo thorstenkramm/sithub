@@ -1,4 +1,28 @@
 {
+  "apiKeys": {
+    "title": "API Keys",
+    "add": "Add key",
+    "columns": { "name": "Name", "prefix": "Key prefix", "expiry": "Expiry", "scope": "Scope" },
+    "months": "{count} months",
+    "scope": "Read bookings",
+    "createdTitle": "API key created",
+    "key": "API key",
+    "onceWarning": "Save this key now. It cannot be shown again.",
+    "copy": "Copy key",
+    "copied": "Key copied",
+    "copyManual": "Please copy the selected key manually. Clipboard access is unavailable.",
+    "done": "Done",
+    "revoke": "Revoke",
+    "revokeTitle": "Revoke API key",
+    "revokeMessage": "Revoke the API key “{name}”? This cannot be undone.",
+    "revoked": "API key revoked",
+    "expired": "Expired",
+    "emptyTitle": "No API keys",
+    "emptyMessage": "Add a key to give an external system access to bookings.",
+    "loadError": "Could not load API keys.",
+    "createError": "Could not create API key.",
+    "revokeError": "Could not revoke API key."
+  },
   "app": {
     "navigation": {
       "areas": "Areas",
@@ -13,6 +37,9 @@
       "themeDark": "Dark",
       "showWeekends": "Show weekends",
       "editFloorPlans": "Edit Floor Plans",
+      "users": "Users",
+      "apiKeys": "API Keys",
+      "dataExport": "Data export",
       "changePassword": "Change Password",
       "avatar": "Profile Photo",
       "signOut": "Sign out",
@@ -36,17 +63,13 @@
       "invalidCurrentPassword": "Current password is incorrect.",
       "requiredFields": "Current password and new password are required.",
       "tooShort": "Password must be at least 14 characters.",
-      "localAccountsOnly": "Password change is only available for local accounts.",
-      "failed": "Failed to change password",
-      "genericError": "An error occurred. Please try again."
+      "localAccountsOnly": "Password change is only available for local accounts."
     },
     "avatarDialog": {
       "title": "Profile Photo",
       "upload": "Upload",
       "remove": "Remove",
-      "success": "Profile photo updated.",
-      "uploadFailed": "Failed to upload photo. Please try again.",
-      "deleteFailed": "Failed to remove photo. Please try again."
+      "success": "Profile photo updated."
     }
   },
   "auth": {
@@ -92,7 +115,6 @@
     "filterSaved": "Filter saved.",
     "savedAsFavorite": "{name} saved as favorite.",
     "removedFromFavorites": "{name} removed from favorites.",
-    "unableToLoad": "Unable to load item groups.",
     "viewTiles": "Tiles",
     "viewTable": "Table",
     "viewTableDesktopOnly": "Table view is available on desktop only."
@@ -137,22 +159,15 @@
     "editNoteTitle": "Edit Note",
     "noteLabel": "Note",
     "notFound": "Item group not found.",
-    "unableToLoad": "Unable to load items.",
-    "unableToLoadWeekly": "Unable to load weekly items.",
     "selectColleagueError": "Please select a colleague.",
-    "unableToBook": "Unable to book item. Please try again.",
     "noLongerAvailable": "This item is no longer available for the selected date.",
     "itemAlreadyBookedForDate": "Item is already booked for this date",
     "alreadyBookedByYouForDate": "You already have this item booked for this date",
     "itemNotFound": "Item not found.",
-    "bookingFailed": "Booking failed",
     "unexpectedError": "Unexpected error",
     "bookingConfirmed": "Booking confirmed.",
     "bookingCancelledSuccessfully": "Booking cancelled successfully.",
     "bookingNotFound": "Booking not found or already cancelled.",
-    "unableToCancelBooking": "Unable to cancel booking. Please try again.",
-    "unableToCancel": "Unable to cancel booking.",
-    "unableToSaveNote": "Unable to save note. Please try again.",
     "savedFilterDeleted": "Saved filter deleted.",
     "filterSaved": "Filter saved.",
     "savedAsFavorite": "{name} saved as favorite.",
@@ -186,7 +201,6 @@
     "cancelButton": "Cancel Booking",
     "cancelledSuccessfully": "Booking cancelled successfully.",
     "notFoundOrCancelled": "Booking not found or already cancelled.",
-    "unableToCancel": "Unable to cancel booking. Please try again.",
     "bookedBy": "Booked by {name}",
     "guest": "Guest: {name}",
     "addNote": "Add note",
@@ -222,8 +236,7 @@
     "emptyMessage": "No items have been booked in this item group for the selected date.",
     "unknown": "Unknown",
     "itemCount": "{count} item booked for {date} | {count} items booked for {date}",
-    "notFound": "Item group not found.",
-    "unableToLoad": "Unable to load bookings."
+    "notFound": "Item group not found."
   },
   "presence": {
     "title": "Today's Presence",
@@ -234,8 +247,7 @@
     "unknown": "Unknown",
     "bookingNote": "Booking Note",
     "personCount": "{count} person scheduled for {date} | {count} people scheduled for {date}",
-    "notFound": "Area not found.",
-    "unableToLoad": "Unable to load presence."
+    "notFound": "Area not found."
   },
   "floorPlanEditor": {
     "title": "Floor Plan Editor",
@@ -272,7 +284,6 @@
     "bookingSummary": "Book {label} in {location} for {dayLabel} starting {startDate}.",
     "dayCount": "{count} day | {count} days",
     "freeFraction": "{free}/{total} free",
-    "unableToCheckAvailability": "Unable to check availability for the selected week.",
     "bookedBy": "Booked by {name}",
     "someoneElse": "someone else",
     "alreadyBookedByYou": "Already booked by you",
@@ -284,8 +295,7 @@
     "itemAlreadyBooked": "The selected item is already booked.",
     "bookingCouldNotBeCompleted": "The booking could not be completed.",
     "bookedSuccessfully": "{label} booked successfully.",
-    "bookedForDays": "{label} booked for {count} days.",
-    "undoFailedStillActive": "Undo failed. The booking is still active."
+    "bookedForDays": "{label} booked for {count} days."
   },
   "status": {
     "available": "Available",
@@ -303,6 +313,7 @@
     "save": "Save",
     "delete": "Delete",
     "close": "Close",
+    "connectionLost": "Connection to server lost",
     "home": "Home",
     "date": "Date",
     "booked": "Booked",
@@ -312,12 +323,22 @@
     "presence": "Presence",
     "bookings": "Bookings"
   },
+  "apiErrors": {
+    "book": "Unable to book item. API error:",
+    "cancel": "Unable to cancel booking. API error:",
+    "saveNote": "Unable to save note. API error:",
+    "undoBooking": "Unable to undo booking. API error:",
+    "checkAvailability": "Unable to check availability. API error:",
+    "uploadAvatar": "Unable to upload photo. API error:",
+    "deleteAvatar": "Unable to remove photo. API error:",
+    "changePassword": "Unable to change password. API error:",
+    "load": "Unable to load data. API error:"
+  },
   "matrix": {
     "bookingConfirmed": "Booking confirmed.",
     "deskNoLongerAvailable": "This desk is no longer available.",
     "cancelBooking": "Cancel booking",
     "cancelConfirmed": "Booking cancelled.",
-    "cancelFailed": "Unable to cancel booking.",
     "person": "Person",
     "desk": "Desk"
   },
@@ -343,5 +364,62 @@
     "frShort": "F",
     "saShort": "S",
     "suShort": "S"
+  },
+  "weekSelector": {
+    "weekNumber": "Week {week}",
+    "previousWeek": "Previous week",
+    "nextWeek": "Next week"
+  },
+  "adminUsers": {
+    "title": "Users",
+    "subtitle": "All user accounts and their last login",
+    "colEmail": "Email",
+    "colName": "Name",
+    "colRoles": "Role(s)",
+    "colLastLogin": "Last login",
+    "never": "never",
+    "roleAdmin": "Admin",
+    "roleUser": "User",
+    "loadError": "Users could not be loaded.",
+    "remove": "Remove user",
+    "cannotRemoveSelf": "You cannot remove your own account.",
+    "removeError": "User could not be removed.",
+    "deactivated": "deactivated",
+    "deleteTitle": "Delete user",
+    "deleteMessage": "{name} has no bookings and will be permanently deleted. This cannot be undone.",
+    "deleteConfirm": "Delete",
+    "deleteSuccess": "{name} was deleted.",
+    "deleteError": "User could not be deleted.",
+    "deactivateTitle": "Deactivate user",
+    "deactivateMessage": "To keep the booking history, {name} will be deactivated instead of deleted. They will no longer be able to sign in.",
+    "deactivateMessageEntra": "To keep the booking history, {name} will be deactivated instead of deleted. If {name} signs in with Microsoft again, the account is reactivated automatically. To block access permanently, remove them from the Entra ID group.",
+    "futureBookingsCanceled": "One upcoming booking will be canceled. | {count} upcoming bookings will be canceled.",
+    "deactivateConfirm": "Deactivate",
+    "deactivateSuccess": "{name} was deactivated.",
+    "deactivateSuccessCanceled": "{name} was deactivated and one booking was canceled. | {name} was deactivated and {count} bookings were canceled.",
+    "deactivateError": "User could not be deactivated.",
+    "roleDataExporter": "Data exporter",
+    "colDataExporter": "Data exporter",
+    "dataExporterGranted": "Data exporter role granted.",
+    "dataExporterRevoked": "Data exporter role revoked.",
+    "dataExporterError": "The data exporter role could not be changed."
+  },
+  "dataExport": {
+    "exportCsv": "Export as CSV",
+    "exportCsvSuccess": "CSV file downloaded",
+    "exportCsvFailed": "CSV export failed. API error:",
+    "title": "Data export",
+    "subtitle": "Browse all bookings for a date range and area",
+    "fromDate": "From date",
+    "toDate": "To date",
+    "area": "Area",
+    "allAreas": "All areas",
+    "colName": "Name",
+    "colEmail": "Email",
+    "colItem": "Booked item",
+    "colDate": "Booking date",
+    "emptyTable": "No bookings found for this range and area.",
+    "unknownUser": "Unknown user",
+    "loadFailedPrefix": "Unable to load the bookings. API error:"
   }
 }

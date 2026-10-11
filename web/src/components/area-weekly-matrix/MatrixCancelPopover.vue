@@ -26,7 +26,7 @@
         v-if="errorMessage"
         type="error"
         density="compact"
-        class="mb-3"
+        class="mb-3 api-error-text"
         data-cy="matrix-cancel-error"
       >
         {{ errorMessage }}
@@ -62,6 +62,7 @@ import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { MatrixCell, MatrixItem } from '../../api/itemGroupMatrix';
 import { cancelBooking } from '../../api/bookings';
+import { formatApiErrorMessage } from '../../api/client';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -95,8 +96,8 @@ async function submitCancel() {
     await cancelBooking(props.cell.booking_id);
     emit('update:modelValue', false);
     emit('cancelled');
-  } catch {
-    errorMessage.value = t('matrix.cancelFailed');
+  } catch (err) {
+    errorMessage.value = formatApiErrorMessage(t('apiErrors.cancel'), err);
   } finally {
     submitting.value = false;
   }

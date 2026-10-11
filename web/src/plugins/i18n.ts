@@ -6,6 +6,8 @@ import es from '@/locales/es.json';
 import fr from '@/locales/fr.json';
 import uk from '@/locales/uk.json';
 
+import { setConnectionLostTranslator } from '@/api/client';
+
 export const i18n = createI18n({
   legacy: false,
   locale: 'en',
@@ -18,3 +20,5 @@ export const i18n = createI18n({
     uk: { ...uk, $vuetify: vuetifyUk }
   }
 });
+
+setConnectionLostTranslator(() => i18n.global.t('common.connectionLost'));

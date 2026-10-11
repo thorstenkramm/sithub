@@ -21,6 +21,9 @@ import (
 // ErrInvalidState indicates an OAuth state mismatch.
 var ErrInvalidState = errors.New("invalid oauth state")
 
+// ErrUserInactive indicates that the authenticated cookie points to a deleted or missing user.
+var ErrUserInactive = errors.New("user inactive")
+
 const (
 	stateCookieName = "sithub_oauth_state"
 	userCookieName  = "sithub_user"
@@ -39,12 +42,14 @@ type Service struct {
 
 // User represents an authenticated user.
 type User struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Email       string `json:"email"`
-	IsAdmin     bool   `json:"is_admin"`
-	IsPermitted bool   `json:"is_permitted"`
-	AuthSource  string `json:"auth_source"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	IsAdmin bool   `json:"is_admin"`
+	// IsDataExporter is never trusted from the cookie; EnsureActive overwrites it from the database.
+	IsDataExporter bool   `json:"is_data_exporter"`
+	IsPermitted    bool   `json:"is_permitted"`
+	AuthSource     string `json:"auth_source"`
 }
 
 // GetID returns the user's database ID.
@@ -97,6 +102,25 @@ func NewService(cfg *config.Config, store *sql.DB) (*Service, error) {
 // Store returns the database handle.
 func (s *Service) Store() *sql.DB {
 	return s.store
+}
+
+// EnsureActive verifies the authenticated user still exists and is not deactivated.
+// Security-critical: this is the per-request revocation check for stale local and Entra ID sessions,
+// and it refreshes database-backed admin state without waiting for re-login.
+func (s *Service) EnsureActive(ctx context.Context, user *User) error {
+	if user == nil || s.store == nil {
+		return nil
+	}
+	access, err := users.LookupAccess(ctx, s.store, user.ID)
+	if err != nil {
+		return fmt.Errorf("ensure active user: %w", err)
+	}
+	if !access.Active {
+		return ErrUserInactive
+	}
+	user.IsAdmin = access.IsAdmin
+	user.IsDataExporter = access.IsDataExporter
+	return nil
 }
 
 // AuthCodeURL returns the authorization URL for the given state.
@@ -213,6 +237,8 @@ func (s *Service) FetchUser(ctx context.Context, token *oauth2.Token) (*User, er
 		IsPermitted: isPermitted,
 		IsAdmin:     isAdmin,
 		AuthSource:  providerEntraID,
+		// The role is stored in SitHub and survives Entra ID logins; never derived from Entra.
+		IsDataExporter: rec.IsDataExporter,
 	}
 
 	return user, nil

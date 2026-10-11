@@ -10,15 +10,10 @@
       <v-card-text>
         <!-- Single row: week selector, floor plan, view switch, equipment filter (with info icon adjacent) -->
         <div class="ig-controls-row d-flex flex-wrap align-center ga-3">
-          <v-select
+          <WeekSelector
             v-model="selectedWeek"
-            :items="weekOptions"
-            item-title="label"
-            item-value="value"
+            :options="weekOptions"
             :label="$t('itemGroups.calendarWeek')"
-            density="compact"
-            hide-details
-            data-cy="week-selector"
             class="ig-week-selector"
           />
           <FloorPlanButton
@@ -121,7 +116,7 @@
     <LoadingState v-if="itemGroupsLoading" type="cards" :count="4" data-cy="item-groups-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="itemGroupsErrorMessage" type="error" class="mb-4" data-cy="item-groups-error">
+    <v-alert v-else-if="itemGroupsErrorMessage" type="error" class="mb-4 api-error-text" data-cy="item-groups-error">
       {{ itemGroupsErrorMessage }}
     </v-alert>
 
@@ -234,7 +229,8 @@
             v-if="areaFloorPlan"
             :floor-plan="areaFloorPlan"
             :title="areaName || 'Floor Plan'"
-            :week-label="weekOptions.find(o => o.value === selectedWeek)?.label || ''"
+            v-model:week="selectedWeek"
+            :week-options="weekOptions"
             :week-dates="selectedWeekDates"
             item-group-id=""
             :area-level="true"
@@ -281,7 +277,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { ApiError, formatApiErrorMessage, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchMe } from '../api/me';
 import { fetchItemGroups } from '../api/itemGroups';
 import { fetchAreas } from '../api/areas';
@@ -302,7 +298,7 @@ import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/useAuthStore';
 import { resolveConfiguredIcon } from '../utils/icons';
 import { fetchSettings } from '../api/settings';
-import { PageHeader, LoadingState, EmptyState, FloorPlanButton } from '../components';
+import { PageHeader, LoadingState, EmptyState, FloorPlanButton, WeekSelector } from '../components';
 import InteractiveFloorPlan from '../components/InteractiveFloorPlan.vue';
 import AreaWeeklyMatrixView from '../components/area-weekly-matrix/AreaWeeklyMatrixView.vue';
 import { useAreaViewPreference } from '../composables/useAreaViewPreference';
@@ -408,7 +404,7 @@ const isItemGroupFilteredOut = (igId: string): boolean => {
 
 const { showWeekends } = useWeekendPreference();
 const weeksInAdvanced = ref(7);
-const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends, weeksInAdvanced);
+const { weekOptions, selectedWeek, selectedWeekDates } = useWeekSelector(showWeekends, weeksInAdvanced, t);
 const { getWeek, setWeek } = useDateState();
 
 // Restore memorized week on mount
@@ -544,7 +540,7 @@ onMounted(async () => {
       itemGroupsErrorMessage.value = t('areas.notFound');
       return;
     }
-    itemGroupsErrorMessage.value = t('itemGroups.unableToLoad');
+    itemGroupsErrorMessage.value = formatApiErrorMessage(t('apiErrors.load'), err);
   }
 
   await loadAvailability(areaId, selectedWeek.value);
@@ -606,10 +602,11 @@ useLiveBookingRefresh({
   min-height: 40px;
 }
 
+/* Week dropdown (240px) plus the previous/next arrow buttons */
 .ig-week-selector {
-  flex: 0 0 240px;
-  max-width: 240px;
-  min-width: 200px;
+  flex: 0 0 320px;
+  max-width: 320px;
+  min-width: 280px;
 }
 
 .ig-equipment-filter-cluster {

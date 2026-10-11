@@ -12,7 +12,21 @@ import (
 
 // WriteCollection writes a JSON:API collection response.
 func WriteCollection(c echo.Context, resources []Resource, errLabel string) error {
-	resp := CollectionResponse{Data: resources}
+	return writeCollection(c, CollectionResponse{Data: resources}, errLabel)
+}
+
+// WritePaginatedCollection writes a JSON:API collection response with pagination meta and links
+// derived from the request URL.
+func WritePaginatedCollection(c echo.Context, resources []Resource, page Page, total int, errLabel string) error {
+	links := BuildPaginationLinks(c.Request().URL, page, total)
+	return writeCollection(c, CollectionResponse{
+		Data:  resources,
+		Meta:  &PaginationMeta{Total: total, Limit: page.Limit, Offset: page.Offset},
+		Links: &links,
+	}, errLabel)
+}
+
+func writeCollection(c echo.Context, resp CollectionResponse, errLabel string) error {
 	c.Response().Header().Set(echo.HeaderContentType, JSONAPIContentType)
 	if err := c.JSON(http.StatusOK, resp); err != nil {
 		return fmt.Errorf("%s: %w", errLabel, err)

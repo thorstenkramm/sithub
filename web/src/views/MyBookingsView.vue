@@ -6,18 +6,6 @@
       :breadcrumbs="[{ text: $t('common.home'), to: '/' }, { text: $t('bookings.title') }]"
     />
 
-    <!-- Error Messages -->
-    <v-alert
-      v-if="cancelErrorMessage"
-      type="error"
-      class="mb-4"
-      closable
-      data-cy="cancel-error"
-      @click:close="cancelErrorMessage = null"
-    >
-      {{ cancelErrorMessage }}
-    </v-alert>
-
     <!-- View switch: Tiles / Table -->
     <div class="d-flex justify-end mb-4" data-cy="view-switch-container">
       <div class="d-flex align-center">
@@ -69,7 +57,7 @@
     <LoadingState v-if="bookingsLoading" type="cards" :count="3" data-cy="bookings-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="bookingsError" type="error" class="mb-4" data-cy="bookings-error">
+    <v-alert v-else-if="bookingsError" type="error" class="mb-4 api-error-text" data-cy="bookings-error">
       {{ bookingsError }}
     </v-alert>
 
@@ -155,13 +143,24 @@
     <v-snackbar v-model="showCancelSuccess" :timeout="3000" location="bottom" color="success" data-cy="cancel-success">
       {{ cancelSuccessMessage }}
     </v-snackbar>
+
+    <v-snackbar
+      v-model="showCancelError"
+      :timeout="6000"
+      location="bottom"
+      color="error"
+      closable
+      data-cy="cancel-error"
+    >
+      <span class="api-error-text">{{ cancelErrorMessage }}</span>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { ApiError, formatApiErrorMessage, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { cancelBooking, fetchMyBookings, type MyBookingAttributes } from '../api/bookings';
 import { fetchMe } from '../api/me';
 import type { JsonApiResource } from '../api/types';
@@ -232,11 +231,15 @@ const showCancelSuccess = computed({
   set: (v: boolean) => { if (!v) cancelSuccessMessage.value = null; }
 });
 const cancelErrorMessage = ref<string | null>(null);
+const showCancelError = computed({
+  get: () => cancelErrorMessage.value !== null,
+  set: (v: boolean) => { if (!v) cancelErrorMessage.value = null; }
+});
 const cancellingBookingId = ref<string | null>(null);
 const showCancelDialog = ref(false);
 const pendingCancelId = ref<string | null>(null);
 const { loading: bookingsLoading, error: bookingsError, run: runBookings } = useApi();
-const { handleAuthError } = useAuthErrorHandler();
+const { handleAuthError, handleUnauthorized } = useAuthErrorHandler();
 
 const loadBookings = async () => {
   try {
@@ -274,14 +277,13 @@ const confirmCancelBooking = async () => {
     cancelSuccessMessage.value = t('bookings.cancelledSuccessfully');
     await loadBookings();
   } catch (err) {
-    if (await handleAuthError(err)) {
+    if (handleUnauthorized(err)) {
       return;
     }
-    if (err instanceof ApiError && err.status === 404) {
-      cancelErrorMessage.value = t('bookings.notFoundOrCancelled');
-    } else {
-      cancelErrorMessage.value = t('bookings.unableToCancel');
-    }
+    const prefix = err instanceof ApiError && err.status === 404
+      ? t('bookings.notFoundOrCancelled')
+      : t('apiErrors.cancel');
+    cancelErrorMessage.value = formatApiErrorMessage(prefix, err);
   } finally {
     showCancelDialog.value = false;
     cancellingBookingId.value = null;

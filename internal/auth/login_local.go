@@ -75,17 +75,24 @@ func LocalLoginHandler(svc *Service) echo.HandlerFunc {
 				"Invalid email or password", "invalid_credentials",
 			)
 		}
+		if rec.Deleted {
+			return jsonAPIError(
+				c, http.StatusUnauthorized, "Unauthorized",
+				"Invalid email or password", "invalid_credentials",
+			)
+		}
 
 		// Record login timestamp (best-effort, don't fail the login)
 		_ = users.UpdateLastLogin(ctx, svc.store, rec.ID) //nolint:errcheck // Best-effort
 
 		user := &User{
-			ID:          rec.ID,
-			Name:        rec.DisplayName,
-			Email:       rec.Email,
-			IsAdmin:     rec.IsAdmin,
-			IsPermitted: true,
-			AuthSource:  userSourceInternal,
+			ID:             rec.ID,
+			Name:           rec.DisplayName,
+			Email:          rec.Email,
+			IsAdmin:        rec.IsAdmin,
+			IsDataExporter: rec.IsDataExporter,
+			IsPermitted:    true,
+			AuthSource:     userSourceInternal,
 		}
 
 		encodedUser, err := svc.EncodeUser(user)

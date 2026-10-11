@@ -43,26 +43,18 @@ vitest 4 works with Vite 8.
 ## Candidate: TypeScript 5.9 -> 6 Migration
 
 Dependabot's TypeScript 6 bump (PR #10, closed) failed `type-check`; the toolchain (`vue-tsc`,
-`@vue/eslint-config-typescript`) does not yet support TS 6. Partly gated on upstream toolchain
-support.
+`typescript-eslint`) does not yet support TS 6. Partly gated on upstream toolchain support.
 
-- Scope: wait for / confirm `vue-tsc` and `@vue/eslint-config-typescript` releases that support
+- Scope: wait for / confirm `vue-tsc` and `typescript-eslint` releases that support
   TypeScript 6; bump `typescript`; fix new or stricter type errors surfaced across the codebase;
   verify `type-check`, `lint`, and `build` are green.
 - Risks: new/stricter type errors project-wide; timing depends on external toolchain readiness.
 - Done when: `type-check` + `lint` + `build` are green on TypeScript 6, and the `typescript`
   major-ignore rule is removed from `.github/dependabot.yml`.
 
-## Candidate: ESLint 9 -> 10 Migration
+## Done: ESLint 9 -> 10 Migration (2026-10-09)
 
-Dependabot's ESLint 10 bump (PR #13, closed) failed `npm ci` with ERESOLVE: `@vue/eslint-config-typescript`
-and `eslint-plugin-vue` still peer-require ESLint 9. Gated on upstream plugin support. Small, and
-closely related to the TypeScript 6 candidate (same toolchain), so the two could be tackled together.
-
-- Scope: wait for / confirm `@vue/eslint-config-typescript` and `eslint-plugin-vue` releases that
-  support ESLint 10; bump `eslint`; fix any new lint rule changes; verify `lint` passes with
-  `--max-warnings 0`.
-- Risks: new or changed lint rules may surface many findings; timing depends on external plugin
-  readiness.
-- Done when: `npm run lint` is green on ESLint 10, and the `eslint` major-ignore rule is removed from
-  `.github/dependabot.yml`.
+Bumped `eslint` to 10 and replaced `@vue/eslint-config-typescript` with a direct `typescript-eslint` +
+`vue-eslint-parser` setup in `web/eslint.config.ts` (equivalent effective config). This also removed the
+unpatched `braces` advisory (GHSA-vfj7-8cjw-p6xm) pulled in via `fast-glob`. The `eslint` major-ignore
+rule was removed from `.github/dependabot.yml`.

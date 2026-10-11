@@ -2,6 +2,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import MatrixCancelPopover from './MatrixCancelPopover.vue';
 import { cancelBooking } from '../../api/bookings';
+import { ApiError } from '../../api/client';
 import { createTestI18n } from '../../__tests__/helpers/i18n';
 import { popoverStubs } from './testHelpers';
 
@@ -94,6 +95,19 @@ describe('MatrixCancelPopover', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-cy="matrix-cancel-error"]').exists()).toBe(true);
+  });
+
+  it('should show the translated prefix and the backend detail when cancelling fails', async () => {
+    cancelBookingMock.mockRejectedValue(new ApiError('Request failed: 403', 403, 'not your booking'));
+    const wrapper = mountPopover();
+    await flushPromises();
+
+    await wrapper.find('[data-cy="matrix-cancel-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-cy="matrix-cancel-error"]').text()).toContain(
+      'Unable to cancel booking. API error:\nnot your booking'
+    );
   });
 
   it('closes without cancelling when close is clicked', async () => {

@@ -13,13 +13,16 @@ type Record struct {
 	EntraID      string
 	IsAdmin      bool
 	LastLogin    string
-	CreatedAt    string
-	UpdatedAt    string
+	// IsDataExporter grants access to booking data export. It is independent of IsAdmin.
+	IsDataExporter bool
+	// Deleted marks a deactivated (soft-deleted) user who may no longer sign in.
+	Deleted   bool
+	CreatedAt string
+	UpdatedAt string
 }
 
 // Sentinel errors for user operations.
 var (
 	ErrEmailConflict = errors.New("email already exists")
 	ErrUserNotFound  = errors.New("user not found")
-	ErrNotLocalUser  = errors.New("operation only allowed for local users")
 )

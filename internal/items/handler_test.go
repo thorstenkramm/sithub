@@ -16,7 +16,7 @@ import (
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
-	"github.com/thorstenkramm/sithub/internal/db"
+	"github.com/thorstenkramm/sithub/internal/testutil/dbtest"
 )
 
 func testConfig() *areas.Config {
@@ -42,49 +42,7 @@ func testConfig() *areas.Config {
 
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	store, err := db.Open(t.TempDir())
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if err := store.Close(); err != nil {
-			t.Errorf("close store: %v", err)
-		}
-	})
-
-	_, err = store.Exec(`
-		CREATE TABLE IF NOT EXISTS bookings (
-			id TEXT PRIMARY KEY,
-			item_id TEXT NOT NULL,
-			user_id TEXT NOT NULL,
-			booked_by_user_id TEXT NOT NULL DEFAULT '',
-			booking_date TEXT NOT NULL,
-			is_guest INTEGER NOT NULL DEFAULT 0,
-			guest_name TEXT NOT NULL DEFAULT '',
-			guest_email TEXT NOT NULL DEFAULT '',
-			note TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL,
-			updated_at TEXT NOT NULL,
-			UNIQUE(item_id, booking_date)
-		)
-	`)
-	require.NoError(t, err)
-
-	_, err = store.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id TEXT PRIMARY KEY,
-			email TEXT NOT NULL,
-			display_name TEXT NOT NULL,
-			password_hash TEXT NOT NULL DEFAULT '',
-			user_source TEXT NOT NULL DEFAULT 'internal',
-			entra_id TEXT NOT NULL DEFAULT '',
-			is_admin INTEGER NOT NULL DEFAULT 0,
-			last_login TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL,
-			updated_at TEXT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-
-	return store
+	return dbtest.New(t)
 }
 
 func seedTestBooking(t *testing.T, store *sql.DB) {
@@ -106,8 +64,8 @@ func seedTestUserRecord(t *testing.T, store *sql.DB, userID, email, displayName 
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	_, err := store.ExecContext(context.Background(),
-		`INSERT INTO users (id, email, display_name, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?)`,
+		`INSERT INTO users (id, email, display_name, user_source, created_at, updated_at)
+		 VALUES (?, ?, ?, 'internal', ?, ?)`,
 		userID, email, displayName, now, now)
 	require.NoError(t, err)
 }

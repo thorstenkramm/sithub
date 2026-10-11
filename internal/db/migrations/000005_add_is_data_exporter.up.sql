@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN is_data_exporter INTEGER NOT NULL DEFAULT 0;

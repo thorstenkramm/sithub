@@ -1,4 +1,5 @@
 import { useApi } from './useApi';
+import { ApiError } from '../api/client';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -25,5 +26,25 @@ describe('useApi', () => {
 
     expect(loading.value).toBe(false);
     expect(error.value).toBeNull();
+  });
+
+  it('stores the backend detail of an ApiError', async () => {
+    const { error, run } = useApi();
+
+    await expect(run(async () => {
+      throw new ApiError('Request failed: 500', 500, 'database is locked');
+    })).rejects.toBeInstanceOf(ApiError);
+
+    expect(error.value).toBe('database is locked');
+  });
+
+  it('stores the HTTP status when an ApiError has no detail', async () => {
+    const { error, run } = useApi();
+
+    await expect(run(async () => {
+      throw new ApiError('Request failed: 502', 502);
+    })).rejects.toBeInstanceOf(ApiError);
+
+    expect(error.value).toBe('HTTP 502');
   });
 });

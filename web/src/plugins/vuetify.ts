@@ -24,6 +24,7 @@ import {
   VCombobox,
   VContainer,
   VDataTable,
+  VDataTableServer,
   VDatePicker,
   VDialog,
   VDivider,
@@ -38,6 +39,7 @@ import {
   VMain,
   VMenu,
   VNavigationDrawer,
+  VPagination,
   VRadio,
   VRadioGroup,
   VRow,
@@ -56,8 +58,8 @@ const appComponents = {
   VAlert, VApp, VAppBar, VAppBarNavIcon, VAutocomplete, VAvatar, VBottomSheet,
   VBtn, VBtnToggle, VCard, VCardActions, VCardItem, VCardSubtitle, VCardText,
   VCardTitle, VCheckbox, VChip, VCol, VCombobox, VContainer, VDataTable,
-  VDatePicker, VDialog, VDivider, VExpandTransition, VForm, VIcon, VImg, VList, VListItem,
-  VListItemSubtitle, VListItemTitle, VMain, VMenu, VNavigationDrawer, VRadio,
+  VDataTableServer, VDatePicker, VDialog, VDivider, VExpandTransition, VForm, VIcon, VImg, VList, VListItem,
+  VListItemSubtitle, VListItemTitle, VMain, VMenu, VNavigationDrawer, VPagination, VRadio,
   VRadioGroup, VRow, VSelect, VSkeletonLoader, VSnackbar, VSpacer, VSwitch,
   VTextField, VTextarea, VTooltip,
 };
@@ -74,6 +76,8 @@ import {
   mdiCalendarClock,
   mdiAccount,
   mdiAccountGroup,
+  mdiDatabaseExport,
+  mdiDownload,
   mdiAccountPlus,
   mdiCheck,
   mdiClose,
@@ -113,12 +117,16 @@ import {
   mdiHeartOutline,
   mdiDesktopClassic,
   mdiTable,
-  mdiContentSave
+  mdiContentSave,
+  mdiKeyVariant,
+  mdiContentCopy
 } from '@mdi/js';
 
 // Custom icon aliases for the app
 const customAliases = {
   ...aliases,
+  key: mdiKeyVariant,
+  copy: mdiContentCopy,
   area: mdiOfficeBuilding,
   room: mdiDoorOpen,
   desk: mdiDesk,
@@ -126,6 +134,8 @@ const customAliases = {
   calendarClock: mdiCalendarClock,
   user: mdiAccount,
   users: mdiAccountGroup,
+  dataExport: mdiDatabaseExport,
+  download: mdiDownload,
   userPlus: mdiAccountPlus,
   check: mdiCheck,
   close: mdiClose,

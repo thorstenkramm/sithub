@@ -24,7 +24,7 @@
     <LoadingState v-if="loading" type="list" :count="5" data-cy="bookings-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="errorMessage" type="error" class="mb-4" data-cy="bookings-error">
+    <v-alert v-else-if="errorMessage" type="error" class="mb-4 api-error-text" data-cy="bookings-error">
       {{ errorMessage }}
     </v-alert>
 
@@ -72,7 +72,7 @@
 import { onMounted, ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { ApiError, formatApiErrorMessage, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchItemGroupBookings } from '../api/itemGroupBookings';
 import { fetchAreas } from '../api/areas';
 import { fetchItemGroups } from '../api/itemGroups';
@@ -147,7 +147,7 @@ const loadBookings = async (itemGroupId: string, date: string) => {
       errorMessage.value = t('itemGroupBookings.notFound');
       return;
     }
-    errorMessage.value = t('itemGroupBookings.unableToLoad');
+    errorMessage.value = formatApiErrorMessage(t('apiErrors.load'), err);
   }
 };
 

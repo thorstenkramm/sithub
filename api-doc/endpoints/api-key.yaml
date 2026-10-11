@@ -1,0 +1,31 @@
+description: Requires an administrator session. Bearer API keys receive 403 and cannot revoke keys.
+delete:
+  summary: Revoke an API key (admin only)
+  operationId: deleteApiKey
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Permanently deleted, empty response
+    '401':
+      description: Session required
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Administrator session required; bearer API keys are always denied
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '404':
+      description: Key not found
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

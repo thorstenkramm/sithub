@@ -72,7 +72,26 @@ describe("InteractiveFloorPlan", () => {
     "2026-04-12",
   ];
 
+  const nextWeekDates = [
+    "2026-04-13",
+    "2026-04-14",
+    "2026-04-15",
+    "2026-04-16",
+    "2026-04-17",
+    "2026-04-18",
+    "2026-04-19",
+  ];
+
+  const weekOptions = [
+    { label: "06.04.-12.04.2026 - Week 15", value: "2026-W15" },
+    { label: "13.04.-19.04.2026 - Week 16", value: "2026-W16" },
+  ];
+
   const stubs = {
+    "v-select": {
+      props: ["modelValue", "items", "label"],
+      template: '<select v-bind="$attrs" :data-value="modelValue"></select>',
+    },
     "v-btn": {
       template: '<button type="button" v-bind="$attrs"><slot /></button>',
     },
@@ -225,7 +244,8 @@ describe("InteractiveFloorPlan", () => {
       props: {
         floorPlan: "level-2.png",
         title: "Cube 1",
-        weekLabel: "CW 15",
+        weekOptions,
+        week: "2026-W15",
         weekDates,
         itemGroupId: "ig-1",
         ...props,
@@ -920,8 +940,137 @@ describe("InteractiveFloorPlan", () => {
     await flushPromises();
 
     expect(wrapper.get('[data-cy="fp-booking-error"]').text()).toContain(
-      "The selected item is already booked.",
+      "The selected item is already booked.\nItem is already booked for this date",
     );
+  });
+
+  it("should show the translated prefix and the backend detail when booking fails (story 37.1)", async () => {
+    createBookingMock.mockRejectedValue(
+      new ApiError("Request failed: 403", 403, 'This item "Desk 1" is reserved. You do not have access.'),
+    );
+
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-cy="fp-booking-confirm"]').trigger("click");
+    await flushPromises();
+
+    const error = wrapper.get('[data-cy="fp-booking-error"]');
+    expect(error.text()).toContain(
+      'Unable to book item. API error:\nThis item "Desk 1" is reserved. You do not have access.',
+    );
+    expect(error.find(".api-error-text").exists()).toBe(true);
+  });
+
+  it("should show the HTTP status when the failed booking has no detail (story 37.1)", async () => {
+    createBookingMock.mockRejectedValue(new ApiError("Request failed: 500", 500));
+
+    const wrapper = mountComponent();
+    await flushPromises();
+
+    await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-cy="fp-booking-confirm"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get('[data-cy="fp-booking-error"]').text()).toContain(
+      "Unable to book item. API error:\nHTTP 500",
+    );
+  });
+
+  describe("week selector (story 37.2)", () => {
+    it("should show the week dropdown, the arrows and the selected week label in the header", async () => {
+      const wrapper = mountComponent();
+      await flushPromises();
+
+      const header = wrapper.get('[data-cy="fp-header"]');
+      expect(header.find('[data-cy="fp-week-selector"]').attributes("data-value")).toBe("2026-W15");
+      expect(header.find('[data-cy="week-prev"]').attributes("disabled")).toBeDefined();
+      expect(header.find('[data-cy="week-next"]').attributes("disabled")).toBeUndefined();
+      expect(header.get('[data-cy="fp-week-label"]').text()).toBe("06.04.-12.04.2026 - Week 15");
+    });
+
+    it("should emit the next week when the next arrow is clicked", async () => {
+      const wrapper = mountComponent();
+      await flushPromises();
+
+      await wrapper.get('[data-cy="week-next"]').trigger("click");
+
+      expect(wrapper.emitted("update:week")).toEqual([["2026-W16"]]);
+    });
+
+    it("should ignore stale availability after rapid week changes", async () => {
+      const wrapper = mountComponent();
+      await flushPromises();
+      let resolveOld!: (response: Awaited<ReturnType<typeof fetchItems>>) => void;
+      fetchItemsMock.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }));
+      await wrapper.setProps({ week: "2026-W16", weekDates: nextWeekDates });
+      await flushPromises();
+      await wrapper.setProps({ week: "2026-W15", weekDates });
+      await flushPromises();
+      resolveOld({ data: [{ id: "item-1", type: "items", attributes: {
+        name: "STALE DESK", equipment: [], availability: "occupied", booker_name: "Stale Booker"
+      } }] } as Awaited<ReturnType<typeof fetchItems>>);
+      await flushPromises();
+      expect(wrapper.text()).not.toContain("Stale Booker");
+      await wrapper.get('[data-cy="fp-item-item-1"]').trigger("click");
+      expect(wrapper.find('[data-cy="fp-booking-dialog"]').exists()).toBe(true);
+      wrapper.unmount();
+    });
+
+    it("should keep the selected weekday when the week changes", async () => {
+      const wrapper = mountComponent();
+      await flushPromises();
+      // Today (Wednesday 2026-04-08) is preselected.
+      expect(wrapper.get('[data-cy="fp-day-WE"]').attributes("variant")).toBe("flat");
+      fetchItemsMock.mockClear();
+
+      await wrapper.setProps({ week: "2026-W16", weekDates: nextWeekDates });
+      await flushPromises();
+
+      expect(wrapper.get('[data-cy="fp-day-WE"]').attributes("variant")).toBe("flat");
+      expect(fetchItemsMock).toHaveBeenCalledWith("ig-1", "2026-04-15");
+      expect(fetchItemsMock).not.toHaveBeenCalledWith("ig-1", "2026-04-08");
+      expect(wrapper.get('[data-cy="fp-week-label"]').text()).toBe("13.04.-19.04.2026 - Week 16");
+    });
+
+    it("should fall back to the first non-past day when the kept weekday is past", async () => {
+      // Opened on next week's Monday, then stepped back to the current week whose Monday is past.
+      const wrapper = mountComponent({ week: "2026-W16", weekDates: nextWeekDates, selectedDay: "2026-04-13" });
+      await flushPromises();
+      expect(wrapper.get('[data-cy="fp-day-MO"]').attributes("variant")).toBe("flat");
+      fetchItemsMock.mockClear();
+
+      await wrapper.setProps({ week: "2026-W15", weekDates });
+      await flushPromises();
+
+      expect(wrapper.get('[data-cy="fp-day-WE"]').attributes("variant")).toBe("flat");
+      expect(fetchItemsMock).toHaveBeenCalledWith("ig-1", "2026-04-08");
+    });
+
+    it("should stay drilled into an item group when the week changes", async () => {
+      mockAreaLevelDeskScenario();
+      const wrapper = mountComponent({
+        floorPlan: "office.png",
+        title: "Office",
+        itemGroupId: "",
+        areaLevel: true,
+      });
+      await flushPromises();
+
+      await wrapper.get('[data-cy="fp-area-ig-cube-2"]').trigger("click");
+      await flushPromises();
+      expect(wrapper.find('[data-cy="fp-breadcrumb-current"]').exists()).toBe(true);
+      fetchItemsMock.mockClear();
+
+      await wrapper.setProps({ week: "2026-W16", weekDates: nextWeekDates });
+      await flushPromises();
+
+      expect(wrapper.find('[data-cy="fp-breadcrumb-current"]').exists()).toBe(true);
+      expect(fetchItemsMock).toHaveBeenCalledWith("ig-cube-2", "2026-04-15");
+    });
   });
 
   it("preselects the selectedDay prop when it is a non-past day in the week (story 36.6)", async () => {

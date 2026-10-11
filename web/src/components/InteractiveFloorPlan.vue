@@ -17,8 +17,16 @@
           }}</span>
         </template>
         <span v-else class="text-h6">{{ title }}</span>
-        <span class="text-body-2 text-medium-emphasis">{{ weekLabel }}</span>
+        <span class="text-body-2 text-medium-emphasis" data-cy="fp-week-label">{{ selectedWeekLabel }}</span>
       </div>
+
+      <WeekSelector
+        v-model="week"
+        :options="weekOptions"
+        :label="t('itemGroups.calendarWeek')"
+        select-data-cy="fp-week-selector"
+        class="fp-week-selector"
+      />
 
       <v-spacer />
 
@@ -333,7 +341,7 @@
     </div>
 
     <div class="fp-footer" data-cy="fp-footer">
-      <div class="d-flex align-center ga-4">
+      <div class="fp-footer-controls d-flex flex-wrap align-center">
         <v-checkbox
           v-if="positions.length > 0"
           v-model="showLabels"
@@ -530,12 +538,13 @@
 
     <v-snackbar
       v-model="showErrorSnackbar"
-      :timeout="4000"
+      :timeout="6000"
       location="bottom"
       color="error"
+      closable
       data-cy="fp-booking-error"
     >
-      {{ errorSnackbarText }}
+      <span class="api-error-text">{{ errorSnackbarText }}</span>
     </v-snackbar>
 
     <WarningConfirmDialog
@@ -563,7 +572,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { ApiError } from "../api/client";
+import { ApiError, formatApiErrorMessage } from "../api/client";
 import {
   cancelBooking,
   createBooking,
@@ -589,12 +598,16 @@ import ItemWarning from "./ItemWarning.vue";
 import WarningConfirmDialog from "./WarningConfirmDialog.vue";
 import ColleagueSelect from "./ColleagueSelect.vue";
 import ConfirmDialog from "./ConfirmDialog.vue";
+import WeekSelector from "./WeekSelector.vue";
+import type { WeekOption } from "../composables/useWeekSelector";
 import type { BookOnBehalfOptions } from "../api/bookings";
 
 const props = defineProps<{
   floorPlan: string;
   title: string;
-  weekLabel: string;
+  /** Selectable weeks (current week up to the advance-booking limit), owned by the parent. */
+  weekOptions: WeekOption[];
+  /** Dates of the selected week; the parent recomputes them when `week` changes. */
   weekDates: string[];
   itemGroupId: string;
   areaLevel?: boolean;
@@ -611,7 +624,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
 }>();
+
+/** Selected ISO week (`YYYY-Www`); changes from the week selector are emitted to the parent. */
+const week = defineModel<string>("week", { required: true });
+
 const { t, locale } = useI18n();
+
+const selectedWeekLabel = computed(
+  () => props.weekOptions.find((option) => option.value === week.value)?.label ?? "",
+);
 
 const initialLoading = ref(true);
 const availabilityLoading = ref(false);
@@ -967,6 +988,17 @@ function getBookingDayStatusText(date: string): string {
   }
 }
 
+// Keeps the selected weekday after a week change. Falls back to the first
+// non-past day when that weekday does not exist or is already past (story 37.2).
+function preserveSelectedDay() {
+  const kept = weekdays.value[selectedDayIndex.value];
+  if (kept && !kept.past) {
+    return;
+  }
+  const firstFutureIndex = weekdays.value.findIndex((day) => !day.past);
+  selectedDayIndex.value = firstFutureIndex >= 0 ? firstFutureIndex : 0;
+}
+
 function preselectDay() {
   // Day mode passes the tile-view's selected day; honor it when it is a
   // non-past day present in the current weekDates (story 36.6). Otherwise fall
@@ -993,8 +1025,10 @@ function preselectDay() {
 }
 
 async function loadPositions() {
+  const floorPlan = activeFloorPlan.value;
   try {
-    const response = await fetchFloorPlanPositions(activeFloorPlan.value);
+    const response = await fetchFloorPlanPositions(floorPlan);
+    if (floorPlan !== activeFloorPlan.value) return;
     positions.value = response.data.map(
       (resource: JsonApiResource<FloorPlanPositionAttributes>) => ({
         id: resource.id,
@@ -1008,21 +1042,29 @@ async function loadPositions() {
       }),
     );
   } catch {
-    positions.value = [];
+    if (floorPlan === activeFloorPlan.value) positions.value = [];
   }
 }
+
+let availabilityRequestId = 0;
+let initialLoadId = 0;
 
 async function loadAvailability() {
   if (!selectedDate.value || !activeItemGroupId.value || isAreaView.value) {
     return;
   }
 
+  const requestId = ++availabilityRequestId;
+  const date = selectedDate.value;
+  const groupId = activeItemGroupId.value;
+  const isCurrent = () => requestId === availabilityRequestId && date === selectedDate.value && groupId === activeItemGroupId.value;
   availabilityLoading.value = true;
   try {
     const response = await fetchItems(
-      activeItemGroupId.value,
-      selectedDate.value,
+      groupId,
+      date,
     );
+    if (!isCurrent()) return;
     const map = new Map<string, ItemData>();
     for (const item of response.data as JsonApiResource<ItemAttributes>[]) {
       map.set(item.id, {
@@ -1038,9 +1080,9 @@ async function loadAvailability() {
     }
     itemDataMap.value = map;
   } catch {
-    itemDataMap.value = new Map();
+    if (isCurrent()) itemDataMap.value = new Map();
   } finally {
-    availabilityLoading.value = false;
+    if (isCurrent()) availabilityLoading.value = false;
   }
 }
 
@@ -1049,6 +1091,9 @@ async function loadAreaAvailability() {
     return;
   }
 
+  const requestId = ++availabilityRequestId;
+  const date = selectedDate.value;
+  const isCurrent = () => requestId === availabilityRequestId && date === selectedDate.value && isAreaView.value;
   availabilityLoading.value = true;
   try {
     const knownItemGroupIDs = new Set(itemGroupMap.value.keys());
@@ -1061,11 +1106,12 @@ async function loadAreaAvailability() {
 
     const results = await Promise.allSettled(
       itemGroupIDs.map(async (itemGroupID) => {
-        const response = await fetchItems(itemGroupID, selectedDate.value);
+        const response = await fetchItems(itemGroupID, date);
         return { itemGroupID, response };
       }),
     );
 
+    if (!isCurrent()) return;
     for (const result of results) {
       if (result.status === "rejected") {
         continue;
@@ -1105,7 +1151,7 @@ async function loadAreaAvailability() {
     itemDataMap.value = allItemData;
     itemToGroupMap.value = itemGroupLookup;
   } finally {
-    availabilityLoading.value = false;
+    if (isCurrent()) availabilityLoading.value = false;
   }
 }
 
@@ -1145,19 +1191,26 @@ async function refreshAvailability() {
   await loadAvailability();
 }
 
-async function initialLoad({ resetZoom = true }: { resetZoom?: boolean } = {}) {
+async function initialLoad({ resetZoom = true, keepWeekday = false }: { resetZoom?: boolean; keepWeekday?: boolean } = {}) {
+  const loadId = ++initialLoadId;
   initialLoading.value = true;
-  preselectDay();
+  if (keepWeekday) {
+    preserveSelectedDay();
+  } else {
+    preselectDay();
+  }
   if (resetZoom) {
     zoomScale.value = 1;
   }
   showBookingDialog.value = false;
   await loadPositions();
+  if (loadId !== initialLoadId) return;
   if (props.areaLevel) {
     await loadItemGroupMap();
+    if (loadId !== initialLoadId) return;
   }
   await refreshAvailability();
-  initialLoading.value = false;
+  if (loadId === initialLoadId) initialLoading.value = false;
 }
 
 watch(
@@ -1176,7 +1229,8 @@ watch(
     if (resetView) {
       drilledInto.value = null;
     }
-    await initialLoad({ resetZoom: resetView });
+    // Only the week changed: keep weekday and drill-down (story 37.2).
+    await initialLoad({ resetZoom: resetView, keepWeekday: !resetView });
   },
   { immediate: true },
 );
@@ -1186,11 +1240,7 @@ watch(selectedDayIndex, async () => {
 });
 
 watch(drilledInto, async () => {
-  initialLoading.value = true;
-  zoomScale.value = 1;
-  await loadPositions();
-  await refreshAvailability();
-  initialLoading.value = false;
+  await initialLoad({ resetZoom: true, keepWeekday: true });
 });
 
 useLiveBookingRefresh({
@@ -1489,7 +1539,7 @@ async function loadBookingDayAvailability() {
         selected && nextInfoMap.get(date)?.status === "free",
       ]),
     );
-  } catch {
+  } catch (err) {
     const fallbackMap = new Map<string, BookingDayInfo>();
     for (const day of bookingDayOptions.value) {
       fallbackMap.set(
@@ -1500,7 +1550,7 @@ async function loadBookingDayAvailability() {
       );
     }
     bookingDayInfoMap.value = fallbackMap;
-    errorSnackbarText.value = t("floorPlan.unableToCheckAvailability");
+    errorSnackbarText.value = formatApiErrorMessage(t("apiErrors.checkAvailability"), err);
     showErrorSnackbar.value = true;
   } finally {
     bookingDayAvailabilityLoading.value = false;
@@ -1579,14 +1629,16 @@ function formatConflictMessage(conflicts: string[], allFailed: boolean) {
   return t("floorPlan.selectedDaysAlreadyBookedSkipped");
 }
 
+// Localized prefix (specialised for 409) followed by the untranslated backend detail.
 function formatBookingError(err: unknown, multiDay: boolean) {
+  let prefix = t("apiErrors.book");
   if (err instanceof ApiError && err.status === 409) {
-    return multiDay
+    prefix = multiDay
       ? t("floorPlan.selectedDaysAlreadyBooked")
       : t("floorPlan.itemAlreadyBooked");
   }
 
-  return t("floorPlan.bookingCouldNotBeCompleted");
+  return formatApiErrorMessage(prefix, err);
 }
 
 function confirmPendingBooking() {
@@ -1662,16 +1714,18 @@ async function resolveFloorPlanAreaGuards(
 // booking has been created. A failure surfaces a non-blocking warning but the
 // new booking is kept (story 36.9 D2).
 async function cancelSwappedBookings(cancelIds: string[]) {
+  let cancelError: unknown;
   let cancelFailed = false;
   for (const id of cancelIds) {
     try {
       await cancelBooking(id);
-    } catch {
+    } catch (err) {
+      cancelError = err;
       cancelFailed = true;
     }
   }
   if (cancelFailed) {
-    errorSnackbarText.value = t("items.areaDayGuardCancelFailed");
+    errorSnackbarText.value = formatApiErrorMessage(t("items.areaDayGuardCancelFailed"), cancelError);
     showErrorSnackbar.value = true;
   }
 }
@@ -1788,8 +1842,8 @@ async function undoLastBooking() {
     showBookingSnackbar.value = false;
     lastBooking.value = null;
     await refreshAvailability();
-  } catch {
-    errorSnackbarText.value = t("floorPlan.undoFailedStillActive");
+  } catch (err) {
+    errorSnackbarText.value = formatApiErrorMessage(t("apiErrors.undoBooking"), err);
     showErrorSnackbar.value = true;
   } finally {
     undoInProgress.value = false;
@@ -1892,6 +1946,12 @@ onBeforeUnmount(() => {
 
 .fp-header {
   align-items: center;
+}
+
+/* Week dropdown (240px) plus the previous/next arrow buttons */
+.fp-week-selector {
+  flex: 0 1 320px;
+  min-width: 260px;
 }
 
 .fp-weekday-selector {
@@ -2111,10 +2171,31 @@ onBeforeUnmount(() => {
 
 .fp-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.25rem 0;
+}
+
+/* Checkboxes keep their natural width and move to the next line instead of
+   squeezing their labels; Vuetify's label rule would otherwise break words
+   ("Beschriftungen") in narrow viewports (story 37.3). */
+.fp-footer-controls {
+  column-gap: 1rem;
+}
+
+.fp-footer :deep(.v-checkbox) {
+  flex: 0 0 auto;
+}
+
+.fp-footer :deep(.v-selection-control .v-label) {
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.fp-close-btn {
+  margin-left: auto;
 }
 
 
@@ -2164,6 +2245,11 @@ onBeforeUnmount(() => {
 @media (max-width: 768px), (max-height: 500px) {
   .fp-header {
     align-items: stretch;
+  }
+
+  .fp-week-selector {
+    flex: 1 1 100%;
+    min-width: 0;
   }
 
   .fp-zoom-controls {

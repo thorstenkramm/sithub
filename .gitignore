@@ -56,6 +56,7 @@ web/coverage/
 # Cypress artifacts
 web/cypress/screenshots/
 web/cypress/videos/
+web/cypress/downloads/
 
 # macOS
 .DS_Store

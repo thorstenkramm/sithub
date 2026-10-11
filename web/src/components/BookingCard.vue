@@ -163,6 +163,17 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar
+      v-model="showNoteError"
+      :timeout="6000"
+      location="bottom"
+      color="error"
+      closable
+      data-cy="note-save-error"
+    >
+      <span class="api-error-text">{{ noteErrorMessage }}</span>
+    </v-snackbar>
   </v-card>
 </template>
 
@@ -174,6 +185,7 @@ import type { JsonApiResource } from '../api/types';
 const { t, locale } = useI18n();
 import type { MyBookingAttributes } from '../api/bookings';
 import { updateBookingNote } from '../api/bookings';
+import { formatApiErrorMessage } from '../api/client';
 import { deriveBookingStatus } from '../utils/bookingStatus';
 import StatusChip from './StatusChip.vue';
 
@@ -198,6 +210,11 @@ const showNoteDialog = ref(false);
 const showEditDialog = ref(false);
 const editNoteText = ref('');
 const savingNote = ref(false);
+const noteErrorMessage = ref<string | null>(null);
+const showNoteError = computed({
+  get: () => noteErrorMessage.value !== null,
+  set: (v: boolean) => { if (!v) noteErrorMessage.value = null; }
+});
 const isNoteTruncated = ref(false);
 const isMobile = ref(false);
 const useBottomSheet = computed(() => isMobile.value);
@@ -268,6 +285,8 @@ async function saveNote() {
     await updateBookingNote(props.booking.id, editNoteText.value);
     emit('note-updated', props.booking.id, editNoteText.value);
     showEditDialog.value = false;
+  } catch (err) {
+    noteErrorMessage.value = formatApiErrorMessage(t('apiErrors.saveNote'), err);
   } finally {
     savingNote.value = false;
   }

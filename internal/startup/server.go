@@ -19,6 +19,7 @@ import (
 	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/thorstenkramm/sithub/assets"
+	"github.com/thorstenkramm/sithub/internal/apikeys"
 	"github.com/thorstenkramm/sithub/internal/areas"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/bookings"
@@ -78,8 +79,8 @@ func Run(ctx context.Context, cfg *config.Config, version string) error {
 	go hub.Run(ctx)
 	notifier := notifications.MultiNotifier{webhookNotifier, hub}
 
-	e.Use(middleware.LoadUser(authService))
-	e.Use(middleware.RedirectForbidden(authService))
+	//nolint:contextcheck // Echo middleware uses request context.
+	registerAuthMiddleware(e, authService, store)
 
 	webFS, err := fs.Sub(assets.Web, "web")
 	if err != nil {
@@ -221,6 +222,12 @@ func safeHostSource(host string) string {
 	return host
 }
 
+func registerAuthMiddleware(e *echo.Echo, svc *auth.Service, store *sql.DB) {
+	e.Use(middleware.LoadAPIKey(store))
+	e.Use(middleware.LoadUser(svc))
+	e.Use(middleware.RedirectForbidden(svc))
+}
+
 func registerRoutes(
 	e *echo.Echo, authService *auth.Service, areasConfig *areas.Config,
 	floorPlansDir, avatarsDir string, store *sql.DB, notifier notifications.Notifier,
@@ -267,6 +274,10 @@ func registerRoutes(
 	e.GET("/api/v1/item-groups/:item_group_id/bookings",
 		itemgroups.BookingsHandlerDynamic(getConfig, store), requireAuth)
 	e.GET("/api/v1/bookings", bookings.ListHandlerDynamic(getConfig, store), requireAuth)
+	// Only these two endpoints opt into scoped machine access; user routes remain default-deny.
+	exportAccess := []echo.MiddlewareFunc{middleware.RequireExportAccess(authService, apikeys.ScopeReadBookings)}
+	e.GET("/api/v1/bookings/export", bookings.ExportHandlerDynamic(getConfig, store), exportAccess...)
+	e.GET("/api/v1/bookings/export.csv", bookings.ExportCSVHandler(getConfig, store), exportAccess...)
 	e.GET("/api/v1/bookings/history",
 		bookings.HistoryHandlerDynamic(getConfig, store), requireAuth)
 	e.POST("/api/v1/bookings",
@@ -282,8 +293,10 @@ func registerRoutes(
 		areas.FloorPlanHandler(floorPlansDir), requireAuth)
 
 	// Avatar routes (authenticated)
+	// Read access for sessions and API keys with scope "read bookings", so integrations can show avatars
+	// of the people listed by the booking export (user_id).
 	e.GET("/api/v1/avatars/:user_id",
-		auth.ServeAvatarHandler(avatarsDir), requireAuth)
+		auth.ServeAvatarHandler(avatarsDir), middleware.RequireAuthOrScope(authService, apikeys.ScopeReadBookings))
 	e.POST(avatarUploadPath,
 		auth.UploadAvatarHandler(avatarsDir), echomw.BodyLimit("4M"), requireAuth)
 	e.DELETE(avatarUploadPath,
@@ -296,10 +309,11 @@ func registerRoutes(
 	requireAdmin := middleware.RequireAdmin()
 	e.GET("/api/v1/users", users.ListHandler(store), requireAuth, requireAdmin)
 	e.GET("/api/v1/users/:id", users.GetHandler(store), requireAuth, requireAdmin)
+	e.GET("/api/v1/users/:id/deletion-impact", users.DeletionImpactHandler(store), requireAuth, requireAdmin)
 	e.POST("/api/v1/users", users.CreateHandler(store), requireAuth, requireAdmin)
 	e.PATCH("/api/v1/users/:id", users.UpdateHandler(store), requireAuth, requireAdmin)
-	e.DELETE("/api/v1/users/:id", users.DeleteHandler(store), requireAuth, requireAdmin)
-
+	e.DELETE("/api/v1/users/:id", users.DeleteHandler(store, notifier), requireAuth, requireAdmin)
+	registerAPIKeyRoutes(e, store, requireAuth, requireAdmin)
 	// Floor plan positions (read: any authenticated user, write: admin only)
 	e.GET("/api/v1/floor-plan-positions",
 		floorplanpos.ListHandler(store), requireAuth)
@@ -309,6 +323,12 @@ func registerRoutes(
 		floorplanpos.UpdateHandler(store), requireAuth, requireAdmin)
 	e.DELETE("/api/v1/floor-plan-positions/:id",
 		floorplanpos.DeleteHandler(store), requireAuth, requireAdmin)
+}
+
+func registerAPIKeyRoutes(e *echo.Echo, store *sql.DB, requireAuth, requireAdmin echo.MiddlewareFunc) {
+	e.GET("/api/v1/api-keys", apikeys.ListHandler(store), requireAuth, requireAdmin)
+	e.POST("/api/v1/api-keys", apikeys.CreateHandler(store), requireAuth, requireAdmin)
+	e.DELETE("/api/v1/api-keys/:id", apikeys.DeleteHandler(store), requireAuth, requireAdmin)
 }
 
 func loadAndValidateAreas(cfg *config.Config) (*areas.Config, error) {

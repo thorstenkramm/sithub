@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { apiErrorReason } from '../api/client';
 
 export function useApi() {
   const loading = ref(false);
@@ -10,7 +11,8 @@ export function useApi() {
     try {
       return await fn();
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Unknown error';
+      // Backend detail (untranslated) or HTTP status, see apiErrorReason.
+      error.value = err instanceof Error ? apiErrorReason(err) : 'Unknown error';
       throw err;
     } finally {
       loading.value = false;

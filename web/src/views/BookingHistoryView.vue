@@ -40,7 +40,7 @@
     <LoadingState v-if="historyLoading" type="list" :count="5" data-cy="history-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="historyError" type="error" class="mb-4" data-cy="history-error">
+    <v-alert v-else-if="historyError" type="error" class="mb-4 api-error-text" data-cy="history-error">
       {{ historyError }}
     </v-alert>
 

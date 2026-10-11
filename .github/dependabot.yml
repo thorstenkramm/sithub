@@ -18,10 +18,6 @@ updates:
       - dependency-name: "@vitest/coverage-v8"
         update-types: ["version-update:semver-major"]
       # TypeScript 6 is not yet supported by the toolchain (vue-tsc,
-      # @vue/eslint-config-typescript); type-check fails. Defer the major.
+      # typescript-eslint); type-check fails. Defer the major.
       - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
-      # ESLint 10 is not yet supported by @vue/eslint-config-typescript /
-      # eslint-plugin-vue (peer requires ESLint 9); npm ci fails ERESOLVE.
-      - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]

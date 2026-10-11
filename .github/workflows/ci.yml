@@ -79,7 +79,7 @@ jobs:
 
       - name: Security audit (npm)
         working-directory: web
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --audit-level=high
 
       - name: Frontend type-check
         working-directory: web
@@ -150,6 +150,20 @@ jobs:
                     - id: desk_2
                       name: "Desk 2"
                       equipment: [Monitor]
+            - id: buero_2eg
+              name: "Büro 2.EG"
+              floor_plan: "e2e-area.svg"
+              items:
+                - id: cube_1
+                  name: "Cube 1"
+                  floor_plan: "e2e-room.svg"
+                  items:
+                    - id: cube_1_desk_1
+                      name: "Desk C1-1"
+                      equipment: [Monitor]
+                    - id: cube_1_desk_2
+                      name: "Desk C1-2"
+                      equipment: [Monitor]
           EOF
 
           cat > .sithub-test.toml <<EOF
@@ -163,6 +177,8 @@ jobs:
 
           [areas]
           config_file = "${{ github.workspace }}/.sithub-test-areas.yaml"
+          # Floor plan images for the floor plan E2E specs (relative to data_dir ".")
+          floor_plans = "web/cypress/fixtures/floor-plans"
           EOF
 
       - name: Start server and seed demo users

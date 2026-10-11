@@ -247,6 +247,35 @@ describe('ItemGroupsView', () => {
     expect(selector.exists()).toBe(true);
   });
 
+  it('should step to the next week with the arrow next to the week selector (story 37.2)', async () => {
+    mockFetchItemGroups(1);
+    mockAvailability();
+    const wrapper = mountView();
+    await flushPromises();
+
+    const card = wrapper.get('[data-cy="week-selector-card"]');
+    expect(card.get('[data-cy="week-prev"]').attributes('disabled')).toBeDefined();
+    expect(card.get('[data-cy="week-next"]').attributes('disabled')).toBeUndefined();
+
+    const nextMonday = getMondayOfWeek(new Date());
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    await card.get('[data-cy="week-next"]').trigger('click');
+    await flushPromises();
+
+    expect(fetchAvailabilityMock).toHaveBeenCalledWith('area-1', getISOWeekString(nextMonday), undefined);
+    expect(wrapper.get('[data-cy="week-prev"]').attributes('disabled')).toBeUndefined();
+  });
+
+  it('should label weeks with "KW" in German (story 37.2)', async () => {
+    mockFetchItemGroups(1);
+    mockAvailability();
+    const wrapper = mountView(createTestI18n({ locale: 'de', messages: { en, de } }));
+    await flushPromises();
+
+    const { weekOptions } = wrapper.vm as unknown as { weekOptions: Array<{ label: string }> };
+    expect(weekOptions[0]?.label).toMatch(/ - KW \d+$/);
+  });
+
   it('fetches availability on mount', async () => {
     mockFetchItemGroups(1);
     mockAvailability();

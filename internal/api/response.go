@@ -26,8 +26,11 @@ type SingleResponse struct {
 }
 
 // CollectionResponse wraps a collection of resources.
+// Meta and Links are only set for paginated collections.
 type CollectionResponse struct {
-	Data []Resource `json:"data"`
+	Data  []Resource       `json:"data"`
+	Meta  *PaginationMeta  `json:"meta,omitempty"`
+	Links *PaginationLinks `json:"links,omitempty"`
 }
 
 // MapResources maps items into JSON:API resources.

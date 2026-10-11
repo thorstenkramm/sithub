@@ -1,6 +1,12 @@
 get:
   summary: Get user avatar
-  description: Serves the user's profile photo as a PNG image.
+  security:
+    - cookieAuth: []
+    - bearerAuth: []
+  description: |
+    Serves the user's profile photo as a PNG image. Besides a logged-in user, an API key with the
+    "read bookings" scope may call this endpoint, so integrations can show the people returned by the
+    booking export (`user_id`). Keys with other scopes get 403.
   operationId: getAvatar
   tags:
     - avatars
@@ -31,6 +37,12 @@ get:
             $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
     '401':
       description: Authentication required.
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: '../openapi.yaml#/components/schemas/ErrorResponse'
+    '403':
+      description: The API key does not have the "read bookings" scope.
       content:
         application/vnd.api+json:
           schema:

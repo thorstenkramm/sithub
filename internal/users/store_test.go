@@ -8,35 +8,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/thorstenkramm/sithub/internal/testutil/dbtest"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite3", ":memory:")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = db.Close() //nolint:errcheck // Cleanup function, error not critical
-	})
-
-	_, err = db.Exec(`
-		CREATE TABLE users (
-			id TEXT PRIMARY KEY,
-			email TEXT NOT NULL,
-			display_name TEXT NOT NULL,
-			password_hash TEXT NOT NULL DEFAULT '',
-			user_source TEXT NOT NULL CHECK (user_source IN ('internal', 'entraid')),
-			entra_id TEXT NOT NULL DEFAULT '',
-			is_admin INTEGER NOT NULL DEFAULT 0,
-			last_login TEXT NOT NULL DEFAULT '',
-			access_token TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL,
-			updated_at TEXT NOT NULL
-		);
-		CREATE UNIQUE INDEX idx_users_email ON users(email);
-		CREATE INDEX idx_users_entra_id ON users(entra_id);
-	`)
-	require.NoError(t, err)
-	return db
+	return dbtest.New(t)
 }
 
 func TestCreateLocalUser(t *testing.T) {
@@ -205,35 +183,84 @@ func TestFindByEntraID_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUserNotFound)
 }
 
-func TestListAll(t *testing.T) {
-	t.Parallel()
-	db := setupTestDB(t)
-	ctx := context.Background()
-
-	hash, err := HashPassword("TestPassword14!")
+// insertUserRow inserts a user directly, bypassing bcrypt, so ordering tests stay fast.
+func insertUserRow(t *testing.T, db *sql.DB, id, displayName string) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO users (id, email, display_name, user_source, created_at, updated_at)
+		VALUES (?, ?, ?, 'internal', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+		id, id+"@example.com", displayName)
 	require.NoError(t, err)
-
-	_, err = CreateLocalUser(ctx, db, "zach@example.com", "Zach", hash, false)
-	require.NoError(t, err)
-	_, err = CreateLocalUser(ctx, db, "alice@example.com", "Alice", hash, true)
-	require.NoError(t, err)
-
-	all, err := ListAll(ctx, db)
-	require.NoError(t, err)
-	require.Len(t, all, 2)
-	// Sorted by display_name
-	assert.Equal(t, "Alice", all[0].DisplayName)
-	assert.Equal(t, "Zach", all[1].DisplayName)
 }
 
-func TestListAll_Empty(t *testing.T) {
+func TestListPage(t *testing.T) {
+	t.Parallel()
+
+	// Insertion order differs from the expected sort order on purpose.
+	seed := []struct{ id, name string }{
+		{"u5", "zach"}, {"u2", "Bob"}, {"u4", "bob"}, {"u1", "alice"}, {"u3", "Bob"},
+	}
+	// Case-insensitive by name, ties broken by id.
+	sorted := []string{"u1", "u2", "u3", "u4", "u5"}
+
+	cases := []struct {
+		name   string
+		limit  int
+		offset int
+		want   []string
+	}{
+		{name: "first page", limit: 2, offset: 0, want: sorted[0:2]},
+		{name: "middle page with name ties", limit: 2, offset: 2, want: sorted[2:4]},
+		{name: "last partial page", limit: 2, offset: 4, want: sorted[4:5]},
+		{name: "offset beyond total", limit: 2, offset: 10, want: []string{}},
+		{name: "all rows", limit: 100, offset: 0, want: sorted},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			db := setupTestDB(t)
+			for _, u := range seed {
+				insertUserRow(t, db, u.id, u.name)
+			}
+
+			records, err := ListPage(context.Background(), db, tc.limit, tc.offset)
+			require.NoError(t, err)
+			require.NotNil(t, records)
+
+			ids := make([]string, 0, len(records))
+			for _, rec := range records {
+				ids = append(ids, rec.ID)
+			}
+			assert.Equal(t, tc.want, ids)
+		})
+	}
+}
+
+func TestListPage_Empty(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+
+	records, err := ListPage(context.Background(), db, 20, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, records)
+	assert.Empty(t, records)
+}
+
+func TestCount(t *testing.T) {
 	t.Parallel()
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	all, err := ListAll(ctx, db)
+	total, err := Count(ctx, db)
 	require.NoError(t, err)
-	assert.Empty(t, all)
+	assert.Equal(t, 0, total)
+
+	insertUserRow(t, db, "u1", "Alice")
+	insertUserRow(t, db, "u2", "Bob")
+
+	total, err = Count(ctx, db)
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
 }
 
 func TestUpdateUser(t *testing.T) {
@@ -331,33 +358,6 @@ func TestUpdateUser_TreatsIDAsData(t *testing.T) {
 	found, err := FindByID(ctx, db, created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Karl", found.DisplayName)
-}
-
-func TestDeleteUser(t *testing.T) {
-	t.Parallel()
-	db := setupTestDB(t)
-	ctx := context.Background()
-
-	hash, err := HashPassword("TestPassword14!")
-	require.NoError(t, err)
-
-	created, err := CreateLocalUser(ctx, db, "henry@example.com", "Henry", hash, false)
-	require.NoError(t, err)
-
-	err = DeleteUser(ctx, db, created.ID)
-	require.NoError(t, err)
-
-	_, err = FindByID(ctx, db, created.ID)
-	assert.ErrorIs(t, err, ErrUserNotFound)
-}
-
-func TestDeleteUser_NotFound(t *testing.T) {
-	t.Parallel()
-	db := setupTestDB(t)
-	ctx := context.Background()
-
-	err := DeleteUser(ctx, db, "nonexistent")
-	assert.ErrorIs(t, err, ErrUserNotFound)
 }
 
 func TestUpdatePasswordHash(t *testing.T) {

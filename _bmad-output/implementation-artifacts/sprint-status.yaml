@@ -34,7 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-02-14 17:30
-last_updated: 2026-07-09
+last_updated: 2026-10-08
 
 # Note: 2026-05-11 update — Epic 32 (Booker Avatars on Item Tiles & Stable
 # Colleague Booking Layout): all 3 stories done after a round-2 UX revision
@@ -321,3 +321,16 @@ development_status:
   36-8-full-width-booker-names-in-the-weekly-table: done
   36-9-guard-against-multiple-bookings-per-area-and-day: done
   epic-36-retrospective: optional
+
+  epic-37: in-progress
+  37-1-show-backend-error-messages-in-the-ui: done
+  37-2-week-dropdown-and-navigation-arrows-in-floor-plan-and-tile-view: done
+  37-3-mobile-line-break-fixes: done
+  37-4-admin-users-table-with-pagination: done
+  37-5-delete-orphaned-users: done
+  37-6-data-exporter-role: done
+  37-7-data-export-table-with-date-and-area-filters: done
+  37-8-export-bookings-as-csv: done
+  37-9-api-key-management: done
+  37-10-bearer-authentication-with-api-keys: done
+  epic-37-retrospective: optional

@@ -1,3 +1,5 @@
+import { throwApiError } from './client';
+
 /** Returns the URL for a user's avatar image. */
 export function getAvatarUrl(userId: string): string {
   return `/api/v1/avatars/${encodeURIComponent(userId)}`;
@@ -14,7 +16,7 @@ export async function uploadAvatar(file: File): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
+    await throwApiError(response);
   }
 }
 
@@ -25,6 +27,6 @@ export async function deleteAvatar(): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`Delete failed: ${response.status}`);
+    await throwApiError(response);
   }
 }

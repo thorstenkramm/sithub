@@ -73,7 +73,11 @@ patch:
           schema:
             $ref: ../openapi.yaml#/components/schemas/ErrorResponse
 delete:
-  summary: Delete a local user (admin only)
+  summary: Delete or deactivate a user (admin only)
+  description: >-
+    Users without booking history are permanently deleted. Users referenced by bookings are
+    deactivated, remain visible in the admin users table with deleted=true, and their future
+    own or hosted guest bookings are cancelled.
   operationId: deleteUser
   parameters:
     - name: user_id
@@ -82,10 +86,16 @@ delete:
       schema:
         type: string
   responses:
+    '200':
+      description: User deactivated because booking history exists
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/UserSingleResponse
     '204':
-      description: User deleted
+      description: User permanently deleted because no bookings reference the user
     '400':
-      description: Cannot delete (Entra ID user or self-deletion)
+      description: Cannot delete your own account
       content:
         application/vnd.api+json:
           schema:

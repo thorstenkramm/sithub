@@ -62,7 +62,7 @@ run_step "Frontend unit tests (coverage)" bash -c "cd \"${WEB_DIR}\" && npm run 
 run_step "Frontend build" bash -c "cd \"${WEB_DIR}\" && npm run build"
 
 # Security tests
-run_step "Frontend NPM Audit" bash -c "cd \"${WEB_DIR}\" && npm audit --omit=dev --audit-level=high"
+run_step "Frontend NPM Audit" bash -c "cd \"${WEB_DIR}\" && npm audit --audit-level=high"
 run_step "Frontend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ -w /src aquasec/trivy:0.69.3 fs --include-dev-deps --disable-telemetry /src/web --exit-code 1"
 run_step "Backend Trivy Scan" bash -c "docker run --rm -v \"\$(pwd):/src\" -v trivy-cache:/root/.cache/ -w /src aquasec/trivy:0.69.3 fs --skip-dirs private --skip-dirs web --skip-dirs .codex --include-dev-deps /src --exit-code 1"
 
@@ -91,7 +91,25 @@ areas:
           - id: desk_2
             name: "Desk 2"
             equipment: [Monitor]
+  - id: buero_2eg
+    name: "Büro 2.EG"
+    floor_plan: "e2e-area.svg"
+    items:
+      - id: cube_1
+        name: "Cube 1"
+        floor_plan: "e2e-room.svg"
+        items:
+          - id: cube_1_desk_1
+            name: "Desk C1-1"
+            equipment: [Monitor]
+          - id: cube_1_desk_2
+            name: "Desk C1-2"
+            equipment: [Monitor]
 EOF
+
+# Floor plan images used by the floor plan E2E specs (must live inside data_dir)
+mkdir -p "${TEST_DATA_DIR}/floor_plans"
+cp "${WEB_DIR}"/cypress/fixtures/floor-plans/*.svg "${TEST_DATA_DIR}/floor_plans/"
 
 cat >"${TEST_CONFIG}" <<EOF
 [main]
@@ -105,6 +123,7 @@ level = "info"
 
 [areas]
 config_file = "areas.yaml"
+floor_plans = "floor_plans"
 EOF
 
 # Start the server in the background

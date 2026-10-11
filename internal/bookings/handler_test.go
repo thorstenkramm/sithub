@@ -707,6 +707,23 @@ func TestCreateHandlerBookOnBehalfInvalidUser(t *testing.T) {
 	createBookingExpectBadRequest(t, cfg, store, body, "user not found")
 }
 
+func TestCreateHandlerBookOnBehalfDeletedUser(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAreasConfig()
+	store := setupTestStore(t)
+	seedTestUser(t, store, "deleted-user", "Deleted User")
+	_, err := store.Exec(`UPDATE users SET deleted = 1 WHERE id = 'deleted-user'`)
+	require.NoError(t, err)
+
+	futureDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+	body := `{"data":{"type":"bookings","attributes":{` +
+		`"item_id":"desk-1","booking_date":"` + futureDate + `",` +
+		`"for_user_id":"deleted-user"}}}`
+
+	createBookingExpectBadRequest(t, cfg, store, body, "user not found")
+}
+
 func TestCreateHandlerMissingNameValidation(t *testing.T) {
 	t.Parallel()
 

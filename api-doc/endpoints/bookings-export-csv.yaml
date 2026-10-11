@@ -1,0 +1,59 @@
+get:
+  summary: Download all filtered bookings as CSV
+  security:
+    - cookieAuth: []
+    - bearerAuth: []
+  operationId: downloadBookingExport
+  tags:
+    - Bookings
+  description: >-
+    Requires explicit filter[from] and filter[to] dates. Returns all matching bookings in the same order as JSON export;
+    page[limit] and page[offset] are ignored. UTF-8 with BOM, comma delimiter, CRLF line endings and
+    RFC 4180 quoting. Free-text values starting with =, +, -, @, TAB or CR are prefixed with an apostrophe.
+    Accepts a data exporter session or an API key with read-bookings scope. Administrators using a session
+    must explicitly hold the data exporter role. Bearer credentials take precedence over cookies.
+  parameters:
+    - $ref: ../openapi.yaml#/components/parameters/ExportFrom
+    - $ref: ../openapi.yaml#/components/parameters/ExportTo
+    - $ref: ../openapi.yaml#/components/parameters/ExportArea
+  responses:
+    '200':
+      description: CSV download (starts with the UTF-8 BOM bytes EF BB BF)
+      headers:
+        Content-Disposition:
+          schema:
+            type: string
+          description: attachment; filename="sithub-bookings-<from>_<to>.csv"
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        text/csv:
+          schema:
+            type: string
+          example: "\uFEFFName,Email,Booked item,Booking date\r\n'=1+2,guest@example.com,Cube 1 / Desk 1,2026-10-08\r\n"
+    '400':
+      description: Missing or invalid dates, reversed range or unknown area
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '401':
+      description: Missing authentication or malformed, unknown, revoked or expired bearer key
+      headers:
+        WWW-Authenticate:
+          description: Sent on bearer credential rejection
+          schema:
+            type: string
+            example: 'Bearer error="invalid_token"'
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse
+    '403':
+      description: Session requires the data exporter role; API key requires read-bookings scope
+      content:
+        application/vnd.api+json:
+          schema:
+            $ref: ../openapi.yaml#/components/schemas/ErrorResponse

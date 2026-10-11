@@ -6,9 +6,10 @@ package auth
 const (
 	resourceTypeUser = "users"
 
-	attrDisplayName = "display_name"
-	attrEmail       = "email"
-	attrIsAdmin     = "is_admin"
-	attrAuthSource  = "auth_source"
-	attrRole        = "role"
+	attrDisplayName    = "display_name"
+	attrEmail          = "email"
+	attrIsAdmin        = "is_admin"
+	attrIsDataExporter = "is_data_exporter"
+	attrAuthSource     = "auth_source"
+	attrRole           = "role"
 )

@@ -4,13 +4,19 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/labstack/echo/v4"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/thorstenkramm/sithub/internal/api"
 	"github.com/thorstenkramm/sithub/internal/auth"
 	"github.com/thorstenkramm/sithub/internal/config"
+	"github.com/thorstenkramm/sithub/internal/testutil/dbtest"
 )
 
 func TestRequireAuthBlocksMissingUser(t *testing.T) {
@@ -67,6 +73,128 @@ func TestRequireAuthRequiresAccessTokenForGroupChecks(t *testing.T) {
 	}
 }
 
+func TestRequireAuthBlocksDeletedAndMissingUsers(t *testing.T) {
+	db := setupMiddlewareTestDB(t)
+	seedMiddlewareUser(t, db, "active", "active@example.com")
+	seedMiddlewareUser(t, db, "deleted", "deleted@example.com")
+	_, err := db.Exec(`UPDATE users SET deleted = 1 WHERE id = 'deleted'`)
+	if err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	svc := newTestAuthServiceWithStore(t, db)
+
+	for _, tc := range []struct {
+		name string
+		user *auth.User
+		want int
+	}{
+		{
+			name: "active local user", want: http.StatusOK,
+			user: &auth.User{ID: "active", AuthSource: "internal", IsPermitted: true},
+		},
+		{
+			name: "deleted local user", want: http.StatusUnauthorized,
+			user: &auth.User{ID: "deleted", AuthSource: "internal", IsPermitted: true},
+		},
+		{
+			name: "missing hard deleted user", want: http.StatusUnauthorized,
+			user: &auth.User{ID: "missing", AuthSource: "internal", IsPermitted: true},
+		},
+		{
+			name: "deleted entra user", want: http.StatusUnauthorized,
+			user: &auth.User{ID: "deleted", AuthSource: "entraid", IsPermitted: true},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := runMiddleware(t, RequireAuth(svc), "/api/v1/me", tc.user)
+			if rec.Code != tc.want {
+				t.Fatalf("expected %d, got %d", tc.want, rec.Code)
+			}
+		})
+	}
+}
+
+func TestRequireAuthExpiresCookieForInactiveUser(t *testing.T) {
+	db := setupMiddlewareTestDB(t)
+	seedMiddlewareUser(t, db, "deleted", "deleted@example.com")
+	_, err := db.Exec(`UPDATE users SET deleted = 1 WHERE id = 'deleted'`)
+	if err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	svc := newTestAuthServiceWithStore(t, db)
+
+	rec := runMiddleware(t, RequireAuth(svc), "/api/v1/me", &auth.User{
+		ID: "deleted", AuthSource: "internal", IsPermitted: true,
+	})
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "sithub_user" || cookies[0].MaxAge != -1 {
+		t.Fatalf("expected expired sithub_user cookie, got %#v", cookies)
+	}
+}
+
+func TestRequireAuthExpiredCookieSecurity(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		url         string
+		forceSecure bool
+		wantSecure  bool
+	}{
+		{name: "local HTTP", url: "http://localhost/api/v1/me"},
+		{name: "HTTPS", url: "https://example.com/api/v1/me", wantSecure: true},
+		{name: "TLS proxy", url: "http://localhost/api/v1/me", forceSecure: true, wantSecure: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			svc, err := auth.NewService(&config.Config{
+				Main: config.MainConfig{ForceSecureCookies: tc.forceSecure},
+			}, setupMiddlewareTestDB(t))
+			require.NoError(t, err)
+			rec := runMiddleware(t, RequireAuth(svc), tc.url, &auth.User{
+				ID: "missing", AuthSource: "internal", IsPermitted: true,
+			})
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
+			cookies := rec.Result().Cookies()
+			require.Len(t, cookies, 1)
+			cookie := cookies[0]
+			assert.Equal(t, tc.wantSecure, cookie.Secure)
+			assert.True(t, cookie.HttpOnly)
+			assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
+			assert.Equal(t, "sithub_user", cookie.Name)
+			assert.Equal(t, "/", cookie.Path)
+			assert.Empty(t, cookie.Value)
+			assert.Equal(t, -1, cookie.MaxAge)
+			assert.True(t, cookie.Expires.Before(time.Now()))
+		})
+	}
+}
+
+func TestRequireAuthRefreshesAdminDemotion(t *testing.T) {
+	db := setupMiddlewareTestDB(t)
+	seedMiddlewareUser(t, db, "admin", "admin@example.com")
+	svc := newTestAuthServiceWithStore(t, db)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("user", &auth.User{ID: "admin", AuthSource: "internal", IsPermitted: true, IsAdmin: true})
+
+	h := RequireAuth(svc)(RequireAdmin()(func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	}))
+	if err := h(c); err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected demoted admin to get 403, got %d", rec.Code)
+	}
+}
+
 func newTestAuthService(t *testing.T) *auth.Service {
 	t.Helper()
 
@@ -104,36 +232,27 @@ func newTestAuthServiceWithUsersGroup(t *testing.T, db *sql.DB) *auth.Service {
 	return svc
 }
 
+func newTestAuthServiceWithStore(t *testing.T, db *sql.DB) *auth.Service {
+	t.Helper()
+
+	cfg := &config.Config{EntraID: config.EntraIDConfig{
+		AuthorizeURL: "https://example.com/auth",
+		TokenURL:     "https://example.com/token",
+		RedirectURI:  "https://example.com/callback",
+		ClientID:     "client",
+		ClientSecret: "secret",
+	}}
+
+	svc, err := auth.NewService(cfg, db)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	return svc
+}
+
 func setupMiddlewareTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close() //nolint:errcheck // Cleanup
-	})
-
-	_, err = db.Exec(`
-		CREATE TABLE users (
-			id TEXT PRIMARY KEY,
-			email TEXT NOT NULL,
-			display_name TEXT NOT NULL,
-			password_hash TEXT NOT NULL DEFAULT '',
-			user_source TEXT NOT NULL CHECK (user_source IN ('internal', 'entraid')),
-			entra_id TEXT NOT NULL DEFAULT '',
-			is_admin INTEGER NOT NULL DEFAULT 0,
-			last_login TEXT NOT NULL DEFAULT '',
-			access_token TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL,
-			updated_at TEXT NOT NULL
-		);
-		CREATE UNIQUE INDEX idx_users_email ON users(email);
-	`)
-	if err != nil {
-		t.Fatalf("create users table: %v", err)
-	}
-	return db
+	return dbtest.New(t)
 }
 
 func seedMiddlewareUser(t *testing.T, db *sql.DB, id, email string) {

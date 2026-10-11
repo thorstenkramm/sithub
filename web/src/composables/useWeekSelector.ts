@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 
 export interface WeekOption {
   label: string;
@@ -31,6 +31,31 @@ export function getISOWeekString(monday: Date): string {
   const year = thursday.getFullYear();
   return `${year}-W${String(weekNum).padStart(2, '0')}`;
 }
+
+/** Returns the Monday of an ISO week string like "2026-W41", or null if the string is invalid. */
+export function getMondayOfISOWeek(isoWeek: string): Date | null {
+  const match = isoWeek.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return null;
+  const year = parseInt(match[1]!, 10);
+  const week = parseInt(match[2]!, 10);
+  if (week < 1 || week > 53) return null;
+  // Jan 4 is always in ISO week 1
+  const jan4Monday = getMondayOfWeek(new Date(year, 0, 4));
+  const result = new Date(jan4Monday);
+  result.setDate(jan4Monday.getDate() + (week - 1) * 7);
+  return getISOWeekString(result) === isoWeek ? result : null;
+}
+
+/** Keeps a week within the allowed booking horizon, using its nearest boundary. */
+export function clampWeekToOptions(week: string, options: WeekOption[]): string {
+  if (options.some(option => option.value === week)) return week;
+  const first = options[0]?.value ?? '';
+  const last = options[options.length - 1]?.value ?? first;
+  return week > last ? last : first;
+}
+
+/** Translation function signature accepted by the week helpers (compatible with vue-i18n's `t`). */
+export type WeekTranslator = (key: string, named?: Record<string, unknown>) => string;
 
 /** Returns the weekday dates for a given Monday. 5 days (Mon-Fri) or 7 days (Mon-Sun). */
 export function getWeekdayDates(monday: Date, includeWeekends = false): string[] {
@@ -79,11 +104,6 @@ export function localizeWeekday(backendAbbrev: string, t: (key: string) => strin
   return backendAbbrev;
 }
 
-/**
- * Composable providing week selector state and helpers.
- * Generates next 8 weeks, defaults to current week.
- * @param showWeekends - optional reactive ref; when true, selectedWeekDates returns 7 days
- */
 /** Formats a date as DD.MM. (without year). */
 function formatDayMonth(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
@@ -99,7 +119,14 @@ function formatDayMonthYear(date: Date): string {
   return `${day}.${month}.${year}`;
 }
 
-export function useWeekSelector(showWeekends?: Ref<boolean>, maxWeeks?: Ref<number>) {
+/**
+ * Composable providing week selector state and helpers.
+ * Generates the current week plus `maxWeeks` weeks (default 7), defaults to the current week.
+ * @param showWeekends - optional reactive ref; when true, selectedWeekDates returns 7 days
+ * @param maxWeeks - optional reactive ref with the number of additional bookable weeks
+ * @param t - optional translator for the week token ("Week 41" / "KW 41"); English without it
+ */
+export function useWeekSelector(showWeekends?: Ref<boolean>, maxWeeks?: Ref<number>, t?: WeekTranslator) {
   const weekOptions = computed<WeekOption[]>(() => {
     const options: WeekOption[] = [];
     const now = new Date();
@@ -114,7 +141,8 @@ export function useWeekSelector(showWeekends?: Ref<boolean>, maxWeeks?: Ref<numb
       weekSunday.setDate(weekMonday.getDate() + 6);
       const isoWeek = getISOWeekString(weekMonday);
       const weekNum = getISOWeekNumber(weekMonday);
-      const label = `${formatDayMonth(weekMonday)}-${formatDayMonthYear(weekSunday)} - Week ${weekNum}`;
+      const weekToken = t ? t('weekSelector.weekNumber', { week: weekNum }) : `Week ${weekNum}`;
+      const label = `${formatDayMonth(weekMonday)}-${formatDayMonthYear(weekSunday)} - ${weekToken}`;
       options.push({ label, value: isoWeek });
     }
     return options;
@@ -122,19 +150,13 @@ export function useWeekSelector(showWeekends?: Ref<boolean>, maxWeeks?: Ref<numb
 
   const selectedWeek = ref(weekOptions.value[0]?.value ?? '');
 
+  // Settings load asynchronously and can narrow the provisional booking horizon.
+  watch(weekOptions, (options) => {
+    selectedWeek.value = clampWeekToOptions(selectedWeek.value, options);
+  }, { flush: 'sync' });
+
   /** Returns the Monday Date object for the currently selected week. */
-  const selectedMonday = computed(() => {
-    const match = selectedWeek.value.match(/^(\d{4})-W(\d{2})$/);
-    if (!match) return getMondayOfWeek(new Date());
-    const year = parseInt(match[1]!, 10);
-    const week = parseInt(match[2]!, 10);
-    // Jan 4 is always in ISO week 1
-    const jan4 = new Date(year, 0, 4);
-    const jan4Monday = getMondayOfWeek(jan4);
-    const result = new Date(jan4Monday);
-    result.setDate(jan4Monday.getDate() + (week - 1) * 7);
-    return result;
-  });
+  const selectedMonday = computed(() => getMondayOfISOWeek(selectedWeek.value) ?? getMondayOfWeek(new Date()));
 
   /** Returns weekday date strings for the selected week (5 or 7 depending on showWeekends). */
   const selectedWeekDates = computed(() =>

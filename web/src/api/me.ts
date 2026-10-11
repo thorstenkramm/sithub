@@ -5,6 +5,7 @@ export interface UserAttributes {
   display_name: string;
   email: string;
   is_admin: boolean;
+  is_data_exporter: boolean;
   auth_source: string;
   role: string;
 }

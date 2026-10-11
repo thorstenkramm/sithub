@@ -667,7 +667,8 @@ func resolveBookingParticipants(
 	// Handle booking on behalf of another user
 	forUserID := strings.TrimSpace(req.Data.Attributes.ForUserID)
 	if forUserID != "" {
-		if _, err := users.FindByID(ctx, store, forUserID); err != nil {
+		rec, err := users.FindByID(ctx, store, forUserID)
+		if err != nil || rec.Deleted {
 			return nil, errBadRequest("for_user_id: user not found")
 		}
 		params.targetUserID = forUserID

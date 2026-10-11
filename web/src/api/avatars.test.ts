@@ -1,4 +1,5 @@
 import { getAvatarUrl, uploadAvatar, deleteAvatar } from './avatars';
+import { ApiError } from './client';
 
 describe('getAvatarUrl', () => {
   it('returns the avatar URL for a given user ID', () => {
@@ -43,7 +44,21 @@ describe('uploadAvatar', () => {
     );
 
     const file = new File(['pixels'], 'photo.png', { type: 'image/png' });
-    await expect(uploadAvatar(file)).rejects.toThrow('Upload failed: 413');
+    await expect(uploadAvatar(file)).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('throws ApiError carrying the backend detail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({ errors: [{ detail: 'avatar must be PNG or JPEG' }] })
+      }),
+    );
+
+    const file = new File(['pixels'], 'photo.gif', { type: 'image/gif' });
+    await expect(uploadAvatar(file)).rejects.toMatchObject({ status: 400, detail: 'avatar must be PNG or JPEG' });
   });
 });
 
@@ -69,6 +84,6 @@ describe('deleteAvatar', () => {
       vi.fn().mockResolvedValue({ ok: false, status: 500 }),
     );
 
-    await expect(deleteAvatar()).rejects.toThrow('Delete failed: 500');
+    await expect(deleteAvatar()).rejects.toMatchObject({ status: 500, detail: null });
   });
 });

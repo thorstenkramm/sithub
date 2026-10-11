@@ -145,6 +145,7 @@ async function handleLogin() {
       display_name: response.data.attributes.display_name,
       email: response.data.attributes.email,
       is_admin: response.data.attributes.is_admin,
+      is_data_exporter: response.data.attributes.is_data_exporter,
       auth_source: response.data.attributes.auth_source
     });
     router.push('/');

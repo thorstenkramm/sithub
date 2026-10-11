@@ -10,6 +10,9 @@ import (
 func LoadUser(svc *auth.Service) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			if auth.GetAPIKeyFromContext(c) != nil {
+				return next(c)
+			}
 			cookie, err := c.Cookie("sithub_user")
 			if err == nil {
 				user, err := svc.DecodeUser(cookie.Value)

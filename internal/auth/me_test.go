@@ -40,7 +40,7 @@ func TestMeHandlerAuthorized(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.Set("user", &User{ID: "u1", Name: "Ada", IsAdmin: true})
+	c.Set("user", &User{ID: "u1", Name: "Ada", IsAdmin: true, IsDataExporter: true})
 
 	h := MeHandler()
 	if err := h(c); err != nil {
@@ -64,5 +64,8 @@ func TestMeHandlerAuthorized(t *testing.T) {
 	}
 	if attrs["is_admin"] != true {
 		t.Fatalf("unexpected is_admin: %v", attrs["is_admin"])
+	}
+	if attrs["is_data_exporter"] != true {
+		t.Fatalf("unexpected is_data_exporter: %v", attrs["is_data_exporter"])
 	}
 }

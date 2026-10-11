@@ -17,6 +17,7 @@
       />
     </template>
     <v-date-picker
+      :data-cy="dataCy ? `${dataCy}-calendar` : undefined"
       :model-value="internalDate"
       :min="min"
       :max="max"

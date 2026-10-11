@@ -384,10 +384,11 @@ func setupTestRouter(t *testing.T) *echo.Echo {
 	t.Helper()
 	e := echo.New()
 	authService := newTestAuthService(t)
-	e.Use(middleware.LoadUser(authService))
+	store := setupStartupTestStore(t)
+	registerAuthMiddleware(e, authService, store)
 	registerRoutes(
 		e, authService, &areas.Config{},
-		t.TempDir(), t.TempDir(), nil,
+		t.TempDir(), t.TempDir(), store,
 		notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
 	)
 	return e
@@ -442,6 +443,39 @@ func TestFloorPlanPositionsWriteRouteRequiresAdmin(t *testing.T) {
 	}
 }
 
+func TestAPIKeyRoutesRequireAdmin(t *testing.T) {
+	t.Parallel()
+	for _, route := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/api-keys"},
+		{http.MethodPost, "/api/v1/api-keys"},
+		{http.MethodDelete, "/api/v1/api-keys/key-id"},
+	} {
+		for _, authenticated := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/authenticated=%t", route.method, authenticated), func(t *testing.T) {
+				t.Parallel()
+				e := echo.New()
+				svc := newTestAuthService(t)
+				registerAuthMiddleware(e, svc, nil)
+				registerRoutes(e, svc, &areas.Config{}, t.TempDir(), t.TempDir(), nil,
+					notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version")
+				req := httptest.NewRequest(route.method, route.path, http.NoBody)
+				want := http.StatusUnauthorized
+				if authenticated {
+					req.AddCookie(testUserCookie(t, svc, &auth.User{
+						ID: "user", IsPermitted: true, AuthSource: "internal",
+					}))
+					want = http.StatusForbidden
+				}
+				rec := httptest.NewRecorder()
+				e.ServeHTTP(rec, req)
+				if rec.Code != want {
+					t.Fatalf("expected %d, got %d", want, rec.Code)
+				}
+			})
+		}
+	}
+}
+
 func newTestAuthService(t *testing.T) *auth.Service {
 	t.Helper()
 
@@ -467,4 +501,54 @@ func testUserCookie(t *testing.T, svc *auth.Service, user *auth.User) *http.Cook
 	}
 
 	return &http.Cookie{Name: "sithub_user", Value: encodedUser}
+}
+
+func TestBookingExportRouteAccess(t *testing.T) {
+	cases := []struct {
+		name     string
+		user     *auth.User
+		wantCode int
+	}{
+		{name: "anonymous gets 401", user: nil, wantCode: http.StatusUnauthorized},
+		{
+			name: "admin without the data exporter flag gets 403", wantCode: http.StatusForbidden,
+			user: &auth.User{ID: "admin-1", Name: "Admin", AuthSource: "internal", IsPermitted: true, IsAdmin: true},
+		},
+		{
+			name: "regular user gets 403", wantCode: http.StatusForbidden,
+			user: &auth.User{ID: "user-1", Name: "User", AuthSource: "internal", IsPermitted: true},
+		},
+		{
+			name: "data exporter reaches the handler", wantCode: http.StatusOK,
+			user: &auth.User{
+				ID: "exporter-1", Name: "Finance", AuthSource: "internal", IsPermitted: true, IsDataExporter: true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := echo.New()
+			authService := newTestAuthService(t)
+			store := setupStartupTestStore(t)
+			registerAuthMiddleware(e, authService, store)
+			registerRoutes(
+				e, authService, testAreasConfig(),
+				t.TempDir(), t.TempDir(), store,
+				notifications.NewNotifier(""), livefeed.NewHub(), nil, "test-version",
+			)
+
+			for _, path := range []string{"/api/v1/bookings/export", "/api/v1/bookings/export.csv"} {
+				req := httptest.NewRequest(http.MethodGet, path+"?"+exportRange, http.NoBody)
+				if tc.user != nil {
+					req.AddCookie(testUserCookie(t, authService, tc.user))
+				}
+				rec := httptest.NewRecorder()
+				e.ServeHTTP(rec, req)
+				if rec.Code != tc.wantCode {
+					t.Fatalf("%s: expected %d, got %d: %s", path, tc.wantCode, rec.Code, rec.Body.String())
+				}
+			}
+		})
+	}
 }

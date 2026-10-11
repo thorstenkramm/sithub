@@ -24,7 +24,7 @@
     <LoadingState v-if="loading" type="list" :count="5" data-cy="presence-loading" />
 
     <!-- Error State -->
-    <v-alert v-else-if="errorMessage" type="error" class="mb-4" data-cy="presence-error">
+    <v-alert v-else-if="errorMessage" type="error" class="mb-4 api-error-text" data-cy="presence-error">
       {{ errorMessage }}
     </v-alert>
 
@@ -127,7 +127,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute } from 'vue-router';
-import { ApiError, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
+import { ApiError, formatApiErrorMessage, isConnectionError, CONNECTION_LOST_MESSAGE } from '../api/client';
 import { fetchAreaPresence } from '../api/areaPresence';
 import { fetchAreas } from '../api/areas';
 import type { PresenceAttributes } from '../api/areaPresence';
@@ -202,7 +202,7 @@ const loadPresence = async (areaId: string, date: string) => {
       errorMessage.value = t('presence.notFound');
       return;
     }
-    errorMessage.value = t('presence.unableToLoad');
+    errorMessage.value = formatApiErrorMessage(t('apiErrors.load'), err);
   }
 };
 

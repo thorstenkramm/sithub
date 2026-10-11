@@ -1,4 +1,28 @@
 {
+  "apiKeys": {
+    "title": "API-Schlüssel",
+    "add": "Schlüssel hinzufügen",
+    "columns": { "name": "Name", "prefix": "Schlüsselpräfix", "expiry": "Ablaufdatum", "scope": "Berechtigung" },
+    "months": "{count} Monate",
+    "scope": "Buchungen lesen",
+    "createdTitle": "API-Schlüssel erstellt",
+    "key": "API-Schlüssel",
+    "onceWarning": "Speichere diesen Schlüssel jetzt. Er kann nicht erneut angezeigt werden.",
+    "copy": "Schlüssel kopieren",
+    "copied": "Schlüssel kopiert",
+    "copyManual": "Bitte kopiere den markierten Schlüssel manuell. Die Zwischenablage ist nicht verfügbar.",
+    "done": "Fertig",
+    "revoke": "Widerrufen",
+    "revokeTitle": "API-Schlüssel widerrufen",
+    "revokeMessage": "Den API-Schlüssel „{name}“ widerrufen? Dies kann nicht rückgängig gemacht werden.",
+    "revoked": "API-Schlüssel wurde widerrufen",
+    "expired": "Abgelaufen",
+    "emptyTitle": "Keine API-Schlüssel",
+    "emptyMessage": "Füge einen Schlüssel hinzu, um einem externen System Zugriff auf Buchungen zu geben.",
+    "loadError": "API-Schlüssel konnten nicht geladen werden.",
+    "createError": "API-Schlüssel konnte nicht erstellt werden.",
+    "revokeError": "API-Schlüssel konnte nicht widerrufen werden."
+  },
   "app": {
     "navigation": {
       "areas": "Bereiche",
@@ -13,6 +37,9 @@
       "themeDark": "Dunkel",
       "showWeekends": "Wochenenden anzeigen",
       "editFloorPlans": "Raumpläne bearbeiten",
+      "users": "Benutzer",
+      "apiKeys": "API-Schlüssel",
+      "dataExport": "Datenexport",
       "changePassword": "Passwort ändern",
       "avatar": "Profilfoto",
       "signOut": "Abmelden",
@@ -36,17 +63,13 @@
       "invalidCurrentPassword": "Das aktuelle Passwort ist falsch.",
       "requiredFields": "Aktuelles Passwort und neues Passwort sind erforderlich.",
       "tooShort": "Das Passwort muss mindestens 14 Zeichen lang sein.",
-      "localAccountsOnly": "Eine Passwortänderung ist nur für lokale Konten verfügbar.",
-      "failed": "Passwort konnte nicht geändert werden",
-      "genericError": "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+      "localAccountsOnly": "Eine Passwortänderung ist nur für lokale Konten verfügbar."
     },
     "avatarDialog": {
       "title": "Profilfoto",
       "upload": "Hochladen",
       "remove": "Entfernen",
-      "success": "Profilfoto aktualisiert.",
-      "uploadFailed": "Foto konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
-      "deleteFailed": "Foto konnte nicht entfernt werden. Bitte versuchen Sie es erneut."
+      "success": "Profilfoto aktualisiert."
     }
   },
   "auth": {
@@ -92,7 +115,6 @@
     "filterSaved": "Filter gespeichert.",
     "savedAsFavorite": "{name} als Favorit gespeichert.",
     "removedFromFavorites": "{name} aus Favoriten entfernt.",
-    "unableToLoad": "Gruppen konnten nicht geladen werden.",
     "viewTiles": "Kacheln",
     "viewTable": "Tabelle",
     "viewTableDesktopOnly": "Die Tabellenansicht ist nur auf dem Desktop verfügbar."
@@ -137,22 +159,15 @@
     "editNoteTitle": "Notiz bearbeiten",
     "noteLabel": "Notiz",
     "notFound": "Gruppe nicht gefunden.",
-    "unableToLoad": "Objekte konnten nicht geladen werden.",
-    "unableToLoadWeekly": "Wöchentliche Objekte konnten nicht geladen werden.",
     "selectColleagueError": "Bitte wählen Sie einen Kollegen aus.",
-    "unableToBook": "Objekt konnte nicht gebucht werden. Bitte versuchen Sie es erneut.",
     "noLongerAvailable": "Dieses Objekt ist für das gewählte Datum nicht mehr verfügbar.",
     "itemAlreadyBookedForDate": "Das Objekt ist für dieses Datum bereits gebucht",
     "alreadyBookedByYouForDate": "Sie haben dieses Objekt für dieses Datum bereits gebucht",
     "itemNotFound": "Objekt nicht gefunden.",
-    "bookingFailed": "Buchung fehlgeschlagen",
     "unexpectedError": "Unerwarteter Fehler",
     "bookingConfirmed": "Buchung bestätigt.",
     "bookingCancelledSuccessfully": "Buchung erfolgreich storniert.",
     "bookingNotFound": "Buchung nicht gefunden oder bereits storniert.",
-    "unableToCancelBooking": "Buchung konnte nicht storniert werden. Bitte versuchen Sie es erneut.",
-    "unableToCancel": "Buchung konnte nicht storniert werden.",
-    "unableToSaveNote": "Notiz konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "savedFilterDeleted": "Gespeicherter Filter gelöscht.",
     "filterSaved": "Filter gespeichert.",
     "savedAsFavorite": "{name} als Favorit gespeichert.",
@@ -186,7 +201,6 @@
     "cancelButton": "Buchung stornieren",
     "cancelledSuccessfully": "Buchung erfolgreich storniert.",
     "notFoundOrCancelled": "Buchung nicht gefunden oder bereits storniert.",
-    "unableToCancel": "Buchung konnte nicht storniert werden. Bitte versuchen Sie es erneut.",
     "bookedBy": "Gebucht von {name}",
     "guest": "Gast: {name}",
     "addNote": "Notiz hinzufügen",
@@ -222,8 +236,7 @@
     "emptyMessage": "Für das ausgewählte Datum sind keine Objekte in dieser Gruppe gebucht.",
     "unknown": "Unbekannt",
     "itemCount": "{count} Objekt gebucht für {date} | {count} Objekte gebucht für {date}",
-    "notFound": "Gruppe nicht gefunden.",
-    "unableToLoad": "Buchungen konnten nicht geladen werden."
+    "notFound": "Gruppe nicht gefunden."
   },
   "presence": {
     "title": "Heutige Anwesenheit",
@@ -234,8 +247,7 @@
     "unknown": "Unbekannt",
     "bookingNote": "Buchungsnotiz",
     "personCount": "{count} Person eingeplant für {date} | {count} Personen eingeplant für {date}",
-    "notFound": "Bereich nicht gefunden.",
-    "unableToLoad": "Anwesenheit konnte nicht geladen werden."
+    "notFound": "Bereich nicht gefunden."
   },
   "floorPlanEditor": {
     "title": "Raumplan-Editor",
@@ -272,7 +284,6 @@
     "bookingSummary": "{label} in {location} für {dayLabel} ab {startDate} buchen.",
     "dayCount": "{count} Tag | {count} Tage",
     "freeFraction": "{free}/{total} frei",
-    "unableToCheckAvailability": "Die Verfügbarkeit für die ausgewählte Woche konnte nicht geprüft werden.",
     "bookedBy": "Gebucht von {name}",
     "someoneElse": "jemand anderem",
     "alreadyBookedByYou": "Bereits von Ihnen gebucht",
@@ -284,8 +295,7 @@
     "itemAlreadyBooked": "Das ausgewählte Objekt ist bereits gebucht.",
     "bookingCouldNotBeCompleted": "Die Buchung konnte nicht abgeschlossen werden.",
     "bookedSuccessfully": "{label} erfolgreich gebucht.",
-    "bookedForDays": "{label} für {count} Tage gebucht.",
-    "undoFailedStillActive": "Rückgängig fehlgeschlagen. Die Buchung ist weiterhin aktiv."
+    "bookedForDays": "{label} für {count} Tage gebucht."
   },
   "status": {
     "available": "Verfügbar",
@@ -303,6 +313,7 @@
     "save": "Speichern",
     "delete": "Löschen",
     "close": "Schließen",
+    "connectionLost": "Verbindung zum Server verloren",
     "home": "Startseite",
     "date": "Datum",
     "booked": "Gebucht",
@@ -312,12 +323,22 @@
     "presence": "Anwesenheit",
     "bookings": "Buchungen"
   },
+  "apiErrors": {
+    "book": "Objekt konnte nicht gebucht werden. API Fehler:",
+    "cancel": "Buchung konnte nicht storniert werden. API Fehler:",
+    "saveNote": "Notiz konnte nicht gespeichert werden. API Fehler:",
+    "undoBooking": "Buchung konnte nicht rückgängig gemacht werden. API Fehler:",
+    "checkAvailability": "Verfügbarkeit konnte nicht geprüft werden. API Fehler:",
+    "uploadAvatar": "Foto konnte nicht hochgeladen werden. API Fehler:",
+    "deleteAvatar": "Foto konnte nicht entfernt werden. API Fehler:",
+    "changePassword": "Passwort konnte nicht geändert werden. API Fehler:",
+    "load": "Daten konnten nicht geladen werden. API Fehler:"
+  },
   "matrix": {
     "bookingConfirmed": "Buchung bestätigt.",
     "deskNoLongerAvailable": "Dieser Platz ist nicht mehr verfügbar.",
     "cancelBooking": "Buchung stornieren",
     "cancelConfirmed": "Buchung storniert.",
-    "cancelFailed": "Buchung konnte nicht storniert werden.",
     "person": "Person",
     "desk": "Platz"
   },
@@ -343,5 +364,62 @@
     "frShort": "F",
     "saShort": "S",
     "suShort": "S"
+  },
+  "weekSelector": {
+    "weekNumber": "KW {week}",
+    "previousWeek": "Vorherige Woche",
+    "nextWeek": "Nächste Woche"
+  },
+  "adminUsers": {
+    "title": "Benutzer",
+    "subtitle": "Alle Benutzerkonten und ihre letzte Anmeldung",
+    "colEmail": "E-Mail",
+    "colName": "Name",
+    "colRoles": "Rolle(n)",
+    "colLastLogin": "Zuletzt angemeldet",
+    "never": "nie",
+    "roleAdmin": "Admin",
+    "roleUser": "Benutzer",
+    "loadError": "Die Benutzer konnten nicht geladen werden.",
+    "remove": "Benutzer entfernen",
+    "cannotRemoveSelf": "Sie können Ihr eigenes Konto nicht entfernen.",
+    "removeError": "Benutzer konnte nicht entfernt werden.",
+    "deactivated": "deaktiviert",
+    "deleteTitle": "Benutzer löschen",
+    "deleteMessage": "{name} hat keine Buchungen und wird endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+    "deleteConfirm": "Löschen",
+    "deleteSuccess": "{name} wurde gelöscht.",
+    "deleteError": "Benutzer konnte nicht gelöscht werden.",
+    "deactivateTitle": "Benutzer deaktivieren",
+    "deactivateMessage": "Damit der Buchungsverlauf erhalten bleibt, wird {name} deaktiviert statt gelöscht. Eine Anmeldung ist danach nicht mehr möglich.",
+    "deactivateMessageEntra": "Damit der Buchungsverlauf erhalten bleibt, wird {name} deaktiviert statt gelöscht. Meldet sich {name} erneut über Microsoft an, wird das Konto automatisch wieder aktiviert. Um den Zugang dauerhaft zu sperren, entfernen Sie die Person aus der Entra-ID-Gruppe.",
+    "futureBookingsCanceled": "Eine künftige Buchung wird storniert. | {count} künftige Buchungen werden storniert.",
+    "deactivateConfirm": "Deaktivieren",
+    "deactivateSuccess": "{name} wurde deaktiviert.",
+    "deactivateSuccessCanceled": "{name} wurde deaktiviert, eine Buchung wurde storniert. | {name} wurde deaktiviert, {count} Buchungen wurden storniert.",
+    "deactivateError": "Benutzer konnte nicht deaktiviert werden.",
+    "roleDataExporter": "Datenexport",
+    "colDataExporter": "Datenexport",
+    "dataExporterGranted": "Rolle Datenexport erteilt.",
+    "dataExporterRevoked": "Rolle Datenexport entzogen.",
+    "dataExporterError": "Die Rolle Datenexport konnte nicht geändert werden."
+  },
+  "dataExport": {
+    "exportCsv": "Als CSV exportieren",
+    "exportCsvSuccess": "CSV-Datei heruntergeladen",
+    "exportCsvFailed": "CSV-Export fehlgeschlagen. API Fehler:",
+    "title": "Datenexport",
+    "subtitle": "Alle Buchungen eines Zeitraums und Bereichs ansehen",
+    "fromDate": "Von Datum",
+    "toDate": "Bis Datum",
+    "area": "Bereich",
+    "allAreas": "Alle Bereiche",
+    "colName": "Name",
+    "colEmail": "E-Mail",
+    "colItem": "Gebuchtes Objekt",
+    "colDate": "Buchungsdatum",
+    "emptyTable": "Für diesen Zeitraum und Bereich wurden keine Buchungen gefunden.",
+    "unknownUser": "Unbekannter Benutzer",
+    "loadFailedPrefix": "Die Buchungen konnten nicht geladen werden. API-Fehler:"
   }
 }

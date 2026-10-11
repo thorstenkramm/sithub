@@ -75,6 +75,30 @@
               <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
             </v-list-item>
             <v-list-item
+              v-if="authStore.isAdmin"
+              :to="{ name: 'admin-users' }"
+              data-cy="users-menu-btn"
+            >
+              <template #prepend>
+                <v-icon size="small">$users</v-icon>
+              </template>
+              <v-list-item-title>{{ $t('app.userMenu.users') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item v-if="authStore.isAdmin" :to="{ name: 'api-keys' }" data-cy="api-keys-btn">
+              <template #prepend><v-icon size="small">$key</v-icon></template>
+              <v-list-item-title>{{ $t('app.userMenu.apiKeys') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item
+              v-if="authStore.isDataExporter"
+              :to="{ name: 'data-export' }"
+              data-cy="data-export-btn"
+            >
+              <template #prepend>
+                <v-icon size="small">$dataExport</v-icon>
+              </template>
+              <v-list-item-title>{{ $t('app.userMenu.dataExport') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item
               v-if="authStore.authSource === 'internal'"
               data-cy="avatar-btn"
               @click="showAvatarDialog = true"
@@ -200,6 +224,35 @@
             <v-list-item-title>{{ $t('app.userMenu.editFloorPlans') }}</v-list-item-title>
           </v-list-item>
           <v-list-item
+            v-if="authStore.isAdmin"
+            :to="{ name: 'admin-users' }"
+            data-cy="mobile-users-menu-btn"
+            @click="mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon>$users</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('app.userMenu.users') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            v-if="authStore.isAdmin" :to="{ name: 'api-keys' }"
+            data-cy="mobile-api-keys-btn" @click="mobileDrawer = false"
+          >
+            <template #prepend><v-icon>$key</v-icon></template>
+            <v-list-item-title>{{ $t('app.userMenu.apiKeys') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            v-if="authStore.isDataExporter"
+            :to="{ name: 'data-export' }"
+            data-cy="mobile-data-export-btn"
+            @click="mobileDrawer = false"
+          >
+            <template #prepend>
+              <v-icon>$dataExport</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('app.userMenu.dataExport') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item
             v-if="authStore.authSource === 'internal'"
             data-cy="mobile-avatar-btn"
             @click="showAvatarDialog = true; mobileDrawer = false"
@@ -303,7 +356,7 @@
               type="error"
               variant="tonal"
               density="compact"
-              class="mb-2"
+              class="mb-2 api-error-text"
               data-cy="password-error"
             >
               {{ passwordError }}
@@ -374,7 +427,7 @@
               type="error"
               variant="tonal"
               density="compact"
-              class="mt-3"
+              class="mt-3 api-error-text"
               data-cy="avatar-error"
             >
               {{ avatarError }}
@@ -409,7 +462,7 @@ import { getAvatarUrl, uploadAvatar, deleteAvatar } from './api/avatars';
 import { logout } from './api/auth';
 import { fetchVersion } from './api/version';
 import { changePassword } from './api/me';
-import { ApiError } from './api/client';
+import { ApiError, formatApiErrorMessage } from './api/client';
 import { useI18n } from 'vue-i18n';
 import { useThemePreference } from './composables/useThemePreference';
 import { useLocalePreference } from './composables/useLocalePreference';
@@ -513,8 +566,8 @@ async function handleAvatarUpload(event: Event) {
     avatarCacheBust.value = Date.now();
     avatarLoadFailed.value = false;
     avatarSuccess.value = true;
-  } catch {
-    avatarError.value = t('app.avatarDialog.uploadFailed');
+  } catch (err) {
+    avatarError.value = formatApiErrorMessage(t('apiErrors.uploadAvatar'), err);
   } finally {
     avatarUploading.value = false;
     input.value = '';
@@ -529,8 +582,8 @@ async function handleAvatarDelete() {
     avatarCacheBust.value = Date.now();
     avatarLoadFailed.value = true;
     avatarSuccess.value = true;
-  } catch {
-    avatarError.value = t('app.avatarDialog.deleteFailed');
+  } catch (err) {
+    avatarError.value = formatApiErrorMessage(t('apiErrors.deleteAvatar'), err);
   } finally {
     avatarDeleting.value = false;
   }
@@ -566,9 +619,11 @@ async function handleLogout() {
   router.push('/login');
 }
 
-function getPasswordErrorMessage(err: unknown): string {
+// Returns a localized prefix for known failures followed by the backend detail.
+// A 401 here means "wrong current password", not an expired session: no redirect.
+function getPasswordErrorPrefix(err: unknown): string {
   if (!(err instanceof ApiError)) {
-    return t('app.passwordDialog.genericError');
+    return t('apiErrors.changePassword');
   }
 
   const detail = err.detail?.toLowerCase() ?? '';
@@ -584,7 +639,7 @@ function getPasswordErrorMessage(err: unknown): string {
   if (detail.includes('local accounts')) {
     return t('app.passwordDialog.localAccountsOnly');
   }
-  return t('app.passwordDialog.failed');
+  return t('apiErrors.changePassword');
 }
 
 async function handlePasswordChange() {
@@ -595,7 +650,7 @@ async function handlePasswordChange() {
     await changePassword(currentPassword.value, newPassword.value);
     passwordSuccess.value = true;
   } catch (err) {
-    passwordError.value = getPasswordErrorMessage(err);
+    passwordError.value = formatApiErrorMessage(getPasswordErrorPrefix(err), err);
   } finally {
     passwordLoading.value = false;
   }
