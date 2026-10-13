@@ -16,6 +16,8 @@ import (
 	"github.com/thorstenkramm/sithub/internal/notifications"
 )
 
+const warmupBookingID = "warmup"
+
 // dialClient spins up a tiny upgrade-only test server and dials it. The
 // returned ws conn is the client side; the server side is registered with the
 // hub.
@@ -49,6 +51,59 @@ func dialClient(t *testing.T, hub *Hub) *websocket.Conn {
 	return conn
 }
 
+// waitForRegistration blocks until the hub delivers events to conn. The hub
+// registers clients asynchronously and silently drops events sent before the
+// registration lands, so a background ticker keeps sending warmup events while
+// the test blocks on a SINGLE read with a generous deadline.
+// gorilla/websocket treats a timed-out read as FATAL for the connection, so
+// polling with short read deadlines (e.g. ReadJSON inside Eventually) poisons
+// the connection on its first miss and can never recover under -race on CI.
+func waitForRegistration(t *testing.T, hub *Hub, conn *websocket.Conn) {
+	t.Helper()
+
+	stopWarmup := make(chan struct{})
+	warmupDone := make(chan struct{})
+	go func() {
+		defer close(warmupDone)
+		ticker := time.NewTicker(20 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopWarmup:
+				return
+			case <-ticker.C:
+				hub.NotifyAsync(&notifications.BookingEvent{
+					Event:       notifications.EventBookingCreated,
+					BookingID:   warmupBookingID,
+					BookingDate: "2026-05-11",
+					Timestamp:   "2026-05-10T12:00:00Z",
+				})
+			}
+		}
+	}()
+	_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second)) //nolint:errcheck // deadline-only
+	var warm Event
+	err := conn.ReadJSON(&warm)
+	close(stopWarmup)
+	<-warmupDone
+	require.NoError(t, err, "websocket client never registered with hub")
+}
+
+// readNonWarmup reads events from conn, skipping leftover warmups queued by
+// waitForRegistration. Events enqueued after waitForRegistration returns come
+// after any leftover warmups, so the loop is guaranteed to terminate.
+func readNonWarmup(t *testing.T, conn *websocket.Conn) Event {
+	t.Helper()
+
+	var got Event
+	for {
+		require.NoError(t, conn.ReadJSON(&got))
+		if got.BookingID != warmupBookingID {
+			return got
+		}
+	}
+}
+
 func TestHubBroadcastReachesClient(t *testing.T) {
 	t.Parallel()
 
@@ -59,22 +114,7 @@ func TestHubBroadcastReachesClient(t *testing.T) {
 
 	conn := dialClient(t, hub)
 
-	// Wait for the hub to register the client. Without this, NotifyAsync
-	// can fire before Register completes and the event is dropped.
-	// 5 s ceiling (rather than 1 s) so the test tolerates the slower goroutine
-	// scheduling of -race on the CI runner; the happy path still exits in a
-	// few tens of milliseconds.
-	require.Eventually(t, func() bool {
-		hub.NotifyAsync(&notifications.BookingEvent{
-			Event:       notifications.EventBookingCreated,
-			BookingID:   "warmup",
-			Timestamp:   "2026-05-10T12:00:00Z",
-			BookingDate: "2026-05-11",
-		})
-		_ = conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond)) //nolint:errcheck // deadline-only
-		var ev Event
-		return conn.ReadJSON(&ev) == nil
-	}, 5*time.Second, 20*time.Millisecond, "warm-up event never received")
+	waitForRegistration(t, hub, conn)
 
 	hub.NotifyAsync(&notifications.BookingEvent{
 		Event:       notifications.EventBookingCreated,
@@ -87,9 +127,8 @@ func TestHubBroadcastReachesClient(t *testing.T) {
 		GuestEmail:  "should-be-stripped@example.com",
 	})
 
-	_ = conn.SetReadDeadline(time.Now().Add(time.Second)) //nolint:errcheck // deadline-only
-	var got Event
-	require.NoError(t, conn.ReadJSON(&got))
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second)) //nolint:errcheck // deadline-only
+	got := readNonWarmup(t, conn)
 	assert.Equal(t, EventBookingCreated, got.Type)
 	assert.Equal(t, "b1", got.BookingID)
 	assert.Equal(t, "desk1", got.ItemID)

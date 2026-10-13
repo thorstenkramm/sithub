@@ -55,38 +55,7 @@ func TestHandlerBroadcastsEventToAuthorizedClient(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = conn.Close() }) //nolint:errcheck // best-effort cleanup
 
-	// The hub registers the client asynchronously; events sent before the
-	// registration lands are silently dropped. Keep sending warmup events from
-	// a background ticker and block on a SINGLE read with a generous deadline.
-	// gorilla/websocket treats a timed-out read as FATAL for the connection,
-	// so the previous poll (repeated ReadJSON with a 50 ms deadline inside
-	// Eventually) poisoned the connection on its first miss and could never
-	// recover — the root cause of the -race CI flake.
-	stopWarmup := make(chan struct{})
-	warmupDone := make(chan struct{})
-	go func() {
-		defer close(warmupDone)
-		ticker := time.NewTicker(20 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopWarmup:
-				return
-			case <-ticker.C:
-				hub.NotifyAsync(&notifications.BookingEvent{
-					Event:       notifications.EventBookingCreated,
-					BookingID:   "warmup",
-					BookingDate: "2026-05-11",
-					Timestamp:   "2026-05-10T12:00:00Z",
-				})
-			}
-		}
-	}()
-	_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second)) //nolint:errcheck // deadline-only
-	var warm Event
-	require.NoError(t, conn.ReadJSON(&warm), "websocket client never registered with hub")
-	close(stopWarmup)
-	<-warmupDone
+	waitForRegistration(t, hub, conn)
 
 	// Everything enqueued from here on comes after any leftover warmups, so
 	// skipping warmups below is guaranteed to terminate at "b1".
@@ -101,13 +70,7 @@ func TestHandlerBroadcastsEventToAuthorizedClient(t *testing.T) {
 	})
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second)) //nolint:errcheck // deadline-only
-	var got Event
-	for {
-		require.NoError(t, conn.ReadJSON(&got))
-		if got.BookingID != "warmup" {
-			break
-		}
-	}
+	got := readNonWarmup(t, conn)
 	assert.Equal(t, EventBookingCreated, got.Type)
 	assert.Equal(t, "b1", got.BookingID)
 	assert.Equal(t, "desk-1", got.ItemID)
