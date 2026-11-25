@@ -26,6 +26,10 @@
     "vuetify": "^3.13.6"
   },
   "overrides": {
+    "js-beautify": {
+      "glob": "^14.0.2",
+      "editorconfig": "^4.0.1"
+    },
     "flatted": "^3.4.2",
     "yauzl": "^3.2.1"
   },
