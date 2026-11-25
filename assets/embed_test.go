@@ -4,7 +4,9 @@ package assets
 import (
 	"fmt"
 	"io/fs"
+	"net/url"
 	"path"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -38,16 +40,16 @@ func TestWebEmbedContainsInterLicense(t *testing.T) {
 
 func TestWebEmbedContainsLocalFonts(t *testing.T) {
 	files := embeddedFiles(t)
-	stylesheets := embeddedStylesheets(files)
+	faces := embeddedFontFaces(t, files)
 	subsets := []string{"cyrillic", "cyrillic-ext", "greek", "greek-ext", "latin", "latin-ext", "vietnamese"}
 	weights := []string{"400", "500", "600", "700"}
 	for _, weight := range weights {
 		for _, subset := range subsets {
 			prefix := "inter-" + subset + "-" + weight + "-normal"
-			requireInterFontFace(t, files, stylesheets, prefix, weight)
+			requireInterFontFace(t, faces, prefix, weight)
 		}
 	}
-	requireReferencedWOFF2(t, files, stylesheets, "materialdesignicons-webfont")
+	requireWOFF2Face(t, faces, "materialdesignicons-webfont")
 }
 
 func TestWebEmbedHasNoRemoteFontReferences(t *testing.T) {
@@ -87,23 +89,9 @@ func embeddedFiles(t *testing.T) map[string][]byte {
 	return files
 }
 
-func embeddedStylesheets(files map[string][]byte) string {
-	var stylesheets strings.Builder
-	for name, data := range files {
-		if path.Ext(name) == ".css" {
-			stylesheets.Write(data)
-		}
-	}
-	return stylesheets.String()
-}
-
-func requireInterFontFace(t *testing.T, files map[string][]byte, stylesheets, prefix, weight string) {
+func requireInterFontFace(t *testing.T, faces map[string]string, prefix, weight string) {
 	t.Helper()
-	assetName := requireReferencedWOFF2(t, files, stylesheets, prefix)
-	block := fontFaceBlockForAsset(stylesheets, assetName)
-	if block == "" {
-		t.Fatalf("embedded font %s has no associated @font-face block", assetName)
-	}
+	block := requireWOFF2Face(t, faces, prefix)
 	normalized := strings.NewReplacer("'", "", "\"", "").Replace(strings.Join(strings.Fields(block), ""))
 	declarations := []string{
 		"font-family:Inter;",
@@ -113,45 +101,57 @@ func requireInterFontFace(t *testing.T, files map[string][]byte, stylesheets, pr
 	}
 	for _, declaration := range declarations {
 		if !strings.Contains(normalized, declaration) {
-			t.Errorf("@font-face for %s is missing %s: %s", assetName, declaration, block)
+			t.Errorf("@font-face for %s is missing %s: %s", prefix, declaration, block)
 		}
 	}
 }
 
-func fontFaceBlockForAsset(stylesheets, assetName string) string {
-	remaining := stylesheets
-	for {
-		faceStart := strings.Index(remaining, "@font-face")
-		if faceStart < 0 {
-			return ""
-		}
-		remaining = remaining[faceStart+len("@font-face"):]
-		faceEnd := strings.Index(remaining, "}")
-		if faceEnd < 0 {
-			return ""
-		}
-		block := remaining[:faceEnd]
-		if strings.Contains(block, assetName) {
-			return block
-		}
-		remaining = remaining[faceEnd+1:]
-	}
-}
-
-func requireReferencedWOFF2(t *testing.T, files map[string][]byte, stylesheets, prefix string) string {
+func embeddedFontFaces(t *testing.T, files map[string][]byte) map[string]string {
 	t.Helper()
+	blocks := regexp.MustCompile(`@font-face\s*\{[^}]*\}`)
+	sources := regexp.MustCompile(`url\(\s*["']?([^\s"')]+)["']?\s*\)`)
+	faces := make(map[string]string)
 	for name, data := range files {
-		base := path.Base(name)
-		if !strings.HasPrefix(base, prefix) || !strings.HasSuffix(base, ".woff2") {
+		if path.Ext(name) != ".css" {
 			continue
 		}
-		if len(data) < 4 || string(data[:4]) != "wOF2" {
-			t.Fatalf("embedded font %s is not a valid WOFF2 payload", name)
+		base := url.URL{Path: strings.TrimPrefix(name, "web")}
+		for _, block := range blocks.FindAllString(string(data), -1) {
+			for _, match := range sources.FindAllStringSubmatch(block, -1) {
+				if file := checkedFontURL(t, files, &base, match[1]); path.Ext(file) == ".woff2" {
+					faces[path.Base(file)] = block
+				}
+			}
 		}
-		if !strings.Contains(stylesheets, base) {
-			t.Fatalf("embedded font %s is not referenced by the production CSS", name)
+	}
+	return faces
+}
+
+func checkedFontURL(t *testing.T, files map[string][]byte, base *url.URL, src string) string {
+	t.Helper()
+	ref, err := base.Parse(src)
+	if err != nil || ref.Host != "" || (ref.Scheme != "" && ref.Scheme != "data") {
+		t.Fatalf("%s: expected local font URL, got %q", base.Path, src)
+	}
+	if ref.Scheme == "data" {
+		return ""
+	}
+	font, ok := files["web"+ref.Path]
+	if !ok {
+		t.Fatalf("%s: font URL %q resolves to missing asset %s", base.Path, src, ref.Path)
+	}
+	if path.Ext(ref.Path) == ".woff2" && (len(font) < 4 || string(font[:4]) != "wOF2") {
+		t.Fatalf("invalid WOFF2 signature: %s", ref.Path)
+	}
+	return ref.Path
+}
+
+func requireWOFF2Face(t *testing.T, faces map[string]string, prefix string) string {
+	t.Helper()
+	for name, block := range faces {
+		if strings.HasPrefix(name, prefix) {
+			return block
 		}
-		return base
 	}
 	t.Fatalf("embedded frontend is missing %s*.woff2; rebuild the frontend before running asset tests", prefix)
 	return ""

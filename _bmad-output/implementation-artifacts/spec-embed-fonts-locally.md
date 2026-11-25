@@ -69,6 +69,17 @@ context:
 - Given an application response, when CSP is inspected, then `font-src` is exactly `'self' data:` and neither Google host is allowed.
 - Given a frontend rebuild, when icons render and changes are inspected, then MDI still works and no generated `assets/web` output is committed.
 
+### Review Findings
+
+- [x] Build the frontend before local Go checks so tests read fresh embedded assets.
+- [x] Import the Cypress `Interception` type and type-check the font spec directly.
+- [x] Clear the HTTP cache and block cross-origin browser requests during the font check.
+- [x] Load a font-backed MDI icon and verify its versioned WOFF2 response by pathname.
+- [x] Assert that visible application navigation selects Inter as its first family.
+- [x] Resolve CSS font URLs against their stylesheet and verify the exact embedded path.
+- [x] Check the font and style CSP directives independently of unrelated directive order.
+- [x] Document the seeded test credentials required by the focused Cypress command.
+
 ## Spec Change Log
 
 ## Design Notes
@@ -80,7 +91,12 @@ Use `@fontsource/inter` static entries, matching npm-managed MDI without renamin
 **Commands:**
 - `cd web && npm ci && npm run type-check && npm run lint && npm run test:unit:coverage && npm run build` -- expected: all checks and asset generation pass.
 - `go test -race ./assets ./internal/startup && go test -race ./...` -- expected: privacy regressions and complete backend suite pass against fresh output.
-- `cd web && npx cypress run --browser electron --config baseUrl=http://localhost:8080 --spec cypress/e2e/fonts.cy.ts` with the normal test backend -- expected: four local Inter weights and zero Google requests.
+- With a running local test binary seeded from `tools/database/demo-users.sql`, run from `web/`:
+  ```sh
+  CYPRESS_testUserEmail=anna@sithub.local CYPRESS_testUserPassword='SitHubDemo2026!!' \
+    npx cypress run --browser electron --config baseUrl=http://localhost:8080 --spec cypress/e2e/fonts.cy.ts
+  ```
+  The cold-cache check passed against a fresh binary: all four Latin/Cyrillic weights and MDI loaded locally.
 - `rg -n 'fonts\.(googleapis|gstatic)\.com' web/index.html assets/web internal/startup` -- expected: no runtime matches.
 
 ## Suggested Review Order
@@ -106,7 +122,7 @@ Use `@fontsource/inter` static entries, matching npm-managed MDI without renamin
 - Observe real browser requests and each Latin/Cyrillic weight response.
   [`fonts.cy.ts:14`](../../web/cypress/e2e/fonts.cy.ts#L14)
 
-- Pin the exact local-only CSP and reject both Google hosts.
+- Check the local font and style directives and reject both Google hosts.
   [`server_test.go:108`](../../internal/startup/server_test.go#L108)
 
 **Distribution metadata**

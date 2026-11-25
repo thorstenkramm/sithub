@@ -35,31 +35,30 @@ run_step() {
 
 cd "${ROOT_DIR}"
 
-# Remove web/node_modules before Go steps to prevent npm packages
-# that ship .go files (e.g. flatted) from being picked up by Go tooling.
-# npm ci will recreate node_modules later.
-rm -rf "${WEB_DIR}/node_modules"
+# Go embeds the frontend at compile time, including in the asset tests.
+run_step "Install frontend deps" bash -c "cd \"${WEB_DIR}\" && npm ci"
+run_step "Frontend build" bash -c "cd \"${WEB_DIR}\" && npm run build"
+# Exclude npm packages that ship Go sources, as CI does.
+packages=$(go list ./... | grep -v '/web/node_modules/')
 
 run_step "golangci-lint config verify" golangci-lint config verify
-run_step "golangci-lint run" golangci-lint run --timeout=5m ./...
+run_step "golangci-lint run" golangci-lint run --timeout=5m $packages
 run_step "Go tests (race + coverage)" bash -c \
-	'go test -race -covermode=atomic -coverprofile=coverage.out ./... &&
+	'go test -race -covermode=atomic -coverprofile=coverage.out "$@" &&
    total=$(go tool cover -func=coverage.out | awk "/^total:/ {print \$3}") &&
    pct=${total%\%} &&
    echo "Go coverage: ${pct}%" &&
-   awk -v pct="$pct" '\''BEGIN {exit !(pct >= 80)}'\'''
+   awk -v pct="$pct" '\''BEGIN {exit !(pct >= 80)}'\''' _ $packages
 
 run_step "Markdown lint" npx --yes markdownlint-cli README.md
 run_step "API doc lint" npx @redocly/cli lint --lint-config off ./api-doc/openapi.yaml
-run_step "Code duplication (Go)" npx jscpd --pattern "**/*.go" --ignore "**/*_test.go" --threshold 3
+run_step "Code duplication (Go)" npx jscpd --pattern "**/*.go" --ignore "**/*_test.go,**/node_modules/**" --threshold 3
 
-run_step "Install frontend deps" bash -c "cd \"${WEB_DIR}\" && npm ci"
 run_step "Frontend type-check" bash -c "cd \"${WEB_DIR}\" && npm run type-check"
 run_step "Frontend lint" bash -c "cd \"${WEB_DIR}\" && npm run lint"
 run_step "Code duplication (frontend)" bash -c \
 	"cd \"${WEB_DIR}\" && npx jscpd --pattern \"**/*.ts\" --ignore \"**/node_modules/**,**/*.test.ts\" --threshold 0 --exit-code 1"
 run_step "Frontend unit tests (coverage)" bash -c "cd \"${WEB_DIR}\" && npm run test:unit:coverage"
-run_step "Frontend build" bash -c "cd \"${WEB_DIR}\" && npm run build"
 
 # Security tests
 run_step "Frontend NPM Audit" bash -c "cd \"${WEB_DIR}\" && npm audit --audit-level=high"

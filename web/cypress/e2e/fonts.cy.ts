@@ -1,79 +1,64 @@
-const interWeights = [400, 500, 600, 700] as const;
-const fontProbeText = 'SitHub Inter — Привіт, Україна!';
+import type { Interception } from 'cypress/types/net-stubbing';
 
-describe('local fonts', () => {
-  beforeEach(() => {
-    cy.clearCookies();
-    cy.clearLocalStorage();
-    cy.intercept(/^https?:\/\/fonts\.googleapis\.com\//).as('googleFontStylesheets');
-    cy.intercept(/^https?:\/\/fonts\.gstatic\.com\//).as('googleFontFiles');
-    cy.intercept('GET', '**/*.woff2').as('fontFiles');
+const weights = [400, 500, 600, 700];
+const sample = 'SitHub Inter — Привіт, Україна!';
+
+describe('local fonts', { browser: { family: 'chromium' } }, () => {
+  it('loads text and icon fonts with only the SitHub origin reachable', () => {
+    const origin = new URL(Cypress.config('baseUrl')!).origin;
+    const blocked: string[] = [];
     cy.login();
-  });
-
-  it('should load every Inter weight from SitHub without Google requests', () => {
-    cy.intercept('GET', '/api/v1/areas').as('listAreas');
+    cy.then(() => Cypress.automation('remote:debugger:protocol', { command: 'Network.clearBrowserCache' }));
+    cy.intercept({ url: '**', middleware: true }, (req) => {
+      if (new URL(req.url).origin !== origin) {
+        blocked.push(req.url);
+        req.destroy();
+      }
+    });
+    cy.intercept({ method: 'GET', pathname: '**/*.woff2' }).as('fonts');
+    cy.viewport(1280, 800);
     cy.visit('/');
-    cy.wait('@listAreas').its('response.statusCode').should('eq', 200);
-    cy.get('.v-application').should('exist');
+    cy.get('[data-cy="nav-areas"]').should('be.visible').and(($nav) => {
+      expect($nav.css('font-family').split(',')[0].replace(/["']/g, '')).to.equal('Inter');
+    });
 
     cy.document().then(async (doc) => {
-      const probes = interWeights.map((weight) => {
-        const probe = doc.createElement('span');
-        probe.textContent = fontProbeText;
-        probe.style.fontFamily = 'Inter';
-        probe.style.fontWeight = String(weight);
-        doc.body.append(probe);
-        return probe;
-      });
+      for (const weight of weights) {
+        const faces = await doc.fonts.load(`${weight} 16px Inter`, sample);
+        expect(faces.some((face) => face.weight === String(weight) && face.status === 'loaded')).to.be.true;
+      }
 
+      // Configured icons use MDI classes, while many default icons render as SVG.
+      const icon = doc.createElement('i');
+      icon.className = 'mdi mdi-home';
+      doc.body.append(icon);
       try {
-        const facesByWeight = await Promise.all(
-          interWeights.map((weight) => doc.fonts.load(`${weight} 16px "Inter"`, fontProbeText))
-        );
-
-        facesByWeight.forEach((faces, index) => {
-          const weight = interWeights[index];
-          const hasLoadedNormalFace = faces.some(
-            (face) =>
-              face.family.replaceAll('"', '') === 'Inter' &&
-              face.style === 'normal' &&
-              face.weight === String(weight) &&
-              face.status === 'loaded'
-          );
-          expect(hasLoadedNormalFace, `normal Inter ${weight} is loaded for English and Ukrainian text`).to.be
-            .true;
-        });
+        const glyph = doc.defaultView!.getComputedStyle(icon, '::before');
+        expect(glyph.fontFamily).to.contain('Material Design Icons');
+        const text = glyph.content.replace(/["']/g, '');
+        expect(text).to.have.length.greaterThan(0).and.not.equal('none');
+        const faces = await doc.fonts.load('16px "Material Design Icons"', text);
+        expect(faces.some((face) => face.status === 'loaded')).to.be.true;
       } finally {
-        probes.forEach((probe) => probe.remove());
+        icon.remove();
       }
     });
 
-    cy.location('origin').then((origin) => {
-      cy.get('@fontFiles.all').then((interceptions) => {
-        const fontResponses = interceptions as Cypress.Interception[];
-        expect(fontResponses.length, 'captured WOFF2 responses').to.be.greaterThan(0);
-
-        fontResponses.forEach((interception) => {
-          const url = new URL(interception.request.url);
-          expect(url.origin, `response origin for ${url.pathname}`).to.eq(origin);
-          expect(interception.response?.statusCode, `response status for ${url.pathname}`).to.eq(200);
-        });
-
-        interWeights.forEach((weight) => {
-          (['latin', 'cyrillic'] as const).forEach((subset) => {
-            const subsetResponses = fontResponses.filter((interception) =>
-              new URL(interception.request.url).pathname.includes(
-                `inter-${subset}-${weight}-normal`
-              )
-            );
-            expect(subsetResponses, `${subset} Inter ${weight} responses`).to.have.length(1);
-          });
-        });
+    cy.get<Interception[]>('@fonts.all').should((requests) => {
+      const paths = requests.map(({ request, response }) => {
+        const url = new URL(request.url);
+        expect(url.origin).to.equal(origin);
+        expect(response?.statusCode, url.pathname).to.equal(200);
+        return url.pathname;
       });
+      expect(paths.some((p) => p.includes('materialdesignicons-webfont'))).to.be.true;
+      for (const weight of weights) {
+        for (const subset of ['latin', 'cyrillic']) {
+          const name = `inter-${subset}-${weight}-normal`;
+          expect(paths.some((p) => p.includes(name)), name).to.be.true;
+        }
+      }
+      expect(blocked, 'attempted third-party requests').to.be.empty;
     });
-
-    cy.get('@googleFontStylesheets.all').should('have.length', 0);
-    cy.get('@googleFontFiles.all').should('have.length', 0);
   });
 });
