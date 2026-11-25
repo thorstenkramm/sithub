@@ -69,20 +69,24 @@ func TestBookingFlowBroadcastsCreateAndCancelEventsWithActorIdentity(t *testing.
 	}
 	t.Cleanup(func() { _ = conn.Close() }) //nolint:errcheck // best-effort cleanup
 
-	// 5 s ceiling (rather than 1 s) so the test tolerates the slower goroutine
-	// scheduling of -race on the CI runner; the happy path still exits in a
-	// few tens of milliseconds.
-	require.Eventually(t, func() bool {
+	// The server starts reading control frames only after hub registration.
+	// Its pong is a readiness barrier; retrying a timed-out Gorilla read is not safe.
+	conn.SetPongHandler(func(_ string) error {
 		hub.NotifyAsync(&notifications.BookingEvent{
 			Event:       notifications.EventBookingCreated,
 			BookingID:   "warmup",
 			BookingDate: "2026-05-11",
 			Timestamp:   "2026-05-10T12:00:00Z",
 		})
-		_ = conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond)) //nolint:errcheck // deadline-only
-		var ev livefeed.Event
-		return conn.ReadJSON(&ev) == nil
-	}, 5*time.Second, 20*time.Millisecond, "websocket client never registered with hub")
+		return nil
+	})
+	deadline := time.Now().Add(5 * time.Second)
+	require.NoError(t, conn.WriteControl(websocket.PingMessage, nil, deadline))
+	require.NoError(t, conn.SetReadDeadline(deadline))
+	var warmup livefeed.Event
+	require.NoError(t, conn.ReadJSON(&warmup))
+	require.Equal(t, "warmup", warmup.BookingID)
+	conn.SetPongHandler(nil)
 
 	bookingDate := time.Now().UTC().AddDate(0, 0, 1).Format(time.DateOnly)
 	createReqBody := `{"data":{"type":"bookings","attributes":{"item_id":"desk-1","booking_date":"` +

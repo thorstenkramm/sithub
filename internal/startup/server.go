@@ -162,10 +162,9 @@ func bodyLimitConfig() echomw.BodyLimitConfig {
 }
 
 // secureConfig returns the HTTP security header configuration applied to every
-// response. The Content-Security-Policy permits only same-origin resources plus
-// the Google Fonts hosts the SPA loads (fonts.googleapis.com for the stylesheet,
-// fonts.gstatic.com for the font files) and inline styles injected by Vuetify at
-// runtime. data:/blob: images cover avatars and floor-plan previews.
+// response. The Content-Security-Policy permits only same-origin resources and
+// inline styles injected by Vuetify at runtime. data: fonts support inline font
+// data, while data:/blob: images cover avatars and floor-plan previews.
 func secureConfig() echomw.SecureConfig {
 	return echomw.SecureConfig{
 		XSSProtection:      "1; mode=block",
@@ -201,8 +200,7 @@ func contentSecurityPolicyValue(req *http.Request) string {
 		connectSrc += " ws://" + host + " wss://" + host
 	}
 	return "default-src 'self'; script-src 'self'; img-src 'self' data: blob:; " +
-		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-		"font-src 'self' data: https://fonts.gstatic.com; " + connectSrc
+		"style-src 'self' 'unsafe-inline'; font-src 'self' data:; " + connectSrc
 }
 
 func safeHostSource(host string) string {
