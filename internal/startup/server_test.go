@@ -105,8 +105,16 @@ func TestSecurityHeadersPresent(t *testing.T) {
 	if !strings.Contains(csp, "default-src 'self'") {
 		t.Fatalf("CSP missing default-src 'self': %q", csp)
 	}
-	if !strings.Contains(csp, "https://fonts.googleapis.com") {
-		t.Fatalf("CSP must allow Google Fonts stylesheet host: %q", csp)
+	wantCSP := "default-src 'self'; script-src 'self'; img-src 'self' data: blob:; " +
+		"style-src 'self' 'unsafe-inline'; font-src 'self' data:; " +
+		"connect-src 'self' ws://sithub.example.com wss://sithub.example.com"
+	if csp != wantCSP {
+		t.Fatalf("CSP = %q, want exact local-only resource policy %q", csp, wantCSP)
+	}
+	for _, host := range []string{"fonts.googleapis.com", "fonts.gstatic.com"} {
+		if strings.Contains(csp, host) {
+			t.Fatalf("CSP must not allow remote font host %q: %q", host, csp)
+		}
 	}
 	if !strings.Contains(csp, "connect-src 'self' ws://sithub.example.com wss://sithub.example.com") {
 		t.Fatalf("CSP must explicitly allow same-host live-feed WebSockets: %q", csp)
