@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -105,26 +106,22 @@ func TestSecurityHeadersPresent(t *testing.T) {
 	if !strings.Contains(csp, "default-src 'self'") {
 		t.Fatalf("CSP missing default-src 'self': %q", csp)
 	}
-	if !strings.Contains(csp, "https://fonts.googleapis.com") {
-		t.Fatalf("CSP must allow Google Fonts stylesheet host: %q", csp)
+	directives := strings.Split(csp, ";")
+	for i := range directives {
+		directives[i] = strings.TrimSpace(directives[i])
 	}
-	if !strings.Contains(csp, "connect-src 'self' ws://sithub.example.com wss://sithub.example.com") {
-		t.Fatalf("CSP must explicitly allow same-host live-feed WebSockets: %q", csp)
-	}
-	connectSrc := ""
-	for _, directive := range strings.Split(csp, ";") {
-		directive = strings.TrimSpace(directive)
-		if strings.HasPrefix(directive, "connect-src ") {
-			connectSrc = directive
-			break
+	for _, want := range []string{
+		"style-src 'self' 'unsafe-inline'",
+		"font-src 'self' data:",
+		"connect-src 'self' ws://sithub.example.com wss://sithub.example.com",
+	} {
+		if !slices.Contains(directives, want) {
+			t.Fatalf("CSP missing directive %q: %s", want, csp)
 		}
 	}
-	if connectSrc == "" {
-		t.Fatalf("CSP missing connect-src directive: %q", csp)
-	}
-	for _, source := range strings.Fields(connectSrc)[1:] {
-		if source == "ws:" || source == "wss:" {
-			t.Fatalf("CSP must not allow arbitrary WebSocket origins: %q", csp)
+	for _, host := range []string{"fonts.googleapis.com", "fonts.gstatic.com"} {
+		if strings.Contains(csp, host) {
+			t.Fatalf("CSP must not allow remote font host %q: %q", host, csp)
 		}
 	}
 }
